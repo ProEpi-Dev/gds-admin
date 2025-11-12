@@ -1,0 +1,26 @@
+meta {
+  name: Atualizar contexto
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/contexts/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "locationId": 0,
+    "name": "",
+    "description": "",
+    "type": "",
+    "accessType": "",
+    "active": false
+  }
+}

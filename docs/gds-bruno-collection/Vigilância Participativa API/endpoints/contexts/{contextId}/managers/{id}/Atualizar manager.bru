@@ -1,0 +1,24 @@
+meta {
+  name: Atualizar manager
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/contexts/:contextId/managers/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  contextId: 
+  id: 
+}
+
+body:json {
+  {
+    "userId": 0,
+    "contextId": 0,
+    "active": false
+  }
+}

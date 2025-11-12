@@ -1,0 +1,26 @@
+meta {
+  name: Atualizar versão do formulário
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/forms/:formId/versions/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  formId: 
+  id: 
+}
+
+body:json {
+  {
+    "formId": 0,
+    "versionNumber": 0,
+    "accessType": "",
+    "definition": {},
+    "active": false
+  }
+}

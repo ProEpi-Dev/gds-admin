@@ -1,0 +1,23 @@
+meta {
+  name: Atualizar usuário
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/users/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 3
+}
+
+body:json {
+  {
+    "name": "Maria Alterada",
+    "email": "mariaalterada@exemplo.com",
+    "active": true
+  }
+}

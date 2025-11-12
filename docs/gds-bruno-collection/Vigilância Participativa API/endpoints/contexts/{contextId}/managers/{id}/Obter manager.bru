@@ -1,0 +1,16 @@
+meta {
+  name: Obter manager
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/contexts/:contextId/managers/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  contextId: 
+  id: 
+}

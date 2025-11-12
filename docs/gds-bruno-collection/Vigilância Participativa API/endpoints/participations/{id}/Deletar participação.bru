@@ -1,0 +1,15 @@
+meta {
+  name: Deletar participação
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/participations/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

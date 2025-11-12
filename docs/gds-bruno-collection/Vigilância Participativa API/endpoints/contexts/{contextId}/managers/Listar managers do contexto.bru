@@ -1,0 +1,21 @@
+meta {
+  name: Listar managers do contexto
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/contexts/:contextId/managers
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~pageSize: 
+  ~active: 
+}
+
+params:path {
+  contextId: 
+}

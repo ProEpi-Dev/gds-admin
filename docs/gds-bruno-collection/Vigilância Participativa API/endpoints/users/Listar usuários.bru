@@ -1,0 +1,18 @@
+meta {
+  name: Listar usuários
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/users?page=1&pageSize=20&active=false
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+  active: false
+  ~search: ria
+}

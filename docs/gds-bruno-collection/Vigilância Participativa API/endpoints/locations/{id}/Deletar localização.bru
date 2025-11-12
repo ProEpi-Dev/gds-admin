@@ -1,0 +1,15 @@
+meta {
+  name: Deletar localização
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/locations/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

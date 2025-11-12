@@ -1,0 +1,16 @@
+meta {
+  name: Deletar versão do formulário
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/forms/:formId/versions/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  formId: 
+  id: 
+}

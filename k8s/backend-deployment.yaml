@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gds-backend
+  namespace: gds
+  labels:
+    app: gds-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gds-backend
+  template:
+    metadata:
+      labels:
+        app: gds-backend
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: backend
+        image: ghcr.io/gleytonlima/gds/backend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: production
+        - name: PORT
+          value: "3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: gds-secrets
+              key: DATABASE_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gds-secrets
+              key: JWT_SECRET
+        - name: JWT_EXPIRES_IN
+          valueFrom:
+            secretKeyRef:
+              name: gds-secrets
+              key: JWT_EXPIRES_IN
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5

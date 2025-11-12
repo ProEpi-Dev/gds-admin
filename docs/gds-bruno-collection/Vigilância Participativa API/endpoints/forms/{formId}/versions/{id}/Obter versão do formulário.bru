@@ -1,0 +1,16 @@
+meta {
+  name: Obter versão do formulário
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/forms/:formId/versions/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  formId: 
+  id: 
+}

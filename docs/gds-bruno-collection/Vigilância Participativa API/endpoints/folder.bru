@@ -1,0 +1,16 @@
+meta {
+  name: endpoints
+  seq: 3
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+script:pre-request {
+  const token_response = bru.runRequest("auth/login/auth")
+}

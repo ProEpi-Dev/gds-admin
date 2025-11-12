@@ -1,0 +1,16 @@
+meta {
+  name: Remover manager do contexto
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/contexts/:contextId/managers/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  contextId: 
+  id: 
+}

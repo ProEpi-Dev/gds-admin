@@ -1,0 +1,1743 @@
+openapi: 3.0.3
+info:
+  title: Vigilância Participativa API
+  description: API REST para sistema de vigilância participativa em saúde pública
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: https://staging-api.example.com/v1
+    description: Staging server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: Endpoints de autenticação
+  - name: Users
+    description: Gerenciamento de usuários
+  - name: Locations
+    description: Gerenciamento de localizações
+  - name: Contexts
+    description: Gerenciamento de contextos
+  - name: Participations
+    description: Gerenciamento de participações
+  - name: Context Managers
+    description: Gerenciamento de managers de contexto
+  - name: Forms
+    description: Gerenciamento de formulários
+  - name: Form Versions
+    description: Gerenciamento de versões de formulários
+  - name: Reports
+    description: Gerenciamento de reports
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT no formato Bearer
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalPages:
+          type: integer
+        totalItems:
+          type: integer
+
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          type: string
+          format: uri
+        last:
+          type: string
+          format: uri
+        prev:
+          type: string
+          format: uri
+          nullable: true
+        next:
+          type: string
+          format: uri
+          nullable: true
+
+    User:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    UserCreate:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        active:
+          type: boolean
+          default: true
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        active:
+          type: boolean
+
+    Location:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        parentId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        polygons:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    LocationCreate:
+      type: object
+      required:
+        - name
+      properties:
+        parentId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        polygons:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+          default: true
+
+    LocationUpdate:
+      type: object
+      properties:
+        parentId:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        polygons:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+
+    Context:
+      type: object
+      required:
+        - name
+        - locationId
+        - accessType
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        locationId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ContextCreate:
+      type: object
+      required:
+        - name
+        - locationId
+        - accessType
+      properties:
+        locationId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        active:
+          type: boolean
+          default: true
+
+    ContextUpdate:
+      type: object
+      properties:
+        locationId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        active:
+          type: boolean
+
+    Participation:
+      type: object
+      required:
+        - userId
+        - contextId
+        - startDate
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ParticipationCreate:
+      type: object
+      required:
+        - userId
+        - contextId
+        - startDate
+      properties:
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        active:
+          type: boolean
+          default: true
+
+    ParticipationUpdate:
+      type: object
+      properties:
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        active:
+          type: boolean
+
+    ContextManager:
+      type: object
+      required:
+        - userId
+        - contextId
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ContextManagerCreate:
+      type: object
+      required:
+        - userId
+        - contextId
+      properties:
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        active:
+          type: boolean
+          default: true
+
+    ContextManagerUpdate:
+      type: object
+      properties:
+        userId:
+          type: integer
+        contextId:
+          type: integer
+        active:
+          type: boolean
+
+    Form:
+      type: object
+      required:
+        - title
+        - type
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        contextId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [signal, quiz]
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    FormCreate:
+      type: object
+      required:
+        - title
+        - type
+      properties:
+        contextId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [signal, quiz]
+        active:
+          type: boolean
+          default: true
+
+    FormUpdate:
+      type: object
+      properties:
+        contextId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [signal, quiz]
+        active:
+          type: boolean
+
+    FormVersion:
+      type: object
+      required:
+        - formId
+        - versionNumber
+        - accessType
+        - definition
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        formId:
+          type: integer
+        versionNumber:
+          type: integer
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        definition:
+          type: object
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    FormVersionCreate:
+      type: object
+      required:
+        - formId
+        - versionNumber
+        - accessType
+        - definition
+      properties:
+        formId:
+          type: integer
+        versionNumber:
+          type: integer
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        definition:
+          type: object
+        active:
+          type: boolean
+          default: true
+
+    FormVersionUpdate:
+      type: object
+      properties:
+        formId:
+          type: integer
+        versionNumber:
+          type: integer
+        accessType:
+          type: string
+          enum: [PUBLIC, PRIVATE]
+        definition:
+          type: object
+        active:
+          type: boolean
+
+    Report:
+      type: object
+      required:
+        - participationId
+        - formVersionId
+        - reportType
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        participationId:
+          type: integer
+        formVersionId:
+          type: integer
+        reportType:
+          type: string
+          enum: [POSITIVE, NEGATIVE]
+        description:
+          type: string
+          nullable: true
+        occurrenceLocation:
+          type: object
+          nullable: true
+        responses:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ReportCreate:
+      type: object
+      required:
+        - participationId
+        - formVersionId
+        - reportType
+      properties:
+        participationId:
+          type: integer
+        formVersionId:
+          type: integer
+        reportType:
+          type: string
+          enum: [POSITIVE, NEGATIVE]
+        description:
+          type: string
+          nullable: true
+        occurrenceLocation:
+          type: object
+          nullable: true
+        responses:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+          default: true
+
+    ReportUpdate:
+      type: object
+      properties:
+        participationId:
+          type: integer
+        formVersionId:
+          type: integer
+        reportType:
+          type: string
+          enum: [POSITIVE, NEGATIVE]
+        description:
+          type: string
+          nullable: true
+        occurrenceLocation:
+          type: object
+          nullable: true
+        responses:
+          type: object
+          nullable: true
+        active:
+          type: boolean
+
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: ID do recurso
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Número da página
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Tamanho da página
+
+  responses:
+    BadRequestError:
+      description: Requisição inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    UnauthorizedError:
+      description: Não autorizado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFoundError:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Autenticar usuário
+      description: Realiza login e retorna token JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Listar usuários
+      description: Retorna lista paginada de usuários
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Users
+      summary: Criar usuário
+      description: Cria um novo usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Obter usuário por ID
+      description: Retorna detalhes de um usuário específico
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes do usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags:
+        - Users
+      summary: Atualizar usuário
+      description: Atualiza um usuário existente
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    delete:
+      tags:
+        - Users
+      summary: Deletar usuário
+      description: Remove um usuário
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Usuário deletado com sucesso
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /locations:
+    get:
+      tags:
+        - Locations
+      summary: Listar localizações
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: parentId
+          in: query
+          schema:
+            type: integer
+            nullable: true
+      responses:
+        '200':
+          description: Lista de localizações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Location'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Locations
+      summary: Criar localização
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationCreate'
+      responses:
+        '201':
+          description: Localização criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /locations/{id}:
+    get:
+      tags:
+        - Locations
+      summary: Obter localização
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes da localização
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Locations
+      summary: Atualizar localização
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationUpdate'
+      responses:
+        '200':
+          description: Localização atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Locations
+      summary: Deletar localização
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Localização deletada
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /contexts:
+    get:
+      tags:
+        - Contexts
+      summary: Listar contextos
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: locationId
+          in: query
+          schema:
+            type: integer
+        - name: accessType
+          in: query
+          schema:
+            type: string
+            enum: [PUBLIC, PRIVATE]
+      responses:
+        '200':
+          description: Lista de contextos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Context'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Contexts
+      summary: Criar contexto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextCreate'
+      responses:
+        '201':
+          description: Contexto criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /contexts/{id}:
+    get:
+      tags:
+        - Contexts
+      summary: Obter contexto
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes do contexto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Contexts
+      summary: Atualizar contexto
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextUpdate'
+      responses:
+        '200':
+          description: Contexto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Contexts
+      summary: Deletar contexto
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Contexto deletado
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /participations:
+    get:
+      tags:
+        - Participations
+      summary: Listar participações
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: contextId
+          in: query
+          schema:
+            type: integer
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de participações
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Participation'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Participations
+      summary: Criar participação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationCreate'
+      responses:
+        '201':
+          description: Participação criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participation'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /participations/{id}:
+    get:
+      tags:
+        - Participations
+      summary: Obter participação
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes da participação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participation'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Participations
+      summary: Atualizar participação
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationUpdate'
+      responses:
+        '200':
+          description: Participação atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participation'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Participations
+      summary: Deletar participação
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Participação deletada
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /contexts/{contextId}/managers:
+    get:
+      tags:
+        - Context Managers
+      summary: Listar managers do contexto
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de managers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContextManager'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Context Managers
+      summary: Adicionar manager ao contexto
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextManagerCreate'
+      responses:
+        '201':
+          description: Manager adicionado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextManager'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /contexts/{contextId}/managers/{id}:
+    get:
+      tags:
+        - Context Managers
+      summary: Obter manager
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes do manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextManager'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Context Managers
+      summary: Atualizar manager
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextManagerUpdate'
+      responses:
+        '200':
+          description: Manager atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextManager'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Context Managers
+      summary: Remover manager do contexto
+      parameters:
+        - name: contextId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Manager removido
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /forms:
+    get:
+      tags:
+        - Forms
+      summary: Listar formulários
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: contextId
+          in: query
+          schema:
+            type: integer
+            nullable: true
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [signal, quiz]
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de formulários
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Form'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Forms
+      summary: Criar formulário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormCreate'
+      responses:
+        '201':
+          description: Formulário criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /forms/{id}:
+    get:
+      tags:
+        - Forms
+      summary: Obter formulário
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes do formulário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Forms
+      summary: Atualizar formulário
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormUpdate'
+      responses:
+        '200':
+          description: Formulário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Forms
+      summary: Deletar formulário
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Formulário deletado
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /forms/{formId}/versions:
+    get:
+      tags:
+        - Form Versions
+      summary: Listar versões do formulário
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de versões
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FormVersion'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Form Versions
+      summary: Criar versão do formulário
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormVersionCreate'
+      responses:
+        '201':
+          description: Versão criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormVersion'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /forms/{formId}/versions/{id}:
+    get:
+      tags:
+        - Form Versions
+      summary: Obter versão do formulário
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes da versão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormVersion'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Form Versions
+      summary: Atualizar versão do formulário
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormVersionUpdate'
+      responses:
+        '200':
+          description: Versão atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormVersion'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Form Versions
+      summary: Deletar versão do formulário
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Versão deletada
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /reports:
+    get:
+      tags:
+        - Reports
+      summary: Listar reports
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: participationId
+          in: query
+          schema:
+            type: integer
+        - name: formVersionId
+          in: query
+          schema:
+            type: integer
+        - name: reportType
+          in: query
+          schema:
+            type: string
+            enum: [POSITIVE, NEGATIVE]
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Reports
+      summary: Criar report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Report criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /reports/{id}:
+    get:
+      tags:
+        - Reports
+      summary: Obter report
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Detalhes do report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    put:
+      tags:
+        - Reports
+      summary: Atualizar report
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportUpdate'
+      responses:
+        '200':
+          description: Report atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      tags:
+        - Reports
+      summary: Deletar report
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Report deletado
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+

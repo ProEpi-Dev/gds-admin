@@ -1,0 +1,19 @@
+meta {
+  name: Listar formulários
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/forms
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~pageSize: 
+  ~contextId: 
+  ~type: 
+  ~active: 
+}

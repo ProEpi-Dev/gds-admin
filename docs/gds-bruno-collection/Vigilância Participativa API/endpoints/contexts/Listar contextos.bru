@@ -1,0 +1,19 @@
+meta {
+  name: Listar contextos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/contexts
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~pageSize: 
+  ~active: 
+  ~locationId: 
+  ~accessType: 
+}

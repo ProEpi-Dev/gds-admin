@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model context {
+  id              Int                 @id @default(autoincrement())
+  location_id     Int?
+  name            String              @db.VarChar(255)
+  description     String?
+  type            String?             @db.VarChar(255)
+  access_type     context_access_type
+  created_at      DateTime            @default(now()) @db.Timestamp(6)
+  updated_at      DateTime            @default(now()) @db.Timestamp(6)
+  active          Boolean             @default(true)
+  location        location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  context_manager context_manager[]
+  form            form[]
+  participation   participation[]
+
+  @@index([location_id], map: "idx_context_location_id")
+}
+
+model context_manager {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  context_id Int
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  active     Boolean  @default(true)
+  context    context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, context_id])
+  @@index([context_id], map: "idx_context_manager_context_id")
+  @@index([user_id], map: "idx_context_manager_user_id")
+}
+
+model flyway_schema_history {
+  installed_rank Int      @id(map: "flyway_schema_history_pk")
+  version        String?  @db.VarChar(50)
+  description    String   @db.VarChar(200)
+  type           String   @db.VarChar(20)
+  script         String   @db.VarChar(1000)
+  checksum       Int?
+  installed_by   String   @db.VarChar(100)
+  installed_on   DateTime @default(now()) @db.Timestamp(6)
+  execution_time Int
+  success        Boolean
+
+  @@index([success], map: "flyway_schema_history_s_idx")
+}
+
+model form {
+  id           Int            @id @default(autoincrement())
+  context_id   Int?
+  title        String         @db.VarChar(255)
+  reference    String?        @db.VarChar(255)
+  description  String?
+  type         form_type_enum
+  created_at   DateTime       @default(now()) @db.Timestamp(6)
+  updated_at   DateTime       @default(now()) @db.Timestamp(6)
+  active       Boolean        @default(true)
+  context      context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  form_version form_version[]
+
+  @@index([context_id], map: "idx_form_context_id")
+}
+
+model form_version {
+  id             Int                      @id @default(autoincrement())
+  form_id        Int
+  version_number Int
+  definition     Json
+  access_type    form_version_access_type
+  created_at     DateTime                 @default(now()) @db.Timestamp(6)
+  updated_at     DateTime                 @default(now()) @db.Timestamp(6)
+  active         Boolean                  @default(true)
+  form           form                     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report         report[]
+
+  @@unique([form_id, version_number])
+  @@index([form_id], map: "idx_form_version_form_id")
+}
+
+model location {
+  id             Int        @id @default(autoincrement())
+  parent_id      Int?
+  name           String     @db.VarChar(255)
+  latitude       Decimal?   @db.Decimal(10, 8)
+  longitude      Decimal?   @db.Decimal(11, 8)
+  polygons       Json?
+  created_at     DateTime   @default(now()) @db.Timestamp(6)
+  updated_at     DateTime   @default(now()) @db.Timestamp(6)
+  active         Boolean    @default(true)
+  context        context[]
+  location       location?  @relation("locationTolocation", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_location location[] @relation("locationTolocation")
+
+  @@index([parent_id], map: "idx_location_parent_id")
+}
+
+model participation {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  context_id Int
+  start_date DateTime  @db.Date
+  end_date   DateTime? @db.Date
+  active     Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @db.Timestamp(6)
+  context    context   @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report     report[]
+
+  @@index([context_id], map: "idx_participation_context_id")
+  @@index([user_id], map: "idx_participation_user_id")
+}
+
+model report {
+  id                  Int              @id @default(autoincrement())
+  participation_id    Int
+  report_type         report_type_enum
+  occurrence_location Json?
+  form_version_id     Int
+  form_response       Json
+  created_at          DateTime         @default(now()) @db.Timestamp(6)
+  updated_at          DateTime         @default(now()) @db.Timestamp(6)
+  active              Boolean          @default(true)
+  form_version        form_version     @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
+  participation       participation    @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([form_version_id], map: "idx_report_form_version_id")
+  @@index([participation_id], map: "idx_report_participation_id")
+}
+
+model user {
+  id              Int               @id @default(autoincrement())
+  name            String            @db.VarChar(255)
+  email           String            @unique @db.VarChar(255)
+  password        String            @db.VarChar(255)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  active          Boolean           @default(true)
+  context_manager context_manager[]
+  participation   participation[]
+
+  @@index([email], map: "idx_user_email")
+}
+
+enum context_access_type {
+  PUBLIC
+  PRIVATE
+}
+
+enum form_type_enum {
+  signal
+  quiz
+}
+
+enum form_version_access_type {
+  PUBLIC
+  PRIVATE
+}
+
+enum report_type_enum {
+  POSITIVE
+  NEGATIVE
+}

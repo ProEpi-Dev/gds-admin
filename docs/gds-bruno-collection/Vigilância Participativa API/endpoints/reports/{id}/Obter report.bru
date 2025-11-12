@@ -1,0 +1,15 @@
+meta {
+  name: Obter report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/reports/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

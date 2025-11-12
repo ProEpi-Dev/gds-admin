@@ -1,0 +1,15 @@
+meta {
+  name: Obter formulário
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/forms/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

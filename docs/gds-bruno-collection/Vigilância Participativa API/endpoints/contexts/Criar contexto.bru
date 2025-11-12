@@ -1,0 +1,22 @@
+meta {
+  name: Criar contexto
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/contexts
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "locationId": 0,
+    "name": "",
+    "description": "",
+    "type": "",
+    "accessType": "",
+    "active": false
+  }
+}

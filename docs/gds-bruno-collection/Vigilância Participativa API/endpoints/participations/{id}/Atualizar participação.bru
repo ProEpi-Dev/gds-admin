@@ -1,0 +1,25 @@
+meta {
+  name: Atualizar participação
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/participations/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "userId": 0,
+    "contextId": 0,
+    "startDate": "",
+    "endDate": "",
+    "active": false
+  }
+}

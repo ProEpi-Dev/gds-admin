@@ -1,0 +1,21 @@
+meta {
+  name: Listar versões do formulário
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/forms/:formId/versions
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~pageSize: 
+  ~active: 
+}
+
+params:path {
+  formId: 
+}

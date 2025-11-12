@@ -1,0 +1,21 @@
+meta {
+  name: Criar participação
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/participations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "userId": 0,
+    "contextId": 0,
+    "startDate": "",
+    "endDate": "",
+    "active": false
+  }
+}

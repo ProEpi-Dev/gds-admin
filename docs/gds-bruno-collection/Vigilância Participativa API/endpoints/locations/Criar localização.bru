@@ -1,0 +1,22 @@
+meta {
+  name: Criar localização
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/locations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parentId": 0,
+    "name": "",
+    "latitude": "",
+    "longitude": "",
+    "polygons": {},
+    "active": false
+  }
+}

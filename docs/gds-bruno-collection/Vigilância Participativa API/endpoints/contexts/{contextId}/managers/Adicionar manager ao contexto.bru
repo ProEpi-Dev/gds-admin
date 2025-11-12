@@ -1,0 +1,23 @@
+meta {
+  name: Adicionar manager ao contexto
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/contexts/:contextId/managers
+  body: json
+  auth: inherit
+}
+
+params:path {
+  contextId: 
+}
+
+body:json {
+  {
+    "userId": 0,
+    "contextId": 0,
+    "active": false
+  }
+}

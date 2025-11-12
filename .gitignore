@@ -1,0 +1,8 @@
+# Environment variables
+.env
+migrations/.env
+
+# Keep example files
+!.env.example
+!migrations/.env.example
+

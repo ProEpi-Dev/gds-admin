@@ -1,0 +1,26 @@
+meta {
+  name: Atualizar localização
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/locations/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "parentId": 0,
+    "name": "",
+    "latitude": "",
+    "longitude": "",
+    "polygons": {},
+    "active": false
+  }
+}

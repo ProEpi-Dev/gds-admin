@@ -1,0 +1,23 @@
+meta {
+  name: Criar report
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/reports
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "participationId": 0,
+    "formVersionId": 0,
+    "reportType": "",
+    "description": "",
+    "occurrenceLocation": {},
+    "responses": {},
+    "active": false
+  }
+}

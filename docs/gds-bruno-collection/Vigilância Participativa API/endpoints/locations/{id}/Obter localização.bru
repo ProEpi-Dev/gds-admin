@@ -1,0 +1,15 @@
+meta {
+  name: Obter localização
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/locations/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

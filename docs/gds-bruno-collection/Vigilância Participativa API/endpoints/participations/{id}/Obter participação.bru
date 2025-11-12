@@ -1,0 +1,15 @@
+meta {
+  name: Obter participação
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/participations/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}

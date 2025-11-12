@@ -1,0 +1,27 @@
+meta {
+  name: Atualizar report
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/reports/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "participationId": 0,
+    "formVersionId": 0,
+    "reportType": "",
+    "description": "",
+    "occurrenceLocation": {},
+    "responses": {},
+    "active": false
+  }
+}

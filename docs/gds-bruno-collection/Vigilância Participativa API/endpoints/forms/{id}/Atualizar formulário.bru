@@ -1,0 +1,26 @@
+meta {
+  name: Atualizar formulário
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/forms/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "contextId": 0,
+    "title": "",
+    "reference": "",
+    "description": "",
+    "type": "",
+    "active": false
+  }
+}
