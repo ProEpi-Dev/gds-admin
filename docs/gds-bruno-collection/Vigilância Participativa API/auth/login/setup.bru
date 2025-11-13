@@ -5,15 +5,18 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/auth/login
+  url: {{baseUrl}}/setup
   body: json
   auth: inherit
 }
 
 body:json {
   {
-    "email": "admin@example.com",
-    "password": "admin123"
+    "managerName": "Admin",
+    "managerEmail": "admin@example.com",
+    "managerPassword": "admin123",
+    "contextName": "Contexto Principal",
+    "contextDescription": "Contexto padrão do sistema"
   }
 }
 
