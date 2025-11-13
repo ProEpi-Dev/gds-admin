@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { form_type_enum } from '../../../generated/prisma/enums';
+import { form_type_enum } from '@prisma/client';
 import { ContextResponseDto } from '../../contexts/dto/context-response.dto';
 import { FormVersionResponseDto } from '../../form-versions/dto/form-version-response.dto';
 

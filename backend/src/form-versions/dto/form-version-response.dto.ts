@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { form_version_access_type } from '../../../generated/prisma/enums';
+import { form_version_access_type } from '@prisma/client';
 
 export class FormVersionResponseDto {
   @ApiProperty({ description: 'ID da versão do formulário', example: 1 })

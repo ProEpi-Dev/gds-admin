@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsBoolean, IsOptional, IsEnum, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
-import { form_version_access_type } from '../../../generated/prisma/enums';
+import { form_version_access_type } from '@prisma/client';
 
 export class UpdateFormVersionDto {
   @ApiPropertyOptional({

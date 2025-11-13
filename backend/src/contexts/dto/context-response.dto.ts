@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { context_access_type } from '../../../generated/prisma/enums';
+import { context_access_type } from '@prisma/client';
 
 export class ContextResponseDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { report_type_enum } from '../../../generated/prisma/enums';
+import { report_type_enum } from '@prisma/client';
 
 export class ReportResponseDto {
   @ApiProperty({ description: 'ID do report', example: 1 })

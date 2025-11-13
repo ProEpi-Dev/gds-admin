@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNumber, IsBoolean, IsOptional, IsEnum, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
-import { report_type_enum } from '../../../generated/prisma/enums';
+import { report_type_enum } from '@prisma/client';
 
 export class UpdateReportDto {
   @ApiPropertyOptional({

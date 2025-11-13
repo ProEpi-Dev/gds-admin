@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SetupDto } from './dto/setup.dto';
 import { SetupResponseDto } from './dto/setup-response.dto';
-import { context_access_type } from '../../generated/prisma/enums';
+import { context_access_type } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()

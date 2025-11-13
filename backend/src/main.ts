@@ -14,6 +14,12 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:5173', // Vite default
       'http://localhost:4200', // Angular default
+      'https://dev.gds.proepi.org.br',
+      'https://www.dev.gds.proepi.org.br',
+      'https://api.dev.gds.proepi.org.br',
+      'https://www.api.dev.gds.proepi.org.br',
+      'https://www.dev.gds.proepi.org.br',
+      'https://www.dev.gds.proepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
