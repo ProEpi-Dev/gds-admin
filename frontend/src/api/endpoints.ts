@@ -2,6 +2,7 @@ export const API_ENDPOINTS = {
   // Auth
   AUTH: {
     LOGIN: '/auth/login',
+    CHANGE_PASSWORD: '/auth/change-password',
   },
   
   // Setup
@@ -84,6 +85,7 @@ export const API_ENDPOINTS = {
     CREATE: '/reports',
     UPDATE: (id: number) => `/reports/${id}`,
     DELETE: (id: number) => `/reports/${id}`,
+    POINTS: '/reports/points',
   },
 };
 

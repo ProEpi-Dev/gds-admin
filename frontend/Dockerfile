@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 WORKDIR /app
 
 # Copy package files
@@ -14,7 +17,9 @@ RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
 COPY . .
 
 # Build the application
-RUN if [ -f yarn.lock ]; then yarn build; \
+RUN echo "Building with VITE_API_BASE_URL=${VITE_API_BASE_URL}" && \
+    if [ -z "$VITE_API_BASE_URL" ]; then echo "ERROR: VITE_API_BASE_URL is not set" && exit 1; fi && \
+    if [ -f yarn.lock ]; then yarn build; \
     else npm run build; fi
 
 # Production stage

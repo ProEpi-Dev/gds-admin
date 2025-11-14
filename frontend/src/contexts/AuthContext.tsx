@@ -1,12 +1,12 @@
 import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthUser } from '../types/auth.types';
+import type { AuthUser, ParticipationLogin } from '../types/auth.types';
 import { STORAGE_KEYS } from '../utils/constants';
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (token: string, user: AuthUser) => void;
+  login: (token: string, user: AuthUser, participation: ParticipationLogin | null) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -36,11 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(stored.user);
   const [token, setToken] = useState<string | null>(stored.token);
 
-  const login = (newToken: string, newUser: AuthUser) => {
+  const login = (newToken: string, newUser: AuthUser, participation: ParticipationLogin | null) => {
+    const userWithParticipation: AuthUser = {
+      ...newUser,
+      participation,
+    };
     setToken(newToken);
-    setUser(newUser);
+    setUser(userWithParticipation);
     localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, newToken);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userWithParticipation));
   };
 
   const logout = () => {

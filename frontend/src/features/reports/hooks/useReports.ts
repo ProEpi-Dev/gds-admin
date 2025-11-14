@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reportsService } from '../../../api/services/reports.service';
-import type { CreateReportDto, UpdateReportDto, ReportQuery } from '../../../types/report.types';
+import type { CreateReportDto, UpdateReportDto, ReportQuery, ReportsPointsQuery } from '../../../types/report.types';
 
 export function useReports(query?: ReportQuery) {
   return useQuery({
@@ -49,6 +49,14 @@ export function useDeleteReport() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
+  });
+}
+
+export function useReportsPoints(query: ReportsPointsQuery) {
+  return useQuery({
+    queryKey: ['reports', 'points', query],
+    queryFn: () => reportsService.findPoints(query),
+    enabled: !!query.startDate && !!query.endDate,
   });
 }
 

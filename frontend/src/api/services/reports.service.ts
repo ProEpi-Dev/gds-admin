@@ -1,6 +1,6 @@
 import apiClient from '../client';
 import { API_ENDPOINTS } from '../endpoints';
-import type { CreateReportDto, UpdateReportDto, ReportQuery, Report } from '../../types/report.types';
+import type { CreateReportDto, UpdateReportDto, ReportQuery, Report, ReportPoint, ReportsPointsQuery } from '../../types/report.types';
 import type { ListResponse } from '../../types/api.types';
 
 export const reportsService = {
@@ -34,6 +34,18 @@ export const reportsService = {
 
   async remove(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.REPORTS.DELETE(id));
+  },
+
+  async findPoints(query: ReportsPointsQuery): Promise<ReportPoint[]> {
+    const params = new URLSearchParams();
+    if (query.formId !== undefined) {
+      params.append('formId', query.formId.toString());
+    }
+    params.append('startDate', query.startDate);
+    params.append('endDate', query.endDate);
+
+    const response = await apiClient.get(`${API_ENDPOINTS.REPORTS.POINTS}?${params.toString()}`);
+    return response.data;
   },
 };
 

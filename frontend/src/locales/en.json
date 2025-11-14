@@ -72,13 +72,29 @@
     "errorLoading": "Error loading reports",
     "errorLoadingReport": "Error loading report",
     "errorCreatingReport": "Error creating report",
-    "errorUpdatingReport": "Error updating report"
+    "errorUpdatingReport": "Error updating report",
+    "mapView": "Map View",
+    "filters": "Filters",
+    "form": "Form",
+    "allForms": "All forms",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "invalidDateRange": "Start date must be before end date",
+    "errorLoadingPoints": "Error loading points",
+    "noPointsFound": "No points found for the selected filters",
+    "selectFiltersAndSearch": "Select filters and click search to view points on the map"
   },
   "auth": {
     "login": "Login",
     "email": "Email",
     "password": "Password",
-    "loginMessage": "Please login to continue"
+    "loginMessage": "Please login to continue",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordChangedSuccess": "Password changed successfully! Redirecting...",
+    "passwordRequirements": "Minimum 8 characters, with at least one uppercase letter, one lowercase letter and one number"
   },
   "participations": {
     "title": "Participations",

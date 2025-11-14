@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AppLayout from '../components/layout/AppLayout';
 import LoginPage from '../features/auth/pages/LoginPage';
+import ChangePasswordPage from '../features/auth/pages/ChangePasswordPage';
 import SetupPage from '../features/setup/pages/SetupPage';
 import FormBuilderPage from '../features/forms/pages/FormBuilderPage';
 import FormsListPage from '../features/forms/pages/FormsListPage';
@@ -12,6 +13,7 @@ import FormViewPage from '../features/forms/pages/FormViewPage';
 import FormVersionViewPage from '../features/forms/pages/FormVersionViewPage';
 import FormVersionEditPage from '../features/forms/pages/FormVersionEditPage';
 import ReportsListPage from '../features/reports/pages/ReportsListPage';
+import ReportsMapPage from '../features/reports/pages/ReportsMapPage';
 import ReportCreatePage from '../features/reports/pages/ReportCreatePage';
 import ReportEditPage from '../features/reports/pages/ReportEditPage';
 import ReportViewPage from '../features/reports/pages/ReportViewPage';
@@ -53,6 +55,14 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/"
         element={
@@ -122,6 +132,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ReportsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports/map"
+        element={
+          <ProtectedRoute>
+            <ReportsMapPage />
           </ProtectedRoute>
         }
       />

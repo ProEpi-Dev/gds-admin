@@ -836,6 +836,13 @@
   dependencies:
     "@types/leaflet" "^1.9"
 
+"@types/leaflet.markercluster@^1.5.6":
+  version "1.5.6"
+  resolved "https://registry.yarnpkg.com/@types/leaflet.markercluster/-/leaflet.markercluster-1.5.6.tgz#3fff147abeee2303b3814d5799151ae14d72654e"
+  integrity sha512-I7hZjO2+isVXGYWzKxBp8PsCzAYCJBc29qBdFpquOCkS7zFDqUsUvkEOyQHedsk/Cy5tocQzf+Ndorm5W9YKTQ==
+  dependencies:
+    "@types/leaflet" "^1.9"
+
 "@types/leaflet@^1.9", "@types/leaflet@^1.9.21":
   version "1.9.21"
   resolved "https://registry.yarnpkg.com/@types/leaflet/-/leaflet-1.9.21.tgz#542e8f91250bc444f8a1416d472f5b518d83e979"
@@ -1738,6 +1745,11 @@ leaflet-draw@^1.0.4:
   resolved "https://registry.yarnpkg.com/leaflet-draw/-/leaflet-draw-1.0.4.tgz#45be92f378ed253e7202fdeda1fcc71885198d46"
   integrity sha512-rsQ6saQO5ST5Aj6XRFylr5zvarWgzWnrg46zQ1MEOEIHsppdC/8hnN8qMoFvACsPvTioAuysya/TVtog15tyAQ==
 
+leaflet.markercluster@^1.5.3:
+  version "1.5.3"
+  resolved "https://registry.yarnpkg.com/leaflet.markercluster/-/leaflet.markercluster-1.5.3.tgz#9cdb52a4eab92671832e1ef9899669e80efc4056"
+  integrity sha512-vPTw/Bndq7eQHjLBVlWpnGeLa3t+3zGiuM7fJwCkiMFq+nmRuG3RI3f7f4N4TDX7T4NpbAXpR2+NTRSEGfCSeA==
+
 leaflet@^1.9.4:
   version "1.9.4"
   resolved "https://registry.yarnpkg.com/leaflet/-/leaflet-1.9.4.tgz#23fae724e282fa25745aff82ca4d394748db7d8d"
@@ -1997,6 +2009,13 @@ react-is@^19.2.0:
   version "19.2.0"
   resolved "https://registry.npmjs.org/react-is/-/react-is-19.2.0.tgz"
   integrity sha512-x3Ax3kNSMIIkyVYhWPyO09bu0uttcAIoecO/um/rKGQ4EltYWVYtyiGkS/3xMynrbVQdS69Jhlv8FXUEZehlzA==
+
+react-leaflet-cluster@^3.1.1:
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/react-leaflet-cluster/-/react-leaflet-cluster-3.1.1.tgz#4aa372388ad4dae065a9732ed2b03b83f0e03b95"
+  integrity sha512-g39QohKNrmIwHNlL0KTv+a9PYYWDtcRAsnHHytJyRhIgjxGxs4/SXe/Zr4kP8IZoEzxbqCMkJqUsFBEZJqKp2g==
+  dependencies:
+    leaflet.markercluster "^1.5.3"
 
 react-leaflet@^5.0.0:
   version "5.0.0"

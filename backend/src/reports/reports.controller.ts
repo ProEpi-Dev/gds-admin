@@ -11,6 +11,7 @@ import {
   HttpStatus,
   ParseIntPipe,
 } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -23,6 +24,8 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
+import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
+import { ReportPointResponseDto } from './dto/report-point-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 
 @ApiTags('Reports')
@@ -59,6 +62,23 @@ export class ReportsController {
   })
   async findAll(@Query() query: ReportQueryDto): Promise<ListResponseDto<ReportResponseDto>> {
     return this.reportsService.findAll(query);
+  }
+
+  @Get('points')
+  @ApiOperation({
+    summary: 'Obter pontos de reports para mapa',
+    description: 'Retorna latitude, longitude e status de reports do contexto do usuário logado em um período específico',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de pontos de reports',
+    type: [ReportPointResponseDto],
+  })
+  async findPoints(
+    @Query() query: ReportsPointsQueryDto,
+    @CurrentUser() user: any,
+  ): Promise<ReportPointResponseDto[]> {
+    return this.reportsService.findPoints(query, user.userId);
   }
 
   @Get(':id')

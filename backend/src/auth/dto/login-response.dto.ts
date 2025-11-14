@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
+import { ParticipationLoginDto } from './participation-login.dto';
 
 export class LoginResponseDto {
   @ApiProperty({
@@ -13,5 +14,12 @@ export class LoginResponseDto {
     type: UserResponseDto,
   })
   user: UserResponseDto;
+
+  @ApiPropertyOptional({
+    description: 'Participação ativa do usuário',
+    type: ParticipationLoginDto,
+    nullable: true,
+  })
+  participation: ParticipationLoginDto | null;
 }
 

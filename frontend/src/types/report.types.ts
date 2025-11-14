@@ -14,6 +14,18 @@ export interface Report {
   updatedAt: string;
 }
 
+export interface ReportPoint {
+  latitude: number;
+  longitude: number;
+  reportType: ReportType;
+}
+
+export interface ReportsPointsQuery {
+  formId?: number;
+  startDate: string;
+  endDate: string;
+}
+
 export interface CreateReportDto {
   participationId: number;
   formVersionId: number;

@@ -72,13 +72,29 @@
     "errorLoading": "Erro ao carregar reports",
     "errorLoadingReport": "Erro ao carregar report",
     "errorCreatingReport": "Erro ao criar report",
-    "errorUpdatingReport": "Erro ao atualizar report"
+    "errorUpdatingReport": "Erro ao atualizar report",
+    "mapView": "Visualização no Mapa",
+    "filters": "Filtros",
+    "form": "Formulário",
+    "allForms": "Todos os formulários",
+    "startDate": "Data Inicial",
+    "endDate": "Data Final",
+    "invalidDateRange": "A data inicial deve ser anterior à data final",
+    "errorLoadingPoints": "Erro ao carregar pontos",
+    "noPointsFound": "Nenhum ponto encontrado para os filtros selecionados",
+    "selectFiltersAndSearch": "Selecione os filtros e clique em buscar para visualizar os pontos no mapa"
   },
   "auth": {
     "login": "Entrar",
     "email": "Email",
     "password": "Senha",
-    "loginMessage": "Faça login para continuar"
+    "loginMessage": "Faça login para continuar",
+    "changePassword": "Alterar Senha",
+    "currentPassword": "Senha Atual",
+    "newPassword": "Nova Senha",
+    "confirmPassword": "Confirmar Nova Senha",
+    "passwordChangedSuccess": "Senha alterada com sucesso! Redirecionando...",
+    "passwordRequirements": "Mínimo 8 caracteres, com pelo menos uma letra maiúscula, uma minúscula e um número"
   },
   "participations": {
     "title": "Participações",

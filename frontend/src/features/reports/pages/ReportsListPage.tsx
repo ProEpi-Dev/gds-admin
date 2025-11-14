@@ -13,6 +13,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 import { useReports, useDeleteReport } from '../hooks/useReports';
 import DataTable, { type Column } from '../../../components/common/DataTable';
@@ -174,13 +175,22 @@ export default function ReportsListPage() {
         }}
       >
         <Typography variant="h4">{t('reports.title')}</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/reports/new')}
-        >
-          {t('reports.newReport')}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<MapIcon />}
+            onClick={() => navigate('/reports/map')}
+          >
+            {t('reports.mapView')}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/reports/new')}
+          >
+            {t('reports.newReport')}
+          </Button>
+        </Box>
       </Box>
 
       <Stack spacing={2} sx={{ width: '100%' }}>

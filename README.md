@@ -82,7 +82,9 @@ docker tag ghcr.io/gleytonlima/gds/backend:latest ghcr.io/gleytonlima/gds/backen
 cd frontend
 
 # Build da imagem
-docker build -t ghcr.io/gleytonlima/gds/frontend:latest .
+docker build \
+  --build-arg VITE_API_BASE_URL=https://devapi.gds.proepi.org.br/v1 \
+  -t ghcr.io/gleytonlima/gds/frontend:latest .
 
 # Tag adicional (opcional - para versões específicas)
 docker tag ghcr.io/gleytonlima/gds/frontend:latest ghcr.io/gleytonlima/gds/frontend:v1.0.0
