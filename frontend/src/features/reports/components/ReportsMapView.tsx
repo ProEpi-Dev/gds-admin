@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -35,34 +35,8 @@ const negativeIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-// Declaração de tipo para MarkerClusterGroup
-declare module 'leaflet' {
-  namespace MarkerClusterGroup {
-    interface Options {
-      chunkedLoading?: boolean;
-      maxClusterRadius?: number;
-      iconCreateFunction?: (cluster: MarkerCluster) => L.DivIcon;
-    }
-  }
-  
-  function markerClusterGroup(options?: MarkerClusterGroup.Options): MarkerClusterGroup;
-  
-  class MarkerClusterGroup extends L.LayerGroup {
-    constructor(options?: MarkerClusterGroup.Options);
-    clearLayers(): this;
-    addLayer(layer: L.Layer): this;
-    getChildCount(): number;
-    getAllChildMarkers(): L.Marker[];
-  }
-  
-  class MarkerCluster extends L.Marker {
-    getChildCount(): number;
-    getAllChildMarkers(): L.Marker[];
-  }
-}
-
 // Componente para gerenciar os clusters
-function MarkerClusterGroup({ points }: { points: ReportPoint[] }) {
+function MarkerClusterGroupComponent({ points }: { points: ReportPoint[] }) {
   const map = useMap();
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -80,7 +54,7 @@ function MarkerClusterGroup({ points }: { points: ReportPoint[] }) {
           let positiveCount = 0;
           let negativeCount = 0;
           
-          childMarkers.forEach((marker) => {
+          childMarkers.forEach((marker: L.Marker) => {
             const point = (marker as any).pointData as ReportPoint;
             if (point?.reportType === 'POSITIVE') {
               positiveCount++;
@@ -235,7 +209,7 @@ export default function ReportsMapView({ points, height = 600 }: ReportsMapViewP
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MarkerClusterGroup points={points} />
+          <MarkerClusterGroupComponent points={points} />
         </MapContainer>
       </Box>
     </Box>

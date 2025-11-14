@@ -43,7 +43,11 @@ export default function LoginForm() {
       return response.data;
     },
     onSuccess: (data) => {
-      login(data.token, data.user, data.participation);
+      const userWithParticipation = {
+        ...data.user,
+        participation: data.participation,
+      };
+      login(data.token, userWithParticipation, data.participation);
       navigate('/');
     },
     onError: (err: unknown) => {
