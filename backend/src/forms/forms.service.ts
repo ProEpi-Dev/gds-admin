@@ -111,6 +111,10 @@ export class FormsService {
       where.type = query.type;
     }
 
+    if (query.reference !== undefined) {
+      where.reference = query.reference;
+    }
+
     // Buscar formulários e total
     const [forms, totalItems] = await Promise.all([
       this.prisma.form.findMany({
@@ -135,6 +139,7 @@ export class FormsService {
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.type !== undefined) queryParams.type = query.type;
+    if (query.reference !== undefined) queryParams.reference = query.reference;
 
     return {
       data: forms.map((form) => this.mapToResponseDto(form)),

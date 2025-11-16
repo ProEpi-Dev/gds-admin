@@ -67,7 +67,7 @@ export class ReportsController {
   @Get('points')
   @ApiOperation({
     summary: 'Obter pontos de reports para mapa',
-    description: 'Retorna latitude, longitude e status de reports do contexto do usuário logado em um período específico',
+    description: 'Retorna latitude, longitude e status de reports do contexto do usuário logado em um período específico. Pode ser filtrado por ID do formulário (formId) ou referência do formulário (formReference).',
   })
   @ApiResponse({
     status: 200,

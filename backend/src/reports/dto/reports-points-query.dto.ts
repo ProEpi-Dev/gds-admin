@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsDateString, IsOptional } from 'class-validator';
+import { IsInt, IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class ReportsPointsQueryDto {
   @ApiPropertyOptional({
@@ -11,6 +11,14 @@ export class ReportsPointsQueryDto {
   @IsInt()
   @IsOptional()
   formId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Referência do formulário (opcional - filtra por referência do formulário)',
+    example: 'FORM-001',
+  })
+  @IsString()
+  @IsOptional()
+  formReference?: string;
 
   @ApiProperty({
     description: 'Data de início do período (formato: YYYY-MM-DD)',

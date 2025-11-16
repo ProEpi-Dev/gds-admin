@@ -283,7 +283,7 @@ export class ReportsService {
     endDate.setMilliseconds(999);
 
     // Buscar reports do contexto do usuário
-    // Filtrar por participações do contexto e, se fornecido, pelo formId
+    // Filtrar por participações do contexto e, se fornecido, pelo formId ou formReference
     const whereClause: any = {
       active: true,
       created_at: {
@@ -299,12 +299,29 @@ export class ReportsService {
       },
     };
 
-    // Se formId foi fornecido, filtrar também por formulário
+    // Construir filtro de formulário
+    const formVersionFilter: any = {
+      active: true,
+    };
+
+    // Se formId foi fornecido, filtrar por ID do formulário
     if (query.formId) {
-      whereClause.form_version = {
-        form_id: query.formId,
-        active: true,
-      };
+      formVersionFilter.form_id = query.formId;
+    }
+
+    // Se formReference foi fornecido, filtrar por referência do formulário
+    if (query.formReference) {
+      // Se já existe um filtro de form (não deveria acontecer, mas por segurança)
+      if (!formVersionFilter.form) {
+        formVersionFilter.form = {};
+      }
+      formVersionFilter.form.reference = query.formReference;
+      formVersionFilter.form.active = true;
+    }
+
+    // Aplicar filtro de formulário apenas se algum parâmetro foi fornecido
+    if (query.formId || query.formReference) {
+      whereClause.form_version = formVersionFilter;
     }
 
     const reports = await this.prisma.report.findMany({
