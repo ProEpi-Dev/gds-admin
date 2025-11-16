@@ -14,12 +14,16 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:5173', // Vite default
       'http://localhost:4200', // Angular default
+      'http://127.0.0.1:3000', // localhost alternativo
+      'http://10.0.0.2:3000', // Android Emulator - acesso ao localhost da máquina host
+      'http://10.0.0.2:3001', // Android Emulator - porta alternativa
+      'exp://localhost:8081', // Expo dev server
+      'exp://127.0.0.1:8081', // Expo dev server alternativo
       'https://dev.gds.proepi.org.br',
+      'https://devapi.gds.proepi.org.br',
       'https://www.dev.gds.proepi.org.br',
       'https://api.dev.gds.proepi.org.br',
       'https://www.api.dev.gds.proepi.org.br',
-      'https://www.dev.gds.proepi.org.br',
-      'https://www.dev.gds.proepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -53,8 +57,7 @@ async function bootstrap() {
       'bearerAuth',
     )
     .addServer('http://localhost:3000', 'Local development server')
-    .addServer('https://api.example.com', 'Production server')
-    .addServer('https://staging-api.example.com', 'Staging server')
+    .addServer('https://devapi.gds.proepi.org.br', 'Development server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
