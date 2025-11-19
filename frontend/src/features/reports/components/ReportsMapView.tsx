@@ -35,6 +35,24 @@ const negativeIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+// Componente para ajustar o zoom automaticamente para caber todos os pontos
+function FitBoundsComponent({ points }: { points: ReportPoint[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (points.length > 0) {
+      const bounds = L.latLngBounds(
+        points.map((point) => [point.latitude, point.longitude])
+      );
+      
+      // Ajustar o mapa para caber todos os pontos com padding
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [map, points]);
+
+  return null;
+}
+
 // Componente para gerenciar os clusters
 function MarkerClusterGroupComponent({ points }: { points: ReportPoint[] }) {
   const map = useMap();
@@ -210,6 +228,7 @@ export default function ReportsMapView({ points, height = 600 }: ReportsMapViewP
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MarkerClusterGroupComponent points={points} />
+          <FitBoundsComponent points={points} />
         </MapContainer>
       </Box>
     </Box>
