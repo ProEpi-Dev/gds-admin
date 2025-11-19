@@ -7,19 +7,22 @@ import {
   Chip,
   IconButton,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
-import { useForms, useDeleteForm } from '../hooks/useForms';
+import { useForms } from '../hooks/useForms';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
-import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
+import FormPreview from '../../../components/form-builder/FormPreview';
 import { useTranslation } from '../../../hooks/useTranslation';
 import type { Form } from '../../../types/form.types';
 
@@ -30,8 +33,8 @@ export default function FormsListPage() {
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
   const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [formToDelete, setFormToDelete] = useState<Form | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [formToPreview, setFormToPreview] = useState<Form | null>(null);
 
   const { data, isLoading, error } = useForms({
     page,
@@ -40,21 +43,10 @@ export default function FormsListPage() {
     type: typeFilter as 'signal' | 'quiz' | undefined,
   });
 
-  const deleteMutation = useDeleteForm();
-
-  const handleDelete = (form: Form) => {
-    setFormToDelete(form);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (formToDelete) {
-      deleteMutation.mutate(formToDelete.id, {
-        onSuccess: () => {
-          setDeleteDialogOpen(false);
-          setFormToDelete(null);
-        },
-      });
+  const handlePreview = (form: Form) => {
+    if (form.latestVersion?.definition) {
+      setFormToPreview(form);
+      setPreviewDialogOpen(true);
     }
   };
 
@@ -100,25 +92,19 @@ export default function FormsListPage() {
           <IconButton
             size="small"
             onClick={() => navigate(`/forms/${row.id}`)}
-            title={t('common.view')}
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/forms/${row.id}/edit`)}
-            title={t('common.edit')}
+            title="Ver detalhes"
           >
             <EditIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(row)}
-            color="error"
-            title={t('common.delete')}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          {row.latestVersion?.definition && (
+            <IconButton
+              size="small"
+              onClick={() => handlePreview(row)}
+              title="Preview do Formulário"
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       ),
     },
@@ -234,19 +220,41 @@ export default function FormsListPage() {
           />
       </Stack>
 
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        title={t('forms.deleteConfirm')}
-        message={t('forms.deleteMessage', { title: formToDelete?.title })}
-        confirmText={t('forms.deleteButton')}
-        cancelText={t('common.cancel')}
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setFormToDelete(null);
+      <Dialog
+        open={previewDialogOpen}
+        onClose={() => {
+          setPreviewDialogOpen(false);
+          setFormToPreview(null);
         }}
-        loading={deleteMutation.isPending}
-      />
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Preview: {formToPreview?.title}
+          {formToPreview?.latestVersion && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              (Versão {formToPreview.latestVersion.versionNumber})
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          {formToPreview?.latestVersion?.definition ? (
+            <FormPreview definition={formToPreview.latestVersion.definition} />
+          ) : (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+              Nenhuma versão disponível para preview
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setPreviewDialogOpen(false);
+            setFormToPreview(null);
+          }}>
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
