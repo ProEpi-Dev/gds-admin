@@ -181,40 +181,90 @@ docker pull ghcr.io/gleytonlima/gds/backend:latest
 docker pull ghcr.io/gleytonlima/gds/frontend:latest
 ```
 
-## Build Automatizado com GitHub Actions
+## CI/CD com GitHub Actions
 
-O projeto está configurado para build automático através do GitHub Actions. As imagens são buildadas e publicadas automaticamente quando há push nas branches `main` ou `develop`.
+O projeto está configurado com pipelines automatizados de build e deploy.
 
-### Como Funciona
+### 🔄 Workflow Principal: Build and Deploy
 
-1. **Trigger:** O workflow é executado em push para `main`, `develop` ou em pull requests
-2. **Ambiente:** Usa o arquivo `frontend/.env.production` com a URL da API
-3. **Publicação:** As imagens são publicadas automaticamente no GHCR (exceto em PRs)
+**Arquivo:** `.github/workflows/deploy.yml`
 
-### Arquivos de Configuração
+Este workflow detecta mudanças, builda apenas o necessário e faz deploy automático no Kubernetes.
 
-O workflow utiliza o arquivo `.env.production` versionado no repositório:
-- `frontend/.env.production` - URL da API (atualmente: `https://devapi.gds.proepi.org.br/v1`)
+#### Como Funciona
 
-Para alterar a URL da API, edite esse arquivo e faça commit.
+1. **🔍 Detecção de Mudanças**
+   - Compara commits para detectar mudanças em `backend/` ou `frontend/`
+   - Evita builds desnecessários, economizando tempo e recursos
 
-### Workflow
+2. **🏗️ Build Condicional**
+   - **Backend:** Builda apenas se houver mudanças em `backend/`
+   - **Frontend:** Builda apenas se houver mudanças em `frontend/`
+   - Cada build gera múltiplas tags (latest, timestamp, branch, sha)
 
-Localização: `.github/workflows/build-and-push.yml`
+3. **🗄️ Database Migrations (Automático)**
+   - Se o backend mudou, executa migrations automaticamente
+   - Usa o job `k8s/database-migration-job.yaml`
+   - Sincroniza migrations via `k8s/sync-migrations.sh`
 
-O workflow:
-1. Faz checkout do código
-2. Configura o ambiente apropriado (prod ou dev)
-3. Builda as imagens Docker
-4. Publica no GitHub Container Registry
+4. **🚀 Deploy no Kubernetes**
+   - Deploy apenas na branch `main` (produção)
+   - Restart apenas dos deployments que mudaram
+   - Aguarda rollout completo antes de finalizar
+   - Mostra logs e status dos pods
 
-### Tags das Imagens
+5. **📢 Notificações**
+   - Sumário detalhado no GitHub Actions
+   - Status de cada etapa (changes, build, deploy)
 
-As imagens são publicadas com múltiplas tags:
-- `latest` - última versão da branch default (main)
-- `main` - última versão da branch main
-- `develop` - última versão da branch develop
+#### Triggers
+
+- ✅ Push para `main` ou `develop`
+- ✅ Pull Requests para `main` ou `develop`
+- ✅ Manual dispatch (workflow_dispatch)
+- ⏭️ Ignora mudanças em `k8s/`, `README.md` e outros arquivos markdown
+
+#### Configuração de Ambiente
+
+**Frontend:** Usa o arquivo `.env.production` versionado
+- Localização: `frontend/.env.production`
+- URL atual: `https://devapi.gds.proepi.org.br/v1`
+
+#### Tags das Imagens
+
+Cada build gera múltiplas tags:
+- `latest` - última versão da branch main
+- `main` / `develop` - última versão da branch correspondente
 - `<branch>-<sha>` - commit específico
+- `YYYYMMDD-HHMM` - timestamp do build
+
+Exemplo:
+```
+ghcr.io/gleytonlima/gds/backend:latest
+ghcr.io/gleytonlima/gds/backend:main
+ghcr.io/gleytonlima/gds/backend:20250119-1430
+ghcr.io/gleytonlima/gds/backend:main-abc1234
+```
+
+### 🔐 Configuração de Secrets
+
+Para habilitar o deploy automático no Kubernetes, configure o secret:
+
+**`KUBE_CONFIG`** (obrigatório para deploy)
+```bash
+# 1. Gere o kubeconfig em base64
+cat ~/.kube/config | base64 -w 0
+
+# 2. Adicione ao GitHub:
+# Settings → Secrets and variables → Actions → New repository secret
+# Nome: KUBE_CONFIG
+# Valor: (conteúdo base64 do passo 1)
+```
+
+**Sem o secret `KUBE_CONFIG`:**
+- ✅ Build funciona normalmente
+- ✅ Imagens são publicadas no GHCR
+- ⏭️ Deploy é pulado automaticamente
 
 ### Notas Importantes
 

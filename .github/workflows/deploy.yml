@@ -1,0 +1,325 @@
+name: 🚀 Build and Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "k8s/**"
+      - "**/README.md"
+      - "**/*.md"
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "k8s/**"
+      - "**/README.md"
+      - "**/*.md"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: gleytonlima/gds
+
+jobs:
+  detect-changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🔍 Detect changes
+      id: changes
+      run: |
+        # Para PRs, comparar com a branch base
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        else
+          # Para push direto, comparar com commit anterior
+          BASE_SHA=$(git rev-parse HEAD~1)
+        fi
+        
+        echo "Base SHA: $BASE_SHA"
+        echo "Current SHA: ${{ github.sha }}"
+        
+        # Verificar mudanças em cada pasta
+        if git diff --quiet $BASE_SHA..${{ github.sha }} -- backend/ || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "backend=false" >> $GITHUB_OUTPUT
+        else
+          echo "backend=true" >> $GITHUB_OUTPUT
+        fi
+        
+        if git diff --quiet $BASE_SHA..${{ github.sha }} -- frontend/ || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "frontend=false" >> $GITHUB_OUTPUT
+        else
+          echo "frontend=true" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "📊 Changes detected:"
+        echo "  Backend: $([ -f $GITHUB_OUTPUT ] && grep backend $GITHUB_OUTPUT || echo 'checking...')"
+        echo "  Frontend: $([ -f $GITHUB_OUTPUT ] && grep frontend $GITHUB_OUTPUT || echo 'checking...')"
+
+    - name: 📢 Show detected changes
+      run: |
+        echo "### 📊 Change Detection Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend:** ${{ steps.changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Frontend:** ${{ steps.changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+
+  build-backend:
+    name: 🏗️ Build Backend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📅 Generate timestamp
+        id: timestamp
+        run: echo "date=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: 🏷️ Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.timestamp.outputs.date }}
+
+      - name: 🏗️ Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    name: 🎨 Build Frontend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 Setup environment variables
+        run: |
+          cd frontend
+          
+          echo "🔧 Configurando ambiente..."
+          
+          if [ ! -f ".env.production" ]; then
+            echo "❌ Arquivo .env.production não encontrado!"
+            echo "📝 Criando arquivo com configuração padrão..."
+            echo "VITE_API_BASE_URL=https://devapi.gds.proepi.org.br/v1" > .env.production
+          fi
+          
+          echo "✅ Ambiente configurado!"
+          echo "📄 Conteúdo do .env.production:"
+          cat .env.production
+
+      - name: 📅 Generate timestamp
+        id: timestamp
+        run: echo "date=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+
+      - name: 🏷️ Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.timestamp.outputs.date }}
+
+      - name: 🏗️ Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: 🚀 Deploy to Kubernetes
+    needs: [detect-changes, build-backend, build-frontend]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') &&
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: 🔐 Configure kubectl
+      if: ${{ secrets.KUBE_CONFIG != '' }}
+      run: |
+        # Decode base64 to YAML
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+        
+        # Test connection
+        export KUBECONFIG=kubeconfig.yaml
+        kubectl cluster-info
+
+    - name: 🔄 Sync database migrations
+      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        
+        # Sync migrations to ConfigMap
+        if [ -f k8s/sync-migrations.sh ]; then
+          chmod +x k8s/sync-migrations.sh
+          ./k8s/sync-migrations.sh
+        fi
+
+    - name: 🗄️ Run database migrations
+      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        
+        # Apply migration job
+        kubectl apply -f k8s/database-migration-job.yaml -n gds
+        
+        # Wait for migration to complete (with timeout)
+        kubectl wait --for=condition=complete job/database-migration -n gds --timeout=300s || true
+        
+        # Show migration logs
+        kubectl logs -l job-name=database-migration -n gds --tail=50 || true
+        
+        # Clean up job
+        kubectl delete job database-migration -n gds --ignore-not-found=true
+
+    - name: 🚀 Deploy Backend
+      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        
+        echo "🔄 Restarting backend deployment..."
+        kubectl rollout restart deployment/gds-backend -n gds
+        
+        echo "⏳ Waiting for rollout to complete..."
+        kubectl rollout status deployment/gds-backend -n gds --timeout=300s
+
+    - name: 🎨 Deploy Frontend
+      if: needs.detect-changes.outputs.frontend == 'true' && secrets.KUBE_CONFIG != ''
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        
+        echo "🔄 Restarting frontend deployment..."
+        kubectl rollout restart deployment/gds-frontend -n gds
+        
+        echo "⏳ Waiting for rollout to complete..."
+        kubectl rollout status deployment/gds-frontend -n gds --timeout=300s
+
+    - name: ✅ Verify deployment
+      if: secrets.KUBE_CONFIG != ''
+      run: |
+        export KUBECONFIG=kubeconfig.yaml
+        
+        echo "📋 Deployment status:"
+        kubectl get pods -n gds
+        echo ""
+        echo "🌐 Services:"
+        kubectl get svc -n gds
+        echo ""
+        echo "🔗 Ingress:"
+        kubectl get ingress -n gds
+
+    - name: ⚠️ Skip deployment (no KUBE_CONFIG)
+      if: secrets.KUBE_CONFIG == ''
+      run: |
+        echo "⚠️ KUBE_CONFIG secret not configured. Skipping deployment."
+        echo "To enable deployment, add KUBE_CONFIG secret to your repository."
+
+  notify:
+    name: 📢 Notify Results
+    needs: [detect-changes, build-backend, build-frontend, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 📊 Generate Summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 📊 Changes Detected" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend:** ${{ needs.detect-changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Frontend:** ${{ needs.detect-changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend Build:** ${{ needs.build-backend.result == 'success' && '✅ Success' || needs.build-backend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Frontend Build:** ${{ needs.build-frontend.result == 'success' && '✅ Success' || needs.build-frontend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🚀 Deployment Status" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deploy:** ${{ needs.deploy.result == 'success' && '✅ Success' || needs.deploy.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "Your changes have been deployed to the Kubernetes cluster." >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+          echo "### ℹ️ Deployment Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "Images built successfully but deployment was skipped (PR or no KUBE_CONFIG)." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+        fi
+
