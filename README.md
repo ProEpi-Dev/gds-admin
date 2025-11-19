@@ -248,9 +248,9 @@ ghcr.io/gleytonlima/gds/backend:main-abc1234
 
 ### 🔐 Configuração de Secrets
 
-Para habilitar o deploy automático no Kubernetes, configure o secret:
+**IMPORTANTE:** O secret `KUBE_CONFIG` é **obrigatório** para o deploy funcionar.
 
-**`KUBE_CONFIG`** (obrigatório para deploy)
+**`KUBE_CONFIG`** (obrigatório)
 ```bash
 # 1. Gere o kubeconfig em base64
 cat ~/.kube/config | base64 -w 0
@@ -261,10 +261,14 @@ cat ~/.kube/config | base64 -w 0
 # Valor: (conteúdo base64 do passo 1)
 ```
 
-**Sem o secret `KUBE_CONFIG`:**
+**⚠️ Sem o secret `KUBE_CONFIG`:**
 - ✅ Build funciona normalmente
 - ✅ Imagens são publicadas no GHCR
-- ⏭️ Deploy é pulado automaticamente
+- ❌ Job de deploy falhará (esperado)
+
+O workflow está configurado para executar deploy **apenas em `main`**, então você pode:
+- Desenvolver na branch `develop` sem necessidade do secret
+- Configurar o secret quando estiver pronto para deploy automático em produção
 
 ### Notas Importantes
 

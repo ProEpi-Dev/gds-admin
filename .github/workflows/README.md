@@ -118,6 +118,8 @@ git push origin feature/nova-funcionalidade
 
 ### KUBE_CONFIG (Obrigatório para Deploy)
 
+**⚠️ IMPORTANTE:** O secret é obrigatório para o job de deploy funcionar.
+
 ```bash
 # 1. Obter kubeconfig (método depende do seu cluster)
 cat ~/.kube/config | base64 -w 0
@@ -129,11 +131,19 @@ cat ~/.kube/config | base64 -w 0
 #   Value: [cole o base64 aqui]
 ```
 
+**Comportamento sem o secret:**
+- ✅ Build funciona normalmente (em qualquer branch)
+- ✅ Imagens são publicadas no GHCR
+- ❌ Job de deploy falhará (apenas em `main`)
+
+**💡 Dica:** Você pode desenvolver na branch `develop` sem o secret configurado, e só adicioná-lo quando estiver pronto para deploy automático em produção.
+
 **Teste se está funcionando:**
-1. Faça uma mudança em `backend/` ou `frontend/`
-2. Commit e push para `main`
-3. Acompanhe em Actions tab
-4. Verifique se o deploy foi executado
+1. Configure o secret `KUBE_CONFIG`
+2. Faça uma mudança em `backend/` ou `frontend/`
+3. Commit e push para `main`
+4. Acompanhe em Actions tab
+5. Verifique se o deploy foi executado com sucesso
 
 ## 📊 Monitoramento
 

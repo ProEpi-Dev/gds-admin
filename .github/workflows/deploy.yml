@@ -207,7 +207,6 @@ jobs:
         version: 'latest'
 
     - name: 🔐 Configure kubectl
-      if: ${{ secrets.KUBE_CONFIG != '' }}
       run: |
         # Decode base64 to YAML
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
@@ -217,7 +216,7 @@ jobs:
         kubectl cluster-info
 
     - name: 🔄 Sync database migrations
-      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      if: needs.detect-changes.outputs.backend == 'true'
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
@@ -228,7 +227,7 @@ jobs:
         fi
 
     - name: 🗄️ Run database migrations
-      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      if: needs.detect-changes.outputs.backend == 'true'
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
@@ -245,7 +244,7 @@ jobs:
         kubectl delete job database-migration -n gds --ignore-not-found=true
 
     - name: 🚀 Deploy Backend
-      if: needs.detect-changes.outputs.backend == 'true' && secrets.KUBE_CONFIG != ''
+      if: needs.detect-changes.outputs.backend == 'true'
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
@@ -256,7 +255,7 @@ jobs:
         kubectl rollout status deployment/gds-backend -n gds --timeout=300s
 
     - name: 🎨 Deploy Frontend
-      if: needs.detect-changes.outputs.frontend == 'true' && secrets.KUBE_CONFIG != ''
+      if: needs.detect-changes.outputs.frontend == 'true'
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
@@ -267,7 +266,6 @@ jobs:
         kubectl rollout status deployment/gds-frontend -n gds --timeout=300s
 
     - name: ✅ Verify deployment
-      if: secrets.KUBE_CONFIG != ''
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
@@ -279,12 +277,6 @@ jobs:
         echo ""
         echo "🔗 Ingress:"
         kubectl get ingress -n gds
-
-    - name: ⚠️ Skip deployment (no KUBE_CONFIG)
-      if: secrets.KUBE_CONFIG == ''
-      run: |
-        echo "⚠️ KUBE_CONFIG secret not configured. Skipping deployment."
-        echo "To enable deployment, add KUBE_CONFIG secret to your repository."
 
   notify:
     name: 📢 Notify Results
