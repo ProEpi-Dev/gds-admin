@@ -1,4 +1,64 @@
-# React + TypeScript + Vite
+# Frontend - GDS (Sistema de Vigilância Baseada em Eventos)
+
+Frontend desenvolvido com React + TypeScript + Vite.
+
+## Configuração de Ambiente
+
+O projeto utiliza arquivos `.env` para configurar variáveis de ambiente:
+
+- **`.env`** - Configuração para desenvolvimento local
+- **`.env.production`** - Configuração para build de produção (versionado no repositório)
+
+### Variáveis de Ambiente
+
+#### `VITE_API_BASE_URL`
+URL base da API backend. Exemplos:
+- Desenvolvimento local: `http://localhost:3000/v1`
+- Servidor (prod/dev): `https://devapi.gds.proepi.org.br/v1`
+
+### Desenvolvimento Local
+
+1. Crie um arquivo `.env` na raiz do projeto frontend:
+```bash
+VITE_API_BASE_URL=http://localhost:3000/v1
+```
+
+2. Instale as dependências e inicie o servidor de desenvolvimento:
+```bash
+npm install
+npm run dev
+```
+
+### Build para Produção
+
+O Vite automaticamente usa o arquivo `.env.production` durante o build:
+
+```bash
+npm run build
+```
+
+Para usar uma URL diferente, edite o arquivo `.env.production` antes do build:
+```bash
+echo "VITE_API_BASE_URL=https://sua-api.com/v1" > .env.production
+npm run build
+```
+
+### Docker Build
+
+O Dockerfile está configurado para copiar o arquivo `.env.production` durante o build:
+
+```bash
+# Build padrão (usa .env.production versionado)
+docker build -t gds-frontend:latest .
+
+# Build com URL customizada
+echo "VITE_API_BASE_URL=https://sua-api.com/v1" > .env.production
+docker build -t gds-frontend:custom .
+```
+
+---
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

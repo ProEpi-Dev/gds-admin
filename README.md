@@ -21,8 +21,20 @@ docker build -t gds-backend:local .
 
 #### Frontend
 
+O frontend usa o arquivo `.env.production` para configurar a URL da API durante o build:
+
+**Build local padrão:**
 ```bash
 cd frontend
+# Usa o arquivo .env.production versionado (https://devapi.gds.proepi.org.br/v1)
+docker build -t gds-frontend:local .
+```
+
+**Build com URL customizada:**
+```bash
+cd frontend
+# Sobrescreve com URL customizada
+echo "VITE_API_BASE_URL=https://sua-api.exemplo.com/v1" > .env.production
 docker build -t gds-frontend:local .
 ```
 
@@ -81,10 +93,8 @@ docker tag ghcr.io/gleytonlima/gds/backend:latest ghcr.io/gleytonlima/gds/backen
 ```bash
 cd frontend
 
-# Build da imagem
-docker build \
-  --build-arg VITE_API_BASE_URL=https://devapi.gds.proepi.org.br/v1 \
-  -t ghcr.io/gleytonlima/gds/frontend:latest .
+# Build da imagem (o Vite usará o arquivo .env.production)
+docker build -t ghcr.io/gleytonlima/gds/frontend:latest .
 
 # Tag adicional (opcional - para versões específicas)
 docker tag ghcr.io/gleytonlima/gds/frontend:latest ghcr.io/gleytonlima/gds/frontend:v1.0.0
@@ -171,11 +181,45 @@ docker pull ghcr.io/gleytonlima/gds/backend:latest
 docker pull ghcr.io/gleytonlima/gds/frontend:latest
 ```
 
+## Build Automatizado com GitHub Actions
+
+O projeto está configurado para build automático através do GitHub Actions. As imagens são buildadas e publicadas automaticamente quando há push nas branches `main` ou `develop`.
+
+### Como Funciona
+
+1. **Trigger:** O workflow é executado em push para `main`, `develop` ou em pull requests
+2. **Ambiente:** Usa o arquivo `frontend/.env.production` com a URL da API
+3. **Publicação:** As imagens são publicadas automaticamente no GHCR (exceto em PRs)
+
+### Arquivos de Configuração
+
+O workflow utiliza o arquivo `.env.production` versionado no repositório:
+- `frontend/.env.production` - URL da API (atualmente: `https://devapi.gds.proepi.org.br/v1`)
+
+Para alterar a URL da API, edite esse arquivo e faça commit.
+
+### Workflow
+
+Localização: `.github/workflows/build-and-push.yml`
+
+O workflow:
+1. Faz checkout do código
+2. Configura o ambiente apropriado (prod ou dev)
+3. Builda as imagens Docker
+4. Publica no GitHub Container Registry
+
+### Tags das Imagens
+
+As imagens são publicadas com múltiplas tags:
+- `latest` - última versão da branch default (main)
+- `main` - última versão da branch main
+- `develop` - última versão da branch develop
+- `<branch>-<sha>` - commit específico
+
 ### Notas Importantes
 
 - **Privacidade:** Por padrão, as imagens são privadas. Para torná-las públicas, vá em Package settings → Change visibility → Make public
 - **Limpeza:** Imagens antigas podem ser deletadas através da interface do GitHub ou usando a API
 - **Cache:** O Docker utiliza cache de camadas para acelerar builds subsequentes
-- **CI/CD:** O GitHub Actions faz build e publish automaticamente em pushes para `main` ou `develop` (veja `.github/workflows/build-and-push.yml`)
 
 ---

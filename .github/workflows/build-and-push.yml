@@ -84,6 +84,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup environment variables
+        run: |
+          cd frontend
+          
+          echo "🔧 Configurando ambiente..."
+          
+          if [ ! -f ".env.production" ]; then
+            echo "❌ Arquivo .env.production não encontrado!"
+            echo "📝 Criando arquivo com configuração padrão..."
+            echo "VITE_API_BASE_URL=https://devapi.gds.proepi.org.br/v1" > .env.production
+          fi
+          
+          echo "✅ Ambiente configurado!"
+          echo "📄 Conteúdo do .env.production:"
+          cat .env.production
+
       - name: Extract metadata (tags, labels) for frontend
         id: meta-frontend
         uses: docker/metadata-action@v5

@@ -1,9 +1,6 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-
 WORKDIR /app
 
 # Copy package files
@@ -17,8 +14,14 @@ RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
 COPY . .
 
 # Build the application
-RUN echo "Building with VITE_API_BASE_URL=${VITE_API_BASE_URL}" && \
-    if [ -z "$VITE_API_BASE_URL" ]; then echo "ERROR: VITE_API_BASE_URL is not set" && exit 1; fi && \
+# O Vite irá usar automaticamente o arquivo .env.production se existir
+RUN echo "Building application..." && \
+    if [ -f .env.production ]; then \
+        echo "📄 Using .env.production:"; \
+        cat .env.production; \
+    else \
+        echo "⚠️  No .env.production found, using default configuration"; \
+    fi && \
     if [ -f yarn.lock ]; then yarn build; \
     else npm run build; fi
 
