@@ -3,7 +3,8 @@ export type FieldType =
   | 'number'
   | 'boolean'
   | 'select'
-  | 'multiselect';
+  | 'multiselect'
+  | 'date';
 
 export type ConditionOperator = 
   | 'equals'
@@ -35,6 +36,9 @@ export interface FormField {
   max?: number;
   // Para text
   maxLength?: number;
+  // Para date
+  minDate?: string;
+  maxDate?: string;
   // Condições de exibição
   conditions?: FieldCondition[];
   // Validações customizadas

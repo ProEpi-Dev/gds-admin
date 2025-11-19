@@ -218,57 +218,7 @@ export class ReportsService {
 
   async findPoints(
     query: ReportsPointsQueryDto,
-    userId: number,
   ): Promise<ReportPointResponseDto[]> {
-    // Buscar participação ativa do usuário para obter o contexto
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    today.setMinutes(0);
-    today.setSeconds(0);
-    today.setMilliseconds(0);
-
-    const participations = await this.prisma.participation.findMany({
-      where: {
-        user_id: userId,
-        active: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-
-    // Filtrar participação ativa por data
-    const activeParticipation = participations.find((participation) => {
-      const startDate = new Date(participation.start_date);
-      startDate.setHours(0, 0, 0, 0);
-      startDate.setMinutes(0);
-      startDate.setSeconds(0);
-      startDate.setMilliseconds(0);
-
-      if (startDate > today) {
-        return false;
-      }
-
-      if (!participation.end_date) {
-        return true;
-      }
-
-      const endDate = new Date(participation.end_date);
-      endDate.setHours(0, 0, 0, 0);
-      endDate.setMinutes(0);
-      endDate.setSeconds(0);
-      endDate.setMilliseconds(0);
-
-      return endDate >= today;
-    });
-
-    if (!activeParticipation) {
-      // Se não houver participação ativa, retornar array vazio
-      return [];
-    }
-
-    const contextId = activeParticipation.context_id;
-
     // Converter datas para Date objects
     const startDate = new Date(query.startDate);
     startDate.setHours(0, 0, 0, 0);
@@ -282,8 +232,7 @@ export class ReportsService {
     endDate.setSeconds(59);
     endDate.setMilliseconds(999);
 
-    // Buscar reports do contexto do usuário
-    // Filtrar por participações do contexto e, se fornecido, pelo formId ou formReference
+    // Buscar reports ativos dentro do período
     const whereClause: any = {
       active: true,
       created_at: {
@@ -291,7 +240,6 @@ export class ReportsService {
         lte: endDate,
       },
       participation: {
-        context_id: contextId,
         active: true,
       },
       occurrence_location: {

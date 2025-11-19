@@ -118,6 +118,28 @@ export default function FormFieldRenderer({
         />
       );
 
+    case 'date':
+      return (
+        <TextField
+          label={field.label}
+          name={field.name}
+          type="date"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+          placeholder={field.placeholder}
+          fullWidth
+          error={hasError}
+          helperText={error}
+          disabled={readOnly}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{
+            min: field.minDate,
+            max: field.maxDate,
+          }}
+        />
+      );
+
     case 'select':
       return (
         <FormControl fullWidth required={field.required} error={hasError}>

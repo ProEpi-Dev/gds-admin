@@ -69,6 +69,15 @@ export default function FormRenderer({
       if (field.type === 'text' && field.maxLength && value && value.length > field.maxLength) {
         newErrors[field.name] = `Máximo de ${field.maxLength} caracteres`;
       }
+
+      if (field.type === 'date' && value) {
+        if (field.minDate && value < field.minDate) {
+          newErrors[field.name] = `Data deve ser maior ou igual a ${new Date(field.minDate).toLocaleDateString('pt-BR')}`;
+        }
+        if (field.maxDate && value > field.maxDate) {
+          newErrors[field.name] = `Data deve ser menor ou igual a ${new Date(field.maxDate).toLocaleDateString('pt-BR')}`;
+        }
+      }
     });
 
     return { errors: newErrors, isValid: Object.keys(newErrors).length === 0 };

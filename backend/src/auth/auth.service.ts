@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { DefaultFormDto } from './dto/default-form.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -81,6 +82,9 @@ export class AuthService {
       return endDate >= today;
     });
 
+    // Buscar formulários padrão
+    const defaultForms = await this.getDefaultForms();
+
     return {
       token,
       user: {
@@ -106,7 +110,48 @@ export class AuthService {
             updatedAt: activeParticipation.updated_at,
           }
         : null,
+      defaultForms,
     };
+  }
+
+  private async getDefaultForms(): Promise<DefaultFormDto[]> {
+    const defaultReferences = ['DEFAULT_SIGNAL_FORM', 'DEFAULT_QUIZ_FORM'];
+
+    // Buscar formulários com as referências padrão
+    const forms = await this.prisma.form.findMany({
+      where: {
+        reference: {
+          in: defaultReferences,
+        },
+        active: true,
+      },
+      include: {
+        form_version: {
+          where: { active: true },
+          orderBy: { version_number: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    // Mapear para o formato esperado
+    return forms
+      .filter((form) => form.form_version.length > 0)
+      .map((form) => ({
+        formId: form.id,
+        formTitle: form.title,
+        formReference: form.reference,
+        version: {
+          id: form.form_version[0].id,
+          formId: form.form_version[0].form_id,
+          versionNumber: form.form_version[0].version_number,
+          accessType: form.form_version[0].access_type,
+          definition: form.form_version[0].definition,
+          active: form.form_version[0].active,
+          createdAt: form.form_version[0].created_at,
+          updatedAt: form.form_version[0].updated_at,
+        },
+      }));
   }
 
   async validateUser(email: string, password: string): Promise<any> {

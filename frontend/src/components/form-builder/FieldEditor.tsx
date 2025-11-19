@@ -115,6 +115,7 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
               <MenuItem value="text">Texto</MenuItem>
               <MenuItem value="number">Numérico</MenuItem>
               <MenuItem value="boolean">Booleano</MenuItem>
+              <MenuItem value="date">Data</MenuItem>
               <MenuItem value="select">Dropdown (Escolha Única)</MenuItem>
               <MenuItem value="multiselect">Dropdown (Múltiplas Escolhas)</MenuItem>
             </Select>
@@ -226,6 +227,30 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
               onChange={(e) => handleChange({ maxLength: e.target.value ? Number(e.target.value) : undefined })}
               size="small"
             />
+          )}
+
+          {/* Validações para date */}
+          {field.type === 'date' && (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="Data Mínima"
+                type="date"
+                value={field.minDate || ''}
+                onChange={(e) => handleChange({ minDate: e.target.value || undefined })}
+                size="small"
+                sx={{ flex: 1 }}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="Data Máxima"
+                type="date"
+                value={field.maxDate || ''}
+                onChange={(e) => handleChange({ maxDate: e.target.value || undefined })}
+                size="small"
+                sx={{ flex: 1 }}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
           )}
 
           {/* Condições de exibição */}

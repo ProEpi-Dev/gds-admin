@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -24,6 +24,13 @@ interface FormBuilderProps {
 export default function FormBuilder({ definition, onChange, readOnly = false }: FormBuilderProps) {
   const [fields, setFields] = useState<FormField[]>(definition?.fields || []);
   const [activeTab, setActiveTab] = useState(0);
+
+  // Sincronizar campos quando a definition mudar (ex: quando os dados são carregados do backend)
+  useEffect(() => {
+    if (definition?.fields) {
+      setFields(definition.fields);
+    }
+  }, [definition]);
 
   const handleFieldsChange = (newFields: FormField[]) => {
     setFields(newFields);

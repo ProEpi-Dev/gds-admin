@@ -1,3 +1,5 @@
+import type { FormVersion } from './form-version.types';
+
 export interface LoginDto {
   email: string;
   password: string;
@@ -22,6 +24,13 @@ export interface ParticipationLogin {
   updatedAt: string;
 }
 
+export interface DefaultForm {
+  formId: number;
+  formTitle: string;
+  formReference: string | null;
+  version: FormVersion | null;
+}
+
 export interface LoginResponse {
   token: string;
   user: {
@@ -33,6 +42,7 @@ export interface LoginResponse {
     updatedAt: string;
   };
   participation: ParticipationLogin | null;
+  defaultForms?: DefaultForm[];
 }
 
 export interface AuthUser {

@@ -5,12 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/forms
+  url: {{baseUrl}}/forms?reference=DEFAULT_SIGNAL_FORM
   body: none
   auth: inherit
 }
 
 params:query {
+  reference: DEFAULT_SIGNAL_FORM
   ~page: 
   ~pageSize: 
   ~contextId: 

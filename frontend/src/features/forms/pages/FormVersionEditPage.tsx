@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -42,12 +42,16 @@ export default function FormVersionEditPage() {
   const { data: version, isLoading, error: queryError } = useFormVersion(formId, versionId);
 
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
     reset,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      accessType: undefined,
+      active: false,
+    },
   });
 
   useEffect(() => {
@@ -113,11 +117,27 @@ export default function FormVersionEditPage() {
 
         <Stack spacing={3} sx={{ mt: 3 }}>
           <FormControl error={!!errors.accessType} sx={{ maxWidth: 300 }}>
-            <InputLabel>Tipo de Acesso</InputLabel>
-            <Select {...register('accessType')} label="Tipo de Acesso" value={version.accessType}>
-              <MenuItem value="PUBLIC">Público</MenuItem>
-              <MenuItem value="PRIVATE">Privado</MenuItem>
-            </Select>
+            <InputLabel id="access-type-label">Tipo de Acesso</InputLabel>
+            <Controller
+              name="accessType"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  labelId="access-type-label"
+                  label="Tipo de Acesso"
+                  value={field.value || version?.accessType || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === '' ? undefined : value);
+                  }}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                >
+                  <MenuItem value="PUBLIC">Público</MenuItem>
+                  <MenuItem value="PRIVATE">Privado</MenuItem>
+                </Select>
+              )}
+            />
             {errors.accessType && (
               <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
                 {errors.accessType.message}

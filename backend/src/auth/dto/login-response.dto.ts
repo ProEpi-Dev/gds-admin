@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { ParticipationLoginDto } from './participation-login.dto';
+import { DefaultFormDto } from './default-form.dto';
 
 export class LoginResponseDto {
   @ApiProperty({
@@ -21,5 +22,11 @@ export class LoginResponseDto {
     nullable: true,
   })
   participation: ParticipationLoginDto | null;
+
+  @ApiPropertyOptional({
+    description: 'Formulários padrão (DEFAULT_SIGNAL_FORM e DEFAULT_QUIZ_FORM)',
+    type: [DefaultFormDto],
+  })
+  defaultForms?: DefaultFormDto[];
 }
 
