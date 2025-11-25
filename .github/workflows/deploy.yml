@@ -2,13 +2,7 @@ name: 🚀 Build and Deploy
 
 on:
   push:
-    branches: [ main, develop ]
-    paths-ignore:
-      - "k8s/**"
-      - "**/README.md"
-      - "**/*.md"
-  pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths-ignore:
       - "k8s/**"
       - "**/README.md"
@@ -35,13 +29,8 @@ jobs:
     - name: 🔍 Detect changes
       id: changes
       run: |
-        # Para PRs, comparar com a branch base
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-        else
-          # Para push direto, comparar com commit anterior
-          BASE_SHA=$(git rev-parse HEAD~1)
-        fi
+        # Para push direto, comparar com commit anterior
+        BASE_SHA=$(git rev-parse HEAD~1)
         
         echo "Base SHA: $BASE_SHA"
         echo "Current SHA: ${{ github.sha }}"
@@ -104,7 +93,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ steps.timestamp.outputs.date }}
@@ -114,7 +102,7 @@ jobs:
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -170,7 +158,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ steps.timestamp.outputs.date }}
@@ -180,7 +167,7 @@ jobs:
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
