@@ -42,7 +42,10 @@ export class ParticipationsController {
     description: 'Participação criada com sucesso',
     type: ParticipationResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou entidades relacionadas não encontradas' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou entidades relacionadas não encontradas',
+  })
   async create(
     @Body() createParticipationDto: CreateParticipationDto,
   ): Promise<ParticipationResponseDto> {
@@ -52,7 +55,8 @@ export class ParticipationsController {
   @Get()
   @ApiOperation({
     summary: 'Listar participações',
-    description: 'Retorna lista paginada de participações com filtros opcionais',
+    description:
+      'Retorna lista paginada de participações com filtros opcionais',
   })
   @ApiResponse({
     status: 200,
@@ -107,14 +111,20 @@ export class ParticipationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar participação',
-    description: 'Remove uma participação (soft delete - desativa). Não permite deletar se houver reports associados.',
+    description:
+      'Remove uma participação (soft delete - desativa). Não permite deletar se houver reports associados.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
-  @ApiResponse({ status: 204, description: 'Participação deletada com sucesso' })
-  @ApiResponse({ status: 400, description: 'Participação possui reports associados' })
+  @ApiResponse({
+    status: 204,
+    description: 'Participação deletada com sucesso',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Participação possui reports associados',
+  })
   @ApiResponse({ status: 404, description: 'Participação não encontrada' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.participationsService.remove(id);
   }
 }
-
