@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,7 +5,6 @@ import {
   Box,
   Button,
   TextField,
-  Alert,
   CircularProgress,
   Typography,
 } from '@mui/material';
@@ -15,6 +13,7 @@ import { useMutation } from '@tanstack/react-query';
 import apiClient from '../../../api/client';
 import { API_ENDPOINTS } from '../../../api/endpoints';
 import { getErrorMessage } from '../../../utils/errorHandler';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { SetupDto, SetupResponse } from '../../../types/setup.types';
 
 const setupSchema = z.object({
@@ -29,8 +28,7 @@ type SetupFormData = z.infer<typeof setupSchema>;
 
 export default function SetupForm() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const snackbar = useSnackbar();
 
   const {
     register,
@@ -46,36 +44,23 @@ export default function SetupForm() {
       return response.data;
     },
     onSuccess: () => {
-      setSuccess(true);
+      snackbar.showSuccess('Sistema configurado com sucesso! Redirecionando para login...');
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     },
     onError: (err: unknown) => {
-      setError(getErrorMessage(err, 'Erro ao configurar sistema'));
+      const errorMessage = getErrorMessage(err, 'Erro ao configurar sistema');
+      snackbar.showError(errorMessage);
     },
   });
 
   const onSubmit = (data: SetupFormData) => {
-    setError(null);
     setupMutation.mutate(data);
   };
 
-  if (success) {
-    return (
-      <Alert severity="success" sx={{ mt: 2 }}>
-        Sistema configurado com sucesso! Redirecionando para login...
-      </Alert>
-    );
-  }
-
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 2 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
 
       <Typography variant="h6" sx={{ mt: 2, mb: 2 }}>
         Dados do Administrador

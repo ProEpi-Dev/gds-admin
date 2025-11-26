@@ -134,13 +134,13 @@ export class FormsController {
   @ApiOperation({
     summary: 'Deletar formulário',
     description:
-      'Remove um formulário (soft delete - desativa). Não permite deletar se houver versões associadas.',
+      'Remove um formulário (soft delete - desativa). Deleta automaticamente todas as versões associadas antes de deletar o formulário. Não permite deletar se alguma versão possuir reports associados.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do formulário' })
   @ApiResponse({ status: 204, description: 'Formulário deletado com sucesso' })
   @ApiResponse({
     status: 400,
-    description: 'Formulário possui versões associadas',
+    description: 'Alguma versão do formulário possui reports associados',
   })
   @ApiResponse({ status: 404, description: 'Formulário não encontrado' })
   async remove(
