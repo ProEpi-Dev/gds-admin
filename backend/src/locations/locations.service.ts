@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
@@ -14,7 +18,9 @@ import {
 export class LocationsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createLocationDto: CreateLocationDto): Promise<LocationResponseDto> {
+  async create(
+    createLocationDto: CreateLocationDto,
+  ): Promise<LocationResponseDto> {
     // Validar parent_id se fornecido
     if (createLocationDto.parentId) {
       const parent = await this.prisma.location.findUnique({
@@ -96,8 +102,20 @@ export class LocationsService {
 
     return {
       data: locations.map((location) => this.mapToResponseDto(location)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -129,7 +147,9 @@ export class LocationsService {
     // Validar parent_id se fornecido
     if (updateLocationDto.parentId !== undefined) {
       if (updateLocationDto.parentId === id) {
-        throw new BadRequestException('Uma localização não pode ser pai de si mesma');
+        throw new BadRequestException(
+          'Uma localização não pode ser pai de si mesma',
+        );
       }
 
       if (updateLocationDto.parentId !== null) {
@@ -223,4 +243,3 @@ export class LocationsService {
     };
   }
 }
-
