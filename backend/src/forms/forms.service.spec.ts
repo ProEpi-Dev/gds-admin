@@ -489,14 +489,16 @@ describe('FormsService', () => {
         { id: 1 },
         { id: 2 },
       ] as any);
-      jest.spyOn(prismaService.report, 'count')
+      const reportCountMock = jest
+        .spyOn(prismaService.report, 'count')
         .mockResolvedValueOnce(0) // primeira versão sem reports
         .mockResolvedValueOnce(3); // segunda versão com 3 reports
 
-      await expect(service.remove(1, 1)).rejects.toThrow(BadRequestException);
       await expect(service.remove(1, 1)).rejects.toThrow(
         'Não é possível deletar formulário. A versão 2 possui 3 report(s) associado(s)',
       );
+
+      expect(reportCountMock).toHaveBeenCalledTimes(2);
     });
   });
 
