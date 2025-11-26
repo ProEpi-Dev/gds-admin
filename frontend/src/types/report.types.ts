@@ -49,4 +49,7 @@ export interface ReportQuery extends PaginationQuery {
   participationId?: number;
   formVersionId?: number;
   reportType?: ReportType;
+  formId?: number;
+  startDate?: string;
+  endDate?: string;
 }

@@ -5,8 +5,6 @@ import {
   Typography,
   Paper,
   Chip,
-  Divider,
-  Stack,
   IconButton,
   Tabs,
   Tab,
@@ -22,6 +20,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import FormPreview from '../../../components/form-builder/FormPreview';
+import FormDataDictionary from '../components/FormDataDictionary';
 import type { FormBuilderDefinition } from '../../../types/form-builder.types';
 
 export default function FormVersionViewPage() {
@@ -86,26 +85,32 @@ export default function FormVersionViewPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Stack spacing={2}>
-          <Box>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               ID
             </Typography>
             <Typography variant="body1">{version.id}</Typography>
           </Box>
 
-          <Divider />
-
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               Número da Versão
             </Typography>
             <Typography variant="body1">{version.versionNumber}</Typography>
           </Box>
 
-          <Divider />
-
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               Tipo de Acesso
             </Typography>
@@ -118,9 +123,7 @@ export default function FormVersionViewPage() {
             </Box>
           </Box>
 
-          <Divider />
-
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               Status
             </Typography>
@@ -132,18 +135,21 @@ export default function FormVersionViewPage() {
               />
             </Box>
           </Box>
-        </Stack>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3 }}>
         <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
           <Tab label="Preview" />
+          <Tab label="Dicionário de Dados" />
           <Tab label="JSON" />
         </Tabs>
 
         {activeTab === 0 && <FormPreview definition={definition} />}
 
-        {activeTab === 1 && (
+        {activeTab === 1 && <FormDataDictionary definition={definition} />}
+
+        {activeTab === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom>
               Definição JSON

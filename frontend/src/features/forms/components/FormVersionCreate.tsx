@@ -1,32 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  Box,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Stack,
-  Alert,
-  CircularProgress,
-  Typography,
-} from '@mui/material';
-import FormBuilder from '../../../components/form-builder/FormBuilder';
-import { useCreateFormVersion } from '../hooks/useFormVersions';
+import { Box, Alert } from '@mui/material';
+import { useCreateFormVersion, useFormVersions } from '../hooks/useFormVersions';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import type { CreateFormVersionDto } from '../../../types/form-version.types';
 import type { FormBuilderDefinition } from '../../../types/form-builder.types';
-
-const formSchema = z.object({
-  accessType: z.enum(['PUBLIC', 'PRIVATE']),
-  active: z.boolean().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
+import { ensureFormDefinition } from '../utils/formDefinitionValidator';
+import FormVersionEditor from './FormVersionEditor';
 
 interface FormVersionCreateProps {
   formId: number | null;
@@ -35,36 +15,46 @@ interface FormVersionCreateProps {
 export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [definition, setDefinition] = useState<FormBuilderDefinition>({
+  const [initialDefinition, setInitialDefinition] = useState<FormBuilderDefinition>({
     fields: [],
   });
+  const [initialAccessType, setInitialAccessType] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
+  const [initialActive, setInitialActive] = useState<boolean>(true);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      accessType: 'PUBLIC',
-      active: true,
-    },
-  });
+  // Buscar versões do formulário para encontrar a última versão
+  const { data: versionsData } = useFormVersions(formId, { page: 1, pageSize: 50 });
 
   const createMutation = useCreateFormVersion();
 
-  const onSubmit = (data: FormData) => {
-    if (!formId) return;
+  // Carregar campos da última versão quando disponível
+  useEffect(() => {
+    if (versionsData?.data && versionsData.data.length > 0) {
+      // Ordenar por versionNumber descendente para pegar a última versão
+      const sortedVersions = [...versionsData.data].sort(
+        (a, b) => b.versionNumber - a.versionNumber,
+      );
+      const latestVersion = sortedVersions[0];
 
-    if (definition.fields.length === 0) {
-      setError('Adicione pelo menos um campo ao formulário');
-      return;
+      if (latestVersion?.definition) {
+        const normalizedDefinition = ensureFormDefinition(latestVersion.definition);
+        setInitialDefinition(normalizedDefinition);
+        setInitialAccessType(latestVersion.accessType || 'PUBLIC');
+        setInitialActive(latestVersion.active ?? true);
+      }
     }
+  }, [versionsData]);
+
+  const handleSubmit = (data: {
+    accessType?: 'PUBLIC' | 'PRIVATE';
+    active?: boolean;
+    definition: FormBuilderDefinition;
+  }) => {
+    if (!formId) return;
 
     setError(null);
     const formData: CreateFormVersionDto = {
-      accessType: data.accessType,
-      definition: definition,
+      accessType: data.accessType || 'PUBLIC',
+      definition: data.definition,
       active: data.active,
     };
 
@@ -83,52 +73,22 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        Criar Nova Versão
-      </Typography>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-      <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        <Stack spacing={3}>
-          <FormControl required error={!!errors.accessType} sx={{ maxWidth: 300 }}>
-            <InputLabel>Tipo de Acesso</InputLabel>
-            <Select {...register('accessType')} label="Tipo de Acesso" defaultValue="PUBLIC">
-              <MenuItem value="PUBLIC">Público</MenuItem>
-              <MenuItem value="PRIVATE">Privado</MenuItem>
-            </Select>
-            {errors.accessType && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                {errors.accessType.message}
-              </Typography>
-            )}
-          </FormControl>
-
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Definição do Formulário
-            </Typography>
-            <FormBuilder definition={definition} onChange={setDefinition} />
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={createMutation.isPending}
-            >
-              {createMutation.isPending ? <CircularProgress size={24} /> : 'Criar Versão'}
-            </Button>
-            <Button variant="outlined" onClick={() => navigate(`/forms/${formId}`)}>
-              Cancelar
-            </Button>
-          </Box>
-        </Stack>
-      </Box>
+      <FormVersionEditor
+        initialDefinition={initialDefinition}
+        initialAccessType={initialAccessType}
+        initialActive={initialActive}
+        onSubmit={handleSubmit}
+        onCancel={() => navigate(`/forms/${formId}`)}
+        isLoading={createMutation.isPending}
+        submitLabel="Criar Versão"
+        title="Criar Nova Versão"
+      />
     </Box>
   );
 }

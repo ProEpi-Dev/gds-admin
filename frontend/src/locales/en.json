@@ -45,7 +45,15 @@
     "deleteMessage": "Are you sure you want to delete the form \"{{title}}\"?",
     "deleteButton": "Delete",
     "errorLoading": "Error loading forms",
-    "errorLoadingForm": "Error loading form"
+    "errorLoadingForm": "Error loading form",
+    "fieldTypes": {
+      "text": "Text",
+      "number": "Number",
+      "boolean": "Boolean",
+      "select": "Single Select",
+      "multiselect": "Multi Select",
+      "date": "Date"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",

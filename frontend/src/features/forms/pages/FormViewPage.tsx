@@ -5,10 +5,6 @@ import {
   Typography,
   Paper,
   Chip,
-  Divider,
-  Stack,
-  Tabs,
-  Tab,
   IconButton,
 } from '@mui/material';
 import {
@@ -18,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useForm as useFormQuery, useDeleteForm } from '../hooks/useForms';
+import { useFormVersions } from '../hooks/useFormVersions';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -27,11 +24,12 @@ import FormVersionCreate from '../components/FormVersionCreate';
 export default function FormViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(0);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const formId = id ? parseInt(id, 10) : null;
   const { data: form, isLoading, error } = useFormQuery(formId);
+  // Verificar se há versões do formulário
+  const { data: versionsData, isLoading: isLoadingVersions } = useFormVersions(formId, { page: 1, pageSize: 1 });
 
   const deleteMutation = useDeleteForm();
 
@@ -80,17 +78,25 @@ export default function FormViewPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Stack spacing={2}>
-          <Box>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               ID
             </Typography>
             <Typography variant="body1">{form.id}</Typography>
           </Box>
 
-          <Divider />
-
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               Tipo
             </Typography>
@@ -100,49 +106,38 @@ export default function FormViewPage() {
           </Box>
 
           {form.context && (
-            <>
-              <Divider />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Contexto
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Contexto
+              </Typography>
+              <Typography variant="body1">{form.context.name}</Typography>
+              {form.context.description && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {form.context.description}
                 </Typography>
-                <Typography variant="body1">{form.context.name}</Typography>
-                {form.context.description && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {form.context.description}
-                  </Typography>
-                )}
-              </Box>
-            </>
+              )}
+            </Box>
           )}
 
           {form.reference && (
-            <>
-              <Divider />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Referência
-                </Typography>
-                <Typography variant="body1">{form.reference}</Typography>
-              </Box>
-            </>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Referência
+              </Typography>
+              <Typography variant="body1">{form.reference}</Typography>
+            </Box>
           )}
 
           {form.description && (
-            <>
-              <Divider />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Descrição
-                </Typography>
-                <Typography variant="body1">{form.description}</Typography>
-              </Box>
-            </>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Descrição
+              </Typography>
+              <Typography variant="body1">{form.description}</Typography>
+            </Box>
           )}
 
-          <Divider />
-
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <Typography variant="caption" color="text.secondary">
               Status
             </Typography>
@@ -154,17 +149,17 @@ export default function FormViewPage() {
               />
             </Box>
           </Box>
-        </Stack>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3 }}>
-        <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
-          <Tab label="Versões" />
-          <Tab label="Nova Versão" />
-        </Tabs>
-
-        {activeTab === 0 && <FormVersionsList formId={formId} />}
-        {activeTab === 1 && <FormVersionCreate formId={formId} />}
+        {isLoadingVersions ? (
+          <LoadingSpinner />
+        ) : versionsData?.data && versionsData.data.length > 0 ? (
+          <FormVersionsList formId={formId} />
+        ) : (
+          <FormVersionCreate formId={formId} />
+        )}
       </Paper>
 
       <ConfirmDialog

@@ -124,7 +124,7 @@ export default function FormVersionsList({ formId }: FormVersionsListProps) {
     <Box>
       {data?.data.length === 0 ? (
         <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
-          Nenhuma versão cadastrada. Use a aba "Nova Versão" para criar uma.
+          Nenhuma versão cadastrada.
         </Typography>
       ) : (
         <DataTable
