@@ -44,7 +44,10 @@ export class FormsController {
     description: 'Formulário criado com sucesso',
     type: FormResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou contexto não encontrado' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou contexto não encontrado',
+  })
   async create(
     @Body() createFormDto: CreateFormDto,
     @CurrentUser() user: any,
@@ -55,7 +58,8 @@ export class FormsController {
   @Get('with-latest-versions')
   @ApiOperation({
     summary: 'Listar formulários com últimas versões',
-    description: 'Retorna lista de formulários ativos com suas últimas versões ativas, formatado para uso em dropdowns',
+    description:
+      'Retorna lista de formulários ativos com suas últimas versões ativas, formatado para uso em dropdowns',
   })
   @ApiResponse({
     status: 200,
@@ -129,11 +133,15 @@ export class FormsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar formulário',
-    description: 'Remove um formulário (soft delete - desativa). Não permite deletar se houver versões associadas.',
+    description:
+      'Remove um formulário (soft delete - desativa). Não permite deletar se houver versões associadas.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do formulário' })
   @ApiResponse({ status: 204, description: 'Formulário deletado com sucesso' })
-  @ApiResponse({ status: 400, description: 'Formulário possui versões associadas' })
+  @ApiResponse({
+    status: 400,
+    description: 'Formulário possui versões associadas',
+  })
   @ApiResponse({ status: 404, description: 'Formulário não encontrado' })
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -142,4 +150,3 @@ export class FormsController {
     return this.formsService.remove(id, user.userId);
   }
 }
-
