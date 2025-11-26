@@ -63,6 +63,8 @@ jobs:
 
       - name: 🔧 Generate Prisma Client
         run: yarn prisma generate
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/dbname
 
       - name: 🧪 Run tests with coverage
         id: test

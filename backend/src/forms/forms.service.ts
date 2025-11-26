@@ -23,7 +23,10 @@ import { FormWithVersionDto } from './dto/form-with-version.dto';
 export class FormsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createFormDto: CreateFormDto, userId: number): Promise<FormResponseDto> {
+  async create(
+    createFormDto: CreateFormDto,
+    userId: number,
+  ): Promise<FormResponseDto> {
     // Obter contexto do usuário logado
     const contextId = await getUserContext(this.prisma, userId);
 
@@ -49,7 +52,9 @@ export class FormsService {
     return this.mapToResponseDto(form);
   }
 
-  async findFormsWithLatestVersions(userId: number): Promise<FormWithVersionDto[]> {
+  async findFormsWithLatestVersions(
+    userId: number,
+  ): Promise<FormWithVersionDto[]> {
     // Obter contexto do usuário logado
     const userContextId = await getUserContext(this.prisma, userId);
 
@@ -87,7 +92,10 @@ export class FormsService {
       }));
   }
 
-  async findAll(query: FormQueryDto, userId: number): Promise<ListResponseDto<FormResponseDto>> {
+  async findAll(
+    query: FormQueryDto,
+    userId: number,
+  ): Promise<ListResponseDto<FormResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
@@ -143,8 +151,20 @@ export class FormsService {
 
     return {
       data: forms.map((form) => this.mapToResponseDto(form)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -178,7 +198,11 @@ export class FormsService {
     return this.mapToResponseDto(form);
   }
 
-  async update(id: number, updateFormDto: UpdateFormDto, userId: number): Promise<FormResponseDto> {
+  async update(
+    id: number,
+    updateFormDto: UpdateFormDto,
+    userId: number,
+  ): Promise<FormResponseDto> {
     // Verificar se formulário existe
     const existingForm = await this.prisma.form.findUnique({
       where: { id },
@@ -312,4 +336,3 @@ export class FormsService {
     };
   }
 }
-
