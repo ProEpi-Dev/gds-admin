@@ -42,8 +42,13 @@ export class LocationsController {
     description: 'Localização criada com sucesso',
     type: LocationResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou localização pai não encontrada' })
-  async create(@Body() createLocationDto: CreateLocationDto): Promise<LocationResponseDto> {
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou localização pai não encontrada',
+  })
+  async create(
+    @Body() createLocationDto: CreateLocationDto,
+  ): Promise<LocationResponseDto> {
     return this.locationsService.create(createLocationDto);
   }
 
@@ -75,7 +80,9 @@ export class LocationsController {
     type: LocationResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Localização não encontrada' })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<LocationResponseDto> {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<LocationResponseDto> {
     return this.locationsService.findOne(id);
   }
 
@@ -103,7 +110,8 @@ export class LocationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar localização',
-    description: 'Remove uma localização (soft delete - desativa). Não permite deletar se houver localizações filhas.',
+    description:
+      'Remove uma localização (soft delete - desativa). Não permite deletar se houver localizações filhas.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da localização' })
   @ApiResponse({ status: 204, description: 'Localização deletada com sucesso' })
@@ -113,4 +121,3 @@ export class LocationsController {
     return this.locationsService.remove(id);
   }
 }
-

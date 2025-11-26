@@ -1,0 +1,158 @@
+name: 🧪 Unit Tests
+
+on:
+  push:
+    branches-ignore: [ main ]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/tests.yml"
+
+jobs:
+  detect-changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Detect changes
+        id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  test-backend:
+    name: 🧪 Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: backend/yarn.lock
+
+      - name: 📥 Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: 🔧 Generate Prisma Client
+        run: yarn prisma generate
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/dbname
+
+      - name: 🧪 Run tests with coverage
+        id: test
+        run: yarn test:cov
+        continue-on-error: false
+
+      - name: 📊 Extract coverage percentage
+        id: coverage
+        if: success()
+        run: |
+          # Verificar se o diretório coverage existe
+          if [ ! -d "coverage" ]; then
+            echo "❌ Diretório coverage não encontrado!"
+            echo "📋 Listando diretório atual:"
+            ls -la || true
+            exit 1
+          fi
+          
+          # Listar conteúdo do diretório coverage para debug
+          echo "📁 Conteúdo do diretório coverage:"
+          ls -la coverage/ || true
+          
+          # Verificar se o arquivo coverage-summary.json existe
+          if [ ! -f "coverage/coverage-summary.json" ]; then
+            echo "❌ Arquivo coverage-summary.json não encontrado!"
+            echo "📋 Tentando encontrar arquivos de cobertura:"
+            find . -name "*coverage*" -type f 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          
+          # Extrair a porcentagem de cobertura do relatório do Jest usando Node.js
+          COVERAGE=$(node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8')); console.log(data.total.lines.pct.toFixed(2));")
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "📊 Cobertura de código: ${COVERAGE}%"
+
+      - name: ✅ Check coverage threshold
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          MIN_COVERAGE=90
+          
+          echo "📊 Cobertura atual: ${COVERAGE}%"
+          echo "🎯 Cobertura mínima exigida: ${MIN_COVERAGE}%"
+          
+          # Comparar usando Node.js para suportar números decimais
+          node -e "const coverage = parseFloat('$COVERAGE'); const min = parseFloat('$MIN_COVERAGE'); process.exit(coverage < min ? 1 : 0);"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Cobertura de código (${COVERAGE}%) está abaixo do mínimo exigido (${MIN_COVERAGE}%)"
+            exit 1
+          else
+            echo "✅ Cobertura de código (${COVERAGE}%) atende ao mínimo exigido (${MIN_COVERAGE}%)"
+          fi
+
+      - name: 📤 Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-report
+          path: backend/coverage/
+          retention-days: 7
+
+      - name: 📢 Coverage Summary
+        if: always()
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          MIN_COVERAGE=90
+          
+          echo "### 🧪 Resultados dos Testes Unitários - Backend" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 📊 Cobertura de Código" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cobertura Atual:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cobertura Mínima Exigida:** ${MIN_COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Verificar se a cobertura atende ao mínimo usando Node.js
+          STATUS=$(node -e "const coverage = parseFloat('$COVERAGE'); const min = parseFloat('$MIN_COVERAGE'); console.log(coverage < min ? 'FAIL' : 'PASS');")
+          
+          if [ "$STATUS" = "FAIL" ]; then
+            echo "❌ **Status:** Cobertura abaixo do mínimo exigido" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Por favor, adicione mais testes para atingir pelo menos ${MIN_COVERAGE}% de cobertura." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Status:** Cobertura atende ao mínimo exigido" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # TODO: Adicionar job test-frontend quando os testes estiverem implementados
+  # test-frontend:
+  #   name: 🧪 Frontend Unit Tests
+  #   runs-on: ubuntu-latest
+  #   ...
+
