@@ -3,19 +3,12 @@ import type { FormBuilderDefinition, FormField } from '../../../types/form-build
 
 const optionSchema = z.object({
   label: z.string().min(1, 'Opções precisam de um label'),
-  value: z.union([z.string(), z.number()], {
-    invalid_type_error: 'Opções precisam de valores string ou número',
-  }),
+  value: z.union([z.string(), z.number()]),
 });
 
 const conditionSchema = z.object({
   fieldId: z.string().min(1, 'Condições precisam referenciar um campo'),
-  operator: z.enum(
-    ['equals', 'notEquals', 'contains', 'greaterThan', 'lessThan', 'isEmpty', 'isNotEmpty'],
-    {
-      errorMap: () => ({ message: 'Operador de condição inválido' }),
-    },
-  ),
+  operator: z.enum(['equals', 'notEquals', 'contains', 'greaterThan', 'lessThan', 'isEmpty', 'isNotEmpty']),
   value: z.any().optional(),
 });
 
@@ -29,14 +22,7 @@ const validationSchema = z
 const fieldSchema = z.object({
   id: z.string().min(1, 'O campo precisa de um id'),
   type: z.enum(['text', 'number', 'boolean', 'select', 'multiselect', 'date'], {
-    errorMap: (issue, ctx) => {
-      if (issue.code === z.ZodIssueCode.invalid_enum_value) {
-        return {
-          message: `Tipo de campo inválido: "${ctx.data}". Tipos válidos são: text, number, boolean, select, multiselect, date`,
-        };
-      }
-      return { message: ctx.defaultError };
-    },
+    message: 'Tipo de campo inválido. Tipos válidos são: text, number, boolean, select, multiselect, date',
   }),
   label: z.string().min(1, 'Informe um label'),
   name: z.string().min(1, 'Informe o name'),

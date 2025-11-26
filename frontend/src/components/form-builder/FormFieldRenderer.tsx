@@ -7,6 +7,7 @@ import {
   FormControlLabel,
   Checkbox,
   Box,
+  Typography,
 } from '@mui/material';
 import type { FormField } from '../../types/form-builder.types';
 

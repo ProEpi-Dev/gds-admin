@@ -5,7 +5,6 @@ import {
   Typography,
   Paper,
   Chip,
-  Grid,
   IconButton,
 } from '@mui/material';
 import {
@@ -79,80 +78,78 @@ export default function FormViewPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3} justifyContent="space-between" alignItems="flex-start">
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                ID
-              </Typography>
-              <Typography variant="body1">{form.id}</Typography>
-            </Box>
-          </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              ID
+            </Typography>
+            <Typography variant="body1">{form.id}</Typography>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Tipo
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <Chip label={form.type === 'signal' ? 'Sinal' : 'Quiz'} size="small" />
-              </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              Tipo
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <Chip label={form.type === 'signal' ? 'Sinal' : 'Quiz'} size="small" />
             </Box>
-          </Grid>
+          </Box>
 
           {form.context && (
-            <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Contexto
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Contexto
+              </Typography>
+              <Typography variant="body1">{form.context.name}</Typography>
+              {form.context.description && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {form.context.description}
                 </Typography>
-                <Typography variant="body1">{form.context.name}</Typography>
-                {form.context.description && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {form.context.description}
-                  </Typography>
-                )}
-              </Box>
-            </Grid>
+              )}
+            </Box>
           )}
 
           {form.reference && (
-            <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Referência
-                </Typography>
-                <Typography variant="body1">{form.reference}</Typography>
-              </Box>
-            </Grid>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Referência
+              </Typography>
+              <Typography variant="body1">{form.reference}</Typography>
+            </Box>
           )}
 
           {form.description && (
-            <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Descrição
-                </Typography>
-                <Typography variant="body1">{form.description}</Typography>
-              </Box>
-            </Grid>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="caption" color="text.secondary">
+                Descrição
+              </Typography>
+              <Typography variant="body1">{form.description}</Typography>
+            </Box>
           )}
 
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Status
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <Chip
-                  label={form.active ? 'Ativo' : 'Inativo'}
-                  color={form.active ? 'success' : 'default'}
-                  size="small"
-                />
-              </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              Status
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <Chip
+                label={form.active ? 'Ativo' : 'Inativo'}
+                color={form.active ? 'success' : 'default'}
+                size="small"
+              />
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3 }}>

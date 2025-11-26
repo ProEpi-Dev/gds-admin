@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -7,6 +7,15 @@ import {
   Chip,
   IconButton,
   Stack,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Paper,
+  CircularProgress,
+  Alert,
+  Menu,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -14,8 +23,13 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Map as MapIcon,
+  Download as DownloadIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useReports, useDeleteReport } from '../hooks/useReports';
+import { useForms } from '../../forms/hooks/useForms';
+import { useFormVersions } from '../../forms/hooks/useFormVersions';
+import type { FormBuilderDefinition, FormField } from '../../../types/form-builder.types';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -24,28 +38,136 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import type { Report } from '../../../types/report.types';
 
+const STORAGE_KEY = 'reports-filters';
+
+interface SavedFilters {
+  page: number;
+  pageSize: number;
+  activeFilter: boolean | undefined;
+  reportTypeFilter: string | undefined;
+  formIdFilter: number | undefined;
+  startDate: string;
+  endDate: string;
+}
+
 export default function ReportsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
-  const [reportTypeFilter, setReportTypeFilter] = useState<string | undefined>(undefined);
+
+  // Função para carregar filtros do localStorage
+  const loadFiltersFromStorage = (): SavedFilters | null => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar filtros do localStorage:', error);
+    }
+    return null;
+  };
+
+  // Função para salvar filtros no localStorage
+  const saveFiltersToStorage = (filters: SavedFilters) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.error('Erro ao salvar filtros no localStorage:', error);
+    }
+  };
+
+  // Carregar filtros salvos ao montar o componente
+  const savedFilters = loadFiltersFromStorage();
+
+  const [page, setPage] = useState(savedFilters?.page || 1);
+  const [pageSize, setPageSize] = useState(savedFilters?.pageSize || 20);
+  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(savedFilters?.activeFilter);
+  const [reportTypeFilter, setReportTypeFilter] = useState<string | undefined>(savedFilters?.reportTypeFilter);
+  const [formIdFilter, setFormIdFilter] = useState<number | undefined>(savedFilters?.formIdFilter);
+  const [startDate, setStartDate] = useState<string>(savedFilters?.startDate || '');
+  const [endDate, setEndDate] = useState<string>(savedFilters?.endDate || '');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
+  // Salvar filtros no localStorage sempre que mudarem
+  useEffect(() => {
+    saveFiltersToStorage({
+      page,
+      pageSize,
+      activeFilter,
+      reportTypeFilter,
+      formIdFilter,
+      startDate,
+      endDate,
+    });
+  }, [page, pageSize, activeFilter, reportTypeFilter, formIdFilter, startDate, endDate]);
+
+  // Buscar formulários para o filtro
+  const { data: formsData, isLoading: formsLoading } = useForms({
+    page: 1,
+    pageSize: 100,
+    active: true,
+  });
+
+  // Buscar versões do formulário selecionado para obter a definição
+  const { data: versionsData } = useFormVersions(formIdFilter || null, { page: 1, pageSize: 50, active: true });
+
+  // Obter a definição do formulário (última versão ativa)
+  const formDefinition: FormBuilderDefinition | null = useMemo(() => {
+    if (!versionsData?.data || versionsData.data.length === 0) {
+      return null;
+    }
+    // Ordenar por versionNumber descendente e pegar a primeira (mais recente)
+    const sortedVersions = [...versionsData.data].sort(
+      (a, b) => b.versionNumber - a.versionNumber,
+    );
+    return sortedVersions[0]?.definition || null;
+  }, [versionsData]);
 
   const { data, isLoading, error } = useReports({
     page,
     pageSize,
     active: activeFilter,
     reportType: reportTypeFilter as 'POSITIVE' | 'NEGATIVE' | undefined,
+    formId: formIdFilter,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
   });
 
   const deleteMutation = useDeleteReport();
 
-  const handleDelete = (report: Report) => {
-    setReportToDelete(report);
-    setDeleteDialogOpen(true);
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, report: Report) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedReport(report);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedReport(null);
+  };
+
+  const handleView = () => {
+    if (selectedReport) {
+      navigate(`/reports/${selectedReport.id}`);
+    }
+    handleMenuClose();
+  };
+
+  const handleEdit = () => {
+    if (selectedReport) {
+      navigate(`/reports/${selectedReport.id}/edit`);
+    }
+    handleMenuClose();
+  };
+
+  const handleDelete = () => {
+    if (selectedReport) {
+      setReportToDelete(selectedReport);
+      setDeleteDialogOpen(true);
+    }
+    handleMenuClose();
   };
 
   const confirmDelete = () => {
@@ -59,7 +181,58 @@ export default function ReportsListPage() {
     }
   };
 
-  const columns: Column<Report>[] = [
+  // Função para formatar valor do formResponse
+  const formatFormResponseValue = (value: any, field: FormField): string => {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+    if (field.type === 'boolean') {
+      return value ? 'Sim' : 'Não';
+    }
+    if (field.type === 'multiselect' && Array.isArray(value)) {
+      return value.map((v) => {
+        const option = field.options?.find((opt) => opt.value === v);
+        return option ? option.label : String(v);
+      }).join(', ');
+    }
+    if (field.type === 'select') {
+      const option = field.options?.find((opt) => opt.value === value);
+      return option ? option.label : String(value);
+    }
+    if (field.type === 'date' && value) {
+      return new Date(value).toLocaleDateString('pt-BR');
+    }
+    return String(value);
+  };
+
+  // Criar colunas dinâmicas baseadas na definição do formulário
+  const getFormResponseColumns = (): Column<Report>[] => {
+    if (!formDefinition?.fields || formDefinition.fields.length === 0) {
+      return [];
+    }
+
+    return formDefinition.fields.map((field) => ({
+      id: `formResponse.${field.name}`,
+      label: field.label || field.name,
+      minWidth: 150,
+      mobileLabel: field.label || field.name,
+      render: (row) => {
+        const formResponse = row.formResponse || {};
+        const value = formResponse[field.name];
+        return formatFormResponseValue(value, field);
+      },
+    }));
+  };
+
+  // Colunas base
+  const baseColumns: Column<Report>[] = [
+    {
+      id: 'id',
+      label: 'ID',
+      minWidth: 80,
+      mobileLabel: 'ID',
+      render: (row) => row.id.toString(),
+    },
     {
       id: 'participationId',
       label: t('reports.participation'),
@@ -101,38 +274,95 @@ export default function ReportsListPage() {
       ),
     },
     {
-      id: 'actions',
-      label: t('reports.actions'),
+      id: 'createdAt',
+      label: 'Data de Criação',
       minWidth: 120,
-      align: 'right',
-      render: (row) => (
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-start' }}>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/reports/${row.id}`)}
-            title={t('common.view')}
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/reports/${row.id}/edit`)}
-            title={t('common.edit')}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(row)}
-            color="error"
-            title={t('common.delete')}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      mobileLabel: 'Data',
+      render: (row) => new Date(row.createdAt).toLocaleDateString('pt-BR'),
     },
   ];
+
+  // Coluna de ações (sempre por último)
+  const actionsColumn: Column<Report> = {
+    id: 'actions',
+    label: t('reports.actions'),
+    minWidth: 80,
+    align: 'right',
+    render: (row) => (
+      <>
+        <IconButton
+          size="small"
+          onClick={(e) => handleMenuOpen(e, row)}
+          title={t('reports.actions')}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </>
+    ),
+  };
+
+  // Combinar colunas: base + formResponse + ações (sempre por último)
+  const columns: Column<Report>[] = [
+    ...baseColumns,
+    ...(formIdFilter && formDefinition ? getFormResponseColumns() : []),
+    actionsColumn,
+  ];
+
+  // Função para exportar CSV
+  const handleExportCSV = () => {
+    if (!data?.data || data.data.length === 0 || !formIdFilter) {
+      return;
+    }
+
+    // Cabeçalhos
+    const headers = [
+      'ID',
+      'Participação',
+      'Versão do Formulário',
+      'Tipo',
+      'Status',
+      'Data de Criação',
+      ...(formDefinition?.fields.map((f) => f.label || f.name) || []),
+    ];
+
+    // Linhas de dados
+    const rows = data.data.map((report) => {
+      const formResponse = report.formResponse || {};
+      return [
+        report.id.toString(),
+        report.participationId.toString(),
+        report.formVersionId.toString(),
+        report.reportType === 'POSITIVE' ? 'Positivo' : 'Negativo',
+        report.active ? 'Ativo' : 'Inativo',
+        new Date(report.createdAt).toLocaleDateString('pt-BR'),
+        ...(formDefinition?.fields.map((field) => {
+          const value = formResponse[field.name];
+          const formatted = formatFormResponseValue(value, field);
+          // Escapar aspas e quebras de linha para CSV
+          return formatted.replace(/"/g, '""');
+        }) || []),
+      ];
+    });
+
+    // Criar conteúdo CSV
+    const csvContent = [
+      headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(';'),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(';')),
+    ].join('\n');
+
+    // Criar blob e download
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reports_${formIdFilter}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const forms = formsData?.data || [];
 
   const filters = [
     ...(activeFilter !== undefined
@@ -150,6 +380,27 @@ export default function ReportsListPage() {
             label: t('reports.type'),
             value: reportTypeFilter === 'POSITIVE' ? t('reports.positive') : t('reports.negative'),
             onDelete: () => setReportTypeFilter(undefined),
+          },
+        ]
+      : []),
+    ...(formIdFilter
+      ? [
+          {
+            label: t('reports.form'),
+            value: forms.find((f) => f.id === formIdFilter)?.title || `#${formIdFilter}`,
+            onDelete: () => setFormIdFilter(undefined),
+          },
+        ]
+      : []),
+    ...(startDate && endDate
+      ? [
+          {
+            label: t('reports.startDate'),
+            value: `${new Date(startDate).toLocaleDateString('pt-BR')} - ${new Date(endDate).toLocaleDateString('pt-BR')}`,
+            onDelete: () => {
+              setStartDate('');
+              setEndDate('');
+            },
           },
         ]
       : []),
@@ -183,6 +434,16 @@ export default function ReportsListPage() {
           >
             {t('reports.mapView')}
           </Button>
+          {formIdFilter && data?.data && data.data.length > 0 && (
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportCSV}
+              color="success"
+            >
+              Exportar CSV
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -194,62 +455,163 @@ export default function ReportsListPage() {
       </Box>
 
       <Stack spacing={2} sx={{ width: '100%' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 1,
-            flexWrap: 'wrap',
-          }}
-        >
-          <Button
-            variant={activeFilter === true ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
-          >
-            {t('reports.active')}
-          </Button>
-          <Button
-            variant={activeFilter === false ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setActiveFilter(activeFilter === false ? undefined : false)}
-          >
-            {t('reports.inactive')}
-          </Button>
-          <Button
-            variant={reportTypeFilter === 'POSITIVE' ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setReportTypeFilter(reportTypeFilter === 'POSITIVE' ? undefined : 'POSITIVE')}
-          >
-            {t('reports.positive')}
-          </Button>
-          <Button
-            variant={reportTypeFilter === 'NEGATIVE' ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setReportTypeFilter(reportTypeFilter === 'NEGATIVE' ? undefined : 'NEGATIVE')}
-          >
-            {t('reports.negative')}
-          </Button>
-        </Box>
+        <Paper sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Typography variant="h6">{t('reports.filters')}</Typography>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                <InputLabel>{t('reports.form')}</InputLabel>
+                <Select
+                  value={formIdFilter || ''}
+                  label={t('reports.form')}
+                  onChange={(e) => setFormIdFilter(e.target.value ? Number(e.target.value) : undefined)}
+                  required
+                  error={!formIdFilter}
+                >
+                  {formsLoading ? (
+                    <MenuItem disabled>
+                      <CircularProgress size={20} />
+                    </MenuItem>
+                  ) : (
+                    forms.map((form: any) => (
+                      <MenuItem key={form.id} value={form.id}>
+                        {form.title}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
+
+              <TextField
+                label={t('reports.startDate')}
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                fullWidth
+              />
+
+              <TextField
+                label={t('reports.endDate')}
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                fullWidth
+              />
+            </Stack>
+
+            {startDate && endDate && new Date(startDate) > new Date(endDate) && (
+              <Alert severity="error">
+                {t('reports.invalidDateRange')}
+              </Alert>
+            )}
+
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Button
+                variant={activeFilter === true ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
+              >
+                {t('reports.active')}
+              </Button>
+              <Button
+                variant={activeFilter === false ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setActiveFilter(activeFilter === false ? undefined : false)}
+              >
+                {t('reports.inactive')}
+              </Button>
+              <Button
+                variant={reportTypeFilter === 'POSITIVE' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setReportTypeFilter(reportTypeFilter === 'POSITIVE' ? undefined : 'POSITIVE')}
+              >
+                {t('reports.positive')}
+              </Button>
+              <Button
+                variant={reportTypeFilter === 'NEGATIVE' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setReportTypeFilter(reportTypeFilter === 'NEGATIVE' ? undefined : 'NEGATIVE')}
+              >
+                {t('reports.negative')}
+              </Button>
+            </Box>
+          </Stack>
+        </Paper>
 
         <FilterChips
           filters={filters}
           onClearAll={() => {
             setActiveFilter(undefined);
             setReportTypeFilter(undefined);
+            setFormIdFilter(undefined);
+            setStartDate('');
+            setEndDate('');
+            setPage(1);
+            // Limpar do localStorage também
+            localStorage.removeItem(STORAGE_KEY);
           }}
         />
 
-        <DataTable
-          columns={columns}
-          data={data?.data || []}
-          page={page}
-          pageSize={pageSize}
-          totalItems={data?.meta.totalItems || 0}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          loading={isLoading}
-        />
+        {!formIdFilter ? (
+          <Paper sx={{ p: 3 }}>
+            <Alert severity="info">
+              Selecione um formulário para visualizar os reports em formato de tabela.
+            </Alert>
+          </Paper>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={data?.data || []}
+            page={page}
+            pageSize={pageSize}
+            totalItems={data?.meta.totalItems || 0}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            loading={isLoading}
+            variant="table"
+          />
+        )}
       </Stack>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handleView}>
+          <VisibilityIcon fontSize="small" sx={{ mr: 1 }} />
+          {t('common.view')}
+        </MenuItem>
+        <MenuItem onClick={handleEdit}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          {t('common.edit')}
+        </MenuItem>
+        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          {t('common.delete')}
+        </MenuItem>
+      </Menu>
 
       <ConfirmDialog
         open={deleteDialogOpen}

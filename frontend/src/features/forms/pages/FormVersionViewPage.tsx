@@ -5,7 +5,6 @@ import {
   Typography,
   Paper,
   Chip,
-  Grid,
   IconButton,
   Tabs,
   Tab,
@@ -86,55 +85,57 @@ export default function FormVersionViewPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3} justifyContent="space-between" alignItems="flex-start">
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                ID
-              </Typography>
-              <Typography variant="body1">{version.id}</Typography>
-            </Box>
-          </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              ID
+            </Typography>
+            <Typography variant="body1">{version.id}</Typography>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Número da Versão
-              </Typography>
-              <Typography variant="body1">{version.versionNumber}</Typography>
-            </Box>
-          </Grid>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              Número da Versão
+            </Typography>
+            <Typography variant="body1">{version.versionNumber}</Typography>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Tipo de Acesso
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <Chip
-                  label={version.accessType === 'PUBLIC' ? 'Público' : 'Privado'}
-                  color={version.accessType === 'PUBLIC' ? 'success' : 'default'}
-                  size="small"
-                />
-              </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              Tipo de Acesso
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <Chip
+                label={version.accessType === 'PUBLIC' ? 'Público' : 'Privado'}
+                color={version.accessType === 'PUBLIC' ? 'success' : 'default'}
+                size="small"
+              />
             </Box>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Status
-              </Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <Chip
-                  label={version.active ? 'Ativo' : 'Inativo'}
-                  color={version.active ? 'success' : 'default'}
-                  size="small"
-                />
-              </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="caption" color="text.secondary">
+              Status
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <Chip
+                label={version.active ? 'Ativo' : 'Inativo'}
+                color={version.active ? 'success' : 'default'}
+                size="small"
+              />
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3 }}>

@@ -2,6 +2,13 @@ import {
   TablePagination,
   Typography,
   Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Card,
   CardContent,
   Stack,
@@ -29,6 +36,7 @@ interface DataTableProps<T> {
   onPageSizeChange: (pageSize: number) => void;
   loading?: boolean;
   emptyMessage?: string;
+  variant?: 'cards' | 'table';
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -41,6 +49,7 @@ export default function DataTable<T extends { id: number }>({
   onPageSizeChange,
   loading = false,
   emptyMessage,
+  variant = 'cards',
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const defaultEmptyMessage = emptyMessage || t('common.noResults');
@@ -62,6 +71,68 @@ export default function DataTable<T extends { id: number }>({
         <Box sx={{ py: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">{defaultEmptyMessage}</Typography>
         </Box>
+      ) : variant === 'table' ? (
+        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 400px)', overflowX: 'auto' }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                {columns.map((column, index) => {
+                  const isLastColumn = index === columns.length - 1;
+                  return (
+                    <TableCell
+                      key={column.id}
+                      align={column.align || 'left'}
+                      sx={{
+                        minWidth: column.minWidth,
+                        fontWeight: 'bold',
+                        ...(isLastColumn && {
+                          position: 'sticky',
+                          right: 0,
+                          backgroundColor: 'background.paper',
+                          zIndex: 10,
+                          boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                        }),
+                      }}
+                    >
+                      {column.label}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id} hover>
+                  {columns.map((column, index) => {
+                    const cellValue = (row as any)[column.id];
+                    const displayValue = column.render ? column.render(row) : cellValue;
+                    const isReactElement = isValidElement(displayValue);
+                    const isLastColumn = index === columns.length - 1;
+
+                    return (
+                      <TableCell
+                        key={column.id}
+                        align={column.align || 'left'}
+                        sx={{
+                          minWidth: column.minWidth,
+                          ...(isLastColumn && {
+                            position: 'sticky',
+                            right: 0,
+                            backgroundColor: 'background.paper',
+                            zIndex: 10,
+                            boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
+                          }),
+                        }}
+                      >
+                        {isReactElement ? displayValue : (displayValue ?? '-')}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       ) : (
         <Stack spacing={2}>
           {data.map((row) => (

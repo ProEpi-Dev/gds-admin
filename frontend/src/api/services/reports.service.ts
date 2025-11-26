@@ -12,6 +12,9 @@ export const reportsService = {
     if (query?.participationId) params.append('participationId', query.participationId.toString());
     if (query?.formVersionId) params.append('formVersionId', query.formVersionId.toString());
     if (query?.reportType) params.append('reportType', query.reportType);
+    if (query?.formId) params.append('formId', query.formId.toString());
+    if (query?.startDate) params.append('startDate', query.startDate);
+    if (query?.endDate) params.append('endDate', query.endDate);
 
     const response = await apiClient.get(`${API_ENDPOINTS.REPORTS.LIST}?${params.toString()}`);
     return response.data;

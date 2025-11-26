@@ -89,6 +89,28 @@ export class ReportsService {
       where.report_type = query.reportType;
     }
 
+    // Filtro por formulário (através do formVersion)
+    if (query.formId !== undefined) {
+      where.form_version = {
+        form_id: query.formId,
+      };
+    }
+
+    // Filtro por período (data de criação)
+    if (query.startDate || query.endDate) {
+      where.created_at = {};
+      if (query.startDate) {
+        const startDate = new Date(query.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        where.created_at.gte = startDate;
+      }
+      if (query.endDate) {
+        const endDate = new Date(query.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.created_at.lte = endDate;
+      }
+    }
+
     // Buscar reports e total
     const [reports, totalItems] = await Promise.all([
       this.prisma.report.findMany({
@@ -107,6 +129,9 @@ export class ReportsService {
     if (query.participationId !== undefined) queryParams.participationId = query.participationId;
     if (query.formVersionId !== undefined) queryParams.formVersionId = query.formVersionId;
     if (query.reportType !== undefined) queryParams.reportType = query.reportType;
+    if (query.formId !== undefined) queryParams.formId = query.formId;
+    if (query.startDate !== undefined) queryParams.startDate = query.startDate;
+    if (query.endDate !== undefined) queryParams.endDate = query.endDate;
 
     return {
       data: reports.map((report) => this.mapToResponseDto(report)),
