@@ -65,6 +65,7 @@ export default function FormFieldRenderer({
 
   const error = errors?.[field.name];
   const hasError = !!error;
+  const helperText = error || field.description || undefined;
 
   switch (field.type) {
     case 'text':
@@ -78,7 +79,7 @@ export default function FormFieldRenderer({
           placeholder={field.placeholder}
           fullWidth
           error={hasError}
-          helperText={error}
+          helperText={helperText}
           inputProps={{ maxLength: field.maxLength }}
           disabled={readOnly}
         />
@@ -96,7 +97,7 @@ export default function FormFieldRenderer({
           placeholder={field.placeholder}
           fullWidth
           error={hasError}
-          helperText={error}
+          helperText={helperText}
           inputProps={{ min: field.min, max: field.max }}
           disabled={readOnly}
         />
@@ -104,18 +105,25 @@ export default function FormFieldRenderer({
 
     case 'boolean':
       return (
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={value || false}
-              onChange={(e) => onChange(e.target.checked)}
-              name={field.name}
-              disabled={readOnly}
-            />
-          }
-          label={field.label}
-          required={field.required}
-        />
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={value || false}
+                onChange={(e) => onChange(e.target.checked)}
+                name={field.name}
+                disabled={readOnly}
+              />
+            }
+            label={field.label}
+            required={field.required}
+          />
+          {field.description && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, ml: 4.5 }}>
+              {field.description}
+            </Typography>
+          )}
+        </Box>
       );
 
     case 'date':
@@ -130,7 +138,7 @@ export default function FormFieldRenderer({
           placeholder={field.placeholder}
           fullWidth
           error={hasError}
-          helperText={error}
+          helperText={helperText}
           disabled={readOnly}
           InputLabelProps={{ shrink: true }}
           inputProps={{
@@ -157,7 +165,11 @@ export default function FormFieldRenderer({
               </MenuItem>
             ))}
           </Select>
-          {error && <Box sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>{error}</Box>}
+          {helperText && (
+            <Box sx={{ color: hasError ? 'error.main' : 'text.secondary', fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>
+              {helperText}
+            </Box>
+          )}
         </FormControl>
       );
 
@@ -186,7 +198,11 @@ export default function FormFieldRenderer({
               </MenuItem>
             ))}
           </Select>
-          {error && <Box sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>{error}</Box>}
+          {helperText && (
+            <Box sx={{ color: hasError ? 'error.main' : 'text.secondary', fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>
+              {helperText}
+            </Box>
+          )}
         </FormControl>
       );
 

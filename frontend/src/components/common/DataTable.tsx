@@ -6,6 +6,7 @@ import {
   CardContent,
   Stack,
 } from '@mui/material';
+import { isValidElement } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -87,12 +88,19 @@ export default function DataTable<T extends { id: number }>({
                       return null;
                     }
 
+                    // Verificar se displayValue é um elemento React (não apenas texto/number)
+                    const isReactElement = isValidElement(displayValue);
+
                     return (
                       <Box key={column.id}>
                         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
                           {label}
                         </Typography>
-                        <Typography variant="body2">{displayValue || '-'}</Typography>
+                        {isReactElement ? (
+                          displayValue
+                        ) : (
+                          <Typography variant="body2">{displayValue || '-'}</Typography>
+                        )}
                       </Box>
                     );
                   })}

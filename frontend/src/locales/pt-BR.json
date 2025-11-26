@@ -45,7 +45,15 @@
     "deleteMessage": "Tem certeza que deseja deletar o formulário \"{{title}}\"?",
     "deleteButton": "Deletar",
     "errorLoading": "Erro ao carregar formulários",
-    "errorLoadingForm": "Erro ao carregar formulário"
+    "errorLoadingForm": "Erro ao carregar formulário",
+    "fieldTypes": {
+      "text": "Texto",
+      "number": "Numérico",
+      "boolean": "Booleano",
+      "select": "Seleção Única",
+      "multiselect": "Seleção Múltipla",
+      "date": "Data"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",

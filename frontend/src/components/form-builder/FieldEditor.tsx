@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   TextField,
@@ -32,7 +33,12 @@ interface FieldEditorProps {
 }
 
 export default function FieldEditor({ field, allFields, onChange, onDelete }: FieldEditorProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+
+  const getFieldTypeLabel = (type: FieldType): string => {
+    return t(`forms.fieldTypes.${type}`, type);
+  };
 
   const handleChange = (updates: Partial<FormField>) => {
     onChange({ ...field, ...updates });
@@ -70,18 +76,29 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
           <Typography variant="body2" sx={{ flexGrow: 1 }}>
             {field.label || 'Campo sem nome'}
           </Typography>
-          <Chip label={field.type} size="small" />
+          <Chip label={getFieldTypeLabel(field.type)} size="small" />
           {field.required && <Chip label="Obrigatório" size="small" color="primary" />}
-          <IconButton
-            size="small"
+          <Box
+            component="span"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            color="error"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'error.main',
+              padding: '4px',
+              borderRadius: '50%',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
           >
-            <DeleteIcon />
-          </IconButton>
+            <DeleteIcon fontSize="small" />
+          </Box>
         </Box>
       </AccordionSummary>
       <AccordionDetails>
@@ -103,6 +120,17 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
             fullWidth
             required
             size="small"
+          />
+
+          <TextField
+            label="Descrição"
+            value={field.description || ''}
+            onChange={(e) => handleChange({ description: e.target.value || undefined })}
+            fullWidth
+            size="small"
+            multiline
+            rows={3}
+            helperText="Texto explicativo sobre o campo (opcional)"
           />
 
           <FormControl fullWidth size="small">
