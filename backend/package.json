@@ -84,6 +84,7 @@
       "app\\.module\\.ts$"
     ],
     "coverageDirectory": "../coverage",
+    "coverageReporters": ["text", "lcov", "json", "json-summary"],
     "testEnvironment": "node"
   }
 }

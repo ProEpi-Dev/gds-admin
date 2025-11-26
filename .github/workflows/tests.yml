@@ -69,10 +69,32 @@ jobs:
       - name: 🧪 Run tests with coverage
         id: test
         run: yarn test:cov
+        continue-on-error: false
 
       - name: 📊 Extract coverage percentage
         id: coverage
+        if: success()
         run: |
+          # Verificar se o diretório coverage existe
+          if [ ! -d "coverage" ]; then
+            echo "❌ Diretório coverage não encontrado!"
+            echo "📋 Listando diretório atual:"
+            ls -la || true
+            exit 1
+          fi
+          
+          # Listar conteúdo do diretório coverage para debug
+          echo "📁 Conteúdo do diretório coverage:"
+          ls -la coverage/ || true
+          
+          # Verificar se o arquivo coverage-summary.json existe
+          if [ ! -f "coverage/coverage-summary.json" ]; then
+            echo "❌ Arquivo coverage-summary.json não encontrado!"
+            echo "📋 Tentando encontrar arquivos de cobertura:"
+            find . -name "*coverage*" -type f 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          
           # Extrair a porcentagem de cobertura do relatório do Jest usando Node.js
           COVERAGE=$(node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8')); console.log(data.total.lines.pct.toFixed(2));")
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
