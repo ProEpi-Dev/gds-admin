@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Alert } from '@mui/material';
+import { Box } from '@mui/material';
 import { useCreateFormVersion, useFormVersions } from '../hooks/useFormVersions';
 import { getErrorMessage } from '../../../utils/errorHandler';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { CreateFormVersionDto } from '../../../types/form-version.types';
 import type { FormBuilderDefinition } from '../../../types/form-builder.types';
 import { ensureFormDefinition } from '../utils/formDefinitionValidator';
@@ -14,7 +15,7 @@ interface FormVersionCreateProps {
 
 export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const snackbar = useSnackbar();
   const [initialDefinition, setInitialDefinition] = useState<FormBuilderDefinition>({
     fields: [],
   });
@@ -51,7 +52,6 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
   }) => {
     if (!formId) return;
 
-    setError(null);
     const formData: CreateFormVersionDto = {
       accessType: data.accessType || 'PUBLIC',
       definition: data.definition,
@@ -62,10 +62,12 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
       { formId, data: formData },
       {
         onSuccess: (version) => {
+          snackbar.showSuccess('Versão criada com sucesso');
           navigate(`/forms/${formId}/versions/${version.id}`);
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, 'Erro ao criar versão'));
+          const errorMessage = getErrorMessage(err, 'Erro ao criar versão');
+          snackbar.showError(errorMessage);
         },
       },
     );
@@ -73,12 +75,6 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
 
   return (
     <Box>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
       <FormVersionEditor
         initialDefinition={initialDefinition}
         initialAccessType={initialAccessType}

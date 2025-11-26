@@ -12,19 +12,21 @@ import {
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm as useFormQuery, useDeleteForm } from '../hooks/useForms';
 import { useFormVersions } from '../hooks/useFormVersions';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import FormVersionsList from '../components/FormVersionsList';
 import FormVersionCreate from '../components/FormVersionCreate';
+import { getErrorMessage } from '../../../utils/errorHandler';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 
 export default function FormViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const snackbar = useSnackbar();
 
   const formId = id ? parseInt(id, 10) : null;
   const { data: form, isLoading, error } = useFormQuery(formId);
@@ -33,14 +35,29 @@ export default function FormViewPage() {
 
   const deleteMutation = useDeleteForm();
 
+  useEffect(() => {
+    if (error) {
+      snackbar.showError('Erro ao carregar formulário');
+    }
+  }, [error, snackbar]);
+
   const handleDelete = () => {
     if (formId) {
       deleteMutation.mutate(formId, {
         onSuccess: () => {
+          snackbar.showSuccess('Formulário deletado com sucesso');
           navigate('/forms');
+        },
+        onError: (error) => {
+          const errorMessage = getErrorMessage(error, 'Erro ao deletar formulário');
+          snackbar.showError(errorMessage);
         },
       });
     }
+  };
+
+  const handleOpenDeleteDialog = () => {
+    setDeleteDialogOpen(true);
   };
 
   if (isLoading) {
@@ -48,7 +65,7 @@ export default function FormViewPage() {
   }
 
   if (error || !form) {
-    return <ErrorAlert message="Erro ao carregar formulário" />;
+    return null; // Erro já foi tratado pelo useEffect
   }
 
   return (
@@ -71,7 +88,7 @@ export default function FormViewPage() {
           variant="outlined"
           color="error"
           startIcon={<DeleteIcon />}
-          onClick={() => setDeleteDialogOpen(true)}
+          onClick={handleOpenDeleteDialog}
         >
           Deletar
         </Button>

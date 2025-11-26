@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,7 +5,6 @@ import {
   Box,
   Button,
   TextField,
-  Alert,
   CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +13,7 @@ import { useMutation } from '@tanstack/react-query';
 import apiClient from '../../../api/client';
 import { API_ENDPOINTS } from '../../../api/endpoints';
 import { getErrorMessage } from '../../../utils/errorHandler';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { LoginDto, LoginResponse } from '../../../types/auth.types';
 
 const loginSchema = z.object({
@@ -27,7 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const snackbar = useSnackbar();
 
   const {
     register,
@@ -48,25 +47,21 @@ export default function LoginForm() {
         participation: data.participation,
       };
       login(data.token, userWithParticipation, data.participation);
+      snackbar.showSuccess('Login realizado com sucesso');
       navigate('/');
     },
     onError: (err: unknown) => {
-      setError(getErrorMessage(err, 'Erro ao fazer login'));
+      const errorMessage = getErrorMessage(err, 'Erro ao fazer login');
+      snackbar.showError(errorMessage);
     },
   });
 
   const onSubmit = (data: LoginFormData) => {
-    setError(null);
     loginMutation.mutate(data);
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 2 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
 
       <TextField
         {...register('email')}

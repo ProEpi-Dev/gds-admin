@@ -21,21 +21,78 @@ interface FormFieldRendererProps {
   readOnly?: boolean;
 }
 
-function shouldShowField(field: FormField, allValues: Record<string, any>): boolean {
+/**
+ * Normaliza valores booleanos para comparação.
+ * Converte strings "true"/"false" para booleanos e vice-versa quando necessário.
+ */
+function normalizeBooleanValue(value: any): any {
+  // Se o valor é uma string "true" ou "false", converte para booleano
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  // Se o valor já é um booleano, retorna como está
+  if (typeof value === 'boolean') return value;
+  // Para outros tipos, retorna o valor original
+  return value;
+}
+
+/**
+ * Normaliza valores para comparação, tratando especialmente valores booleanos.
+ * Garante que comparações entre booleanos e strings "true"/"false" funcionem corretamente.
+ */
+function normalizeForComparison(fieldValue: any, conditionValue: any): { fieldValue: any; conditionValue: any } {
+  // Se ambos são valores booleanos (ou strings que representam booleanos), normaliza ambos
+  const fieldIsBooleanLike = typeof fieldValue === 'boolean' || fieldValue === 'true' || fieldValue === 'false';
+  const conditionIsBooleanLike = typeof conditionValue === 'boolean' || conditionValue === 'true' || conditionValue === 'false';
+  
+  if (fieldIsBooleanLike && conditionIsBooleanLike) {
+    return {
+      fieldValue: normalizeBooleanValue(fieldValue),
+      conditionValue: normalizeBooleanValue(conditionValue),
+    };
+  }
+  
+  return { fieldValue, conditionValue };
+}
+
+function resolveConditionFieldValue(
+  conditionFieldId: string,
+  allFields: FormField[],
+  allValues: Record<string, any>,
+) {
+  const targetField =
+    allFields.find((f) => f.id === conditionFieldId) ||
+    allFields.find((f) => f.name === conditionFieldId);
+
+  if (targetField) {
+    return allValues[targetField.name];
+  }
+
+  return allValues[conditionFieldId];
+}
+
+export function shouldShowField(
+  field: FormField,
+  allValues: Record<string, any>,
+  allFields: FormField[],
+): boolean {
   if (!field.conditions || field.conditions.length === 0) {
     return true;
   }
 
   // Todas as condições devem ser verdadeiras (AND)
   return field.conditions.every((condition) => {
-    const fieldValue = allValues[condition.fieldId];
+    const fieldValue = resolveConditionFieldValue(condition.fieldId, allFields, allValues);
     const conditionValue = condition.value;
+
+    // Normaliza valores para comparação (especialmente booleanos)
+    const { fieldValue: normalizedFieldValue, conditionValue: normalizedConditionValue } = 
+      normalizeForComparison(fieldValue, conditionValue);
 
     switch (condition.operator) {
       case 'equals':
-        return fieldValue === conditionValue;
+        return normalizedFieldValue === normalizedConditionValue;
       case 'notEquals':
-        return fieldValue !== conditionValue;
+        return normalizedFieldValue !== normalizedConditionValue;
       case 'contains':
         return String(fieldValue || '').includes(String(conditionValue || ''));
       case 'greaterThan':
@@ -56,11 +113,12 @@ export default function FormFieldRenderer({
   field,
   value,
   onChange,
+  allFields,
   allValues,
   errors,
   readOnly = false,
 }: FormFieldRendererProps) {
-  if (!shouldShowField(field, allValues)) {
+  if (!shouldShowField(field, allValues, allFields)) {
     return null;
   }
 

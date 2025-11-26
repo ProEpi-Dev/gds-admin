@@ -14,8 +14,9 @@ import { useFormVersions, useDeleteFormVersion } from '../hooks/useFormVersions'
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
-import { useState } from 'react';
+import { useSnackbar } from '../../../hooks/useSnackbar';
+import { getErrorMessage } from '../../../utils/errorHandler';
+import { useState, useEffect } from 'react';
 import type { FormVersion } from '../../../types/form-version.types';
 
 interface FormVersionsListProps {
@@ -24,6 +25,7 @@ interface FormVersionsListProps {
 
 export default function FormVersionsList({ formId }: FormVersionsListProps) {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -31,6 +33,12 @@ export default function FormVersionsList({ formId }: FormVersionsListProps) {
 
   const { data, isLoading, error } = useFormVersions(formId, { page, pageSize });
   const deleteMutation = useDeleteFormVersion();
+
+  useEffect(() => {
+    if (error) {
+      snackbar.showError('Erro ao carregar versões');
+    }
+  }, [error, snackbar]);
 
   const handleDelete = (version: FormVersion) => {
     if (formId) {
@@ -43,8 +51,13 @@ export default function FormVersionsList({ formId }: FormVersionsListProps) {
     if (versionToDelete) {
       deleteMutation.mutate(versionToDelete, {
         onSuccess: () => {
+          snackbar.showSuccess('Versão deletada com sucesso');
           setDeleteDialogOpen(false);
           setVersionToDelete(null);
+        },
+        onError: (err: unknown) => {
+          const errorMessage = getErrorMessage(err, 'Erro ao deletar versão');
+          snackbar.showError(errorMessage);
         },
       });
     }
@@ -117,7 +130,7 @@ export default function FormVersionsList({ formId }: FormVersionsListProps) {
   }
 
   if (error) {
-    return <ErrorAlert message="Erro ao carregar versões" />;
+    return null; // Erro já foi tratado pelo useEffect
   }
 
   return (

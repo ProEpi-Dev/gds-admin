@@ -274,18 +274,34 @@ export class FormsService {
       );
     }
 
-    // Verificar se há versões associadas
-    const versions = await this.prisma.form_version.count({
+    // Buscar todas as versões associadas
+    const versions = await this.prisma.form_version.findMany({
       where: { form_id: id },
+      select: { id: true },
     });
 
-    if (versions > 0) {
-      throw new BadRequestException(
-        `Não é possível deletar formulário com ${versions} versão(ões) associada(s)`,
-      );
+    // Verificar se alguma versão tem reports associados
+    for (const version of versions) {
+      const reportsCount = await this.prisma.report.count({
+        where: { form_version_id: version.id },
+      });
+
+      if (reportsCount > 0) {
+        throw new BadRequestException(
+          `Não é possível deletar formulário. A versão ${version.id} possui ${reportsCount} report(s) associado(s)`,
+        );
+      }
     }
 
-    // Soft delete - apenas desativar
+    // Soft delete de todas as versões associadas
+    if (versions.length > 0) {
+      await this.prisma.form_version.updateMany({
+        where: { form_id: id },
+        data: { active: false },
+      });
+    }
+
+    // Soft delete - apenas desativar o formulário
     await this.prisma.form.update({
       where: { id },
       data: { active: false },

@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Alert } from '@mui/material';
+import { Box } from '@mui/material';
 import { useFormVersion, useUpdateFormVersion, useFormVersions } from '../hooks/useFormVersions';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
 import { getErrorMessage } from '../../../utils/errorHandler';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { UpdateFormVersionDto } from '../../../types/form-version.types';
 import type { FormBuilderDefinition } from '../../../types/form-builder.types';
 import { ensureFormDefinition } from '../utils/formDefinitionValidator';
@@ -13,7 +13,7 @@ import FormVersionEditor from '../components/FormVersionEditor';
 export default function FormVersionEditPage() {
   const { formId: formIdParam, id: idParam } = useParams<{ formId: string; id: string }>();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const snackbar = useSnackbar();
 
   const formId = formIdParam ? parseInt(formIdParam, 10) : null;
   const versionId = idParam ? parseInt(idParam, 10) : null;
@@ -64,7 +64,6 @@ export default function FormVersionEditPage() {
   }) => {
     if (!formId || !versionId) return;
 
-    setError(null);
     const formData: UpdateFormVersionDto = {
       accessType: data.accessType,
       definition: data.definition,
@@ -78,10 +77,16 @@ export default function FormVersionEditPage() {
           // Se uma nova versão foi criada (ID diferente), redirecionar para ela
           // Caso contrário, redirecionar para a versão atual
           const redirectVersionId = newVersion.id !== versionId ? newVersion.id : versionId;
+          if (newVersion.id !== versionId) {
+            snackbar.showSuccess('Nova versão criada com sucesso');
+          } else {
+            snackbar.showSuccess('Versão atualizada com sucesso');
+          }
           navigate(`/forms/${formId}/versions/${redirectVersionId}`);
         },
         onError: (err: unknown) => {
-          setError(getErrorMessage(err, 'Erro ao atualizar versão'));
+          const errorMessage = getErrorMessage(err, 'Erro ao atualizar versão');
+          snackbar.showError(errorMessage);
         },
       },
     );
@@ -94,12 +99,18 @@ export default function FormVersionEditPage() {
     }
   }, [version, initialDefinition]);
 
+  useEffect(() => {
+    if (queryError) {
+      snackbar.showError('Erro ao carregar versão do formulário');
+    }
+  }, [queryError, snackbar]);
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
   if (queryError || !version) {
-    return <ErrorAlert message="Erro ao carregar versão do formulário" />;
+    return null; // Erro já foi tratado pelo useEffect
   }
 
   const nextVersionNumber = getNextVersionNumber();
@@ -108,11 +119,6 @@ export default function FormVersionEditPage() {
 
   return (
     <Box>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
 
       <FormVersionEditor
         initialDefinition={initialDefinition}

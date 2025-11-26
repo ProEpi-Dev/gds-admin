@@ -12,4 +12,9 @@ export default defineConfig({
       include: [/node_modules/],
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+  },
 })

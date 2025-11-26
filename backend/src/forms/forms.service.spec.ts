@@ -45,6 +45,11 @@ describe('FormsService', () => {
               count: jest.fn(),
             },
             form_version: {
+              findMany: jest.fn(),
+              count: jest.fn(),
+              updateMany: jest.fn(),
+            },
+            report: {
               count: jest.fn(),
             },
           },
@@ -419,10 +424,10 @@ describe('FormsService', () => {
   });
 
   describe('remove', () => {
-    it('deve desativar formulário', async () => {
+    it('deve desativar formulário sem versões', async () => {
       (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'count').mockResolvedValue(0);
+      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([]);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue({
         ...mockForm,
         active: false,
@@ -430,6 +435,33 @@ describe('FormsService', () => {
 
       await service.remove(1, 1);
 
+      expect(prismaService.form.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { active: false },
+      });
+      expect(prismaService.form_version.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('deve desativar versões antes de desativar formulário', async () => {
+      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
+      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
+        { id: 1 },
+        { id: 2 },
+      ] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
+      jest.spyOn(prismaService.form_version, 'updateMany').mockResolvedValue({ count: 2 } as any);
+      jest.spyOn(prismaService.form, 'update').mockResolvedValue({
+        ...mockForm,
+        active: false,
+      } as any);
+
+      await service.remove(1, 1);
+
+      expect(prismaService.form_version.updateMany).toHaveBeenCalledWith({
+        where: { form_id: 1 },
+        data: { active: false },
+      });
       expect(prismaService.form.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { active: false },
@@ -450,12 +482,23 @@ describe('FormsService', () => {
       await expect(service.remove(1, 1)).rejects.toThrow(ForbiddenException);
     });
 
-    it('deve lançar BadRequestException quando possui versões', async () => {
+    it('deve lançar BadRequestException quando alguma versão possui reports', async () => {
       (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'count').mockResolvedValue(2);
+      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
+        { id: 1 },
+        { id: 2 },
+      ] as any);
+      const reportCountMock = jest
+        .spyOn(prismaService.report, 'count')
+        .mockResolvedValueOnce(0) // primeira versão sem reports
+        .mockResolvedValueOnce(3); // segunda versão com 3 reports
 
-      await expect(service.remove(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(service.remove(1, 1)).rejects.toThrow(
+        'Não é possível deletar formulário. A versão 2 possui 3 report(s) associado(s)',
+      );
+
+      expect(reportCountMock).toHaveBeenCalledTimes(2);
     });
   });
 
