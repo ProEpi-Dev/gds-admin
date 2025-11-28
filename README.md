@@ -1,5 +1,194 @@
 # Vigilância Baseada em Eventos
 
+## 🚀 Desenvolvimento Local
+
+Este guia descreve como configurar e executar o projeto localmente para desenvolvimento.
+
+### Pré-requisitos
+
+Antes de começar, certifique-se de ter instalado:
+
+- **Docker** e **Docker Compose** (para o banco de dados)
+- **Node.js** (versão 18 ou superior recomendada)
+- **Yarn** (gerenciador de pacotes)
+- **PostgreSQL Client** (opcional, para verificar o banco - pgAdmin, DBeaver, etc.)
+
+### Passo a Passo
+
+#### 1. Subir o Banco de Dados com Docker
+
+Primeiro, precisamos subir o banco de dados PostgreSQL usando Docker:
+
+```bash
+cd gds-docker-local-dev
+docker compose up -d
+```
+
+**Credenciais padrão do banco:**
+- **Usuário:** `gds_user`
+- **Senha:** `gds_password`
+- **Database:** `gds_db`
+- **Porta:** `5432`
+- **Host:** `localhost`
+
+O container será iniciado em background. Para verificar se está rodando:
+
+```bash
+docker ps
+```
+
+#### 2. Executar as Migrations
+
+Agora vamos executar as migrations do banco de dados usando Flyway:
+
+```bash
+cd migrations
+```
+
+**Copiar o arquivo de configuração:**
+
+```bash
+# Linux/Mac
+cp .env.example .env
+
+# Windows
+copy .env.example .env
+```
+
+**Executar as migrations:**
+
+```bash
+# Linux/Mac
+docker compose up
+
+# Windows
+# Use o Docker Desktop ou PowerShell para executar:
+docker compose up
+```
+
+As migrations serão executadas automaticamente. Aguarde a conclusão e verifique se não houve erros.
+
+**Variáveis de ambiente padrão (já configuradas no .env.example):**
+- `POSTGRES_DB=gds_db`
+- `POSTGRES_USER=gds_user`
+- `POSTGRES_PASSWORD=gds_password`
+- `FLYWAY_BASELINE_ON_MIGRATE=true`
+- `FLYWAY_BASELINE_VERSION=0`
+
+#### 3. Verificar as Tabelas (Opcional)
+
+Você pode verificar se as tabelas foram criadas corretamente usando um cliente PostgreSQL:
+
+**Com pgAdmin ou DBeaver:**
+- **Host:** `localhost`
+- **Porta:** `5432`
+- **Database:** `gds_db`
+- **Usuário:** `gds_user`
+- **Senha:** `gds_password`
+
+#### 4. Configurar e Iniciar o Backend
+
+Agora vamos configurar o backend:
+
+```bash
+cd backend
+```
+
+**Criar o arquivo de configuração:**
+
+```bash
+# Linux/Mac
+cp .env.example .env
+
+# Windows
+copy .env.example .env
+```
+
+O arquivo `.env` já está configurado com as credenciais padrão do banco.
+
+**Instalar as dependências:**
+
+```bash
+yarn install
+```
+
+**Gerar o cliente Prisma:**
+
+```bash
+yarn prisma generate
+```
+
+**Iniciar o servidor em modo desenvolvimento:**
+
+```bash
+yarn start:dev
+```
+
+O backend estará disponível em:
+- **API:** `http://localhost:3000`
+- **Swagger/API Docs:** `http://localhost:3000/api`
+
+Verifique se o servidor está rodando corretamente acessando `http://localhost:3000/api` no navegador.
+
+#### 5. Configurar e Iniciar o Frontend
+
+Em um novo terminal, configure o frontend:
+
+```bash
+cd frontend
+```
+
+**Instalar as dependências:**
+
+```bash
+yarn install
+```
+
+**Iniciar o servidor de desenvolvimento:**
+
+```bash
+yarn dev
+```
+
+O frontend estará disponível em:
+- **URL:** `http://localhost:5173`
+
+#### 6. Configuração Inicial do Sistema
+
+Após iniciar o backend e o frontend, é necessário fazer o setup inicial do sistema:
+
+1. Acesse o endpoint de setup: `http://localhost:3000/v1/setup`
+   - Este endpoint cria o primeiro usuário administrador e o primeiro contexto do sistema
+   - Você pode acessar via Swagger em `http://localhost:3000/api` e executar o endpoint `/v1/setup` de lá
+   - Ou fazer uma requisição POST diretamente para `http://localhost:3000/v1/setup`
+
+2. Após executar o setup, use as credenciais padrão para acessar o frontend:
+   - **Email:** `admin@example.com`
+   - **Senha:** `admin123`
+
+### Resumo das URLs
+
+- **Backend API:** `http://localhost:3000`
+- **Swagger/API Docs:** `http://localhost:3000/api`
+- **Frontend:** `http://localhost:5173`
+- **PostgreSQL:** `localhost:5432`
+
+### Troubleshooting
+
+**Problema: Porta já em uso**
+- Se a porta 5432 estiver em uso, você pode alterar a porta do PostgreSQL no `docker-compose.yml` da pasta `gds-docker-local-dev`
+- Lembre-se de atualizar a `DATABASE_URL` no `.env` do backend
+
+**Problema: Erro de conexão com o banco**
+- Verifique se o container do PostgreSQL está rodando: `docker ps`
+- Verifique se as credenciais no `.env` do backend correspondem às do `docker-compose.yml`
+
+**Problema: Migrations não executam**
+- Verifique se o arquivo `.env` foi criado na pasta `migrations`
+- Verifique se o PostgreSQL está acessível antes de executar as migrations
+
+---
+
 ## Build e Publish Manual de Imagens Docker
 
 Este projeto inclui Dockerfiles para buildar imagens Docker do backend e frontend. As imagens podem ser buildadas localmente ou publicadas manualmente no GitHub Container Registry.
