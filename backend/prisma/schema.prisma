@@ -18,6 +18,7 @@ model context {
   created_at      DateTime            @default(now()) @db.Timestamp(6)
   updated_at      DateTime            @default(now()) @db.Timestamp(6)
   active          Boolean             @default(true)
+  content         content[]
   location        location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
   context_manager context_manager[]
   form            form[]
@@ -147,10 +148,66 @@ model user {
   created_at      DateTime          @default(now()) @db.Timestamp(6)
   updated_at      DateTime          @default(now()) @db.Timestamp(6)
   active          Boolean           @default(true)
+  content         content[]
   context_manager context_manager[]
   participation   participation[]
 
   @@index([email], map: "idx_user_email")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model content {
+  id           Int           @id @default(autoincrement())
+  title        String        @db.VarChar(200)
+  reference    String        @unique(map: "uq_content_reference") @db.VarChar(50)
+  content      String
+  active       Boolean       @default(false)
+  summary      String?       @db.VarChar(500)
+  slug         String        @unique(map: "uq_content_slug") @db.VarChar(255)
+  author_id    Int
+  context_id   Int?
+  created_at   DateTime      @default(now()) @db.Timestamp(6)
+  updated_at   DateTime      @default(now()) @db.Timestamp(6)
+  published_at DateTime?     @db.Timestamp(6)
+  user         user          @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  context      context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  content_tag  content_tag[]
+
+  @@index([active], map: "idx_content_active")
+  @@index([author_id], map: "idx_content_author_id")
+  @@index([context_id], map: "idx_content_context_id")
+  @@index([created_at], map: "idx_content_created_at")
+  @@index([reference], map: "idx_content_reference")
+  @@index([slug], map: "idx_content_slug_idx")
+  @@index([title], map: "idx_content_title")
+}
+
+model content_tag {
+  id         Int      @id @default(autoincrement())
+  content_id Int
+  tag_id     Int
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  active     Boolean  @default(true)
+  content    content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tag        tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([content_id, tag_id], map: "uq_content_tag_unique")
+  @@index([content_id], map: "idx_content_tag_content_id")
+  @@index([tag_id], map: "idx_content_tag_tag_id")
+}
+
+model tag {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique(map: "uq_tag_name") @db.VarChar(100)
+  color       String?       @db.VarChar(7)
+  description String?       @db.VarChar(255)
+  created_at  DateTime      @default(now()) @db.Timestamp(6)
+  updated_at  DateTime      @default(now()) @db.Timestamp(6)
+  active      Boolean       @default(true)
+  content_tag content_tag[]
+
+  @@index([name], map: "idx_tag_name_idx")
 }
 
 enum context_access_type {
