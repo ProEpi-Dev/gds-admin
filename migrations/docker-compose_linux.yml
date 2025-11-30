@@ -1,0 +1,17 @@
+services:
+  flyway:
+    container_name: gds-flyway
+    image: flyway/flyway:10-alpine
+    network_mode: "host"
+    entrypoint: ["/bin/sh", "/flyway/run-flyway.sh"]
+    volumes:
+      - ./sql:/flyway/sql
+      - ./run-flyway.sh:/flyway/run-flyway.sh
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_BASELINE_ON_MIGRATE: ${FLYWAY_BASELINE_ON_MIGRATE}
+      FLYWAY_BASELINE_VERSION: ${FLYWAY_BASELINE_VERSION}
+    env_file:
+      - .env

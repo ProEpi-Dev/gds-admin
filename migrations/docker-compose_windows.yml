@@ -14,4 +14,3 @@ services:
       FLYWAY_BASELINE_VERSION: ${FLYWAY_BASELINE_VERSION}
     env_file:
       - .env
-
