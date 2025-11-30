@@ -424,7 +424,7 @@
 
 "@esbuild/linux-x64@0.25.12":
   version "0.25.12"
-  resolved "https://registry.yarnpkg.com/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz#0583775685ca82066d04c3507f09524d3cd7a306"
+  resolved "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.25.12.tgz"
   integrity sha512-uqZMTLr/zR/ed4jIGnwSLkaHmPjOjJvnm6TVVitAa08SLS9Z0VM8wIRx7gWbJB5/J54YuIMInDquWyYvQLZkgw==
 
 "@esbuild/netbsd-arm64@0.25.12":
@@ -469,7 +469,7 @@
 
 "@esbuild/win32-x64@0.25.12":
   version "0.25.12"
-  resolved "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.25.12.tgz"
+  resolved "https://registry.yarnpkg.com/@esbuild/win32-x64/-/win32-x64-0.25.12.tgz#9bdad8176be7811ad148d1f8772359041f46c6c5"
   integrity sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA==
 
 "@eslint-community/eslint-utils@^4.7.0", "@eslint-community/eslint-utils@^4.8.0":
@@ -815,7 +815,7 @@
 
 "@rollup/rollup-linux-x64-gnu@4.53.2":
   version "4.53.2"
-  resolved "https://registry.yarnpkg.com/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.2.tgz#42c3b8c94e9de37bd103cb2e26fb715118ef6459"
+  resolved "https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.53.2.tgz"
   integrity sha512-yo8d6tdfdeBArzC7T/PnHd7OypfI9cbuZzPnzLJIyKYFhAQ8SvlkKtKBMbXDxe1h03Rcr7u++nFS7tqXz87Gtw==
 
 "@rollup/rollup-linux-x64-musl@4.53.2":
@@ -840,12 +840,12 @@
 
 "@rollup/rollup-win32-x64-gnu@4.53.2":
   version "4.53.2"
-  resolved "https://registry.npmjs.org/@rollup/rollup-win32-x64-gnu/-/rollup-win32-x64-gnu-4.53.2.tgz"
+  resolved "https://registry.yarnpkg.com/@rollup/rollup-win32-x64-gnu/-/rollup-win32-x64-gnu-4.53.2.tgz#d182ce91e342bad9cbb8b284cf33ac542b126ead"
   integrity sha512-S6YojNVrHybQis2lYov1sd+uj7K0Q05NxHcGktuMMdIQ2VixGwAfbJ23NnlvvVV1bdpR2m5MsNBViHJKcA4ADw==
 
 "@rollup/rollup-win32-x64-msvc@4.53.2":
   version "4.53.2"
-  resolved "https://registry.npmjs.org/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.53.2.tgz"
+  resolved "https://registry.yarnpkg.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.53.2.tgz#d9ab606437fd072b2cb7df7e54bcdc7f1ccbe8b4"
   integrity sha512-k+/Rkcyx//P6fetPoLMb8pBeqJBNGx81uuf7iljX9++yNBVRDQgD04L+SVXmXmh5ZP4/WOp4mWF0kmi06PW2tA==
 
 "@standard-schema/spec@^1.0.0":
@@ -1256,17 +1256,12 @@ argparse@^2.0.1:
   resolved "https://registry.npmjs.org/argparse/-/argparse-2.0.1.tgz"
   integrity sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==
 
-aria-query@5.3.0:
+aria-query@5.3.0, aria-query@^5.0.0:
   version "5.3.0"
   resolved "https://registry.npmjs.org/aria-query/-/aria-query-5.3.0.tgz"
   integrity sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==
   dependencies:
     dequal "^2.0.3"
-
-aria-query@^5.0.0:
-  version "5.3.2"
-  resolved "https://registry.npmjs.org/aria-query/-/aria-query-5.3.2.tgz"
-  integrity sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==
 
 assertion-error@^2.0.1:
   version "2.0.1"
@@ -1379,7 +1374,7 @@ chalk@^4.0.0:
 
 clsx@^1.1.0:
   version "1.2.1"
-  resolved "https://registry.yarnpkg.com/clsx/-/clsx-1.2.1.tgz#0ddc4a20a549b59c93a4116bb26f5294ca17dc12"
+  resolved "https://registry.npmjs.org/clsx/-/clsx-1.2.1.tgz"
   integrity sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==
 
 clsx@^2.1.1:
@@ -1910,7 +1905,7 @@ globals@^16.5.0:
 
 goober@^2.0.33:
   version "2.1.18"
-  resolved "https://registry.yarnpkg.com/goober/-/goober-2.1.18.tgz#b72d669bd24d552d441638eee26dfd5716ea6442"
+  resolved "https://registry.npmjs.org/goober/-/goober-2.1.18.tgz"
   integrity sha512-2vFqsaDVIT9Gz7N6kAL++pLpp41l3PfDuusHcjnGLfR6+huZkl6ziX+zgVC3ZxpqWhzH6pyDdGrCeDhMIvwaxw==
 
 gopd@^1.2.0:
@@ -2307,7 +2302,7 @@ node-releases@^2.0.27:
 
 notistack@3.0.2:
   version "3.0.2"
-  resolved "https://registry.yarnpkg.com/notistack/-/notistack-3.0.2.tgz#009799c3fccddeffac58565ba1657d27616dfabd"
+  resolved "https://registry.npmjs.org/notistack/-/notistack-3.0.2.tgz"
   integrity sha512-0R+/arLYbK5Hh7mEfR2adt0tyXJcCC9KkA2hc56FeWik2QN6Bm/S4uW+BjzDARsJth5u06nTjelSw/VSnB1YEA==
   dependencies:
     clsx "^1.1.0"
