@@ -18,6 +18,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { TagModule } from './tags/tag.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     FormsModule,
     FormVersionsModule,
     ReportsModule,
+    TagModule,
   ],
   controllers: [AppController],
   providers: [

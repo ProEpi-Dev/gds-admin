@@ -35,6 +35,8 @@ import ContextEditPage from "../features/contexts/pages/ContextEditPage";
 import ContextViewPage from "../features/contexts/pages/ContextViewPage";
 import ContextManagerEditPage from "../features/context-managers/pages/ContextManagerEditPage";
 import DashboardPage from "../features/dashboard/pages/DashboardPage";
+import ContentList from "../features/content/ContentList";
+import ContentForm from "../features/content/ContentForm";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -300,6 +302,30 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ContextManagerEditPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contents/new"
+        element={
+          <ProtectedRoute>
+            <ContentForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contents/:id/edit"
+        element={
+          <ProtectedRoute>
+            <ContentForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contents"
+        element={
+          <ProtectedRoute>
+            <ContentList />
           </ProtectedRoute>
         }
       />

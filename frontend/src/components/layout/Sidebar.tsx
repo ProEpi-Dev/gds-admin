@@ -11,8 +11,8 @@ import {
   Avatar,
   Typography,
   IconButton,
-} from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+} from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
@@ -23,9 +23,9 @@ import {
   Assessment as AssessmentIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
-} from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTranslation } from '../../hooks/useTranslation';
+} from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext";
+import { useTranslation } from "../../hooks/useTranslation";
 
 const drawerWidth = 240;
 
@@ -41,53 +41,78 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
 
   const menuItems = [
-    { path: '/', label: t('navigation.dashboard'), icon: <DashboardIcon /> },
-    { path: '/form-builder', label: t('forms.formBuilder'), icon: <DescriptionIcon /> },
-    { path: '/users', label: t('navigation.users'), icon: <PeopleIcon /> },
-    { path: '/locations', label: t('navigation.locations'), icon: <LocationIcon /> },
-    { path: '/contexts', label: t('navigation.contexts'), icon: <FolderIcon /> },
-    { path: '/participations', label: t('navigation.participations'), icon: <AssignmentIcon /> },
-    { path: '/forms', label: t('forms.title'), icon: <DescriptionIcon /> },
-    { path: '/reports', label: t('navigation.reports'), icon: <AssessmentIcon /> },
+    { path: "/", label: t("navigation.dashboard"), icon: <DashboardIcon /> },
+    {
+      path: "/form-builder",
+      label: t("forms.formBuilder"),
+      icon: <DescriptionIcon />,
+    },
+    { path: "/users", label: t("navigation.users"), icon: <PeopleIcon /> },
+    {
+      path: "/locations",
+      label: t("navigation.locations"),
+      icon: <LocationIcon />,
+    },
+    {
+      path: "/contexts",
+      label: t("navigation.contexts"),
+      icon: <FolderIcon />,
+    },
+    {
+      path: "/participations",
+      label: t("navigation.participations"),
+      icon: <AssignmentIcon />,
+    },
+    { path: "/forms", label: t("forms.title"), icon: <DescriptionIcon /> },
+    {
+      path: "/reports",
+      label: t("navigation.reports"),
+      icon: <AssessmentIcon />,
+    },
+    {
+      path: "/contents",
+      label: "Conteúdos",
+      icon: <AssessmentIcon />,
+    },
   ];
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Toolbar
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           px: 2,
         }}
       >
         <Typography variant="h6" noWrap component="div">
-          {t('layout.menu')}
+          {t("layout.menu")}
         </Typography>
         <IconButton onClick={onClose}>
           <CloseIcon />
         </IconButton>
       </Toolbar>
       <Divider />
-      
+
       {user && (
         <>
-          <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ bgcolor: 'primary.main' }}>
+          <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
+            <Avatar sx={{ bgcolor: "primary.main" }}>
               {getInitials(user.name)}
             </Avatar>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -129,7 +154,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                 <ListItemIcon>
                   <LogoutIcon />
                 </ListItemIcon>
-                <ListItemText primary={t('layout.logout')} />
+                <ListItemText primary={t("layout.logout")} />
               </ListItemButton>
             </ListItem>
           </List>
@@ -147,10 +172,10 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         keepMounted: true,
       }}
       sx={{
-        '& .MuiDrawer-paper': {
+        "& .MuiDrawer-paper": {
           width: drawerWidth,
-          boxSizing: 'border-box',
-          mt: '64px',
+          boxSizing: "border-box",
+          mt: "64px",
         },
       }}
     >
@@ -158,4 +183,3 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     </Drawer>
   );
 }
-

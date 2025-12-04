@@ -1,74 +1,77 @@
 export const API_ENDPOINTS = {
   // Auth
   AUTH: {
-    LOGIN: '/auth/login',
-    CHANGE_PASSWORD: '/auth/change-password',
+    LOGIN: "/auth/login",
+    CHANGE_PASSWORD: "/auth/change-password",
   },
-  
+
   // Setup
   SETUP: {
-    CREATE: '/setup',
+    CREATE: "/setup",
   },
-  
+
   // Health
   HEALTH: {
-    CHECK: '/health',
+    CHECK: "/health",
   },
-  
+
   // Users
   USERS: {
-    LIST: '/users',
+    LIST: "/users",
     DETAIL: (id: number) => `/users/${id}`,
-    CREATE: '/users',
+    CREATE: "/users",
     UPDATE: (id: number) => `/users/${id}`,
     DELETE: (id: number) => `/users/${id}`,
   },
-  
+
   // Locations
   LOCATIONS: {
-    LIST: '/locations',
+    LIST: "/locations",
     DETAIL: (id: number) => `/locations/${id}`,
-    CREATE: '/locations',
+    CREATE: "/locations",
     UPDATE: (id: number) => `/locations/${id}`,
     DELETE: (id: number) => `/locations/${id}`,
   },
-  
+
   // Contexts
   CONTEXTS: {
-    LIST: '/contexts',
+    LIST: "/contexts",
     DETAIL: (id: number) => `/contexts/${id}`,
-    CREATE: '/contexts',
+    CREATE: "/contexts",
     UPDATE: (id: number) => `/contexts/${id}`,
     DELETE: (id: number) => `/contexts/${id}`,
   },
-  
+
   // Context Managers
   CONTEXT_MANAGERS: {
     LIST: (contextId: number) => `/contexts/${contextId}/managers`,
-    DETAIL: (contextId: number, id: number) => `/contexts/${contextId}/managers/${id}`,
+    DETAIL: (contextId: number, id: number) =>
+      `/contexts/${contextId}/managers/${id}`,
     CREATE: (contextId: number) => `/contexts/${contextId}/managers`,
-    UPDATE: (contextId: number, id: number) => `/contexts/${contextId}/managers/${id}`,
-    DELETE: (contextId: number, id: number) => `/contexts/${contextId}/managers/${id}`,
+    UPDATE: (contextId: number, id: number) =>
+      `/contexts/${contextId}/managers/${id}`,
+    DELETE: (contextId: number, id: number) =>
+      `/contexts/${contextId}/managers/${id}`,
   },
-  
+
   // Participations
   PARTICIPATIONS: {
-    LIST: '/participations',
+    LIST: "/participations",
     DETAIL: (id: number) => `/participations/${id}`,
-    CREATE: '/participations',
+    CREATE: "/participations",
     UPDATE: (id: number) => `/participations/${id}`,
     DELETE: (id: number) => `/participations/${id}`,
   },
-  
+
   // Forms
   FORMS: {
-    LIST: '/forms',
+    LIST: "/forms",
     DETAIL: (id: number) => `/forms/${id}`,
-    CREATE: '/forms',
+    CREATE: "/forms",
     UPDATE: (id: number) => `/forms/${id}`,
     DELETE: (id: number) => `/forms/${id}`,
   },
-  
+
   // Form Versions
   FORM_VERSIONS: {
     LIST: (formId: number) => `/forms/${formId}/versions`,
@@ -77,15 +80,22 @@ export const API_ENDPOINTS = {
     UPDATE: (formId: number, id: number) => `/forms/${formId}/versions/${id}`,
     DELETE: (formId: number, id: number) => `/forms/${formId}/versions/${id}`,
   },
-  
+
   // Reports
   REPORTS: {
-    LIST: '/reports',
+    LIST: "/reports",
     DETAIL: (id: number) => `/reports/${id}`,
-    CREATE: '/reports',
+    CREATE: "/reports",
     UPDATE: (id: number) => `/reports/${id}`,
     DELETE: (id: number) => `/reports/${id}`,
-    POINTS: '/reports/points',
+    POINTS: "/reports/points",
+  },
+
+  TAGS: {
+    LIST: "/tags",
+    DETAIL: (id: number) => `/tags/${id}`,
+    CREATE: "/tags",
+    UPDATE: (id: number) => `/tags/${id}`,
+    DELETE: (id: number) => `/tags/${id}`,
   },
 };
-
