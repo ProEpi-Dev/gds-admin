@@ -6,12 +6,8 @@ export const TagService = {
     return apiClient.get(API_ENDPOINTS.TAGS.LIST);
   },
 
-  create(payload: { name: string }) {
+  create(payload: { name: string; color?: string }) {
     return apiClient.post(API_ENDPOINTS.TAGS.CREATE, payload);
-  },
-
-  get(id: number) {
-    return apiClient.get(API_ENDPOINTS.TAGS.DETAIL(id));
   },
 
   update(id: number, payload: any) {

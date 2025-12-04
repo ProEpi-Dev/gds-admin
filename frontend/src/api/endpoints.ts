@@ -91,6 +91,16 @@ export const API_ENDPOINTS = {
     POINTS: "/reports/points",
   },
 
+  // CONTENTS
+  CONTENT: {
+    LIST: "/content",
+    DETAIL: (id: number) => `/content/${id}`,
+    CREATE: "/content",
+    UPDATE: (id: number) => `/content/${id}`,
+    DELETE: (id: number) => `/content/${id}`,
+  },
+
+  // TAGS
   TAGS: {
     LIST: "/tags",
     DETAIL: (id: number) => `/tags/${id}`,

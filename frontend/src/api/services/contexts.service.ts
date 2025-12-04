@@ -1,18 +1,27 @@
-import apiClient from '../client';
-import { API_ENDPOINTS } from '../endpoints';
-import type { CreateContextDto, UpdateContextDto, ContextQuery, Context } from '../../types/context.types';
-import type { ListResponse } from '../../types/api.types';
+import apiClient from "../client";
+import { API_ENDPOINTS } from "../endpoints";
+import type {
+  CreateContextDto,
+  UpdateContextDto,
+  ContextQuery,
+  Context,
+} from "../../types/context.types";
+import type { ListResponse } from "../../types/api.types";
 
 export const contextsService = {
   async findAll(query?: ContextQuery): Promise<ListResponse<Context>> {
     const params = new URLSearchParams();
-    if (query?.page) params.append('page', query.page.toString());
-    if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
-    if (query?.active !== undefined) params.append('active', query.active.toString());
-    if (query?.locationId) params.append('locationId', query.locationId.toString());
-    if (query?.accessType) params.append('accessType', query.accessType);
+    if (query?.page) params.append("page", query.page.toString());
+    if (query?.pageSize) params.append("pageSize", query.pageSize.toString());
+    if (query?.active !== undefined)
+      params.append("active", query.active.toString());
+    if (query?.locationId)
+      params.append("locationId", query.locationId.toString());
+    if (query?.accessType) params.append("accessType", query.accessType);
 
-    const response = await apiClient.get(`${API_ENDPOINTS.CONTEXTS.LIST}?${params.toString()}`);
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.CONTEXTS.LIST}?${params.toString()}`
+    );
     return response.data;
   },
 
@@ -27,7 +36,10 @@ export const contextsService = {
   },
 
   async update(id: number, data: UpdateContextDto): Promise<Context> {
-    const response = await apiClient.patch(API_ENDPOINTS.CONTEXTS.UPDATE(id), data);
+    const response = await apiClient.patch(
+      API_ENDPOINTS.CONTEXTS.UPDATE(id),
+      data
+    );
     return response.data;
   },
 
@@ -35,4 +47,3 @@ export const contextsService = {
     await apiClient.delete(API_ENDPOINTS.CONTEXTS.DELETE(id));
   },
 };
-
