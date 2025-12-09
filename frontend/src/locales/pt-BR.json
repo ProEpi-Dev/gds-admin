@@ -76,7 +76,7 @@
     "positive": "Positivo",
     "negative": "Negativo",
     "deleteConfirm": "Confirmar exclusão",
-    "deleteMessage": "Tem certeza que deseja deletar este report?",
+    "deleteMessage": "Tem certeza que deseja deletar permanentemente este report? Esta ação não pode ser desfeita.",
     "errorLoading": "Erro ao carregar reports",
     "errorLoadingReport": "Erro ao carregar report",
     "errorCreatingReport": "Erro ao criar report",

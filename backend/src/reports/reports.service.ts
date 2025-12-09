@@ -234,10 +234,9 @@ export class ReportsService {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
 
-    // Soft delete - apenas desativar
-    await this.prisma.report.update({
+    // Hard delete - remoção permanente
+    await this.prisma.report.delete({
       where: { id },
-      data: { active: false },
     });
   }
 
