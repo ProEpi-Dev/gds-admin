@@ -87,15 +87,16 @@ export default function ContentList() {
                   <span
                     key={t.id}
                     style={{
-                      background: "#e3f2fd",
-                      color: "#1976d2",
+                      background: t.tag.color || "#e3f2fd",
+                      color: "#fff",
                       padding: "4px 8px",
                       borderRadius: 4,
                       marginRight: 6,
                       fontSize: 12,
+                      display: "inline-block",
                     }}
                   >
-                    #{t.tag_id}
+                    #{t.tag.name}
                   </span>
                 ))}
               </td>
@@ -111,9 +112,36 @@ export default function ContentList() {
                     background: "transparent",
                     cursor: "pointer",
                     fontSize: 14,
+                    marginRight: 8,
                   }}
                 >
                   Editar
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (
+                      window.confirm(
+                        "Tem certeza que deseja excluir este conteúdo?"
+                      )
+                    ) {
+                      await ContentService.delete(item.id);
+                      setContents((prev) =>
+                        prev.filter((c) => c.id !== item.id)
+                      );
+                    }
+                  }}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 4,
+                    border: "1px solid #d32f2f",
+                    color: "#d32f2f",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  Excluir
                 </button>
               </td>
             </tr>

@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
-import { TagService } from "../../api/services/tag.service";
 import { useNavigate, useParams } from "react-router-dom";
+import TagSelector from "../../../src/components/common/TagSelector";
 
 export default function ContentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [tags, setTags] = useState<any[]>([]);
-  const [newTagName, setNewTagName] = useState("");
   const [slugError, setSlugError] = useState("");
 
   const [form, setForm] = useState({
@@ -22,14 +20,7 @@ export default function ContentForm() {
     tags: [] as number[],
   });
 
-  useEffect(() => {
-    loadTags();
-  }, []);
-
-  function loadTags() {
-    TagService.list().then((res) => setTags(res.data));
-  }
-
+  // LOAD CONTENT IF EDIT
   useEffect(() => {
     if (id) {
       ContentService.get(Number(id)).then((res) => {
@@ -42,13 +33,13 @@ export default function ContentForm() {
           slug: c.slug,
           author_id: c.author_id,
           context_id: c.context_id,
-          tags: c.content_tag?.map((t: any) => t.tag_id) || [],
+          tags: c.content_tag?.map((t: any) => t.tag.id) || [],
         });
       });
     }
   }, [id]);
 
-  // --------------------- SLUG VALIDATION ------------------------------
+  // SLUG VALIDATION
   function validateSlug(value: string) {
     const isValid = /^[a-zA-Z0-9-]+$/.test(value);
     setSlugError(
@@ -62,37 +53,32 @@ export default function ContentForm() {
     validateSlug(value);
   }
 
-  // --------------------- CREATE NEW TAG ------------------------------
-  async function addNewTag() {
-    if (!newTagName.trim()) return;
-
-    const res = await TagService.create({ name: newTagName.trim() });
-    const newTag = res.data;
-
-    // adiciona no estado
-    setTags((prev) => [...prev, newTag]);
-
-    // marca a nova tag automaticamente
-    setForm({
-      ...form,
-      tags: [...form.tags, newTag.id],
-    });
-
-    setNewTagName("");
-  }
-
-  // --------------------- SUBMIT ------------------------------
+  // SUBMIT
   function handleSubmit() {
     if (slugError) return;
 
     if (id) {
+      // Edição
       ContentService.update(Number(id), form).then(() => navigate("/contents"));
     } else {
-      ContentService.create(form).then(() => navigate("/contents"));
+      // Criação
+      const newContent = {
+        ...form,
+        reference: form.reference || `ref-${Date.now()}`, // se reference vazio, cria um único
+      };
+
+      ContentService.create(newContent)
+        .then(() => navigate("/contents"))
+        .catch((error) => {
+          alert(
+            "Erro ao criar conteúdo: " +
+              (error.response?.data?.message || error.message)
+          );
+        });
     }
   }
 
-  // --------------------- STYLES ------------------------------
+  // STYLES
   const fieldStyle = {
     display: "flex",
     flexDirection: "column" as const,
@@ -164,49 +150,10 @@ export default function ContentForm() {
       <div style={fieldStyle}>
         <label>Tags</label>
 
-        {/* SELECT */}
-        <select
-          multiple
-          style={{ ...inputStyle, height: 140 }}
-          value={form.tags.map(String)}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              tags: Array.from(e.target.selectedOptions).map((o) =>
-                Number(o.value)
-              ),
-            })
-          }
-        >
-          {tags.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
-
-        {/* ADD NEW TAG */}
-        <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-          <input
-            placeholder="Criar nova tag"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <button
-            onClick={addNewTag}
-            style={{
-              padding: "10px 16px",
-              background: "#2e7d32",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            + Adicionar
-          </button>
-        </div>
+        <TagSelector
+          value={form.tags}
+          onChange={(newTags: number[]) => setForm({ ...form, tags: newTags })}
+        />
       </div>
 
       {/* BOTÃO SUBMIT */}

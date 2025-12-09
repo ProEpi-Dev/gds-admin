@@ -14,11 +14,12 @@ import { ContextManagersModule } from './context-managers/context-managers.modul
 import { FormsModule } from './forms/forms.module';
 import { FormVersionsModule } from './form-versions/form-versions.module';
 import { ReportsModule } from './reports/reports.module';
+import { ContentModule } from './content/content.module';
+import { TagModule } from './tags/tag.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { TagModule } from './tags/tag.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TagModule } from './tags/tag.module';
     FormsModule,
     FormVersionsModule,
     ReportsModule,
+    ContentModule,
     TagModule,
   ],
   controllers: [AppController],
