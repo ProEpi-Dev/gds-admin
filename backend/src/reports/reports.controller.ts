@@ -120,7 +120,7 @@ export class ReportsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar report',
-    description: 'Remove um report (soft delete - desativa)',
+    description: 'Remove um report permanentemente do banco de dados (hard delete)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do report' })
   @ApiResponse({ status: 204, description: 'Report deletado com sucesso' })

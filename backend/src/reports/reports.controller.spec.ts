@@ -284,7 +284,7 @@ describe('ReportsController', () => {
   });
 
   describe('remove', () => {
-    it('deve desativar report', async () => {
+    it('deve deletar report permanentemente', async () => {
       jest.spyOn(reportsService, 'remove').mockResolvedValue(undefined);
 
       await controller.remove(1);

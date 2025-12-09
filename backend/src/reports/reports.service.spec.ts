@@ -47,6 +47,7 @@ describe('ReportsService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
               count: jest.fn(),
             },
             participation: {
@@ -420,18 +421,14 @@ describe('ReportsService', () => {
   });
 
   describe('remove', () => {
-    it('deve desativar report', async () => {
+    it('deve deletar report permanentemente', async () => {
       jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue(mockReport as any);
-      jest.spyOn(prismaService.report, 'update').mockResolvedValue({
-        ...mockReport,
-        active: false,
-      } as any);
+      jest.spyOn(prismaService.report, 'delete').mockResolvedValue(mockReport as any);
 
       await service.remove(1);
 
-      expect(prismaService.report.update).toHaveBeenCalledWith({
+      expect(prismaService.report.delete).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { active: false },
       });
     });
 
