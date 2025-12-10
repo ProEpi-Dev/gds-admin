@@ -205,6 +205,15 @@
     "participationsComingSoon": "Participations list coming soon",
     "formsComingSoon": "Forms list coming soon"
   },
+  "tags": {
+    "searchPlaceholder": "Type to search or create tags...",
+    "searchHelperText": "Type to search existing tags or press Enter to create a new one",
+    "createTitle": "Create New Tag",
+    "nameLabel": "Tag Name",
+    "colorLabel": "Color",
+    "preview": "Preview",
+    "createAndAdd": "Create & Add"
+  },
   "contextManagers": {
     "title": "Context Managers",
     "newManager": "New Manager",
@@ -220,6 +229,18 @@
     "errorLoadingManager": "Error loading manager",
     "errorCreating": "Error creating manager",
     "errorUpdating": "Error updating manager"
+  },
+  "errors": {
+    "uniqueConstraint": {
+      "slug": "This slug is already in use",
+      "email": "This email is already in use",
+      "name": "This name is already in use",
+      "generic": "This value is already in use"
+    },
+    "notFound": "Record not found",
+    "foreignKey": "The referenced record does not exist",
+    "requiredRelation": "The change would violate a required relation",
+    "database": "An unexpected database error occurred"
   }
 }
 

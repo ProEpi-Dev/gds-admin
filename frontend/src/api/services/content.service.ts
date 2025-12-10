@@ -2,23 +2,23 @@ import apiClient from "../client";
 
 export const ContentService = {
   list() {
-    return apiClient.get("/content");
+    return apiClient.get("/contents");
   },
 
   get(id: number) {
-    return apiClient.get(`/content/${id}`);
+    return apiClient.get(`/contents/${id}`);
   },
 
   create(data: any) {
-    return apiClient.post("/content", data);
+    return apiClient.post("/contents", data);
   },
 
   update(id: number, data: any) {
-    return apiClient.put(`/content/${id}`, data);
+    return apiClient.put(`/contents/${id}`, data);
   },
 
   delete(id: number) {
-    return apiClient.delete(`/content/${id}`);
+    return apiClient.delete(`/contents/${id}`);
   },
 };
 

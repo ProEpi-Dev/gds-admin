@@ -4,10 +4,22 @@ import { useNavigate, useParams } from "react-router-dom";
 import TagSelector from "../../../src/components/common/TagSelector";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  IconButton,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import { useTranslation } from "react-i18next";
 
 export default function ContentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+  const { t } = useTranslation();
 
   const [slugError, setSlugError] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
@@ -97,7 +109,29 @@ export default function ContentForm() {
 
     if (id) {
       // Edição
-      ContentService.update(Number(id), form).then(() => navigate("/contents"));
+      ContentService.update(Number(id), form)
+        .then(() => {
+          snackbar.showSuccess("Conteúdo atualizado com sucesso!");
+          navigate("/contents");
+        })
+        .catch((error) => {
+          const response = error.response;
+          const problemDetails = response?.data;
+          
+          // Check for RFC 9457 format from PrismaExceptionFilter
+          if (response?.status === 409 && problemDetails?.type === '/errors/unique-constraint') {
+            // Get translated error message based on field
+            const field = problemDetails.field || 'generic';
+            const translationKey = `errors.uniqueConstraint.${field}`;
+            const errorMessage = t(translationKey, { defaultValue: t('errors.uniqueConstraint.generic') });
+            
+            snackbar.showError(errorMessage);
+            setSlugError(errorMessage);
+          } else {
+            // Generic error handling
+            snackbar.showError(problemDetails?.detail || problemDetails?.message || "Erro ao atualizar conteúdo");
+          }
+        });
     } else {
       // Criação
       const newContent = {
@@ -106,112 +140,116 @@ export default function ContentForm() {
       };
 
       ContentService.create(newContent)
-        .then(() => navigate("/contents"))
+        .then(() => {
+          snackbar.showSuccess("Conteúdo criado com sucesso!");
+          navigate("/contents");
+        })
         .catch((error) => {
-          alert(
-            "Erro ao criar conteúdo: " +
-              (error.response?.data?.message || error.message)
-          );
+          const response = error.response;
+          const problemDetails = response?.data;
+          
+          // Check for RFC 9457 format from PrismaExceptionFilter
+          if (response?.status === 409 && problemDetails?.type === '/errors/unique-constraint') {
+            // Get translated error message based on field
+            const field = problemDetails.field || 'generic';
+            const translationKey = `errors.uniqueConstraint.${field}`;
+            const errorMessage = t(translationKey, { defaultValue: t('errors.uniqueConstraint.generic') });
+            
+            snackbar.showError(errorMessage);
+            setSlugError(errorMessage);
+          } else {
+            // Generic error handling
+            snackbar.showError(problemDetails?.detail || problemDetails?.message || "Erro ao criar conteúdo");
+          }
         });
     }
   }
 
-  // STYLES
-  const fieldStyle = {
-    display: "flex",
-    flexDirection: "column" as const,
-    marginBottom: 16,
-  };
-
-  const inputStyle = {
-    padding: "10px",
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    marginTop: 6,
-  };
-
   return (
-    <div style={{ padding: 24, maxWidth: 700 }}>
-      <h1 style={{ marginBottom: 20 }}>
-        {id ? "Editar Conteúdo" : "Criar Conteúdo"}
-      </h1>
+    <Box sx={{ p: 3, maxWidth: 700 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <IconButton
+          onClick={() => navigate("/contents")}
+          sx={{ mr: 2 }}
+          aria-label="voltar"
+        >
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h4" component="h1">
+          {id ? "Editar Conteúdo" : "Criar Conteúdo"}
+        </Typography>
+      </Box>
 
       {/* TÍTULO */}
-      <div style={fieldStyle}>
-        <label>Título</label>
-        <input
-          placeholder="Digite o título do conteúdo"
-          style={inputStyle}
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
-      </div>
+      <TextField
+        label="Título"
+        placeholder="Digite o título do conteúdo"
+        fullWidth
+        margin="normal"
+        value={form.title}
+        onChange={(e) => setForm({ ...form, title: e.target.value })}
+      />
 
       {/* SLUG */}
-      <div style={fieldStyle}>
-        <label>Slug</label>
-        <input
-          placeholder="Digite o slug desejado para a página"
-          style={inputStyle}
-          value={form.slug}
-          onChange={handleSlugChange}
-        />
-        {slugError && (
-          <span style={{ color: "red", marginTop: 6 }}>{slugError}</span>
-        )}
-      </div>
+      <TextField
+        label="Slug"
+        placeholder="Digite o slug desejado para a página"
+        fullWidth
+        margin="normal"
+        value={form.slug}
+        onChange={handleSlugChange}
+        error={!!slugError}
+        helperText={slugError}
+      />
 
       {/* RESUMO */}
-      <div style={fieldStyle}>
-        <label>Resumo</label>
-        <input
-          placeholder="Resumo do conteúdo"
-          style={inputStyle}
-          value={form.summary}
-          onChange={(e) => setForm({ ...form, summary: e.target.value })}
-        />
-      </div>
+      <TextField
+        label="Resumo"
+        placeholder="Resumo do conteúdo"
+        fullWidth
+        margin="normal"
+        value={form.summary}
+        onChange={(e) => setForm({ ...form, summary: e.target.value })}
+      />
 
       {/* CONTEÚDO */}
-      <div style={fieldStyle}>
-        <label>Conteúdo</label>
-        <div
+      <Box sx={{ mt: 2, mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Conteúdo
+        </Typography>
+        <Box
           ref={editorRef}
-          style={{
-            marginTop: 6,
+          sx={{
             backgroundColor: "white",
             minHeight: "200px",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
           }}
         />
-      </div>
+      </Box>
 
       {/* TAGS */}
-      <div style={fieldStyle}>
-        <label>Tags</label>
-
+      <Box sx={{ mt: 2, mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Tags
+        </Typography>
         <TagSelector
           value={form.tags}
           onChange={(newTags: number[]) => setForm({ ...form, tags: newTags })}
         />
-      </div>
+      </Box>
 
       {/* BOTÃO SUBMIT */}
-      <button
-        style={{
-          marginTop: 20,
-          background: slugError ? "#888" : "#1976d2",
-          color: "white",
-          padding: "10px 16px",
-          border: "none",
-          borderRadius: 6,
-          cursor: slugError ? "not-allowed" : "pointer",
-          fontWeight: 500,
-        }}
-        disabled={!!slugError}
+      <Button
+        variant="contained"
         onClick={handleSubmit}
+        disabled={!!slugError}
+        sx={{ mt: 3 }}
+        fullWidth
       >
         {id ? "Salvar" : "Criar"}
-      </button>
-    </div>
+      </Button>
+    </Box>
   );
 }
