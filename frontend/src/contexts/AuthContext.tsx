@@ -18,7 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getStoredAuth = () => {
     const storedToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-    
+
     if (storedToken && storedUser) {
       try {
         return {
