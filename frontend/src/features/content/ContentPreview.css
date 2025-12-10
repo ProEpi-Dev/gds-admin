@@ -1,0 +1,32 @@
+/* Estilos para o preview mobile do conteúdo */
+.mobile-preview-content {
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.mobile-preview-content img {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 12px 0 !important;
+  object-fit: contain !important;
+}
+
+.mobile-preview-content iframe,
+.mobile-preview-content video {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.mobile-preview-content p {
+  margin: 8px 0;
+}
+
+.mobile-preview-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+

@@ -1,9 +1,38 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Typography,
+  Button,
+  Chip,
+  IconButton,
+} from "@mui/material";
+import {
+  Add as AddIcon,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
+import DataTable, { type Column } from "../../components/common/DataTable";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
+
+interface Content {
+  id: number;
+  title: string;
+  slug: string;
+  content: string;
+  content_tag?: Array<{ id: number; tag: { name: string; color?: string } }>;
+}
 
 export default function ContentList() {
-  const [contents, setContents] = useState<any[]>([]);
+  const [contents, setContents] = useState<Content[]>([]);
+  const [previewContent, setPreviewContent] = useState<Content | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contentToDelete, setContentToDelete] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -12,142 +41,139 @@ export default function ContentList() {
     });
   }, []);
 
+
+
+  const handleDelete = (id: number) => {
+    setContentToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (contentToDelete) {
+      await ContentService.delete(contentToDelete);
+      setContents((prev) => prev.filter((c) => c.id !== contentToDelete));
+      setDeleteDialogOpen(false);
+      setContentToDelete(null);
+    }
+  };
+
+  const columns: Column<Content>[] = [
+    { id: "id", label: "ID", minWidth: 70 },
+    { id: "title", label: "Título", minWidth: 200 },
+    { id: "slug", label: "Slug", minWidth: 150 },
+    {
+      id: "tags",
+      label: "Tags",
+      minWidth: 200,
+      render: (row) => (
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+          {row.content_tag?.map((t) => (
+            <Chip
+              key={t.id}
+              label={`#${t.tag.name}`}
+              size="small"
+              sx={{
+                backgroundColor: t.tag.color || "#e3f2fd",
+                color: "#fff",
+                fontSize: 12,
+              }}
+            />
+          ))}
+        </Box>
+      ),
+    },
+    {
+      id: "actions",
+      label: "Ações",
+      minWidth: 150,
+      align: "right",
+      render: (row) => (
+        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-start" }}>
+          <IconButton
+            size="small"
+            onClick={() => setPreviewContent(row)}
+            title="Preview"
+            color="success"
+          >
+            <VisibilityIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => navigate(`/contents/${row.id}/edit`)}
+            title="Editar"
+            color="primary"
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => handleDelete(row.id)}
+            title="Excluir"
+            color="error"
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ padding: "24px" }}>
-      <div
-        style={{
+    <Box sx={{ p: 3 }}>
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: 20,
+          mb: 3,
         }}
       >
-        <h1 style={{ margin: 0, fontWeight: 600 }}>Conteúdos</h1>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+          Conteúdos
+        </Typography>
 
-        <button
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
           onClick={() => navigate("/contents/new")}
-          style={{
-            background: "#1976d2",
-            color: "white",
-            padding: "10px 16px",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
         >
           Novo Conteúdo
-        </button>
-      </div>
+        </Button>
+      </Box>
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          background: "white",
+      <DataTable
+        columns={columns}
+        data={contents}
+        page={page}
+        pageSize={pageSize}
+        totalItems={contents.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        variant="table"
+        emptyMessage="Nenhum conteúdo encontrado"
+      />
+
+      {/* MODAL DE PREVIEW MOBILE */}
+      <MobilePreviewDialog
+        open={!!previewContent}
+        onClose={() => setPreviewContent(null)}
+        title={previewContent?.title || ""}
+        htmlContent={previewContent?.content || ""}
+      />
+
+      {/* CONFIRM DELETE DIALOG */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Excluir Conteúdo"
+        message="Tem certeza que deseja excluir este conteúdo?"
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setContentToDelete(null);
         }}
-      >
-        <thead>
-          <tr>
-            {["ID", "Título", "Slug", "Tags", "Ações"].map((th) => (
-              <th
-                key={th}
-                style={{
-                  textAlign: "left",
-                  padding: "12px 10px",
-                  borderBottom: "2px solid #e0e0e0",
-                  fontWeight: 600,
-                }}
-              >
-                {th}
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        <tbody>
-          {contents.length === 0 && (
-            <tr>
-              <td
-                colSpan={5}
-                style={{ padding: 40, textAlign: "center", color: "#777" }}
-              >
-                Nenhum registro encontrado
-              </td>
-            </tr>
-          )}
-
-          {contents.map((item) => (
-            <tr key={item.id} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: 12 }}>{item.id}</td>
-              <td style={{ padding: 12 }}>{item.title}</td>
-              <td style={{ padding: 12 }}>{item.slug}</td>
-              <td style={{ padding: 12 }}>
-                {item.content_tag?.map((t: any) => (
-                  <span
-                    key={t.id}
-                    style={{
-                      background: t.tag.color || "#e3f2fd",
-                      color: "#fff",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      marginRight: 6,
-                      fontSize: 12,
-                      display: "inline-block",
-                    }}
-                  >
-                    #{t.tag.name}
-                  </span>
-                ))}
-              </td>
-
-              <td style={{ padding: 12 }}>
-                <button
-                  onClick={() => navigate(`/contents/${item.id}/edit`)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid #1976d2",
-                    color: "#1976d2",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    marginRight: 8,
-                  }}
-                >
-                  Editar
-                </button>
-
-                <button
-                  onClick={async () => {
-                    if (
-                      window.confirm(
-                        "Tem certeza que deseja excluir este conteúdo?"
-                      )
-                    ) {
-                      await ContentService.delete(item.id);
-                      setContents((prev) =>
-                        prev.filter((c) => c.id !== item.id)
-                      );
-                    }
-                  }}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: "1px solid #d32f2f",
-                    color: "#d32f2f",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontSize: 14,
-                  }}
-                >
-                  Excluir
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+      />
+    </Box>
   );
 }

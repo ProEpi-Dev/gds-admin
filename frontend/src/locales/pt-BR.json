@@ -205,6 +205,15 @@
     "participationsComingSoon": "Lista de participações em breve",
     "formsComingSoon": "Lista de formulários em breve"
   },
+  "tags": {
+    "searchPlaceholder": "Digite para buscar ou criar tags...",
+    "searchHelperText": "Digite para buscar tags existentes ou pressione Enter para criar uma nova",
+    "createTitle": "Criar Nova Tag",
+    "nameLabel": "Nome da Tag",
+    "colorLabel": "Cor",
+    "preview": "Prévia",
+    "createAndAdd": "Criar e Adicionar"
+  },
   "contextManagers": {
     "title": "Managers do Contexto",
     "newManager": "Novo Manager",
@@ -220,6 +229,18 @@
     "errorLoadingManager": "Erro ao carregar manager",
     "errorCreating": "Erro ao criar manager",
     "errorUpdating": "Erro ao atualizar manager"
+  },
+  "errors": {
+    "uniqueConstraint": {
+      "slug": "Este slug já está em uso",
+      "email": "Este email já está em uso",
+      "name": "Este nome já está em uso",
+      "generic": "Este valor já está em uso"
+    },
+    "notFound": "Registro não encontrado",
+    "foreignKey": "O registro referenciado não existe",
+    "requiredRelation": "A alteração violaria uma relação obrigatória",
+    "database": "Ocorreu um erro inesperado no banco de dados"
   }
 }
 

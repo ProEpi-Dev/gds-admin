@@ -8,7 +8,7 @@ import {
 import { Response } from 'express';
 import { ErrorResponseDto } from '../dto/error-response.dto';
 
-@Catch()
+@Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();

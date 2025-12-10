@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { TagService } from "../../api/services/tag.service";
-import { Chip, Box } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { useTranslation } from "../../hooks/useTranslation";
+import {
+  Chip,
+  Box,
+  TextField,
+  Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+} from "@mui/material";
 
 interface Tag {
   id: number;
@@ -16,136 +27,183 @@ export default function TagSelector({
   value: number[];
   onChange: (tags: number[]) => void;
 }) {
+  const { t } = useTranslation();
   const [tags, setTags] = useState<Tag[]>([]);
-  const [newTag, setNewTag] = useState("");
-  const [color, setColor] = useState("#2196f3");
-  const [error, setError] = useState("");
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#2196f3");
 
   useEffect(() => {
     TagService.list().then((res) => setTags(res.data));
   }, []);
 
-  const createTag = async () => {
-    const trimmed = newTag.trim();
+  // Sync selected tags with value prop
+  useEffect(() => {
+    const selected = tags.filter((tag) => value.includes(tag.id));
+    setSelectedTags(selected);
+  }, [value, tags]);
 
-    if (!trimmed) {
-      setError("O nome da tag não pode ser vazio.");
+  const handleChange = (_event: any, newValue: (Tag | string)[]) => {
+    // Check if user is trying to create a new tag
+    const lastItem = newValue[newValue.length - 1];
+    
+    if (typeof lastItem === "string") {
+      // User typed a new tag name
+      setNewTagName(lastItem);
+      setCreateDialogOpen(true);
       return;
     }
 
-    const alreadyExists = tags.some(
-      (t) => t.name.toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (alreadyExists) {
-      setError("Já existe uma tag com esse nome.");
-      return;
-    }
-
-    setError("");
-
-    const res = await TagService.create({ name: trimmed, color });
-    setTags((prev) => [...prev, res.data]);
-
-    setNewTag("");
+    // Update selected tags
+    const tagObjects = newValue.filter((item): item is Tag => typeof item !== "string");
+    setSelectedTags(tagObjects);
+    onChange(tagObjects.map((tag) => tag.id));
   };
 
-  const deleteTag = async (id: number) => {
-    await TagService.delete(id);
-    setTags((prev) => prev.filter((t) => t.id !== id));
+  const handleCreateTag = async () => {
+    const trimmed = newTagName.trim();
+    
+    if (!trimmed) {
+      setCreateDialogOpen(false);
+      return;
+    }
+
+    try {
+      const res = await TagService.create({ name: trimmed, color: newTagColor });
+      const newTag = res.data;
+      
+      // Add to tags list
+      setTags((prev) => [...prev, newTag]);
+      
+      // Add to selected tags
+      const updatedSelected = [...selectedTags, newTag];
+      setSelectedTags(updatedSelected);
+      onChange(updatedSelected.map((tag) => tag.id));
+      
+      // Reset
+      setCreateDialogOpen(false);
+      setNewTagName("");
+      setNewTagColor("#2196f3");
+      setInputValue("");
+    } catch (error) {
+      console.error("Error creating tag:", error);
+    }
+  };
+
+  const handleCancelCreate = () => {
+    setCreateDialogOpen(false);
+    setNewTagName("");
+    setNewTagColor("#2196f3");
+    setInputValue("");
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {/* CREATE TAG */}
-      <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-        <input
-          placeholder="Nova tag"
-          value={newTag}
-          onChange={(e) => {
-            setNewTag(e.target.value);
-            if (error) setError("");
-          }}
-          style={{
-            padding: "10px",
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            flex: 1,
-          }}
-        />
-
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          style={{
-            width: 40,
-            height: 40,
-            cursor: "pointer",
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            padding: 0,
-          }}
-        />
-
-        <button
-          onClick={createTag}
-          style={{
-            padding: "10px 14px",
-            background: "#1976d2",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontWeight: 500,
-          }}
-        >
-          Adicionar
-        </button>
-      </Box>
-
-      {/* ERROR MESSAGE */}
-      {error && (
-        <span style={{ color: "red", fontSize: 14, marginTop: -8 }}>
-          {error}
-        </span>
-      )}
-
-      {/* TAG LIST */}
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        {tags.map((tag) => {
-          const selected = value.includes(tag.id);
-
-          return (
+    <Box>
+      <Autocomplete
+        multiple
+        freeSolo
+        options={tags}
+        value={selectedTags}
+        inputValue={inputValue}
+        onInputChange={(_event, newInputValue) => {
+          setInputValue(newInputValue);
+        }}
+        onChange={handleChange}
+        getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        renderTags={(value, getTagProps) =>
+          value.map((option, index) => (
             <Chip
-              key={tag.id}
-              label={tag.name}
-              onClick={() => {
-                if (selected) {
-                  onChange(value.filter((t) => t !== tag.id));
-                } else {
-                  onChange([...value, tag.id]);
-                }
-              }}
-              onDelete={() => deleteTag(tag.id)}
-              deleteIcon={<DeleteIcon style={{ color: "white" }} />}
-              style={{
-                backgroundColor: tag.color || "#888",
-                color: "white",
-                opacity: selected ? 1 : 0.6,
-                fontWeight: 500,
-                borderRadius: 6,
-                transition: "0.2s",
-
-                border: selected
-                  ? "2px solid #4f46e5"
-                  : "2px solid transparent",
-                boxShadow: selected ? "0 0 6px #4f46e577" : "none",
+              {...getTagProps({ index })}
+              key={option.id}
+              label={option.name}
+              size="small"
+              sx={{
+                backgroundColor: option.color || "#888",
+                color: "#fff",
               }}
             />
-          );
-        })}
-      </Box>
+          ))
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            placeholder={selectedTags.length === 0 ? t('tags.searchPlaceholder') : ""}
+            size="small"
+            helperText={t('tags.searchHelperText')}
+          />
+        )}
+        renderOption={(props, option) => (
+          <li {...props} key={option.id}>
+            <Chip
+              label={option.name}
+              size="small"
+              sx={{
+                backgroundColor: option.color || "#888",
+                color: "#fff",
+                mr: 1,
+              }}
+            />
+            {option.name}
+          </li>
+        )}
+      />
+
+      {/* Create Tag Dialog */}
+      <Dialog open={createDialogOpen} onClose={handleCancelCreate} maxWidth="xs" fullWidth>
+        <DialogTitle>{t('tags.createTitle')}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+            <TextField
+              label={t('tags.nameLabel')}
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              fullWidth
+              autoFocus
+              size="small"
+            />
+            
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {t('tags.colorLabel')}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <Box
+                  component="input"
+                  type="color"
+                  value={newTagColor}
+                  onChange={(e: any) => setNewTagColor(e.target.value)}
+                  sx={{
+                    width: 60,
+                    height: 40,
+                    cursor: "pointer",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    padding: 0.5,
+                  }}
+                />
+                <Chip
+                  label={newTagName || t('tags.preview')}
+                  size="small"
+                  sx={{
+                    backgroundColor: newTagColor,
+                    color: "#fff",
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelCreate}>{t('common.cancel')}</Button>
+          <Button onClick={handleCreateTag} variant="contained" disabled={!newTagName.trim()}>
+            {t('tags.createAndAdd')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
