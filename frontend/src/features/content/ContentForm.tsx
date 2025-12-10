@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate, useParams } from "react-router-dom";
 import TagSelector from "../../../src/components/common/TagSelector";
+import Quill from "quill";
+import "quill/dist/quill.snow.css";
 
 export default function ContentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [slugError, setSlugError] = useState("");
+  const editorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<Quill | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -19,6 +23,35 @@ export default function ContentForm() {
     context_id: 1,
     tags: [] as number[],
   });
+
+  // INITIALIZE QUILL EDITOR
+  useEffect(() => {
+    if (editorRef.current && !quillRef.current) {
+      quillRef.current = new Quill(editorRef.current, {
+        theme: "snow",
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ["bold", "italic", "underline", "strike"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            [{ color: [] }, { background: [] }],
+            [{ align: [] }],
+            ["link", "image"],
+            ["clean"],
+          ],
+        },
+        placeholder: "Digite ou cole aqui o conteúdo...",
+      });
+
+      // Listener para atualizar o estado quando o conteúdo mudar
+      quillRef.current.on("text-change", () => {
+        if (quillRef.current) {
+          const html = quillRef.current.root.innerHTML;
+          setForm((prev) => ({ ...prev, content: html }));
+        }
+      });
+    }
+  }, []);
 
   // LOAD CONTENT IF EDIT
   useEffect(() => {
@@ -35,6 +68,11 @@ export default function ContentForm() {
           context_id: c.context_id,
           tags: c.content_tag?.map((t: any) => t.tag.id) || [],
         });
+        
+        // Atualizar o editor Quill com o conteúdo carregado
+        if (quillRef.current && c.content) {
+          quillRef.current.root.innerHTML = c.content;
+        }
       });
     }
   }, [id]);
@@ -137,12 +175,13 @@ export default function ContentForm() {
       {/* CONTEÚDO */}
       <div style={fieldStyle}>
         <label>Conteúdo</label>
-        <textarea
-          placeholder="Digite ou cole aqui o conteúdo"
-          rows={5}
-          style={inputStyle}
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
+        <div
+          ref={editorRef}
+          style={{
+            marginTop: 6,
+            backgroundColor: "white",
+            minHeight: "200px",
+          }}
         />
       </div>
 

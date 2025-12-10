@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate } from "react-router-dom";
+import "quill/dist/quill.snow.css";
+import "./ContentPreview.css";
 
 export default function ContentList() {
   const [contents, setContents] = useState<any[]>([]);
+  const [previewContent, setPreviewContent] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -11,6 +14,30 @@ export default function ContentList() {
       setContents(res.data);
     });
   }, []);
+
+  // Função para processar o HTML e tornar imagens responsivas
+  const processContentHtml = (html: string) => {
+    if (!html) return "";
+    
+    // Remove atributos width e height das imagens
+    let processedHtml = html.replace(
+      /<img([^>]*?)(?:\s+width="[^"]*"|\s+height="[^"]*")/gi,
+      '<img$1'
+    );
+    
+    // Remove estilos inline de width e height das imagens
+    processedHtml = processedHtml.replace(
+      /<img([^>]*?)style="([^"]*?)"/gi,
+      (_match, before, style) => {
+        const newStyle = style
+          .replace(/width\s*:\s*[^;]+;?/gi, '')
+          .replace(/height\s*:\s*[^;]+;?/gi, '');
+        return `<img${before}style="${newStyle}"`;
+      }
+    );
+    
+    return processedHtml;
+  };
 
   return (
     <div style={{ padding: "24px" }}>
@@ -103,6 +130,22 @@ export default function ContentList() {
 
               <td style={{ padding: 12 }}>
                 <button
+                  onClick={() => setPreviewContent(item)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 4,
+                    border: "1px solid #4caf50",
+                    color: "#4caf50",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    marginRight: 8,
+                  }}
+                >
+                  Preview
+                </button>
+
+                <button
                   onClick={() => navigate(`/contents/${item.id}/edit`)}
                   style={{
                     padding: "6px 12px",
@@ -148,6 +191,123 @@ export default function ContentList() {
           ))}
         </tbody>
       </table>
+
+      {/* MODAL DE PREVIEW MOBILE */}
+      {previewContent && (
+        <div
+          onClick={() => setPreviewContent(null)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              width: "375px",
+              height: "667px",
+              backgroundColor: "#000",
+              borderRadius: "36px",
+              padding: "12px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            {/* Notch do celular */}
+            <div
+              style={{
+                position: "absolute",
+                top: "0",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "150px",
+                height: "30px",
+                backgroundColor: "#000",
+                borderRadius: "0 0 20px 20px",
+                zIndex: 10,
+              }}
+            />
+
+            {/* Tela do celular */}
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#fff",
+                borderRadius: "26px",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Header do app */}
+              <div
+                style={{
+                  backgroundColor: "#1976d2",
+                  color: "white",
+                  padding: "40px 16px 16px 16px",
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>{previewContent.title}</span>
+                <button
+                  onClick={() => setPreviewContent(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "white",
+                    fontSize: "24px",
+                    cursor: "pointer",
+                    padding: "0 8px",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Conteúdo */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "16px",
+                  backgroundColor: "#f5f5f5",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {/* Renderiza o conteúdo HTML do Quill */}
+                  <div
+                    className="ql-editor mobile-preview-content"
+                    dangerouslySetInnerHTML={{ 
+                      __html: processContentHtml(previewContent.content) 
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
