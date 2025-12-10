@@ -1,27 +1,22 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate } from "react-router-dom";
-import DOMPurify from "dompurify";
-import "quill/dist/quill.snow.css";
-import "./ContentPreview.css";
 import {
   Box,
   Typography,
   Button,
   Chip,
   IconButton,
-  Dialog,
-  DialogContent,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Close as CloseIcon,
 } from "@mui/icons-material";
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 
 interface Content {
   id: number;
@@ -46,35 +41,7 @@ export default function ContentList() {
     });
   }, []);
 
-  // Função para processar e sanitizar o HTML
-  const processContentHtml = (html: string) => {
-    if (!html) return "";
-    
-    // Remove atributos width e height das imagens
-    let processedHtml = html.replace(
-      /<img([^>]*?)(?:\s+width="[^"]*"|\s+height="[^"]*")/gi,
-      '<img$1'
-    );
-    
-    // Remove estilos inline de width e height das imagens
-    processedHtml = processedHtml.replace(
-      /<img([^>]*?)style="([^"]*?)"/gi,
-      (_match, before, style) => {
-        const newStyle = style
-          .replace(/width\s*:\s*[^;]+;?/gi, '')
-          .replace(/height\s*:\s*[^;]+;?/gi, '');
-        return `<img${before}style="${newStyle}"`;
-      }
-    );
-    
-    // Sanitiza o HTML com DOMPurify para prevenir XSS
-    return DOMPurify.sanitize(processedHtml, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-                     'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'code', 'pre', 'span', 'div'],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
-      ALLOW_DATA_ATTR: false,
-    });
-  };
+
 
   const handleDelete = (id: number) => {
     setContentToDelete(id);
@@ -187,114 +154,12 @@ export default function ContentList() {
       />
 
       {/* MODAL DE PREVIEW MOBILE */}
-      <Dialog
+      <MobilePreviewDialog
         open={!!previewContent}
         onClose={() => setPreviewContent(null)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: "transparent",
-            boxShadow: "none",
-            overflow: "visible",
-          },
-        }}
-      >
-        <DialogContent sx={{ p: 0, overflow: "visible" }}>
-          <Box
-            sx={{
-              position: "relative",
-              width: "375px",
-              height: "667px",
-              backgroundColor: "#000",
-              borderRadius: "36px",
-              padding: "12px",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
-              margin: "0 auto",
-            }}
-          >
-            {/* Notch do celular */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "150px",
-                height: "30px",
-                backgroundColor: "#000",
-                borderRadius: "0 0 20px 20px",
-                zIndex: 10,
-              }}
-            />
-
-            {/* Tela do celular */}
-            <Box
-              sx={{
-                width: "100%",
-                height: "100%",
-                backgroundColor: "#fff",
-                borderRadius: "26px",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {/* Header do app */}
-              <Box
-                sx={{
-                  backgroundColor: "primary.main",
-                  color: "white",
-                  padding: "40px 16px 16px 16px",
-                  fontSize: "18px",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Typography variant="h6" sx={{ color: "white" }}>
-                  {previewContent?.title}
-                </Typography>
-                <IconButton
-                  onClick={() => setPreviewContent(null)}
-                  sx={{ color: "white" }}
-                  size="small"
-                >
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-
-              {/* Conteúdo */}
-              <Box
-                sx={{
-                  flex: 1,
-                  overflowY: "auto",
-                  padding: "16px",
-                  backgroundColor: "#f5f5f5",
-                }}
-              >
-                <Box
-                  sx={{
-                    backgroundColor: "white",
-                    borderRadius: "8px",
-                    padding: "16px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                  }}
-                >
-                  {/* Renderiza o conteúdo HTML do Quill */}
-                  <div
-                    className="ql-editor mobile-preview-content"
-                    dangerouslySetInnerHTML={{ 
-                      __html: processContentHtml(previewContent?.content || "") 
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-        </DialogContent>
-      </Dialog>
+        title={previewContent?.title || ""}
+        htmlContent={previewContent?.content || ""}
+      />
 
       {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog

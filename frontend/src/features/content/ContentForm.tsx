@@ -12,8 +12,10 @@ import {
   IconButton,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
+import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 
 export default function ContentForm() {
   const { id } = useParams();
@@ -22,6 +24,7 @@ export default function ContentForm() {
   const { t } = useTranslation();
 
   const [slugError, setSlugError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
 
@@ -240,16 +243,33 @@ export default function ContentForm() {
         />
       </Box>
 
-      {/* BOTÃO SUBMIT */}
-      <Button
-        variant="contained"
-        onClick={handleSubmit}
-        disabled={!!slugError}
-        sx={{ mt: 3 }}
-        fullWidth
-      >
-        {id ? "Salvar" : "Criar"}
-      </Button>
+      {/* BOTÕES */}
+      <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<VisibilityIcon />}
+          onClick={() => setPreviewOpen(true)}
+          fullWidth
+        >
+          Preview
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={!!slugError}
+          fullWidth
+        >
+          {id ? "Salvar" : "Criar"}
+        </Button>
+      </Box>
+
+      {/* MOBILE PREVIEW DIALOG */}
+      <MobilePreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={form.title || "Sem título"}
+        htmlContent={form.content}
+      />
     </Box>
   );
 }
