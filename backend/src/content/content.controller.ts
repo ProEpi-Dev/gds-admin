@@ -11,7 +11,7 @@ import { ContentService } from './content.service';
 
 @Controller('contents')
 export class ContentController {
-  constructor(private readonly contentService: ContentService) {}
+  constructor(private readonly contentService: ContentService) { }
 
   @Post()
   create(@Body() data: any) {

@@ -199,7 +199,7 @@ export default function DataTable<T extends { id: number }>({
         rowsPerPageOptions={[10, 20, 50, 100]}
         labelRowsPerPage={t('common.itemsPerPage') + ':'}
         labelDisplayedRows={({ from, to, count }) => `${from}-${to} ${t('common.of')} ${count}`}
-        sx={{ 
+        sx={{
           mt: 2,
           '& .MuiTablePagination-toolbar': {
             flexWrap: 'wrap',
