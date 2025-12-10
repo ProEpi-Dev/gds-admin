@@ -125,9 +125,9 @@ kubectl create secret generic gds-secrets \
 
 As imagens são hospedadas no GitHub Container Registry (privado):
 
-- **Backend**: `ghcr.io/gleytonlima/gds/backend:latest`
-- **Frontend**: `ghcr.io/gleytonlima/gds/frontend:latest`
-- **ETL**: `ghcr.io/gleytonlima/gds/etl:latest`
+- **Backend**: `ghcr.io/proepi-dev/gds-admin/backend:latest`
+- **Frontend**: `ghcr.io/proepi-dev/gds-admin/frontend:latest`
+- **ETL**: `ghcr.io/proepi-dev/gds-admin/etl:latest`
 
 ### Build e Push das Imagens
 

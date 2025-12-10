@@ -19,7 +19,7 @@ spec:
       - name: ghcr-secret
       containers:
       - name: backend
-        image: ghcr.io/gleytonlima/gds/backend:latest
+        image: ghcr.io/proepi-dev/gds-admin/backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3000

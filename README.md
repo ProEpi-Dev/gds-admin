@@ -247,8 +247,8 @@ docker run -p 80:80 gds-frontend:local
 ### Publish Manual para GitHub Container Registry
 
 As imagens serão publicadas com o seguinte formato:
-- Backend: `ghcr.io/gleytonlima/gds/backend:<tag>`
-- Frontend: `ghcr.io/gleytonlima/gds/frontend:<tag>`
+- Backend: `ghcr.io/proepi-dev/gds-admin/backend:<tag>`
+- Frontend: `ghcr.io/proepi-dev/gds-admin/frontend:<tag>`
 
 #### 1. Autenticar no GitHub Container Registry
 
@@ -271,10 +271,10 @@ docker login ghcr.io -u GleytonLima -p <seu-token>
 cd backend
 
 # Build da imagem
-docker build -t ghcr.io/gleytonlima/gds/backend:latest .
+docker build -t ghcr.io/proepi-dev/gds-admin/backend:latest .
 
 # Tag adicional (opcional - para versões específicas)
-docker tag ghcr.io/gleytonlima/gds/backend:latest ghcr.io/gleytonlima/gds/backend:v1.0.0
+docker tag ghcr.io/proepi-dev/gds-admin/backend:latest ghcr.io/proepi-dev/gds-admin/backend:v1.0.0
 ```
 
 ##### Frontend
@@ -283,10 +283,10 @@ docker tag ghcr.io/gleytonlima/gds/backend:latest ghcr.io/gleytonlima/gds/backen
 cd frontend
 
 # Build da imagem (o Vite usará o arquivo .env.production)
-docker build -t ghcr.io/gleytonlima/gds/frontend:latest .
+docker build -t ghcr.io/proepi-dev/gds-admin/frontend:latest .
 
 # Tag adicional (opcional - para versões específicas)
-docker tag ghcr.io/gleytonlima/gds/frontend:latest ghcr.io/gleytonlima/gds/frontend:v1.0.0
+docker tag ghcr.io/proepi-dev/gds-admin/frontend:latest ghcr.io/proepi-dev/gds-admin/frontend:v1.0.0
 ```
 
 #### 3. Push das Imagens
@@ -295,20 +295,20 @@ docker tag ghcr.io/gleytonlima/gds/frontend:latest ghcr.io/gleytonlima/gds/front
 
 ```bash
 # Push da tag latest
-docker push ghcr.io/gleytonlima/gds/backend:latest
+docker push ghcr.io/proepi-dev/gds-admin/backend:latest
 
 # Push de versão específica (se criou tag)
-docker push ghcr.io/gleytonlima/gds/backend:v1.0.0
+docker push ghcr.io/proepi-dev/gds-admin/backend:v1.0.0
 ```
 
 ##### Frontend
 
 ```bash
 # Push da tag latest
-docker push ghcr.io/gleytonlima/gds/frontend:latest
+docker push ghcr.io/proepi-dev/gds-admin/frontend:latest
 
 # Push de versão específica (se criou tag)
-docker push ghcr.io/gleytonlima/gds/frontend:v1.0.0
+docker push ghcr.io/proepi-dev/gds-admin/frontend:v1.0.0
 ```
 
 ### Script Completo de Build e Publish
@@ -357,17 +357,17 @@ export GITHUB_TOKEN="seu-token-aqui"
 ### Verificar Imagens Publicadas
 
 As imagens publicadas podem ser visualizadas em:
-- GitHub: `https://github.com/GleytonLima/gds/pkgs/container/backend`
-- GitHub: `https://github.com/GleytonLima/gds/pkgs/container/frontend`
+- GitHub: `https://github.com/proepi-dev/gds-admin/pkgs/container/backend`
+- GitHub: `https://github.com/proepi-dev/gds-admin/pkgs/container/frontend`
 
 ### Pull das Imagens Publicadas
 
 ```bash
 # Backend
-docker pull ghcr.io/gleytonlima/gds/backend:latest
+docker pull ghcr.io/proepi-dev/gds-admin/backend:latest
 
 # Frontend
-docker pull ghcr.io/gleytonlima/gds/frontend:latest
+docker pull ghcr.io/proepi-dev/gds-admin/frontend:latest
 ```
 
 ## CI/CD com GitHub Actions
@@ -429,10 +429,10 @@ Cada build gera múltiplas tags:
 
 Exemplo:
 ```
-ghcr.io/gleytonlima/gds/backend:latest
-ghcr.io/gleytonlima/gds/backend:main
-ghcr.io/gleytonlima/gds/backend:20250119-1430
-ghcr.io/gleytonlima/gds/backend:main-abc1234
+ghcr.io/proepi-dev/gds-admin/backend:latest
+ghcr.io/proepi-dev/gds-admin/backend:main
+ghcr.io/proepi-dev/gds-admin/backend:20250119-1430
+ghcr.io/proepi-dev/gds-admin/backend:main-abc1234
 ```
 
 ### 🔐 Configuração de Secrets

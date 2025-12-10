@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: gleytonlima/gds
+  IMAGE_NAME: proepi-dev/gds-admin
 
 jobs:
   detect-changes:
