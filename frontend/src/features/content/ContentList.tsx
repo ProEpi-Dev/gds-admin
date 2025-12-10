@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import "quill/dist/quill.snow.css";
 import "./ContentPreview.css";
 
@@ -15,7 +16,7 @@ export default function ContentList() {
     });
   }, []);
 
-  // Função para processar o HTML e tornar imagens responsivas
+  // Função para processar e sanitizar o HTML
   const processContentHtml = (html: string) => {
     if (!html) return "";
     
@@ -36,7 +37,13 @@ export default function ContentList() {
       }
     );
     
-    return processedHtml;
+    // Sanitiza o HTML com DOMPurify para prevenir XSS
+    return DOMPurify.sanitize(processedHtml, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+                     'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'code', 'pre', 'span', 'div'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
+      ALLOW_DATA_ATTR: false,
+    });
   };
 
   return (
