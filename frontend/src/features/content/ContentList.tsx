@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Typography,
-  Button,
-  Chip,
-  IconButton,
-} from "@mui/material";
+import { Box, Typography, Button, Chip, IconButton } from "@mui/material";
 import {
   Add as AddIcon,
   Visibility as VisibilityIcon,
@@ -40,8 +34,6 @@ export default function ContentList() {
       setContents(res.data);
     });
   }, []);
-
-
 
   const handleDelete = (id: number) => {
     setContentToDelete(id);
@@ -86,7 +78,7 @@ export default function ContentList() {
       id: "actions",
       label: "Ações",
       minWidth: 150,
-      align: "right",
+      align: "left",
       render: (row) => (
         <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-start" }}>
           <IconButton
@@ -118,6 +110,49 @@ export default function ContentList() {
     },
   ];
 
+  // Função para exportar CSV
+  const handleExportCSV = () => {
+    if (!contents || contents.length === 0) return;
+
+    // Cabeçalhos das colunas
+    const headers = ["ID", "Título", "Slug", "Tags"];
+
+    // Linhas de dados
+    const rows = contents.map((item) => {
+      const tags =
+        item.content_tag?.map((t) => `#${t.tag.name}`).join(", ") || "";
+
+      return [
+        item.id.toString(),
+        item.title.replace(/"/g, '""'),
+        item.slug.replace(/"/g, '""'),
+        tags.replace(/"/g, '""'),
+      ];
+    });
+
+    // Construir CSV final
+    const csvContent = [
+      headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(";"),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(";")),
+    ].join("\n");
+
+    // Criar o blob e iniciar download
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+
+    const date = new Date().toISOString().split("T")[0];
+    link.setAttribute("download", `conteudos_${date}.csv`);
+
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Box
@@ -132,13 +167,25 @@ export default function ContentList() {
           Conteúdos
         </Typography>
 
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate("/contents/new")}
-        >
-          Novo Conteúdo
-        </Button>
+        <Box sx={{ display: "flex", gap: 2 }}>
+          {contents.length > 0 && (
+            <Button
+              variant="outlined"
+              onClick={handleExportCSV}
+              color="success"
+            >
+              Exportar CSV
+            </Button>
+          )}
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/contents/new")}
+          >
+            Novo Conteúdo
+          </Button>
+        </Box>
       </Box>
 
       <DataTable
