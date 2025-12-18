@@ -207,8 +207,15 @@ export default function ContentForm() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 700 }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: "1200px",
+        mx: "auto",
+        width: "100%",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
         <IconButton
           onClick={() => navigate("/contents")}
           sx={{ mr: 2 }}
@@ -221,27 +228,35 @@ export default function ContentForm() {
         </Typography>
       </Box>
 
-      {/* TÍTULO */}
-      <TextField
-        label="Título"
-        placeholder="Digite o título do conteúdo"
-        fullWidth
-        margin="normal"
-        value={form.title}
-        onChange={(e) => setForm({ ...form, title: e.target.value })}
-      />
+      {/* TÍTULO E SLUG */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          gap: 3,
+          mb: 3,
+        }}
+      >
+        <TextField
+          label="Título"
+          placeholder="Digite o título do conteúdo"
+          fullWidth
+          margin="normal"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        />
 
-      {/* SLUG */}
-      <TextField
-        label="Slug"
-        placeholder="Digite o slug desejado para a página"
-        fullWidth
-        margin="normal"
-        value={form.slug}
-        onChange={handleSlugChange}
-        error={!!slugError}
-        helperText={slugError}
-      />
+        <TextField
+          label="Slug"
+          placeholder="Digite o slug desejado para a página"
+          fullWidth
+          margin="normal"
+          value={form.slug}
+          onChange={handleSlugChange}
+          error={!!slugError}
+          helperText={slugError}
+        />
+      </Box>
 
       {/* RESUMO */}
       <TextField
@@ -249,12 +264,15 @@ export default function ContentForm() {
         placeholder="Resumo do conteúdo"
         fullWidth
         margin="normal"
+        multiline
+        rows={2}
+        sx={{ mb: 3 }}
         value={form.summary}
         onChange={(e) => setForm({ ...form, summary: e.target.value })}
       />
 
       {/* CONTEÚDO */}
-      <Box sx={{ mt: 2, mb: 2 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Conteúdo
         </Typography>
@@ -262,16 +280,29 @@ export default function ContentForm() {
           ref={editorRef}
           sx={{
             backgroundColor: "white",
-            minHeight: "200px",
+            minHeight: "400px",
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 1,
+            "& .ql-toolbar": {
+              position: "sticky",
+              top: 0,
+              zIndex: 1000,
+              backgroundColor: "white",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            },
+            "& .ql-container": {
+              minHeight: "350px",
+              maxHeight: "600px",
+              overflowY: "auto",
+            },
           }}
         />
       </Box>
 
       {/* TAGS */}
-      <Box sx={{ mt: 2, mb: 2 }}>
+      <Box sx={{ mb: 4 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Tags
         </Typography>
@@ -282,12 +313,23 @@ export default function ContentForm() {
       </Box>
 
       {/* BOTÕES */}
-      <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          flexWrap: "wrap",
+          justifyContent: { xs: "center", sm: "flex-end" },
+          mt: 4,
+          pt: 3,
+          borderTop: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         <Button
           variant="outlined"
           startIcon={<VisibilityIcon />}
           onClick={() => setPreviewOpen(true)}
-          fullWidth
+          sx={{ minWidth: 120 }}
         >
           Preview
         </Button>
@@ -295,7 +337,7 @@ export default function ContentForm() {
           variant="contained"
           onClick={handleSubmit}
           disabled={!!slugError}
-          fullWidth
+          sx={{ minWidth: 120 }}
         >
           {id ? "Salvar" : "Criar"}
         </Button>

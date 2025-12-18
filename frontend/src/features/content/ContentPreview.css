@@ -30,3 +30,112 @@
   overflow-wrap: break-word;
 }
 
+/* Estilos para listas */
+.mobile-preview-content ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.mobile-preview-content ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.mobile-preview-content li {
+  margin: 4px 0;
+}
+
+/* Remove estilos de lista duplicados - o Quill já cuida disso */
+.mobile-preview-content ul li {
+  list-style-type: none;
+}
+
+.mobile-preview-content ol li {
+  list-style-type: none;
+}
+
+/* Estilos para links */
+.mobile-preview-content a {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+.mobile-preview-content a:hover {
+  color: #1565c0;
+}
+
+/* Estilos para cabeçalhos */
+.mobile-preview-content h1,
+.mobile-preview-content h2,
+.mobile-preview-content h3,
+.mobile-preview-content h4,
+.mobile-preview-content h5,
+.mobile-preview-content h6 {
+  margin: 16px 0 8px 0;
+  font-weight: bold;
+}
+
+.mobile-preview-content h1 {
+  font-size: 24px;
+}
+.mobile-preview-content h2 {
+  font-size: 20px;
+}
+.mobile-preview-content h3 {
+  font-size: 18px;
+}
+.mobile-preview-content h4 {
+  font-size: 16px;
+}
+.mobile-preview-content h5 {
+  font-size: 14px;
+}
+.mobile-preview-content h6 {
+  font-size: 12px;
+}
+
+/* Estilos para texto formatado */
+.mobile-preview-content strong,
+.mobile-preview-content b {
+  font-weight: bold;
+}
+
+.mobile-preview-content em,
+.mobile-preview-content i {
+  font-style: italic;
+}
+
+.mobile-preview-content u {
+  text-decoration: underline;
+}
+
+.mobile-preview-content s,
+.mobile-preview-content strike {
+  text-decoration: line-through;
+}
+
+/* Estilos para citações */
+.mobile-preview-content blockquote {
+  border-left: 4px solid #ccc;
+  padding-left: 16px;
+  margin: 16px 0;
+  font-style: italic;
+  color: #666;
+}
+
+/* Estilos para código */
+.mobile-preview-content code {
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.mobile-preview-content pre {
+  background-color: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: monospace;
+  white-space: pre-wrap;
+}

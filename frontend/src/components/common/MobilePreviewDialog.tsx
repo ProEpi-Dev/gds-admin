@@ -85,8 +85,10 @@ export default function MobilePreviewDialog({
         "frameborder",
         "allowfullscreen",
         "allow",
+        "data-list",
+        "data-checked",
       ],
-      ALLOW_DATA_ATTR: false,
+      ALLOW_DATA_ATTR: true,
     });
   };
 
