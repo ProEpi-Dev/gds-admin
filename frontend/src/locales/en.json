@@ -60,6 +60,7 @@
     "users": "Users",
     "locations": "Locations",
     "contexts": "Contexts",
+    "contents": "Contents",
     "participations": "Participations",
     "reports": "Reports"
   },
@@ -205,6 +206,10 @@
     "participationsComingSoon": "Participations list coming soon",
     "formsComingSoon": "Forms list coming soon"
   },
+  "contents": {
+    "title": "Contents",
+    "newContent": "New Content"
+  },
   "tags": {
     "searchPlaceholder": "Type to search or create tags...",
     "searchHelperText": "Type to search existing tags or press Enter to create a new one",
@@ -243,4 +248,3 @@
     "database": "An unexpected database error occurred"
   }
 }
-

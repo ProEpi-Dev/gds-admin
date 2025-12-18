@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Card,
@@ -7,7 +7,7 @@ import {
   Button,
   Stack,
   CircularProgress,
-} from '@mui/material';
+} from "@mui/material";
 import {
   People as PeopleIcon,
   LocationOn as LocationIcon,
@@ -15,57 +15,76 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   Assessment as AssessmentIcon,
+  LibraryBooks as LibraryBooksIcon,
   Add as AddIcon,
   ArrowForward as ArrowForwardIcon,
-} from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
-import { usersService } from '../../../api/services/users.service';
-import { locationsService } from '../../../api/services/locations.service';
-import { contextsService } from '../../../api/services/contexts.service';
-import { participationsService } from '../../../api/services/participations.service';
-import { formsService } from '../../../api/services/forms.service';
-import { reportsService } from '../../../api/services/reports.service';
-import { useTranslation } from '../../../hooks/useTranslation';
+} from "@mui/icons-material";
+import { useQuery } from "@tanstack/react-query";
+import { usersService } from "../../../api/services/users.service";
+import { locationsService } from "../../../api/services/locations.service";
+import { contextsService } from "../../../api/services/contexts.service";
+import { participationsService } from "../../../api/services/participations.service";
+import { formsService } from "../../../api/services/forms.service";
+import { reportsService } from "../../../api/services/reports.service";
+import { contentService } from "../../../api/services/content.service";
+import { useTranslation } from "../../../hooks/useTranslation";
 
 interface StatCardProps {
   title: string;
   count: number | undefined;
   icon: React.ReactNode;
-  color: 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';
+  color: "primary" | "secondary" | "info" | "success" | "warning" | "error";
   onClick?: () => void;
   onViewAll?: () => void;
   loading?: boolean;
 }
 
-function StatCard({ title, count, icon, color, onClick, onViewAll, loading }: StatCardProps) {
+function StatCard({
+  title,
+  count,
+  icon,
+  color,
+  onClick,
+  onViewAll,
+  loading,
+}: StatCardProps) {
   return (
     <Card
       sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': onClick
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        cursor: onClick ? "pointer" : "default",
+        transition: "transform 0.2s, box-shadow 0.2s",
+        "&:hover": onClick
           ? {
-              transform: 'translateY(-4px)',
+              transform: "translateY(-4px)",
               boxShadow: 4,
             }
           : {},
       }}
       onClick={onClick}
     >
-      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <CardContent
+        sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
           <Box
             sx={{
               width: 56,
               height: 56,
               borderRadius: 2,
               bgcolor: `${color}.light`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               color: `${color}.main`,
             }}
           >
@@ -74,7 +93,7 @@ function StatCard({ title, count, icon, color, onClick, onViewAll, loading }: St
           {loading && <CircularProgress size={24} />}
         </Box>
         <Typography variant="h4" component="div" sx={{ mb: 1 }}>
-          {loading ? '-' : count ?? 0}
+          {loading ? "-" : count ?? 0}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {title}
@@ -87,7 +106,7 @@ function StatCard({ title, count, icon, color, onClick, onViewAll, loading }: St
               e.stopPropagation();
               onViewAll();
             }}
-            sx={{ mt: 'auto', alignSelf: 'flex-start' }}
+            sx={{ mt: "auto", alignSelf: "flex-start" }}
           >
             Ver todos
           </Button>
@@ -103,122 +122,162 @@ export default function DashboardPage() {
 
   // Buscar contagens de cada módulo
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['users', { page: 1, pageSize: 1 }],
+    queryKey: ["users", { page: 1, pageSize: 1 }],
     queryFn: () => usersService.findAll({ page: 1, pageSize: 1 }),
   });
 
   const { data: locationsData, isLoading: locationsLoading } = useQuery({
-    queryKey: ['locations', { page: 1, pageSize: 1 }],
+    queryKey: ["locations", { page: 1, pageSize: 1 }],
     queryFn: () => locationsService.findAll({ page: 1, pageSize: 1 }),
   });
 
   const { data: contextsData, isLoading: contextsLoading } = useQuery({
-    queryKey: ['contexts', { page: 1, pageSize: 1 }],
+    queryKey: ["contexts", { page: 1, pageSize: 1 }],
     queryFn: () => contextsService.findAll({ page: 1, pageSize: 1 }),
   });
 
-  const { data: participationsData, isLoading: participationsLoading } = useQuery({
-    queryKey: ['participations', { page: 1, pageSize: 1 }],
-    queryFn: () => participationsService.findAll({ page: 1, pageSize: 1 }),
-  });
+  const { data: participationsData, isLoading: participationsLoading } =
+    useQuery({
+      queryKey: ["participations", { page: 1, pageSize: 1 }],
+      queryFn: () => participationsService.findAll({ page: 1, pageSize: 1 }),
+    });
 
   const { data: formsData, isLoading: formsLoading } = useQuery({
-    queryKey: ['forms', { page: 1, pageSize: 1 }],
+    queryKey: ["forms", { page: 1, pageSize: 1 }],
     queryFn: () => formsService.findAll({ page: 1, pageSize: 1 }),
   });
 
   const { data: reportsData, isLoading: reportsLoading } = useQuery({
-    queryKey: ['reports', { page: 1, pageSize: 1 }],
+    queryKey: ["reports", { page: 1, pageSize: 1 }],
     queryFn: () => reportsService.findAll({ page: 1, pageSize: 1 }),
+  });
+
+  const { data: contentsData, isLoading: contentsLoading } = useQuery({
+    queryKey: ["contents", { page: 1, pageSize: 1 }],
+    queryFn: () => contentService.findAll({ page: 1, pageSize: 1 }),
   });
 
   const stats: Array<{
     title: string;
     count: number | undefined;
     icon: React.ReactNode;
-    color: 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';
+    color: "primary" | "secondary" | "info" | "success" | "warning" | "error";
     loading: boolean;
     onClick: () => void;
     onViewAll: () => void;
   }> = [
     {
-      title: t('navigation.users'),
+      title: t("navigation.users"),
       count: usersData?.meta.totalItems,
       icon: <PeopleIcon />,
-      color: 'primary',
+      color: "primary",
       loading: usersLoading,
-      onClick: () => navigate('/users'),
-      onViewAll: () => navigate('/users'),
+      onClick: () => navigate("/users"),
+      onViewAll: () => navigate("/users"),
     },
     {
-      title: t('navigation.locations'),
+      title: t("navigation.locations"),
       count: locationsData?.meta.totalItems,
       icon: <LocationIcon />,
-      color: 'secondary',
+      color: "secondary",
       loading: locationsLoading,
-      onClick: () => navigate('/locations'),
-      onViewAll: () => navigate('/locations'),
+      onClick: () => navigate("/locations"),
+      onViewAll: () => navigate("/locations"),
     },
     {
-      title: t('navigation.contexts'),
+      title: t("navigation.contexts"),
       count: contextsData?.meta.totalItems,
       icon: <FolderIcon />,
-      color: 'info',
+      color: "info",
       loading: contextsLoading,
-      onClick: () => navigate('/contexts'),
-      onViewAll: () => navigate('/contexts'),
+      onClick: () => navigate("/contexts"),
+      onViewAll: () => navigate("/contexts"),
     },
     {
-      title: t('navigation.participations'),
+      title: t("navigation.participations"),
       count: participationsData?.meta.totalItems,
       icon: <AssignmentIcon />,
-      color: 'success',
+      color: "success",
       loading: participationsLoading,
-      onClick: () => navigate('/participations'),
-      onViewAll: () => navigate('/participations'),
+      onClick: () => navigate("/participations"),
+      onViewAll: () => navigate("/participations"),
     },
     {
-      title: t('forms.title'),
+      title: t("forms.title"),
       count: formsData?.meta.totalItems,
       icon: <DescriptionIcon />,
-      color: 'warning',
+      color: "warning",
       loading: formsLoading,
-      onClick: () => navigate('/forms'),
-      onViewAll: () => navigate('/forms'),
+      onClick: () => navigate("/forms"),
+      onViewAll: () => navigate("/forms"),
     },
     {
-      title: t('navigation.reports'),
+      title: t("navigation.reports"),
       count: reportsData?.meta.totalItems,
       icon: <AssessmentIcon />,
-      color: 'error',
+      color: "error",
       loading: reportsLoading,
-      onClick: () => navigate('/reports'),
-      onViewAll: () => navigate('/reports'),
+      onClick: () => navigate("/reports"),
+      onViewAll: () => navigate("/reports"),
+    },
+    {
+      title: t("navigation.contents"),
+      count: contentsData?.meta.totalItems,
+      icon: <LibraryBooksIcon />,
+      color: "secondary", // or another color, since success is used for participations
+      loading: contentsLoading,
+      onClick: () => navigate("/contents"),
+      onViewAll: () => navigate("/contents"),
     },
   ];
 
   const quickActions = [
-    { label: t('users.newUser'), path: '/users/new', icon: <PeopleIcon /> },
-    { label: t('locations.newLocation'), path: '/locations/new', icon: <LocationIcon /> },
-    { label: t('contexts.newContext'), path: '/contexts/new', icon: <FolderIcon /> },
-    { label: t('participations.newParticipation'), path: '/participations/new', icon: <AssignmentIcon /> },
-    { label: t('forms.newForm'), path: '/forms/new', icon: <DescriptionIcon /> },
-    { label: t('reports.newReport'), path: '/reports/new', icon: <AssessmentIcon /> },
+    { label: t("users.newUser"), path: "/users/new", icon: <PeopleIcon /> },
+    {
+      label: t("locations.newLocation"),
+      path: "/locations/new",
+      icon: <LocationIcon />,
+    },
+    {
+      label: t("contexts.newContext"),
+      path: "/contexts/new",
+      icon: <FolderIcon />,
+    },
+    {
+      label: t("participations.newParticipation"),
+      path: "/participations/new",
+      icon: <AssignmentIcon />,
+    },
+    {
+      label: t("forms.newForm"),
+      path: "/forms/new",
+      icon: <DescriptionIcon />,
+    },
+    {
+      label: t("contents.newContent"),
+      path: "/contents/new",
+      icon: <LibraryBooksIcon />,
+    },
+    {
+      label: t("reports.newReport"),
+      path: "/reports/new",
+      icon: <AssessmentIcon />,
+    },
   ];
 
   return (
     <Box>
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
-        {t('dashboard.title')}
+        {t("dashboard.title")}
       </Typography>
 
       <Box
         sx={{
-          display: 'grid',
+          display: "grid",
           gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(3, 1fr)',
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
           },
           gap: 3,
           mb: 4,
@@ -241,7 +300,7 @@ export default function DashboardPage() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            {t('dashboard.quickActions')}
+            {t("dashboard.quickActions")}
           </Typography>
           <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
             {quickActions.map((action) => (
@@ -261,4 +320,3 @@ export default function DashboardPage() {
     </Box>
   );
 }
-

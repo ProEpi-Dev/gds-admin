@@ -21,6 +21,7 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   Assessment as AssessmentIcon,
+  LibraryBooks as LibraryBooksIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
@@ -71,8 +72,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     },
     {
       path: "/contents",
-      label: "Conteúdos",
-      icon: <AssessmentIcon />,
+      label: t("navigation.contents"),
+      icon: <LibraryBooksIcon />,
     },
   ];
 

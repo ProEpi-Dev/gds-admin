@@ -60,6 +60,7 @@
     "users": "Usuários",
     "locations": "Localizações",
     "contexts": "Contextos",
+    "contents": "Conteúdos",
     "participations": "Participações",
     "reports": "Reports"
   },
@@ -205,6 +206,10 @@
     "participationsComingSoon": "Lista de participações em breve",
     "formsComingSoon": "Lista de formulários em breve"
   },
+  "contents": {
+    "title": "Conteúdos",
+    "newContent": "Novo Conteúdo"
+  },
   "tags": {
     "searchPlaceholder": "Digite para buscar ou criar tags...",
     "searchHelperText": "Digite para buscar tags existentes ou pressione Enter para criar uma nova",
@@ -243,4 +248,3 @@
     "database": "Ocorreu um erro inesperado no banco de dados"
   }
 }
-
