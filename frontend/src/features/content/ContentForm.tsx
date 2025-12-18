@@ -4,13 +4,21 @@ import { useNavigate, useParams } from "react-router-dom";
 import TagSelector from "../../../src/components/common/TagSelector";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
-import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  IconButton,
-} from "@mui/material";
+
+// Função para converter URL de vídeo em embed
+const convertVideoUrlToEmbed = (url: string): string => {
+  // YouTube
+  const youtubeRegex =
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const youtubeMatch = url.match(youtubeRegex);
+  if (youtubeMatch) {
+    const videoId = youtubeMatch[1];
+    return `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  }
+
+  return url;
+};
+import { Box, Button, TextField, Typography, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -51,14 +59,35 @@ export default function ContentForm() {
             [{ list: "ordered" }, { list: "bullet" }],
             [{ color: [] }, { background: [] }],
             [{ align: [] }],
-            ["link", "image"],
+            ["link", "image", "video"],
             ["clean"],
           ],
         },
         placeholder: "Digite ou cole aqui o conteúdo...",
       });
 
-      // Listener para atualizar o estado quando o conteúdo mudar
+      // Interceptar inserção de vídeo para converter URLs em embeds
+      const toolbar = quillRef.current.getModule("toolbar") as any;
+      toolbar.addHandler("video", () => {
+        const range = quillRef.current?.getSelection();
+        if (range) {
+          const url = prompt("Digite a URL do vídeo do YouTube):");
+          if (url) {
+            const embedHtml = convertVideoUrlToEmbed(url);
+            if (embedHtml !== url) {
+              // É um embed, insere como HTML
+              quillRef.current?.clipboard.dangerouslyPasteHTML(
+                range.index,
+                embedHtml
+              );
+            } else {
+              // Não é uma URL conhecida, insere como link normal
+              quillRef.current?.insertEmbed(range.index, "video", url);
+            }
+          }
+        }
+      });
+
       quillRef.current.on("text-change", () => {
         if (quillRef.current) {
           const html = quillRef.current.root.innerHTML;
@@ -68,7 +97,6 @@ export default function ContentForm() {
     }
   }, []);
 
-  // LOAD CONTENT IF EDIT
   useEffect(() => {
     if (id) {
       ContentService.get(Number(id)).then((res) => {
@@ -83,7 +111,7 @@ export default function ContentForm() {
           context_id: c.context_id,
           tags: c.content_tag?.map((t: any) => t.tag.id) || [],
         });
-        
+
         // Atualizar o editor Quill com o conteúdo carregado
         if (quillRef.current && c.content) {
           quillRef.current.root.innerHTML = c.content;
@@ -92,7 +120,6 @@ export default function ContentForm() {
     }
   }, [id]);
 
-  // SLUG VALIDATION
   function validateSlug(value: string) {
     const isValid = /^[a-zA-Z0-9-]+$/.test(value);
     setSlugError(
@@ -106,7 +133,6 @@ export default function ContentForm() {
     validateSlug(value);
   }
 
-  // SUBMIT
   function handleSubmit() {
     if (slugError) return;
 
@@ -120,19 +146,25 @@ export default function ContentForm() {
         .catch((error) => {
           const response = error.response;
           const problemDetails = response?.data;
-          
-          // Check for RFC 9457 format from PrismaExceptionFilter
-          if (response?.status === 409 && problemDetails?.type === '/errors/unique-constraint') {
-            // Get translated error message based on field
-            const field = problemDetails.field || 'generic';
+
+          if (
+            response?.status === 409 &&
+            problemDetails?.type === "/errors/unique-constraint"
+          ) {
+            const field = problemDetails.field || "generic";
             const translationKey = `errors.uniqueConstraint.${field}`;
-            const errorMessage = t(translationKey, { defaultValue: t('errors.uniqueConstraint.generic') });
-            
+            const errorMessage = t(translationKey, {
+              defaultValue: t("errors.uniqueConstraint.generic"),
+            });
+
             snackbar.showError(errorMessage);
             setSlugError(errorMessage);
           } else {
-            // Generic error handling
-            snackbar.showError(problemDetails?.detail || problemDetails?.message || "Erro ao atualizar conteúdo");
+            snackbar.showError(
+              problemDetails?.detail ||
+                problemDetails?.message ||
+                "Erro ao atualizar conteúdo"
+            );
           }
         });
     } else {
@@ -150,19 +182,25 @@ export default function ContentForm() {
         .catch((error) => {
           const response = error.response;
           const problemDetails = response?.data;
-          
-          // Check for RFC 9457 format from PrismaExceptionFilter
-          if (response?.status === 409 && problemDetails?.type === '/errors/unique-constraint') {
-            // Get translated error message based on field
-            const field = problemDetails.field || 'generic';
+
+          if (
+            response?.status === 409 &&
+            problemDetails?.type === "/errors/unique-constraint"
+          ) {
+            const field = problemDetails.field || "generic";
             const translationKey = `errors.uniqueConstraint.${field}`;
-            const errorMessage = t(translationKey, { defaultValue: t('errors.uniqueConstraint.generic') });
-            
+            const errorMessage = t(translationKey, {
+              defaultValue: t("errors.uniqueConstraint.generic"),
+            });
+
             snackbar.showError(errorMessage);
             setSlugError(errorMessage);
           } else {
-            // Generic error handling
-            snackbar.showError(problemDetails?.detail || problemDetails?.message || "Erro ao criar conteúdo");
+            snackbar.showError(
+              problemDetails?.detail ||
+                problemDetails?.message ||
+                "Erro ao criar conteúdo"
+            );
           }
         });
     }
