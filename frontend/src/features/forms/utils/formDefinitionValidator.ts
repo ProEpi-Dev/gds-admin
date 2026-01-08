@@ -4,6 +4,7 @@ import type { FormBuilderDefinition, FormField } from '../../../types/form-build
 const optionSchema = z.object({
   label: z.string().min(1, 'Opções precisam de um label'),
   value: z.union([z.string(), z.number()]),
+  feedback: z.string().optional(), // Feedback específico para esta opção (quiz)
 });
 
 const conditionSchema = z.object({
@@ -38,6 +39,15 @@ const fieldSchema = z.object({
   maxDate: z.string().optional(),
   conditions: z.array(conditionSchema).optional(),
   validation: validationSchema,
+  // Campos específicos de Quiz
+  correctAnswer: z.any().optional(),
+  points: z.number().optional(),
+  weight: z.number().optional(),
+  explanation: z.string().optional(),
+  feedback: z.object({
+    correct: z.string().optional(),
+    incorrect: z.string().optional(),
+  }).optional(),
 });
 
 const formDefinitionSchema = z

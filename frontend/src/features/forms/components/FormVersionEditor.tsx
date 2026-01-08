@@ -15,6 +15,10 @@ import {
   Typography,
   Tabs,
   Tab,
+  TextField,
+  FormControlLabel,
+  Switch,
+  Divider,
 } from "@mui/material";
 import FormBuilder from "../../../components/form-builder/FormBuilder";
 import FormDefinitionJsonEditor from "./FormDefinitionJsonEditor";
@@ -28,6 +32,12 @@ import type { FormBuilderDefinition } from "../../../types/form-builder.types";
 const formSchema = z.object({
   accessType: z.enum(["PUBLIC", "PRIVATE"]).optional(),
   active: z.boolean().optional(),
+  // Campos específicos de quiz
+  passingScore: z.number().min(0).max(100).nullable().optional(),
+  maxAttempts: z.number().min(1).nullable().optional(),
+  timeLimitMinutes: z.number().min(1).nullable().optional(),
+  showFeedback: z.boolean().optional(),
+  randomizeQuestions: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -36,10 +46,23 @@ interface FormVersionEditorProps {
   initialDefinition?: FormBuilderDefinition;
   initialAccessType?: "PUBLIC" | "PRIVATE";
   initialActive?: boolean;
+  formType?: "quiz" | "signal";
+  // Campos específicos de quiz
+  initialPassingScore?: number | null;
+  initialMaxAttempts?: number | null;
+  initialTimeLimitMinutes?: number | null;
+  initialShowFeedback?: boolean;
+  initialRandomizeQuestions?: boolean;
   onSubmit: (data: {
     accessType?: "PUBLIC" | "PRIVATE";
     active?: boolean;
     definition: FormBuilderDefinition;
+    // Campos específicos de quiz
+    passingScore?: number | null;
+    maxAttempts?: number | null;
+    timeLimitMinutes?: number | null;
+    showFeedback?: boolean;
+    randomizeQuestions?: boolean;
   }) => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -55,6 +78,12 @@ export default function FormVersionEditor({
   initialDefinition,
   initialAccessType,
   initialActive,
+  formType,
+  initialPassingScore,
+  initialMaxAttempts,
+  initialTimeLimitMinutes,
+  initialShowFeedback,
+  initialRandomizeQuestions,
   onSubmit,
   onCancel,
   isLoading = false,
@@ -87,6 +116,11 @@ export default function FormVersionEditor({
     defaultValues: {
       accessType: initialAccessType,
       active: initialActive,
+      passingScore: initialPassingScore ?? null,
+      maxAttempts: initialMaxAttempts ?? null,
+      timeLimitMinutes: initialTimeLimitMinutes ?? null,
+      showFeedback: initialShowFeedback ?? true,
+      randomizeQuestions: initialRandomizeQuestions ?? false,
     },
   });
 
@@ -100,6 +134,11 @@ export default function FormVersionEditor({
     reset({
       accessType: initialAccessType,
       active: initialActive,
+      passingScore: initialPassingScore ?? null,
+      maxAttempts: initialMaxAttempts ?? null,
+      timeLimitMinutes: initialTimeLimitMinutes ?? null,
+      showFeedback: initialShowFeedback ?? true,
+      randomizeQuestions: initialRandomizeQuestions ?? false,
     });
   }, [initialDefinition, initialAccessType, initialActive, reset]);
 
@@ -164,6 +203,11 @@ export default function FormVersionEditor({
       accessType: data.accessType,
       active: data.active,
       definition: definition,
+      passingScore: data.passingScore,
+      maxAttempts: data.maxAttempts,
+      timeLimitMinutes: data.timeLimitMinutes,
+      showFeedback: data.showFeedback,
+      randomizeQuestions: data.randomizeQuestions,
     });
   };
 
@@ -216,6 +260,114 @@ export default function FormVersionEditor({
             )}
           </FormControl>
 
+          {formType === 'quiz' && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                Configurações do Quiz
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Controller
+                  name="passingScore"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Nota mínima para aprovação (%)"
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : Number(e.target.value);
+                        field.onChange(value);
+                      }}
+                      onBlur={field.onBlur}
+                      error={!!errors.passingScore}
+                      helperText={errors.passingScore?.message || 'Deixe vazio para exigir 100% de acerto'}
+                      inputProps={{ min: 0, max: 100, step: 0.1 }}
+                      sx={{ maxWidth: 300 }}
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="maxAttempts"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Número máximo de tentativas"
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : Number(e.target.value);
+                        field.onChange(value);
+                      }}
+                      onBlur={field.onBlur}
+                      error={!!errors.maxAttempts}
+                      helperText={errors.maxAttempts?.message || 'Deixe vazio para permitir tentativas ilimitadas'}
+                      inputProps={{ min: 1 }}
+                      sx={{ maxWidth: 300 }}
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="timeLimitMinutes"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      label="Tempo limite (minutos)"
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : Number(e.target.value);
+                        field.onChange(value);
+                      }}
+                      onBlur={field.onBlur}
+                      error={!!errors.timeLimitMinutes}
+                      helperText={errors.timeLimitMinutes?.message || 'Deixe vazio para sem limite de tempo'}
+                      inputProps={{ min: 1 }}
+                      sx={{ maxWidth: 300 }}
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="showFeedback"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={field.value ?? true}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      }
+                      label="Mostrar feedback após resposta"
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="randomizeQuestions"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={field.value ?? false}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      }
+                      label="Randomizar ordem das questões"
+                    />
+                  )}
+                />
+              </Box>
+            </>
+          )}
+
           <Box>
             <Typography variant="subtitle2" gutterBottom>
               Definição do Formulário
@@ -237,6 +389,7 @@ export default function FormVersionEditor({
               <FormBuilder
                 definition={definition}
                 onChange={handleBuilderChange}
+                formType={formType}
               />
             ) : (
               <FormDefinitionJsonEditor

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { Box } from '@mui/material';
 import { useFormVersion, useUpdateFormVersion, useFormVersions } from '../hooks/useFormVersions';
+import { useForm } from '../hooks/useForms';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useSnackbar } from '../../../hooks/useSnackbar';
@@ -19,6 +20,8 @@ export default function FormVersionEditPage() {
   const versionId = idParam ? parseInt(idParam, 10) : null;
 
   const { data: version, isLoading, error: queryError } = useFormVersion(formId, versionId);
+  // Buscar o formulário para saber o tipo (quiz ou signal)
+  const { data: form } = useForm(formId);
   // Buscar todas as versões para calcular o próximo número de versão
   const { data: versionsData } = useFormVersions(formId, { page: 1, pageSize: 50 });
 
@@ -68,6 +71,11 @@ export default function FormVersionEditPage() {
       accessType: data.accessType,
       definition: data.definition,
       active: data.active,
+      passingScore: data.passingScore,
+      maxAttempts: data.maxAttempts,
+      timeLimitMinutes: data.timeLimitMinutes,
+      showFeedback: data.showFeedback,
+      randomizeQuestions: data.randomizeQuestions,
     };
 
     updateMutation.mutate(
@@ -124,6 +132,12 @@ export default function FormVersionEditPage() {
         initialDefinition={initialDefinition}
         initialAccessType={version.accessType}
         initialActive={version.active}
+        formType={form?.type}
+        initialPassingScore={version.passingScore}
+        initialMaxAttempts={version.maxAttempts}
+        initialTimeLimitMinutes={version.timeLimitMinutes}
+        initialShowFeedback={version.showFeedback}
+        initialRandomizeQuestions={version.randomizeQuestions}
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/forms/${formId}/versions/${versionId}`)}
         isLoading={updateMutation.isPending}

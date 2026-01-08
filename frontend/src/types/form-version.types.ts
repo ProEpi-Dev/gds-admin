@@ -11,6 +11,12 @@ export interface FormVersion {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  // Campos específicos de quiz
+  passingScore?: number | null;
+  maxAttempts?: number | null;
+  timeLimitMinutes?: number | null;
+  showFeedback?: boolean;
+  randomizeQuestions?: boolean;
 }
 
 export interface CreateFormVersionDto {
@@ -23,6 +29,12 @@ export interface UpdateFormVersionDto {
   accessType?: FormVersionAccessType;
   definition?: any;
   active?: boolean;
+  // Campos específicos de quiz
+  passingScore?: number | null;
+  maxAttempts?: number | null;
+  timeLimitMinutes?: number | null;
+  showFeedback?: boolean;
+  randomizeQuestions?: boolean;
 }
 
 export interface FormVersionQuery extends PaginationQuery {

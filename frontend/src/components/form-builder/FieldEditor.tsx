@@ -28,11 +28,12 @@ import type { FormField, FieldType, ConditionOperator, FieldCondition } from '..
 interface FieldEditorProps {
   field: FormField;
   allFields: FormField[];
+  formType?: "quiz" | "signal";
   onChange: (field: FormField) => void;
   onDelete: () => void;
 }
 
-export default function FieldEditor({ field, allFields, onChange, onDelete }: FieldEditorProps) {
+export default function FieldEditor({ field, allFields, formType, onChange, onDelete }: FieldEditorProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -174,41 +175,61 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
                 Opções
               </Typography>
               {field.options?.map((option, index) => (
-                <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                  <TextField
-                    label="Rótulo"
-                    value={option.label}
-                    onChange={(e) => {
-                      const options = [...(field.options || [])];
-                      options[index] = { ...option, label: e.target.value };
-                      handleChange({ options });
-                    }}
-                    size="small"
-                    sx={{ flex: 1 }}
-                  />
-                  <TextField
-                    label="Valor"
-                    value={option.value}
-                    onChange={(e) => {
-                      const options = [...(field.options || [])];
-                      options[index] = {
-                        ...option,
-                        value: field.type === 'select' ? e.target.value : Number(e.target.value) || e.target.value,
-                      };
-                      handleChange({ options });
-                    }}
-                    size="small"
-                    sx={{ flex: 1 }}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      const options = field.options?.filter((_, i) => i !== index) || [];
-                      handleChange({ options });
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                <Box key={index} sx={{ mb: 2, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, mb: formType === 'quiz' ? 1 : 0 }}>
+                    <TextField
+                      label="Rótulo"
+                      value={option.label}
+                      onChange={(e) => {
+                        const options = [...(field.options || [])];
+                        options[index] = { ...option, label: e.target.value };
+                        handleChange({ options });
+                      }}
+                      size="small"
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      label="Valor"
+                      value={option.value}
+                      onChange={(e) => {
+                        const options = [...(field.options || [])];
+                        options[index] = {
+                          ...option,
+                          value: field.type === 'select' ? e.target.value : Number(e.target.value) || e.target.value,
+                        };
+                        handleChange({ options });
+                      }}
+                      size="small"
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        const options = field.options?.filter((_, i) => i !== index) || [];
+                        handleChange({ options });
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                  {/* Feedback por opção (apenas para quiz) */}
+                  {formType === 'quiz' && (
+                    <TextField
+                      label={`Feedback para "${option.label || 'esta opção'}"`}
+                      value={option.feedback || ''}
+                      onChange={(e) => {
+                        const options = [...(field.options || [])];
+                        options[index] = { ...option, feedback: e.target.value || undefined };
+                        handleChange({ options });
+                      }}
+                      fullWidth
+                      size="small"
+                      multiline
+                      rows={2}
+                      sx={{ mt: 1 }}
+                      helperText="Feedback exibido quando o usuário selecionar esta opção"
+                    />
+                  )}
                 </Box>
               ))}
               <Button
@@ -278,6 +299,153 @@ export default function FieldEditor({ field, allFields, onChange, onDelete }: Fi
                 sx={{ flex: 1 }}
                 InputLabelProps={{ shrink: true }}
               />
+            </Box>
+          )}
+
+          {/* Campos específicos de Quiz */}
+          {formType === 'quiz' && (
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Configurações de Quiz
+              </Typography>
+              
+              <Stack spacing={2}>
+                {/* Resposta Correta */}
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    Resposta Correta
+                  </Typography>
+                  {(field.type === 'select' || field.type === 'multiselect') ? (
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Resposta Correta</InputLabel>
+                      <Select
+                        value={
+                          field.type === 'multiselect'
+                            ? (Array.isArray(field.correctAnswer)
+                                ? field.correctAnswer.map(String)
+                                : field.correctAnswer !== undefined
+                                  ? [String(field.correctAnswer)]
+                                  : [])
+                            : field.correctAnswer !== undefined
+                              ? String(field.correctAnswer)
+                              : ''
+                        }
+                        label="Resposta Correta"
+                        onChange={(e) => {
+                          const value = field.type === 'multiselect'
+                            ? (Array.isArray(e.target.value) ? e.target.value : [e.target.value])
+                            : e.target.value;
+                          onChange({ ...field, correctAnswer: value });
+                        }}
+                        multiple={field.type === 'multiselect'}
+                      >
+                        {field.options?.map((option) => (
+                          <MenuItem key={String(option.value)} value={String(option.value)}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : field.type === 'boolean' ? (
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Resposta Correta</InputLabel>
+                      <Select
+                        value={field.correctAnswer !== undefined ? String(field.correctAnswer) : ''}
+                        label="Resposta Correta"
+                        onChange={(e) => onChange({ ...field, correctAnswer: e.target.value === 'true' })}
+                      >
+                        <MenuItem value="true">Verdadeiro</MenuItem>
+                        <MenuItem value="false">Falso</MenuItem>
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <TextField
+                      label="Resposta Correta"
+                      value={field.correctAnswer !== undefined ? String(field.correctAnswer) : ''}
+                      onChange={(e) => {
+                        let value: any = e.target.value;
+                        if (field.type === 'number') {
+                          value = e.target.value ? Number(e.target.value) : undefined;
+                        }
+                        onChange({ ...field, correctAnswer: value });
+                      }}
+                      fullWidth
+                      size="small"
+                      type={field.type === 'number' ? 'number' : 'text'}
+                      helperText="Defina a resposta correta para esta questão"
+                    />
+                  )}
+                </Box>
+
+                {/* Pontos e Peso */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Pontos"
+                    type="number"
+                    value={field.points !== undefined ? field.points : ''}
+                    onChange={(e) => onChange({ ...field, points: e.target.value ? Number(e.target.value) : undefined })}
+                    size="small"
+                    sx={{ flex: 1 }}
+                    inputProps={{ min: 0, step: 0.1 }}
+                    helperText="Pontos da questão"
+                  />
+                  <TextField
+                    label="Peso"
+                    type="number"
+                    value={field.weight !== undefined ? field.weight : ''}
+                    onChange={(e) => onChange({ ...field, weight: e.target.value ? Number(e.target.value) : undefined })}
+                    size="small"
+                    sx={{ flex: 1 }}
+                    inputProps={{ min: 0, step: 0.1 }}
+                    helperText="Peso para cálculo"
+                  />
+                </Box>
+
+                {/* Feedback Personalizado Geral (apenas se não for select/multiselect ou se não tiver feedback por opção) */}
+                {(!(field.type === 'select' || field.type === 'multiselect') || 
+                  !field.options?.some(opt => opt.feedback)) && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                      Feedback Personalizado {field.type === 'select' || field.type === 'multiselect' 
+                        ? '(fallback se opção não tiver feedback específico)' 
+                        : ''}
+                    </Typography>
+                    <TextField
+                      label="Feedback quando acertar"
+                      value={field.feedback?.correct || ''}
+                      onChange={(e) => onChange({
+                        ...field,
+                        feedback: {
+                          ...field.feedback,
+                          correct: e.target.value || undefined,
+                        },
+                      })}
+                      fullWidth
+                      size="small"
+                      sx={{ mb: 1 }}
+                      multiline
+                      rows={2}
+                      helperText="Mensagem exibida quando o usuário acertar esta questão"
+                    />
+                    <TextField
+                      label="Feedback quando errar"
+                      value={field.feedback?.incorrect || ''}
+                      onChange={(e) => onChange({
+                        ...field,
+                        feedback: {
+                          ...field.feedback,
+                          incorrect: e.target.value || undefined,
+                        },
+                      })}
+                      fullWidth
+                      size="small"
+                      multiline
+                      rows={3}
+                      helperText="Mensagem exibida quando o usuário errar esta questão (pode incluir explicação da resposta correta)"
+                    />
+                  </Box>
+                )}
+              </Stack>
             </Box>
           )}
 

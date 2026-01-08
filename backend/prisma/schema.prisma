@@ -69,21 +69,28 @@ model form {
   active       Boolean        @default(true)
   context      context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
   form_version form_version[]
+  content_quiz content_quiz[]
 
   @@index([context_id], map: "idx_form_context_id")
 }
 
 model form_version {
-  id             Int                      @id @default(autoincrement())
-  form_id        Int
-  version_number Int
-  definition     Json
-  access_type    form_version_access_type
-  created_at     DateTime                 @default(now()) @db.Timestamp(6)
-  updated_at     DateTime                 @default(now()) @db.Timestamp(6)
-  active         Boolean                  @default(true)
-  form           form                     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  report         report[]
+  id                  Int                      @id @default(autoincrement())
+  form_id             Int
+  version_number       Int
+  definition           Json
+  access_type          form_version_access_type
+  passing_score        Decimal?                 @db.Decimal(5, 2)
+  max_attempts         Int?
+  time_limit_minutes  Int?
+  show_feedback        Boolean                  @default(true)
+  randomize_questions  Boolean                  @default(false)
+  created_at           DateTime                 @default(now()) @db.Timestamp(6)
+  updated_at           DateTime                 @default(now()) @db.Timestamp(6)
+  active               Boolean                  @default(true)
+  form                 form                     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report               report[]
+  quiz_submission      quiz_submission[]
 
   @@unique([form_id, version_number])
   @@index([form_id], map: "idx_form_version_form_id")
@@ -107,17 +114,18 @@ model location {
 }
 
 model participation {
-  id         Int       @id @default(autoincrement())
-  user_id    Int
-  context_id Int
-  start_date DateTime  @db.Date
-  end_date   DateTime? @db.Date
-  active     Boolean   @default(true)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @db.Timestamp(6)
-  context    context   @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user       user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  report     report[]
+  id              Int               @id @default(autoincrement())
+  user_id         Int
+  context_id       Int
+  start_date       DateTime          @db.Date
+  end_date         DateTime?         @db.Date
+  active           Boolean           @default(true)
+  created_at       DateTime          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime          @default(now()) @db.Timestamp(6)
+  context          context           @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user             user              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report           report[]
+  quiz_submission  quiz_submission[]
 
   @@index([context_id], map: "idx_participation_context_id")
   @@index([user_id], map: "idx_participation_user_id")
@@ -172,6 +180,7 @@ model content {
   user         user          @relation(fields: [author_id], references: [id], onUpdate: NoAction)
   context      context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
   content_tag  content_tag[]
+  content_quiz content_quiz[]
 
   @@index([active], map: "idx_content_active")
   @@index([author_id], map: "idx_content_author_id")
@@ -228,4 +237,50 @@ enum form_version_access_type {
 enum report_type_enum {
   POSITIVE
   NEGATIVE
+}
+
+model content_quiz {
+  id           Int      @id @default(autoincrement())
+  content_id   Int
+  form_id      Int
+  display_order Int     @default(0)
+  is_required  Boolean  @default(false)
+  weight       Decimal  @default(1.0) @db.Decimal(5, 2)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  updated_at   DateTime @default(now()) @db.Timestamp(6)
+  active       Boolean  @default(true)
+  content      content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form         form     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([content_id, form_id], map: "uq_content_quiz_unique")
+  @@index([content_id], map: "idx_content_quiz_content_id")
+  @@index([form_id], map: "idx_content_quiz_form_id")
+  @@index([content_id, display_order], map: "idx_content_quiz_display_order")
+}
+
+model quiz_submission {
+  id                 Int            @id @default(autoincrement())
+  participation_id   Int
+  form_version_id     Int
+  quiz_response       Json
+  question_results    Json?         // Resultados detalhados por questão: [{questionName, isCorrect, pointsEarned, userAnswer, correctAnswer, feedback}]
+  score              Decimal?       @db.Decimal(5, 2)
+  percentage         Decimal?       @db.Decimal(5, 2)
+  is_passed          Boolean?
+  attempt_number     Int
+  time_spent_seconds Int?
+  started_at         DateTime       @db.Timestamp(6)
+  completed_at       DateTime?      @db.Timestamp(6)
+  created_at         DateTime       @default(now()) @db.Timestamp(6)
+  updated_at         DateTime       @default(now()) @db.Timestamp(6)
+  active             Boolean        @default(true)
+  participation      participation  @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form_version       form_version   @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([participation_id], map: "idx_quiz_submission_participation_id")
+  @@index([form_version_id], map: "idx_quiz_submission_form_version_id")
+  @@index([score], map: "idx_quiz_submission_score")
+  @@index([is_passed], map: "idx_quiz_submission_is_passed")
+  @@index([participation_id, form_version_id, attempt_number], map: "idx_quiz_submission_attempt")
+  @@index([completed_at], map: "idx_quiz_submission_completed_at")
 }

@@ -19,9 +19,10 @@ interface FormBuilderProps {
   definition?: FormBuilderDefinition;
   onChange?: (definition: FormBuilderDefinition) => void;
   readOnly?: boolean;
+  formType?: "quiz" | "signal";
 }
 
-export default function FormBuilder({ definition, onChange, readOnly = false }: FormBuilderProps) {
+export default function FormBuilder({ definition, onChange, readOnly = false, formType }: FormBuilderProps) {
   const [fields, setFields] = useState<FormField[]>(definition?.fields || []);
   const [activeTab, setActiveTab] = useState(0);
 
@@ -101,6 +102,7 @@ export default function FormBuilder({ definition, onChange, readOnly = false }: 
                   key={field.id}
                   field={field}
                   allFields={fields}
+                  formType={formType}
                   onChange={(updatedField) => updateField(index, updatedField)}
                   onDelete={() => deleteField(index)}
                 />

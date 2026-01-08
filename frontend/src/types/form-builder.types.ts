@@ -31,7 +31,11 @@ export interface FormField {
   placeholder?: string;
   defaultValue?: any;
   // Para select e multiselect
-  options?: Array<{ label: string; value: string | number }>;
+  options?: Array<{ 
+    label: string; 
+    value: string | number;
+    feedback?: string; // Feedback específico para esta opção (quando for quiz)
+  }>;
   // Para number
   min?: number;
   max?: number;
@@ -46,6 +50,15 @@ export interface FormField {
   validation?: {
     pattern?: string;
     message?: string;
+  };
+  // Campos específicos de Quiz
+  correctAnswer?: any;
+  points?: number;
+  weight?: number;
+  explanation?: string;
+  feedback?: {
+    correct?: string;
+    incorrect?: string;
   };
 }
 

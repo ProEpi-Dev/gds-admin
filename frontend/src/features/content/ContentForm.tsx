@@ -24,6 +24,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
+import ContentQuizManager from "../content-quiz/components/ContentQuizManager";
 
 export default function ContentForm() {
   const { id } = useParams();
@@ -311,6 +312,13 @@ export default function ContentForm() {
           onChange={(newTags: number[]) => setForm({ ...form, tags: newTags })}
         />
       </Box>
+
+      {/* QUIZES ASSOCIADOS - Apenas na edição */}
+      {id && (
+        <Box sx={{ mb: 4 }}>
+          <ContentQuizManager contentId={Number(id)} />
+        </Box>
+      )}
 
       {/* BOTÕES */}
       <Box

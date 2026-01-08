@@ -37,6 +37,11 @@ import ContextManagerEditPage from "../features/context-managers/pages/ContextMa
 import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import ContentList from "../features/content/ContentList";
 import ContentForm from "../features/content/ContentForm";
+import QuizzesListPage from "../features/quizzes/pages/QuizzesListPage";
+import QuizTakePage from "../features/quizzes/pages/QuizTakePage";
+import QuizViewPage from "../features/quizzes/pages/QuizViewPage";
+import QuizSubmissionViewPage from "../features/quizzes/pages/QuizSubmissionViewPage";
+import QuizSubmissionsListPage from "../features/quizzes/pages/QuizSubmissionsListPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -326,6 +331,46 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ContentList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quizzes"
+        element={
+          <ProtectedRoute>
+            <QuizzesListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quizzes/:quizId/content/:contentId"
+        element={
+          <ProtectedRoute>
+            <QuizTakePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quizzes/:quizId"
+        element={
+          <ProtectedRoute>
+            <QuizViewPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quiz-submissions"
+        element={
+          <ProtectedRoute>
+            <QuizSubmissionsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/quiz-submissions/:id"
+        element={
+          <ProtectedRoute>
+            <QuizSubmissionViewPage />
           </ProtectedRoute>
         }
       />

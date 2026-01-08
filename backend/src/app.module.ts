@@ -16,6 +16,8 @@ import { FormVersionsModule } from './form-versions/form-versions.module';
 import { ReportsModule } from './reports/reports.module';
 import { ContentModule } from './content/content.module';
 import { TagModule } from './tags/tag.module';
+import { ContentQuizModule } from './content-quiz/content-quiz.module';
+import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -40,6 +42,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     ReportsModule,
     ContentModule,
     TagModule,
+    ContentQuizModule,
+    QuizSubmissionsModule,
   ],
   controllers: [AppController],
   providers: [
