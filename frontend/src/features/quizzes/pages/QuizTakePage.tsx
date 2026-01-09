@@ -14,6 +14,8 @@ import {
   ArrowBack as ArrowBackIcon,
   Book as BookIcon,
   Quiz as QuizIcon,
+  Info as InfoIcon,
+  PlayArrow as PlayArrowIcon,
 } from '@mui/icons-material';
 import { useForm } from '../../forms/hooks/useForms';
 import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
@@ -35,6 +37,7 @@ export default function QuizTakePage() {
   const { user } = useAuth();
   const participation = user?.participation || null;
   const [activeTab, setActiveTab] = useState(0);
+  const [quizStarted, setQuizStarted] = useState(false);
 
   const quizIdNum = quizId ? parseInt(quizId, 10) : null;
   const contentIdNum = contentId ? parseInt(contentId, 10) : null;
@@ -207,7 +210,12 @@ export default function QuizTakePage() {
       <Paper sx={{ mt: 3 }}>
         <Tabs
           value={activeTab}
-          onChange={(_, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => {
+            setActiveTab(newValue);
+            if (newValue === 0) {
+              setQuizStarted(false);
+            }
+          }}
         >
           <Tab
             icon={<BookIcon />}
@@ -259,15 +267,67 @@ export default function QuizTakePage() {
                 </Alert>
               )}
 
-              <QuizRenderer
-                definition={quizDefinition}
-                metadata={quizMetadata}
-                participationId={participation?.id || 0}
-                formVersionId={formVersion.id}
-                existingSubmissions={existingSubmissions}
-                onSubmit={handleSubmit}
-                readOnly={false}
-              />
+              {!quizStarted && (
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 3,
+                    mb: 3,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
+                    <InfoIcon color="primary" sx={{ fontSize: 32, mt: 0.5 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Instruções do Quiz
+                      </Typography>
+                      {quiz.description ? (
+                        <Typography
+                          variant="body1"
+                          color="text.secondary"
+                          sx={{
+                            mt: 2,
+                            lineHeight: 1.7,
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
+                          {quiz.description}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+                          Leia atentamente as questões e responda com cuidado. 
+                          Boa sorte!
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={<PlayArrowIcon />}
+                      onClick={() => setQuizStarted(true)}
+                    >
+                      Iniciar Quiz
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+
+              {quizStarted && (
+                <QuizRenderer
+                  definition={quizDefinition}
+                  metadata={quizMetadata}
+                  participationId={participation?.id || 0}
+                  formVersionId={formVersion.id}
+                  existingSubmissions={existingSubmissions}
+                  onSubmit={handleSubmit}
+                  readOnly={false}
+                />
+              )}
             </Box>
           )}
         </Box>

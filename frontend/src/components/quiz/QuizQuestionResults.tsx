@@ -2,14 +2,10 @@ import {
   Box,
   Paper,
   Typography,
-  Chip,
-  Divider,
-  Alert,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import type { QuestionResult } from '../../types/quiz-submission.types';
 import type { QuizDefinition } from '../../types/quiz.types';
@@ -58,128 +54,67 @@ export default function QuizQuestionResults({
           return (
             <Paper
               key={result.questionName || index}
+              elevation={0}
               sx={{
-                p: 2,
+                p: 2.5,
                 border: '1px solid',
-                borderColor: isCorrect ? 'success.main' : 'error.main',
-                bgcolor: isCorrect
-                  ? 'rgba(76, 175, 80, 0.1)'
-                  : 'rgba(244, 67, 54, 0.1)',
+                borderColor: 'divider',
+                borderLeft: `4px solid ${isCorrect ? 'success.main' : 'error.main'}`,
               }}
             >
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 2,
-                }}
-              >
-                {/* Ícone de acerto/erro */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                 <Box sx={{ mt: 0.5 }}>
                   {isCorrect ? (
-                    <CheckCircleIcon color="success" fontSize="large" />
+                    <CheckCircleIcon color="success" fontSize="small" />
                   ) : (
-                    <CancelIcon color="error" fontSize="large" />
+                    <CancelIcon color="error" fontSize="small" />
                   )}
                 </Box>
 
-                {/* Conteúdo da questão */}
                 <Box sx={{ flex: 1 }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      mb: 1,
-                    }}
-                  >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                       {question?.label || result.questionName}
                     </Typography>
-                    <Chip
-                      label={isCorrect ? 'Correto' : 'Incorreto'}
-                      color={isCorrect ? 'success' : 'error'}
-                      size="small"
-                    />
-                    <Chip
-                      label={`${result.pointsEarned}/${result.pointsTotal} pontos`}
-                      size="small"
-                      variant="outlined"
-                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {result.pointsEarned}/{result.pointsTotal} pontos
+                    </Typography>
                   </Box>
 
-                  {question?.description && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      {question.description}
-                    </Typography>
-                  )}
-
-                  <Divider sx={{ my: 2 }} />
-
-                  {/* Respostas */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
                     <Box>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', mb: 0.5 }}
-                      >
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                         Sua resposta:
                       </Typography>
-                      <Chip
-                        label={userAnswerLabel}
-                        color={isCorrect ? 'success' : 'default'}
-                        variant={isCorrect ? 'filled' : 'outlined'}
-                        sx={{
-                          fontWeight: 'bold',
-                          bgcolor: isCorrect
-                            ? 'success.main'
-                            : 'error.main',
-                          color: 'white',
-                        }}
-                      />
+                      <Typography variant="body2">
+                        {userAnswerLabel}
+                      </Typography>
                     </Box>
 
                     {!isCorrect && (
                       <Box>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block', mb: 0.5 }}
-                        >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                           Resposta correta:
                         </Typography>
-                        <Chip
-                          label={correctAnswerLabel}
-                          color="success"
-                          sx={{
-                            fontWeight: 'bold',
-                            bgcolor: 'success.light',
-                            color: 'success.contrastText',
-                          }}
-                        />
+                        <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                          {correctAnswerLabel}
+                        </Typography>
                       </Box>
                     )}
 
-                    {/* Feedback */}
                     {result.feedback && (
-                      <Alert
-                        severity={isCorrect ? 'success' : 'info'}
-                        icon={
-                          isCorrect ? (
-                            <CheckCircleIcon />
-                          ) : (
-                            <HelpOutlineIcon />
-                          )
-                        }
-                        sx={{ mt: 1 }}
+                      <Box
+                        sx={{
+                          mt: 1.5,
+                          pt: 1.5,
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                        }}
                       >
-                        <Typography variant="body2">{result.feedback}</Typography>
-                      </Alert>
+                        <Typography variant="body2" color="text.secondary">
+                          {result.feedback}
+                        </Typography>
+                      </Box>
                     )}
                   </Box>
                 </Box>

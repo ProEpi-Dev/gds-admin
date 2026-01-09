@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Paper,
   Card,
   CardContent,
-  CardActions,
   Button,
   Chip,
-  Grid,
+  Stack,
   Alert,
 } from '@mui/material';
 import {
@@ -179,18 +176,17 @@ export default function QuizzesListPage() {
         Leia o conteúdo e responda os quizes associados
       </Typography>
 
-      <Grid container spacing={3}>
+      <Stack spacing={3}>
         {quizesWithContent.map((item) => {
           const status = getQuizStatus(item);
           const canStart = canAttempt(item);
 
           return (
-            <Grid item xs={12} md={6} lg={4} key={`${item.quiz.id}-${item.content.id}`}>
+            <Box key={`${item.quiz.id}-${item.content.id}`}>
               <Card
                 sx={{
-                  height: '100%',
                   display: 'flex',
-                  flexDirection: 'column',
+                  flexDirection: 'row',
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': {
                     transform: 'translateY(-4px)',
@@ -199,84 +195,86 @@ export default function QuizzesListPage() {
                 }}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <QuizIcon color="primary" />
-                    <Typography variant="h6" component="h2">
-                      {item.quiz.title}
-                    </Typography>
-                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+                    <Box sx={{ flexGrow: 1, minWidth: '300px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <QuizIcon color="primary" />
+                        <Typography variant="h6" component="h2">
+                          {item.quiz.title}
+                        </Typography>
+                      </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <BookIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {item.content.title}
-                    </Typography>
-                  </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <BookIcon fontSize="small" color="action" />
+                        <Typography variant="body2" color="text.secondary">
+                          {item.content.title}
+                        </Typography>
+                      </Box>
 
-                  {item.content.summary && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      {item.content.summary.substring(0, 100)}
-                      {item.content.summary.length > 100 ? '...' : ''}
-                    </Typography>
-                  )}
-
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                    <Chip
-                      label={status.label}
-                      color={status.color}
-                      size="small"
-                      icon={status.color === 'success' ? <CheckCircleIcon /> : undefined}
-                    />
-                    {item.contentQuiz.isRequired && (
-                      <Chip label="Obrigatório" color="error" size="small" />
-                    )}
-                    {item.submissions.length > 0 && (
-                      <Chip
-                        label={`${item.submissions.length} tentativa(s)`}
-                        size="small"
-                      />
-                    )}
-                  </Box>
-
-                  {item.submissions.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Última tentativa:{' '}
-                        {item.submissions[0].score !== null
-                          ? `${item.submissions[0].score.toFixed(1)}%`
-                          : 'Em andamento'}
-                      </Typography>
+                      {item.content.summary && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mb: 2 }}
+                        >
+                          {item.content.summary.substring(0, 150)}
+                          {item.content.summary.length > 150 ? '...' : ''}
+                        </Typography>
+                      )}
                     </Box>
-                  )}
-                </CardContent>
 
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() =>
-                      navigate(
-                        `/quizzes/${item.quiz.id}/content/${item.content.id}`
-                      )
-                    }
-                    disabled={false}
-                  >
-                    {item.submissions.length === 0
-                      ? 'Iniciar Quiz'
-                      : canStart
-                        ? 'Refazer Quiz'
-                        : 'Visualizar Resultado'}
-                  </Button>
-                </CardActions>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', minWidth: '200px' }}>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <Chip
+                          label={status.label}
+                          color={status.color}
+                          size="small"
+                          icon={status.color === 'success' ? <CheckCircleIcon /> : undefined}
+                        />
+                        {item.contentQuiz.isRequired && (
+                          <Chip label="Obrigatório" color="error" size="small" />
+                        )}
+                        {item.submissions.length > 0 && (
+                          <Chip
+                            label={`${item.submissions.length} tentativa(s)`}
+                            size="small"
+                          />
+                        )}
+                      </Box>
+
+                      {item.submissions.length > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          Última tentativa:{' '}
+                          {item.submissions[0].score !== null
+                            ? `${item.submissions[0].score.toFixed(1)}%`
+                            : 'Em andamento'}
+                        </Typography>
+                      )}
+
+                      <Button
+                        variant="contained"
+                        onClick={() =>
+                          navigate(
+                            `/quizzes/${item.quiz.id}/content/${item.content.id}`
+                          )
+                        }
+                        disabled={false}
+                        sx={{ minWidth: '180px' }}
+                      >
+                        {item.submissions.length === 0
+                          ? 'Iniciar Quiz'
+                          : canStart
+                            ? 'Refazer Quiz'
+                            : 'Visualizar Resultado'}
+                      </Button>
+                    </Box>
+                  </Box>
+                </CardContent>
               </Card>
-            </Grid>
+            </Box>
           );
         })}
-      </Grid>
+      </Stack>
     </Box>
   );
 }

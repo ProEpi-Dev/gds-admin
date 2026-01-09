@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS quiz_submission (
     participation_id INTEGER NOT NULL REFERENCES participation(id) ON DELETE CASCADE,
     form_version_id INTEGER NOT NULL REFERENCES form_version(id) ON DELETE RESTRICT,
     quiz_response JSONB NOT NULL,
+    question_results JSON,
     score DECIMAL(5,2),
     percentage DECIMAL(5,2),
     is_passed BOOLEAN,
@@ -45,6 +46,9 @@ CREATE TABLE IF NOT EXISTS quiz_submission (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     active BOOLEAN NOT NULL DEFAULT true
 );
+
+-- Comentário para question_results
+COMMENT ON COLUMN quiz_submission.question_results IS 'Resultados detalhados por questão: array de objetos com {questionName, isCorrect, pointsEarned, userAnswer, correctAnswer, feedback}';
 
 -- 4. Criar índices para content_quiz
 CREATE INDEX IF NOT EXISTS idx_content_quiz_content_id ON content_quiz(content_id);

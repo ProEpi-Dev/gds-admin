@@ -103,7 +103,10 @@ export default function QuizRenderer({
             {definition.description}
           </Typography>
         )}
-        <QuizScore submission={currentSubmission} />
+        <QuizScore 
+          submission={currentSubmission} 
+          passingScore={metadata?.passingScore}
+        />
         
         {/* Feedback detalhado por questão */}
         {currentSubmission.questionResults && currentSubmission.questionResults.length > 0 && (
