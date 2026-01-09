@@ -6,6 +6,9 @@ import {
   MenuItem,
   FormControlLabel,
   Checkbox,
+  Radio,
+  RadioGroup,
+  FormLabel,
   Box,
   Typography,
 } from '@mui/material';
@@ -19,6 +22,7 @@ interface FormFieldRendererProps {
   allValues: Record<string, any>;
   errors?: Record<string, string>;
   readOnly?: boolean;
+  isQuiz?: boolean; // Indica se é um quiz (para renderizar select como radio)
 }
 
 /**
@@ -117,6 +121,7 @@ export default function FormFieldRenderer({
   allValues,
   errors,
   readOnly = false,
+  isQuiz = false,
 }: FormFieldRendererProps) {
   if (!shouldShowField(field, allValues, allFields)) {
     return null;
@@ -208,6 +213,51 @@ export default function FormFieldRenderer({
       );
 
     case 'select':
+      // Se for quiz, renderizar como radio buttons
+      if (isQuiz) {
+        // Normalizar valor para string para comparação
+        const normalizedValue = value !== null && value !== undefined ? String(value) : '';
+        
+        return (
+          <FormControl fullWidth required={field.required} error={hasError} component="fieldset">
+            <FormLabel component="legend" required={field.required}>
+              {field.label}
+            </FormLabel>
+            {field.description && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {field.description}
+              </Typography>
+            )}
+            <RadioGroup
+              value={normalizedValue}
+              onChange={(e) => {
+                // Manter o tipo original do valor da opção
+                const selectedOption = field.options?.find(
+                  opt => String(opt.value) === e.target.value
+                );
+                onChange(selectedOption ? selectedOption.value : e.target.value);
+              }}
+              name={field.name}
+            >
+              {field.options?.map((option) => (
+                <FormControlLabel
+                  key={String(option.value)}
+                  value={String(option.value)}
+                  control={<Radio disabled={readOnly} />}
+                  label={option.label}
+                />
+              ))}
+            </RadioGroup>
+            {helperText && (
+              <Box sx={{ color: hasError ? 'error.main' : 'text.secondary', fontSize: '0.75rem', mt: 0.5 }}>
+                {helperText}
+              </Box>
+            )}
+          </FormControl>
+        );
+      }
+      
+      // Caso contrário, renderizar como Select dropdown (comportamento padrão)
       return (
         <FormControl fullWidth required={field.required} error={hasError}>
           <InputLabel>{field.label}</InputLabel>

@@ -8,6 +8,7 @@ interface FormRendererProps {
   initialValues?: Record<string, any>;
   onChange?: (values: Record<string, any>) => void;
   readOnly?: boolean;
+  isQuiz?: boolean; // Indica se é um quiz (para renderizar select como radio)
 }
 
 export default function FormRenderer({
@@ -15,6 +16,7 @@ export default function FormRenderer({
   initialValues = {},
   onChange,
   readOnly = false,
+  isQuiz = false,
 }: FormRendererProps) {
   const [values, setValues] = useState<Record<string, any>>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -129,6 +131,7 @@ export default function FormRenderer({
             allValues={values}
             errors={errors}
             readOnly={readOnly}
+            isQuiz={isQuiz}
           />
         ))
       )}

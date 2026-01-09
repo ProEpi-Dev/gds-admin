@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { form_version_access_type } from '@prisma/client';
 
 export class FormVersionResponseDto {
@@ -32,5 +32,37 @@ export class FormVersionResponseDto {
 
   @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
   updatedAt: Date;
+
+  @ApiPropertyOptional({
+    description: 'Nota mínima para aprovação (0-100)',
+    example: 70.0,
+  })
+  passingScore?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Limite de tentativas (NULL = ilimitado)',
+    example: 3,
+  })
+  maxAttempts?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Tempo limite em minutos (NULL = sem limite)',
+    example: 30,
+  })
+  timeLimitMinutes?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Mostrar feedback após resposta',
+    example: true,
+    default: true,
+  })
+  showFeedback?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Randomizar ordem das questões',
+    example: false,
+    default: false,
+  })
+  randomizeQuestions?: boolean;
 }
 

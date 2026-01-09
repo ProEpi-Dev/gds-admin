@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { useCreateFormVersion, useFormVersions } from '../hooks/useFormVersions';
+import { useForm } from '../hooks/useForms';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { CreateFormVersionDto } from '../../../types/form-version.types';
@@ -22,6 +23,8 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
   const [initialAccessType, setInitialAccessType] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [initialActive, setInitialActive] = useState<boolean>(true);
 
+  // Buscar o formulário para saber o tipo (quiz ou signal)
+  const { data: form } = useForm(formId);
   // Buscar versões do formulário para encontrar a última versão
   const { data: versionsData } = useFormVersions(formId, { page: 1, pageSize: 50 });
 
@@ -79,6 +82,7 @@ export default function FormVersionCreate({ formId }: FormVersionCreateProps) {
         initialDefinition={initialDefinition}
         initialAccessType={initialAccessType}
         initialActive={initialActive}
+        formType={form?.type}
         onSubmit={handleSubmit}
         onCancel={() => navigate(`/forms/${formId}`)}
         isLoading={createMutation.isPending}

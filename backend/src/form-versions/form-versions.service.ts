@@ -184,6 +184,26 @@ export class FormVersionsService {
                 : existingVersion.access_type,
             definition: updateFormVersionDto.definition,
             active: updateFormVersionDto.active !== undefined ? updateFormVersionDto.active : true,
+            passing_score:
+              updateFormVersionDto.passingScore !== undefined
+                ? updateFormVersionDto.passingScore
+                : existingVersion.passing_score,
+            max_attempts:
+              updateFormVersionDto.maxAttempts !== undefined
+                ? updateFormVersionDto.maxAttempts
+                : existingVersion.max_attempts,
+            time_limit_minutes:
+              updateFormVersionDto.timeLimitMinutes !== undefined
+                ? updateFormVersionDto.timeLimitMinutes
+                : existingVersion.time_limit_minutes,
+            show_feedback:
+              updateFormVersionDto.showFeedback !== undefined
+                ? updateFormVersionDto.showFeedback
+                : existingVersion.show_feedback,
+            randomize_questions:
+              updateFormVersionDto.randomizeQuestions !== undefined
+                ? updateFormVersionDto.randomizeQuestions
+                : existingVersion.randomize_questions,
           },
         });
 
@@ -205,6 +225,26 @@ export class FormVersionsService {
 
     if (updateFormVersionDto.active !== undefined) {
       updateData.active = updateFormVersionDto.active;
+    }
+
+    if (updateFormVersionDto.passingScore !== undefined) {
+      updateData.passing_score = updateFormVersionDto.passingScore;
+    }
+
+    if (updateFormVersionDto.maxAttempts !== undefined) {
+      updateData.max_attempts = updateFormVersionDto.maxAttempts;
+    }
+
+    if (updateFormVersionDto.timeLimitMinutes !== undefined) {
+      updateData.time_limit_minutes = updateFormVersionDto.timeLimitMinutes;
+    }
+
+    if (updateFormVersionDto.showFeedback !== undefined) {
+      updateData.show_feedback = updateFormVersionDto.showFeedback;
+    }
+
+    if (updateFormVersionDto.randomizeQuestions !== undefined) {
+      updateData.randomize_questions = updateFormVersionDto.randomizeQuestions;
     }
 
     // Atualizar versão
@@ -259,6 +299,11 @@ export class FormVersionsService {
       active: formVersion.active,
       createdAt: formVersion.created_at,
       updatedAt: formVersion.updated_at,
+      passingScore: formVersion.passing_score !== null ? Number(formVersion.passing_score) : null,
+      maxAttempts: formVersion.max_attempts,
+      timeLimitMinutes: formVersion.time_limit_minutes,
+      showFeedback: formVersion.show_feedback ?? true,
+      randomizeQuestions: formVersion.randomize_questions ?? false,
     };
   }
 }

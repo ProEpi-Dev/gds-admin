@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsBoolean, IsOptional, IsEnum, IsObject } from 'class-validator';
+import { IsNumber, IsBoolean, IsOptional, IsEnum, IsObject, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { form_version_access_type } from '@prisma/client';
 
@@ -28,5 +28,58 @@ export class UpdateFormVersionDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Nota mínima para aprovação (0-100)',
+    example: 70.0,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  @Max(100)
+  passingScore?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Número máximo de tentativas',
+    example: 3,
+    minimum: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  maxAttempts?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Tempo limite em minutos',
+    example: 30,
+    minimum: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  timeLimitMinutes?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Mostrar feedback após resposta',
+    example: true,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  showFeedback?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Randomizar ordem das questões',
+    example: false,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  randomizeQuestions?: boolean;
 }
 

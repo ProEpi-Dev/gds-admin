@@ -22,6 +22,8 @@ import {
   Description as DescriptionIcon,
   Assessment as AssessmentIcon,
   LibraryBooks as LibraryBooksIcon,
+  Quiz as QuizIcon,
+  AssignmentInd as AssignmentIndIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
@@ -74,6 +76,16 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       path: "/contents",
       label: t("navigation.contents"),
       icon: <LibraryBooksIcon />,
+    },
+    {
+      path: "/quizzes",
+      label: "Quizes",
+      icon: <QuizIcon />,
+    },
+    {
+      path: "/quiz-submissions",
+      label: "Submissões de Quizes",
+      icon: <AssignmentIndIcon />,
     },
   ];
 
