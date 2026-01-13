@@ -5,7 +5,6 @@ import {
   Button,
   Typography,
   Paper,
-  Chip,
   Alert,
 } from '@mui/material';
 import {
@@ -35,7 +34,7 @@ export default function QuizSubmissionViewPage() {
 
   // Buscar quiz para obter a definição
   const formId = submission?.formVersion?.form?.id;
-  const { data: quiz } = useForm(formId || undefined);
+  const { data: quiz } = useForm(formId ?? null);
 
   const formVersion = quiz?.latestVersion;
   const quizDefinition: QuizDefinition | null = formVersion?.definition

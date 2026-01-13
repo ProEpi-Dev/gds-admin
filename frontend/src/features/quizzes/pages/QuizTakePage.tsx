@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -8,7 +8,6 @@ import {
   Tabs,
   Tab,
   Alert,
-  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -53,14 +52,12 @@ export default function QuizTakePage() {
   });
 
   // Buscar associação conteúdo-quiz
-  const { data: contentQuizzesData } = useContentQuizzes({
-    contentId: contentIdNum,
-    formId: quizIdNum,
+  useContentQuizzes({
+    contentId: contentIdNum ?? undefined,
+    formId: quizIdNum ?? undefined,
     page: 1,
     pageSize: 1,
   });
-
-  const contentQuiz = contentQuizzesData?.data?.[0];
 
   // Buscar versão do quiz
   const formVersion = quiz?.latestVersion;
@@ -69,9 +66,9 @@ export default function QuizTakePage() {
     : null;
 
   const quizMetadata: FormVersionQuizMetadata = {
-    passingScore: formVersion?.passingScore ?? undefined,
-    maxAttempts: formVersion?.maxAttempts ?? undefined,
-    timeLimitMinutes: formVersion?.timeLimitMinutes ?? undefined,
+    passingScore: formVersion?.passingScore ?? null,
+    maxAttempts: formVersion?.maxAttempts ?? null,
+    timeLimitMinutes: formVersion?.timeLimitMinutes ?? null,
     showFeedback: formVersion?.showFeedback ?? true,
     randomizeQuestions: formVersion?.randomizeQuestions ?? false,
   };

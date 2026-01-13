@@ -209,7 +209,7 @@ describe('QuizScore', () => {
         isPassed: null,
       });
 
-      const { container } = render(<QuizScore submission={submission} />);
+      render(<QuizScore submission={submission} />);
       expect(screen.getByText('50.00%')).toBeInTheDocument();
     });
 

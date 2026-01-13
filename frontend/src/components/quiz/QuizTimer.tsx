@@ -13,7 +13,6 @@ export default function QuizTimer({
   timeLimitMinutes,
   startedAt,
   onTimeUp,
-  autoSubmit = false,
 }: QuizTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(
     timeLimitMinutes * 60,

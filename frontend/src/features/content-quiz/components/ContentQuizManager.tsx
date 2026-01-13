@@ -119,12 +119,13 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
       );
     } else {
       // Criar
-      if (!formData.formId || formData.formId === 0) {
+      const createData = formData as CreateContentQuizDto;
+      if (!createData.formId || createData.formId === 0) {
         snackbar.showError('Selecione um quiz');
         return;
       }
 
-      createMutation.mutate(formData as CreateContentQuizDto, {
+      createMutation.mutate(createData, {
         onSuccess: () => {
           snackbar.showSuccess('Quiz associado com sucesso');
           handleCloseDialog();
@@ -291,9 +292,9 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
                 select
                 label="Quiz"
                 fullWidth
-                value={formData.formId || ''}
+                value={(formData as CreateContentQuizDto).formId || ''}
                 onChange={(e) =>
-                  setFormData({ ...formData, formId: Number(e.target.value) })
+                  setFormData({ ...formData, formId: Number(e.target.value) } as CreateContentQuizDto)
                 }
                 SelectProps={{
                   native: true,
@@ -352,7 +353,7 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
             disabled={
               createMutation.isPending ||
               updateMutation.isPending ||
-              (!editingQuiz && (!formData.formId || formData.formId === 0))
+              (!editingQuiz && (!(formData as CreateContentQuizDto).formId || (formData as CreateContentQuizDto).formId === 0))
             }
           >
             {editingQuiz ? 'Atualizar' : 'Associar'}
