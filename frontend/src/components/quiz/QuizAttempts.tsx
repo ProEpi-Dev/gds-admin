@@ -1,6 +1,5 @@
 import { Box, Typography, Chip } from '@mui/material';
 import type { QuizSubmission } from '../../types/quiz-submission.types';
-import type { FormVersionQuizMetadata } from '../../types/quiz.types';
 
 interface QuizAttemptsProps {
   submissions: QuizSubmission[];

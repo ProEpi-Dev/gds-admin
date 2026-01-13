@@ -5,9 +5,8 @@ import {
   Typography,
   Paper,
   Chip,
-  Grid,
+  Stack,
   Alert,
-  Link,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -19,13 +18,10 @@ import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
 import { useQuizSubmissions } from '../hooks/useQuizSubmissions';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
-import { useAuth } from '../../../contexts/AuthContext';
 
 export default function QuizViewPage() {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const participation = user?.participation || null;
 
   const quizIdNum = quizId ? parseInt(quizId, 10) : null;
 
@@ -35,7 +31,7 @@ export default function QuizViewPage() {
   // Buscar associações conteúdo-quiz
   const { data: contentQuizzesData, isLoading: contentQuizzesLoading } =
     useContentQuizzes({
-      formId: quizIdNum,
+      formId: quizIdNum ?? undefined,
       page: 1,
       pageSize: 100,
       active: true,
@@ -80,9 +76,9 @@ export default function QuizViewPage() {
         <Typography variant="h4">{quiz.title}</Typography>
       </Box>
 
-      <Grid container spacing={3}>
+      <Stack spacing={3}>
         {/* Informações do Quiz */}
-        <Grid item xs={12} md={6}>
+        <Box>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Informações do Quiz
@@ -156,10 +152,10 @@ export default function QuizViewPage() {
               </Box>
             </Box>
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Estatísticas */}
-        <Grid item xs={12} md={6}>
+        <Box>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Estatísticas
@@ -204,10 +200,10 @@ export default function QuizViewPage() {
               )}
             </Box>
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Conteúdos Associados */}
-        <Grid item xs={12}>
+        <Box>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Conteúdos Associados
@@ -217,26 +213,25 @@ export default function QuizViewPage() {
                 Nenhum conteúdo associado a este quiz.
               </Alert>
             ) : (
-              <Box sx={{ mt: 2 }}>
-                <Grid container spacing={2}>
+              <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
                   {contentQuizzes.map((cq) => (
-                    <Grid item xs={12} sm={6} md={4} key={cq.id}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            cursor: 'pointer',
-                          },
-                        }}
-                        onClick={() =>
-                          navigate(
-                            `/quizzes/${quiz.id}/content/${cq.content.id}`
-                          )
-                        }
-                      >
+                    <Paper
+                      key={cq.id}
+                      sx={{
+                        p: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          cursor: 'pointer',
+                        },
+                      }}
+                      onClick={() =>
+                        navigate(
+                          `/quizzes/${quiz.id}/content/${cq.content?.id || ''}`
+                        )
+                      }
+                    >
                         <Typography variant="subtitle1" gutterBottom>
                           {cq.content?.title || 'Sem título'}
                         </Typography>
@@ -255,16 +250,14 @@ export default function QuizViewPage() {
                           />
                         </Box>
                       </Paper>
-                    </Grid>
                   ))}
-                </Grid>
               </Box>
             )}
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Ações Rápidas */}
-        <Grid item xs={12}>
+        <Box>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Ações
@@ -293,8 +286,8 @@ export default function QuizViewPage() {
               )}
             </Box>
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Stack>
     </Box>
   );
 }

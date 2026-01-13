@@ -1,5 +1,4 @@
 import type { PaginationQuery } from './api.types';
-import type { Form } from './form.types';
 
 export interface ContentQuiz {
   id: number;

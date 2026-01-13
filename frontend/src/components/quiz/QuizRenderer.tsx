@@ -14,7 +14,7 @@ interface QuizRendererProps {
   participationId: number;
   formVersionId: number;
   existingSubmissions?: QuizSubmission[];
-  onSubmit?: (submission: any) => void;
+  onSubmit?: (submission: any) => Promise<QuizSubmission>;
   readOnly?: boolean;
 }
 

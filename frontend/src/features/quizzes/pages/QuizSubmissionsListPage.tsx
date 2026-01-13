@@ -12,7 +12,6 @@ import {
   Select,
   MenuItem,
   Paper,
-  Alert,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -23,7 +22,6 @@ import { useForms } from '../../forms/hooks/useForms';
 import { useParticipations } from '../../participations/hooks/useParticipations';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import type { QuizSubmission } from '../../../types/quiz-submission.types';
 
@@ -147,7 +145,7 @@ export default function QuizSubmissionsListPage() {
         label: 'Usuário',
         minWidth: 200,
         render: (row) => {
-          const userName = (row as any).participation?.user?.name || 'N/A';
+          const userName = (row as any).participation?.user?.name || `ID: ${(row as any).participationId}`;
           const userEmail = (row as any).participation?.user?.email || '';
           return (
             <Box>
@@ -234,37 +232,38 @@ export default function QuizSubmissionsListPage() {
   );
 
   const filters = useMemo(() => {
-    const filterList: Array<{ label: string; onRemove: () => void }> = [];
+    const filterList: Array<{ label: string; value: string | number; onDelete?: () => void }> = [];
     if (participationId) {
-      const participation = participationsData?.data?.find(
-        (p) => p.id === participationId
-      );
       filterList.push({
-        label: `Participação: ${participation?.user?.name || participationId}`,
-        onRemove: () => setParticipationId(undefined),
+        label: 'Participação',
+        value: participationId,
+        onDelete: () => setParticipationId(undefined),
       });
     }
     if (formId) {
       const form = formsData?.data?.find((f) => f.id === formId);
       filterList.push({
-        label: `Quiz: ${form?.title || formId}`,
-        onRemove: () => setFormId(undefined),
+        label: 'Quiz',
+        value: form?.title || formId,
+        onDelete: () => setFormId(undefined),
       });
     }
     if (startDate) {
       filterList.push({
-        label: `De: ${new Date(startDate).toLocaleDateString('pt-BR')}`,
-        onRemove: () => setStartDate(''),
+        label: 'De',
+        value: new Date(startDate).toLocaleDateString('pt-BR'),
+        onDelete: () => setStartDate(''),
       });
     }
     if (endDate) {
       filterList.push({
-        label: `Até: ${new Date(endDate).toLocaleDateString('pt-BR')}`,
-        onRemove: () => setEndDate(''),
+        label: 'Até',
+        value: new Date(endDate).toLocaleDateString('pt-BR'),
+        onDelete: () => setEndDate(''),
       });
     }
     return filterList;
-  }, [participationId, formId, startDate, endDate, participationsData, formsData]);
+  }, [participationId, formId, startDate, endDate, formsData]);
 
   if (error) {
     return <ErrorAlert message="Erro ao carregar submissões de quizes" />;
@@ -304,7 +303,7 @@ export default function QuizSubmissionsListPage() {
                   <MenuItem value="">Todas</MenuItem>
                   {participationsData?.data?.map((participation) => (
                     <MenuItem key={participation.id} value={participation.id}>
-                      {participation.user?.name || `ID: ${participation.id}`}
+                      ID: {participation.id}
                     </MenuItem>
                   ))}
                 </Select>

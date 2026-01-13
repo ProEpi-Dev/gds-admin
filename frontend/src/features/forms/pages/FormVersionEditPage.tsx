@@ -64,6 +64,11 @@ export default function FormVersionEditPage() {
     accessType?: 'PUBLIC' | 'PRIVATE';
     active?: boolean;
     definition: FormBuilderDefinition;
+    passingScore?: number | null;
+    maxAttempts?: number | null;
+    timeLimitMinutes?: number | null;
+    showFeedback?: boolean;
+    randomizeQuestions?: boolean;
   }) => {
     if (!formId || !versionId) return;
 
