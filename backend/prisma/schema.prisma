@@ -23,6 +23,7 @@ model context {
   context_manager context_manager[]
   form            form[]
   participation   participation[]
+  track           track[]
 
   @@index([location_id], map: "idx_context_location_id")
 }
@@ -70,6 +71,7 @@ model form {
   context      context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
   form_version form_version[]
   content_quiz content_quiz[]
+  sequence     sequence[]
 
   @@index([context_id], map: "idx_form_context_id")
 }
@@ -181,6 +183,7 @@ model content {
   context      context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
   content_tag  content_tag[]
   content_quiz content_quiz[]
+  sequence     sequence[]
 
   @@index([active], map: "idx_content_active")
   @@index([author_id], map: "idx_content_author_id")
@@ -283,4 +286,57 @@ model quiz_submission {
   @@index([is_passed], map: "idx_quiz_submission_is_passed")
   @@index([participation_id, form_version_id, attempt_number], map: "idx_quiz_submission_attempt")
   @@index([completed_at], map: "idx_quiz_submission_completed_at")
+}
+
+model track {
+  id                    Int       @id @default(autoincrement())
+  name                  String    @db.VarChar(255)
+  description           String?
+  context_id            Int?
+  control_period        Boolean   @default(false)
+  start_date            DateTime? @db.Date
+  end_date              DateTime? @db.Date
+  show_after_completion Boolean   @default(false)
+  created_at            DateTime  @default(now()) @db.Timestamp(6)
+  updated_at            DateTime  @default(now()) @db.Timestamp(6)
+  active                Boolean   @default(true)
+  context               context?  @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  section               section[]
+
+  @@index([context_id], map: "idx_track_context_id")
+  @@index([active], map: "idx_track_active")
+}
+
+model section {
+  id         Int       @id @default(autoincrement())
+  track_id   Int
+  name       String    @db.VarChar(255)
+  order      Int       @default(0)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @db.Timestamp(6)
+  active     Boolean   @default(true)
+  track      track     @relation(fields: [track_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence   sequence[]
+
+  @@index([track_id], map: "idx_section_track_id")
+  @@index([order], map: "idx_section_order")
+}
+
+model sequence {
+  id         Int       @id @default(autoincrement())
+  section_id Int
+  content_id Int?
+  form_id    Int?      // Quiz
+  order      Int       @default(0)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @db.Timestamp(6)
+  active     Boolean   @default(true)
+  section    section   @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  content    content?  @relation(fields: [content_id], references: [id], onUpdate: NoAction)
+  form       form?     @relation(fields: [form_id], references: [id], onUpdate: NoAction)
+
+  @@index([section_id], map: "idx_sequence_section_id")
+  @@index([content_id], map: "idx_sequence_content_id")
+  @@index([form_id], map: "idx_sequence_form_id")
+  @@index([order], map: "idx_sequence_order")
 }

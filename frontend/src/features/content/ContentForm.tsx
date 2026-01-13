@@ -25,6 +25,7 @@ import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 import ContentQuizManager from "../content-quiz/components/ContentQuizManager";
+import ContentTrackManager from "./components/ContentTrackManager";
 
 export default function ContentForm() {
   const { id } = useParams();
@@ -317,6 +318,13 @@ export default function ContentForm() {
       {id && (
         <Box sx={{ mb: 4 }}>
           <ContentQuizManager contentId={Number(id)} />
+        </Box>
+      )}
+
+      {/* TRILHAS ASSOCIADAS - Apenas na edição */}
+      {id && (
+        <Box sx={{ mb: 4 }}>
+          <ContentTrackManager contentId={Number(id)} />
         </Box>
       )}
 
