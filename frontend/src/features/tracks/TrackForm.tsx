@@ -23,7 +23,7 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  Chip,
+  Stack,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -224,35 +224,39 @@ export default function TrackForm() {
             rows={3}
             sx={{ mb: 2 }}
           />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.control_period}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    control_period: e.target.checked,
-                  }))
-                }
-              />
-            }
-            label="Controlar Período"
-            sx={{ mb: 2 }}
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.show_after_completion}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    show_after_completion: e.target.checked,
-                  }))
-                }
-              />
-            }
-            label="Mostrar Após Conclusão"
-          />
+          <Box display="flex" gap={2} mb={2} alignItems="center">
+            <FormControlLabel
+              sx={{ m: 0 }}
+              control={
+                <Switch
+                  checked={form.control_period}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      control_period: e.target.checked,
+                    }))
+                  }
+                />
+              }
+              label="Controlar Período"
+            />
+
+            <FormControlLabel
+              sx={{ m: 0 }}
+              control={
+                <Switch
+                  checked={form.show_after_completion}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      show_after_completion: e.target.checked,
+                    }))
+                  }
+                />
+              }
+              label="Mostrar Após Conclusão"
+            />
+          </Box>
 
           {form.control_period && (
             <Box mt={2}>
@@ -361,10 +365,15 @@ export default function TrackForm() {
                   })}
                 </List>
 
-                <Box display="flex" gap={2} mt={2}>
+                <Stack direction="row" spacing={2} mt={2} alignItems="center">
                   <FormControl fullWidth>
-                    <InputLabel>Adicionar Conteúdo</InputLabel>
+                    <InputLabel id="add-content-label">
+                      Adicionar Conteúdo
+                    </InputLabel>
+
                     <Select
+                      labelId="add-content-label"
+                      label="Adicionar Conteúdo"
                       value=""
                       onChange={(e) => {
                         if (e.target.value) {
@@ -379,6 +388,7 @@ export default function TrackForm() {
                       <MenuItem value="">
                         <em>Selecione um conteúdo</em>
                       </MenuItem>
+
                       {contents.map((content) => (
                         <MenuItem key={content.id} value={content.id}>
                           {content.title}
@@ -388,8 +398,11 @@ export default function TrackForm() {
                   </FormControl>
 
                   <FormControl fullWidth>
-                    <InputLabel>Adicionar Quiz</InputLabel>
+                    <InputLabel id="add-quiz-label">Adicionar Quiz</InputLabel>
+
                     <Select
+                      labelId="add-quiz-label"
+                      label="Adicionar Quiz"
                       value=""
                       onChange={(e) => {
                         if (e.target.value) {
@@ -404,16 +417,15 @@ export default function TrackForm() {
                       <MenuItem value="">
                         <em>Selecione um quiz</em>
                       </MenuItem>
-                      {forms
-                        .filter((f) => f.type === "quiz")
-                        .map((formItem) => (
-                          <MenuItem key={formItem.id} value={formItem.id}>
-                            {formItem.title}
-                          </MenuItem>
-                        ))}
+
+                      {forms.map((form) => (
+                        <MenuItem key={form.id} value={form.id}>
+                          {form.title}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
-                </Box>
+                </Stack>
               </AccordionDetails>
             </Accordion>
           ))}

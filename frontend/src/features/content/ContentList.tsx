@@ -16,6 +16,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Stack,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -299,28 +300,33 @@ export default function ContentList() {
           <Typography variant="body2" mb={2}>
             Adicionando: {contentToAdd?.title}
           </Typography>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Selecione a Trilha</InputLabel>
-            <Select
-              value={selectedTrackId || ""}
-              onChange={(e) => {
-                setSelectedTrackId(Number(e.target.value));
-                setSelectedSectionId(null);
-              }}
-            >
-              {tracks.map((track) => (
-                <MenuItem key={track.id} value={track.id}>
-                  {track.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {selectedTrackId && (
+          <Stack direction="row" spacing={2} mt={2} alignItems="center">
             <FormControl fullWidth>
-              <InputLabel>Selecione a Seção</InputLabel>
+              <InputLabel id="select-track-label">Selecione a Trilha</InputLabel>
               <Select
+                labelId="select-track-label"
+                label="Selecione a Trilha"
+                value={selectedTrackId || ""}
+                onChange={(e) => {
+                  setSelectedTrackId(Number(e.target.value));
+                  setSelectedSectionId(null);
+                }}
+              >
+                {tracks.map((track) => (
+                  <MenuItem key={track.id} value={track.id}>
+                    {track.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel id="select-section-label">Selecione a Seção</InputLabel>
+              <Select
+                labelId="select-section-label"
+                label="Selecione a Seção"
                 value={selectedSectionId || ""}
                 onChange={(e) => setSelectedSectionId(Number(e.target.value))}
+                disabled={!selectedTrackId}
               >
                 {tracks
                   .find((t) => t.id === selectedTrackId)
@@ -331,7 +337,7 @@ export default function ContentList() {
                   ))}
               </Select>
             </FormControl>
-          )}
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddToTrackDialogOpen(false)}>
