@@ -201,7 +201,10 @@ export class TrackService {
     return this.get(trackId);
   }
 
-  async reorderSections(trackId: number, sections: Array<{ id: number; order: number }>) {
+  async reorderSections(
+    trackId: number,
+    sections: Array<{ id: number; order: number }>,
+  ) {
     // Update order for each section
     for (const section of sections) {
       await this.prisma.section.update({
@@ -213,7 +216,11 @@ export class TrackService {
     return this.get(trackId);
   }
 
-  async reorderSequences(trackId: number, sectionId: number, sequences: Array<{ id: number; order: number }>) {
+  async reorderSequences(
+    trackId: number,
+    sectionId: number,
+    sequences: Array<{ id: number; order: number }>,
+  ) {
     // Update order for each sequence
     for (const sequence of sequences) {
       await this.prisma.sequence.update({

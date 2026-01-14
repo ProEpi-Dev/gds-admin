@@ -23,7 +23,6 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  Stack,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -48,9 +47,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import {
-  useSortable,
-} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 function SortableSection({
@@ -68,19 +65,21 @@ function SortableSection({
   sectionIndex: number;
   updateSectionName: (index: number, name: string) => void;
   removeSection: (index: number) => void;
-  addSequenceToSection: (sectionIndex: number, type: "content" | "form", id: number) => void;
-  removeSequenceFromSection: (sectionIndex: number, sequenceIndex: number) => void;
+  addSequenceToSection: (
+    sectionIndex: number,
+    type: "content" | "form",
+    id: number
+  ) => void;
+  removeSequenceFromSection: (
+    sectionIndex: number,
+    sequenceIndex: number
+  ) => void;
   contents: any[];
   forms: any[];
   children: React.ReactNode;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: `section-${sectionIndex}` });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: `section-${sectionIndex}` });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -91,7 +90,12 @@ function SortableSection({
     <Accordion ref={setNodeRef} style={style} sx={{ mb: 2 }}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box display="flex" alignItems="center" width="100%">
-          <IconButton {...attributes} {...listeners} size="small" sx={{ mr: 1 }}>
+          <IconButton
+            {...attributes}
+            {...listeners}
+            size="small"
+            sx={{ mr: 1 }}
+          >
             <DragIndicatorIcon />
           </IconButton>
           <Typography>{section.name}</Typography>
@@ -112,9 +116,7 @@ function SortableSection({
           fullWidth
           label="Nome da Seção"
           value={section.name}
-          onChange={(e) =>
-            updateSectionName(sectionIndex, e.target.value)
-          }
+          onChange={(e) => updateSectionName(sectionIndex, e.target.value)}
           sx={{ mb: 2 }}
         />
 
@@ -124,67 +126,65 @@ function SortableSection({
 
         {children}
 
-        <Stack direction="row" spacing={2} mt={2} alignItems="center">
+        <Box mt={2}>
+          <Typography variant="subtitle2" mb={1}>
+            Adicionar Item à Seção
+          </Typography>
           <FormControl fullWidth>
-            <InputLabel id="add-content-label">
-              Adicionar Conteúdo
+            <InputLabel id={`add-item-label-${sectionIndex}`}>
+              Selecionar Item
             </InputLabel>
-
             <Select
-              labelId="add-content-label"
-              label="Adicionar Conteúdo"
+              labelId={`add-item-label-${sectionIndex}`}
+              label="Selecionar Item"
               value=""
               onChange={(e) => {
-                if (e.target.value) {
+                const [type, id] = (e.target.value as string).split("-");
+                if (type && id) {
                   addSequenceToSection(
                     sectionIndex,
-                    "content",
-                    Number(e.target.value)
+                    type as "content" | "form",
+                    Number(id)
                   );
                 }
               }}
             >
-              <MenuItem value="">
-                <em>Selecione um conteúdo</em>
+              <MenuItem value="" disabled>
+                <em>Selecione um item</em>
               </MenuItem>
-
+              <MenuItem
+                disabled
+                sx={{ fontWeight: "bold", color: "primary.main" }}
+              >
+                Conteúdos Disponíveis
+              </MenuItem>
               {contents.map((content) => (
-                <MenuItem key={content.id} value={content.id}>
-                  {content.title}
+                <MenuItem
+                  key={`content-${content.id}`}
+                  value={`content-${content.id}`}
+                  sx={{ pl: 4 }}
+                >
+                  {content.title} (conteúdo)
                 </MenuItem>
               ))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth>
-            <InputLabel id="add-quiz-label">Adicionar Quiz</InputLabel>
-
-            <Select
-              labelId="add-quiz-label"
-              label="Adicionar Quiz"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  addSequenceToSection(
-                    sectionIndex,
-                    "form",
-                    Number(e.target.value)
-                  );
-                }
-              }}
-            >
-              <MenuItem value="">
-                <em>Selecione um quiz</em>
+              <MenuItem
+                disabled
+                sx={{ fontWeight: "bold", color: "secondary.main", mt: 1 }}
+              >
+                Quizzes Disponíveis
               </MenuItem>
-
               {forms.map((form) => (
-                <MenuItem key={form.id} value={form.id}>
-                  {form.title}
+                <MenuItem
+                  key={`form-${form.id}`}
+                  value={`form-${form.id}`}
+                  sx={{ pl: 4 }}
+                >
+                  {form.title} (quiz)
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
-        </Stack>
+        </Box>
       </AccordionDetails>
     </Accordion>
   );
@@ -200,18 +200,16 @@ function SortableSequence({
 }: {
   sequence: any;
   seqIndex: number;
-  removeSequenceFromSection: (sectionIndex: number, sequenceIndex: number) => void;
+  removeSequenceFromSection: (
+    sectionIndex: number,
+    sequenceIndex: number
+  ) => void;
   sectionIndex: number;
   contents: any[];
   forms: any[];
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: `sequence-${sectionIndex}-${seqIndex}` });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: `sequence-${sectionIndex}-${seqIndex}` });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -222,6 +220,7 @@ function SortableSequence({
   const formItem = forms.find((f) => f.id === sequence.form_id);
   const item = content || formItem;
   const type = content ? "Conteúdo" : "Quiz";
+  const typeColor = content ? "primary.main" : "secondary.main";
 
   return (
     <ListItem ref={setNodeRef} style={style}>
@@ -230,7 +229,11 @@ function SortableSequence({
       </IconButton>
       <ListItemText
         primary={item?.title || item?.name || `Item ${seqIndex + 1}`}
-        secondary={type}
+        secondary={
+          <Typography variant="caption" color={typeColor}>
+            {type}
+          </Typography>
+        }
       />
       <ListItemSecondaryAction>
         <IconButton
@@ -316,19 +319,30 @@ export default function TrackForm() {
 
     // Handle sequence reordering within a section
     if (activeId.startsWith("sequence-") && overId.startsWith("sequence-")) {
-      const [activeSectionIndex, activeSeqIndex] = activeId.split("-").slice(1).map(Number);
-      const [overSectionIndex, overSeqIndex] = overId.split("-").slice(1).map(Number);
+      const [activeSectionIndex, activeSeqIndex] = activeId
+        .split("-")
+        .slice(1)
+        .map(Number);
+      const [overSectionIndex, overSeqIndex] = overId
+        .split("-")
+        .slice(1)
+        .map(Number);
 
       // Only allow reordering within the same section
       if (activeSectionIndex === overSectionIndex) {
         setForm((prev) => {
           const section = prev.sections[activeSectionIndex];
-          const newSequences = arrayMove(section.sequences, activeSeqIndex, overSeqIndex).map(
-            (seq, index) => ({ ...seq, order: index })
-          );
+          const newSequences = arrayMove(
+            section.sequences,
+            activeSeqIndex,
+            overSeqIndex
+          ).map((seq, index) => ({ ...seq, order: index }));
 
           const newSections = [...prev.sections];
-          newSections[activeSectionIndex] = { ...section, sequences: newSequences };
+          newSections[activeSectionIndex] = {
+            ...section,
+            sequences: newSequences,
+          };
 
           // Update backend
           if (isEdit && id && section.id) {
@@ -614,7 +628,9 @@ export default function TrackForm() {
                   forms={forms}
                 >
                   <SortableContext
-                    items={section.sequences.map((_, seqIndex) => `sequence-${sectionIndex}-${seqIndex}`)}
+                    items={section.sequences.map(
+                      (_, seqIndex) => `sequence-${sectionIndex}-${seqIndex}`
+                    )}
                     strategy={verticalListSortingStrategy}
                   >
                     <List>
