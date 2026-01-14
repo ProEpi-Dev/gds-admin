@@ -32,6 +32,14 @@ export const TrackService = {
       `/tracks/${trackId}/sections/${sectionId}/form/${formId}`
     );
   },
+
+  reorderSections(trackId: number, sections: Array<{ id: number; order: number }>) {
+    return apiClient.put(`/tracks/${trackId}/sections/reorder`, { sections });
+  },
+
+  reorderSequences(trackId: number, sectionId: number, sequences: Array<{ id: number; order: number }>) {
+    return apiClient.put(`/tracks/${trackId}/sections/${sectionId}/sequences/reorder`, { sequences });
+  },
 };
 
 export const trackService = {

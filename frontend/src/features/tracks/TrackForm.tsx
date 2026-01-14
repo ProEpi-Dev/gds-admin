@@ -30,14 +30,231 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   ExpandMore as ExpandMoreIcon,
+  DragIndicator as DragIndicatorIcon,
 } from "@mui/icons-material";
 import { useSnackbar } from "../../hooks/useSnackbar";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableSection({
+  section,
+  sectionIndex,
+  updateSectionName,
+  removeSection,
+  addSequenceToSection,
+  removeSequenceFromSection,
+  contents,
+  forms,
+  children,
+}: {
+  section: any;
+  sectionIndex: number;
+  updateSectionName: (index: number, name: string) => void;
+  removeSection: (index: number) => void;
+  addSequenceToSection: (sectionIndex: number, type: "content" | "form", id: number) => void;
+  removeSequenceFromSection: (sectionIndex: number, sequenceIndex: number) => void;
+  contents: any[];
+  forms: any[];
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: `section-${sectionIndex}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Accordion ref={setNodeRef} style={style} sx={{ mb: 2 }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Box display="flex" alignItems="center" width="100%">
+          <IconButton {...attributes} {...listeners} size="small" sx={{ mr: 1 }}>
+            <DragIndicatorIcon />
+          </IconButton>
+          <Typography>{section.name}</Typography>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeSection(sectionIndex);
+            }}
+            sx={{ ml: "auto" }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails>
+        <TextField
+          fullWidth
+          label="Nome da Seção"
+          value={section.name}
+          onChange={(e) =>
+            updateSectionName(sectionIndex, e.target.value)
+          }
+          sx={{ mb: 2 }}
+        />
+
+        <Typography variant="subtitle1" mb={1}>
+          Conteúdos e Quizzes
+        </Typography>
+
+        {children}
+
+        <Stack direction="row" spacing={2} mt={2} alignItems="center">
+          <FormControl fullWidth>
+            <InputLabel id="add-content-label">
+              Adicionar Conteúdo
+            </InputLabel>
+
+            <Select
+              labelId="add-content-label"
+              label="Adicionar Conteúdo"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  addSequenceToSection(
+                    sectionIndex,
+                    "content",
+                    Number(e.target.value)
+                  );
+                }
+              }}
+            >
+              <MenuItem value="">
+                <em>Selecione um conteúdo</em>
+              </MenuItem>
+
+              {contents.map((content) => (
+                <MenuItem key={content.id} value={content.id}>
+                  {content.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel id="add-quiz-label">Adicionar Quiz</InputLabel>
+
+            <Select
+              labelId="add-quiz-label"
+              label="Adicionar Quiz"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  addSequenceToSection(
+                    sectionIndex,
+                    "form",
+                    Number(e.target.value)
+                  );
+                }
+              }}
+            >
+              <MenuItem value="">
+                <em>Selecione um quiz</em>
+              </MenuItem>
+
+              {forms.map((form) => (
+                <MenuItem key={form.id} value={form.id}>
+                  {form.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
+function SortableSequence({
+  sequence,
+  seqIndex,
+  removeSequenceFromSection,
+  sectionIndex,
+  contents,
+  forms,
+}: {
+  sequence: any;
+  seqIndex: number;
+  removeSequenceFromSection: (sectionIndex: number, sequenceIndex: number) => void;
+  sectionIndex: number;
+  contents: any[];
+  forms: any[];
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: `sequence-${sectionIndex}-${seqIndex}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const content = contents.find((c) => c.id === sequence.content_id);
+  const formItem = forms.find((f) => f.id === sequence.form_id);
+  const item = content || formItem;
+  const type = content ? "Conteúdo" : "Quiz";
+
+  return (
+    <ListItem ref={setNodeRef} style={style}>
+      <IconButton {...attributes} {...listeners} size="small" sx={{ mr: 1 }}>
+        <DragIndicatorIcon />
+      </IconButton>
+      <ListItemText
+        primary={item?.title || item?.name || `Item ${seqIndex + 1}`}
+        secondary={type}
+      />
+      <ListItemSecondaryAction>
+        <IconButton
+          onClick={() => removeSequenceFromSection(sectionIndex, seqIndex)}
+        >
+          <DeleteIcon />
+        </IconButton>
+      </ListItemSecondaryAction>
+    </ListItem>
+  );
+}
 
 export default function TrackForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const snackbar = useSnackbar();
   const isEdit = !!id;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [form, setForm] = useState({
     name: "",
@@ -47,9 +264,11 @@ export default function TrackForm() {
     end_date: "",
     show_after_completion: false,
     sections: [] as Array<{
+      id?: number;
       name: string;
       order: number;
       sequences: Array<{
+        id?: number;
         content_id?: number;
         form_id?: number;
         order: number;
@@ -59,6 +278,75 @@ export default function TrackForm() {
 
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    if (activeId === overId) return;
+
+    // Handle section reordering
+    if (activeId.startsWith("section-") && overId.startsWith("section-")) {
+      const oldIndex = parseInt(activeId.split("-")[1]);
+      const newIndex = parseInt(overId.split("-")[1]);
+
+      setForm((prev) => {
+        const newSections = arrayMove(prev.sections, oldIndex, newIndex).map(
+          (section, index) => ({ ...section, order: index })
+        );
+
+        // Update backend
+        if (isEdit && id) {
+          TrackService.reorderSections(
+            Number(id),
+            newSections.map((s) => ({ id: s.id!, order: s.order }))
+          ).catch((error) => {
+            snackbar.showError("Erro ao reordenar seções");
+            console.error(error);
+          });
+        }
+
+        return { ...prev, sections: newSections };
+      });
+    }
+
+    // Handle sequence reordering within a section
+    if (activeId.startsWith("sequence-") && overId.startsWith("sequence-")) {
+      const [activeSectionIndex, activeSeqIndex] = activeId.split("-").slice(1).map(Number);
+      const [overSectionIndex, overSeqIndex] = overId.split("-").slice(1).map(Number);
+
+      // Only allow reordering within the same section
+      if (activeSectionIndex === overSectionIndex) {
+        setForm((prev) => {
+          const section = prev.sections[activeSectionIndex];
+          const newSequences = arrayMove(section.sequences, activeSeqIndex, overSeqIndex).map(
+            (seq, index) => ({ ...seq, order: index })
+          );
+
+          const newSections = [...prev.sections];
+          newSections[activeSectionIndex] = { ...section, sequences: newSequences };
+
+          // Update backend
+          if (isEdit && id && section.id) {
+            TrackService.reorderSequences(
+              Number(id),
+              section.id,
+              newSequences.map((s) => ({ id: s.id!, order: s.order }))
+            ).catch((error) => {
+              snackbar.showError("Erro ao reordenar sequências");
+              console.error(error);
+            });
+          }
+
+          return { ...prev, sections: newSections };
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     // Load contents and forms for selection
@@ -79,10 +367,12 @@ export default function TrackForm() {
           show_after_completion: track.show_after_completion,
           sections:
             track.section?.map((section: any) => ({
+              id: section.id,
               name: section.name,
               order: section.order,
               sequences:
                 section.sequence?.map((seq: any) => ({
+                  id: seq.id,
                   content_id: seq.content_id,
                   form_id: seq.form_id,
                   order: seq.order,
@@ -302,133 +592,49 @@ export default function TrackForm() {
             </Button>
           </Box>
 
-          {form.sections.map((section, sectionIndex) => (
-            <Accordion key={sectionIndex} sx={{ mb: 2 }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>{section.name}</Typography>
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeSection(sectionIndex);
-                  }}
-                  sx={{ ml: "auto" }}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={form.sections.map((_, index) => `section-${index}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              {form.sections.map((section, sectionIndex) => (
+                <SortableSection
+                  key={`section-${sectionIndex}`}
+                  section={section}
+                  sectionIndex={sectionIndex}
+                  updateSectionName={updateSectionName}
+                  removeSection={removeSection}
+                  addSequenceToSection={addSequenceToSection}
+                  removeSequenceFromSection={removeSequenceFromSection}
+                  contents={contents}
+                  forms={forms}
                 >
-                  <DeleteIcon />
-                </IconButton>
-              </AccordionSummary>
-              <AccordionDetails>
-                <TextField
-                  fullWidth
-                  label="Nome da Seção"
-                  value={section.name}
-                  onChange={(e) =>
-                    updateSectionName(sectionIndex, e.target.value)
-                  }
-                  sx={{ mb: 2 }}
-                />
-
-                <Typography variant="subtitle1" mb={1}>
-                  Conteúdos e Quizzes
-                </Typography>
-
-                <List>
-                  {section.sequences.map((sequence, seqIndex) => {
-                    const content = contents.find(
-                      (c) => c.id === sequence.content_id
-                    );
-                    const formItem = forms.find(
-                      (f) => f.id === sequence.form_id
-                    );
-                    const item = content || formItem;
-                    const type = content ? "Conteúdo" : "Quiz";
-
-                    return (
-                      <ListItem key={seqIndex}>
-                        <ListItemText
-                          primary={
-                            item?.title || item?.name || `Item ${seqIndex + 1}`
-                          }
-                          secondary={type}
+                  <SortableContext
+                    items={section.sequences.map((_, seqIndex) => `sequence-${sectionIndex}-${seqIndex}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <List>
+                      {section.sequences.map((sequence, seqIndex) => (
+                        <SortableSequence
+                          key={`sequence-${sectionIndex}-${seqIndex}`}
+                          sequence={sequence}
+                          seqIndex={seqIndex}
+                          removeSequenceFromSection={removeSequenceFromSection}
+                          sectionIndex={sectionIndex}
+                          contents={contents}
+                          forms={forms}
                         />
-                        <ListItemSecondaryAction>
-                          <IconButton
-                            onClick={() =>
-                              removeSequenceFromSection(sectionIndex, seqIndex)
-                            }
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    );
-                  })}
-                </List>
-
-                <Stack direction="row" spacing={2} mt={2} alignItems="center">
-                  <FormControl fullWidth>
-                    <InputLabel id="add-content-label">
-                      Adicionar Conteúdo
-                    </InputLabel>
-
-                    <Select
-                      labelId="add-content-label"
-                      label="Adicionar Conteúdo"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addSequenceToSection(
-                            sectionIndex,
-                            "content",
-                            Number(e.target.value)
-                          );
-                        }
-                      }}
-                    >
-                      <MenuItem value="">
-                        <em>Selecione um conteúdo</em>
-                      </MenuItem>
-
-                      {contents.map((content) => (
-                        <MenuItem key={content.id} value={content.id}>
-                          {content.title}
-                        </MenuItem>
                       ))}
-                    </Select>
-                  </FormControl>
-
-                  <FormControl fullWidth>
-                    <InputLabel id="add-quiz-label">Adicionar Quiz</InputLabel>
-
-                    <Select
-                      labelId="add-quiz-label"
-                      label="Adicionar Quiz"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addSequenceToSection(
-                            sectionIndex,
-                            "form",
-                            Number(e.target.value)
-                          );
-                        }
-                      }}
-                    >
-                      <MenuItem value="">
-                        <em>Selecione um quiz</em>
-                      </MenuItem>
-
-                      {forms.map((form) => (
-                        <MenuItem key={form.id} value={form.id}>
-                          {form.title}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          ))}
+                    </List>
+                  </SortableContext>
+                </SortableSection>
+              ))}
+            </SortableContext>
+          </DndContext>
         </Paper>
 
         <Box display="flex" gap={2}>

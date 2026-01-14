@@ -63,4 +63,25 @@ export class TrackController {
       Number(formId),
     );
   }
+
+  @Put(':trackId/sections/reorder')
+  reorderSections(
+    @Param('trackId') trackId: string,
+    @Body() data: { sections: Array<{ id: number; order: number }> },
+  ) {
+    return this.trackService.reorderSections(Number(trackId), data.sections);
+  }
+
+  @Put(':trackId/sections/:sectionId/sequences/reorder')
+  reorderSequences(
+    @Param('trackId') trackId: string,
+    @Param('sectionId') sectionId: string,
+    @Body() data: { sequences: Array<{ id: number; order: number }> },
+  ) {
+    return this.trackService.reorderSequences(
+      Number(trackId),
+      Number(sectionId),
+      data.sequences,
+    );
+  }
 }
