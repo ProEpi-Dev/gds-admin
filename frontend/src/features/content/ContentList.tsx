@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
 import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
+import { useSnackbar } from "../../hooks/useSnackbar";
 import {
   Box,
   Typography,
@@ -44,6 +45,7 @@ export default function ContentList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
 
   // Add to track dialog
   const [addToTrackDialogOpen, setAddToTrackDialogOpen] = useState(false);
@@ -83,6 +85,9 @@ export default function ContentList() {
         contentToAdd.id
       );
 
+      // Mostrar notificação de sucesso
+      snackbar.showSuccess("Conteúdo adicionado à trilha com sucesso!");
+
       // Refresh tracks data
       const res = await TrackService.list();
       setTracks(res.data);
@@ -93,7 +98,7 @@ export default function ContentList() {
       setSelectedSectionId(null);
     } catch (error) {
       console.error("Erro ao adicionar conteúdo à trilha:", error);
-      // You might want to show an error message to the user here
+      snackbar.showError("Erro ao adicionar conteúdo à trilha");
     }
   };
 

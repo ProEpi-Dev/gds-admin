@@ -524,7 +524,9 @@ export default function TrackForm() {
 
     if (isEdit && id && section.id && sequence?.id) {
       try {
-        await TrackService.removeSequence(Number(id), section.id, sequence.id);
+        // Usar content_id se existir, senão usar o id da sequence
+        const contentId = sequence.content_id || sequence.id;
+        await TrackService.removeSequence(Number(id), section.id, contentId);
 
         snackbar.showSuccess("Item removido com sucesso");
       } catch (error) {
