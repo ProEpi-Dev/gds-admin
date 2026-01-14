@@ -63,34 +63,34 @@ describe('FormsService', () => {
   });
 
   describe('create', () => {
-    it('deve criar formulário com contexto do usuário', async () => {
+    it('deve criar formulário com contexto do usuário gerenciador', async () => {
       const createFormDto: CreateFormDto = {
         title: 'Test Form',
         type: 'signal',
         active: true,
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'create').mockResolvedValue(mockForm as any);
 
       const result = await service.create(createFormDto, 1);
 
-      expect(userContextHelper.getUserContext).toHaveBeenCalledWith(prismaService, 1);
+      expect(userContextHelper.getUserContextAsManager).toHaveBeenCalledWith(prismaService, 1);
       expect(result).toHaveProperty('id', 1);
     });
 
-    it('deve usar getUserContext helper', async () => {
+    it('deve usar getUserContextAsManager helper', async () => {
       const createFormDto: CreateFormDto = {
         title: 'Test Form',
         type: 'signal',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'create').mockResolvedValue(mockForm as any);
 
       await service.create(createFormDto, 1);
 
-      expect(userContextHelper.getUserContext).toHaveBeenCalled();
+      expect(userContextHelper.getUserContextAsManager).toHaveBeenCalled();
     });
 
     it('deve incluir reference quando fornecido', async () => {
@@ -100,7 +100,7 @@ describe('FormsService', () => {
         reference: 'TEST_REF',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'create').mockResolvedValue(mockForm as any);
 
       await service.create(createFormDto, 1);
@@ -119,7 +119,7 @@ describe('FormsService', () => {
         description: 'Test Description',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'create').mockResolvedValue(mockForm as any);
 
       await service.create(createFormDto, 1);
@@ -150,12 +150,12 @@ describe('FormsService', () => {
         ],
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([mockFormWithVersion] as any);
 
       const result = await service.findFormsWithLatestVersions(1);
 
-      expect(userContextHelper.getUserContext).toHaveBeenCalled();
+      expect(userContextHelper.getUserContextId).toHaveBeenCalled();
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveProperty('formId', 1);
     });
@@ -187,7 +187,7 @@ describe('FormsService', () => {
         ],
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([mockFormWithVersions] as any);
 
       const result = await service.findFormsWithLatestVersions(1);
@@ -203,7 +203,7 @@ describe('FormsService', () => {
         pageSize: 20,
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([mockForm] as any);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(1);
 
@@ -219,7 +219,7 @@ describe('FormsService', () => {
         pageSize: 20,
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([] as any);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(0);
 
@@ -242,7 +242,7 @@ describe('FormsService', () => {
         reference: 'TEST_FORM',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([] as any);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(0);
 
@@ -265,7 +265,7 @@ describe('FormsService', () => {
         type: 'quiz',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([] as any);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(0);
 
@@ -287,7 +287,7 @@ describe('FormsService', () => {
         reference: 'TEST_REF',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([] as any);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(0);
 
@@ -305,7 +305,7 @@ describe('FormsService', () => {
 
   describe('findOne', () => {
     it('deve retornar formulário quando existe', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
 
       const result = await service.findOne(1, 1);
@@ -314,14 +314,14 @@ describe('FormsService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
       await expect(service.findOne(999, 1)).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar ForbiddenException quando não pertence ao contexto', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(2);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(2);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
 
       await expect(service.findOne(1, 1)).rejects.toThrow(ForbiddenException);
@@ -334,7 +334,7 @@ describe('FormsService', () => {
         title: 'Updated Form',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue({
         ...mockForm,
@@ -351,7 +351,7 @@ describe('FormsService', () => {
         type: 'quiz',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue({
         ...mockForm,
@@ -371,7 +371,7 @@ describe('FormsService', () => {
         reference: 'UPDATED_REF',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue(mockForm as any);
 
@@ -388,7 +388,7 @@ describe('FormsService', () => {
         description: 'Updated Description',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue(mockForm as any);
 
@@ -405,7 +405,7 @@ describe('FormsService', () => {
         title: 'Updated Form',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
       await expect(service.update(999, updateFormDto, 1)).rejects.toThrow(NotFoundException);
@@ -416,7 +416,7 @@ describe('FormsService', () => {
         title: 'Updated Form',
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(2);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(2);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
 
       await expect(service.update(1, updateFormDto, 1)).rejects.toThrow(ForbiddenException);
@@ -425,7 +425,7 @@ describe('FormsService', () => {
 
   describe('remove', () => {
     it('deve desativar formulário sem versões', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([]);
       jest.spyOn(prismaService.form, 'update').mockResolvedValue({
@@ -443,7 +443,7 @@ describe('FormsService', () => {
     });
 
     it('deve desativar versões antes de desativar formulário', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
         { id: 1 },
@@ -469,21 +469,21 @@ describe('FormsService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
       await expect(service.remove(999, 1)).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar ForbiddenException quando não pertence ao contexto', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(2);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(2);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
 
       await expect(service.remove(1, 1)).rejects.toThrow(ForbiddenException);
     });
 
     it('deve lançar BadRequestException quando alguma versão possui reports', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextAsManager as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
       jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
         { id: 1 },
@@ -504,7 +504,7 @@ describe('FormsService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
 
       const result = await service.findOne(1, 1);
@@ -531,7 +531,7 @@ describe('FormsService', () => {
         ],
       };
 
-      (userContextHelper.getUserContext as jest.Mock).mockResolvedValue(1);
+      (userContextHelper.getUserContextId as jest.Mock).mockResolvedValue(1);
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(formWithVersion as any);
 
       const result = await service.findOne(1, 1);
@@ -541,4 +541,3 @@ describe('FormsService', () => {
     });
   });
 });
-
