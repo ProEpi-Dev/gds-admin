@@ -14,7 +14,10 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
-import { getUserContext } from '../common/helpers/user-context.helper';
+import {
+  getUserContextId,
+  getUserContextAsManager,
+} from '../common/helpers/user-context.helper';
 import { ContextResponseDto } from '../contexts/dto/context-response.dto';
 import { FormVersionResponseDto } from '../form-versions/dto/form-version-response.dto';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
@@ -27,8 +30,8 @@ export class FormsService {
     createFormDto: CreateFormDto,
     userId: number,
   ): Promise<FormResponseDto> {
-    // Obter contexto do usuário logado
-    const contextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (apenas gerenciadores)
+    const contextId = await getUserContextAsManager(this.prisma, userId);
 
     // Preparar dados
     const data: any = {
@@ -55,8 +58,8 @@ export class FormsService {
   async findFormsWithLatestVersions(
     userId: number,
   ): Promise<FormWithVersionDto[]> {
-    // Obter contexto do usuário logado
-    const userContextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (manager ou participante)
+    const userContextId = await getUserContextId(this.prisma, userId);
 
     // Buscar formulários ativos com suas últimas versões
     const forms = await this.prisma.form.findMany({
@@ -100,8 +103,8 @@ export class FormsService {
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Obter contexto do usuário logado
-    const userContextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (manager ou participante)
+    const userContextId = await getUserContextId(this.prisma, userId);
 
     // Construir filtros
     const where: any = {
@@ -185,8 +188,8 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado
-    const userContextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (manager ou participante)
+    const userContextId = await getUserContextId(this.prisma, userId);
 
     // Verificar se o formulário pertence ao contexto do usuário
     if (form.context_id !== userContextId) {
@@ -212,8 +215,8 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado
-    const userContextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (apenas gerenciadores)
+    const userContextId = await getUserContextAsManager(this.prisma, userId);
 
     // Verificar se o formulário pertence ao contexto do usuário
     if (existingForm.context_id !== userContextId) {
@@ -264,8 +267,8 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado
-    const userContextId = await getUserContext(this.prisma, userId);
+    // Obter contexto do usuário logado (apenas gerenciadores)
+    const userContextId = await getUserContextAsManager(this.prisma, userId);
 
     // Verificar se o formulário pertence ao contexto do usuário
     if (form.context_id !== userContextId) {
