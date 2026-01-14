@@ -24,6 +24,30 @@ import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { TrackService } from "../../../api/services/track.service";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 
+interface Sequence {
+  id: number;
+  order: number;
+  content_id?: number;
+  form_id?: number;
+  content?: {
+    id: number;
+  };
+}
+
+interface Section {
+  id: number;
+  name: string;
+  active: boolean;
+  sequence?: Sequence[];
+}
+
+interface Track {
+  id: number;
+  name: string;
+  active: boolean;
+  section?: Section[];
+}
+
 interface ContentTrackManagerProps {
   contentId: number;
 }
@@ -32,8 +56,8 @@ export default function ContentTrackManager({
   contentId,
 }: ContentTrackManagerProps) {
   const snackbar = useSnackbar();
-  const [tracks, setTracks] = useState<any[]>([]);
-  const [allTracks, setAllTracks] = useState<any[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [associateDialogOpen, setAssociateDialogOpen] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<number | "">("");
@@ -48,9 +72,11 @@ export default function ContentTrackManager({
         setAllTracks(allTracksData);
 
         // Filtrar trilhas que têm sequences com este content_id
-        const associatedTracks = allTracksData.filter((track) => {
-          const hasContent = track.section?.some((section) =>
-            section.sequence?.some((seq) => seq.content_id === contentId)
+        const associatedTracks = allTracksData.filter((track: Track) => {
+          const hasContent = track.section?.some((section: Section) =>
+            section.sequence?.some(
+              (seq: Sequence) => seq.content_id === contentId
+            )
           );
           return hasContent;
         });
@@ -66,9 +92,46 @@ export default function ContentTrackManager({
     loadTracks();
   }, [contentId]);
 
+  const handleRemoveAssociation = async (
+    trackId: number,
+    sectionId: number,
+    sequenceId: number
+  ) => {
+    try {
+      await TrackService.removeSequence(trackId, sectionId, sequenceId);
+
+      snackbar.showSuccess("Conteúdo removido da trilha com sucesso!");
+
+      const allTracksResponse = await TrackService.list();
+      const allTracksData = allTracksResponse.data;
+
+      setAllTracks(allTracksData);
+      setTracks(
+        allTracksData.filter((track: Track) =>
+          track.section?.some((section) =>
+            section.sequence?.some((seq) => seq.content_id === contentId)
+          )
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao remover associação:", error);
+      snackbar.showError("Erro ao remover conteúdo da trilha");
+    }
+  };
+
   const handleAssociateContent = async () => {
     if (!selectedTrackId || !selectedSectionId) {
       snackbar.showError("Selecione uma trilha e uma seção");
+      return;
+    }
+
+    const track = allTracks.find((t) => t.id === selectedTrackId);
+    const alreadyExists = track?.section?.some((section) =>
+      section.sequence?.some((seq) => seq.content_id === contentId)
+    );
+
+    if (alreadyExists) {
+      snackbar.showError("Este conteúdo já está nessa trilha");
       return;
     }
 
@@ -78,44 +141,31 @@ export default function ContentTrackManager({
         Number(selectedSectionId),
         contentId
       );
-      snackbar.showSuccess("Conteúdo associado à trilha com sucesso!");
+
+      // Fechar modal e resetar seleção primeiro
+      setAssociateDialogOpen(false);
+      setSelectedTrackId("");
+      setSelectedSectionId("");
+
+      // Mostrar notificação de sucesso
+      snackbar.showSuccess("Conteúdo adicionado à trilha com sucesso!");
 
       // Recarregar as trilhas associadas
       const allTracksResponse = await TrackService.list();
       const allTracksData = allTracksResponse.data;
       setAllTracks(allTracksData);
-      const associatedTracks = allTracksData.filter((track) => {
-        const hasContent = track.section?.some((section) =>
-          section.sequence?.some((seq) => seq.content_id === contentId)
+      const associatedTracks = allTracksData.filter((track: Track) => {
+        const hasContent = track.section?.some((section: Section) =>
+          section.sequence?.some(
+            (seq: Sequence) => seq.content_id === contentId
+          )
         );
         return hasContent;
       });
       setTracks(associatedTracks);
-
-      // Fechar modal e resetar seleção
-      setAssociateDialogOpen(false);
-      setSelectedTrackId("");
-      setSelectedSectionId("");
     } catch (error) {
       console.error("Erro ao associar conteúdo:", error);
       snackbar.showError("Erro ao associar conteúdo à trilha");
-    }
-  };
-
-  const handleRemoveAssociation = async (
-    trackId: number,
-    sectionId: number
-  ) => {
-    try {
-      // Para remover, precisamos encontrar a sequence e removê-la
-      // Como não temos endpoint específico, vamos recarregar a página ou implementar uma solução
-      // Por enquanto, vamos mostrar uma mensagem
-      snackbar.showInfo(
-        "Para remover a associação, edite a trilha diretamente"
-      );
-    } catch (error) {
-      console.error("Erro ao remover associação:", error);
-      snackbar.showError("Erro ao remover associação");
     }
   };
 
@@ -162,12 +212,32 @@ export default function ContentTrackManager({
             </TableHead>
             <TableBody>
               {tracks.map((track) => {
-                // Encontrar a seção e sequence que contém este conteúdo
-                const section = track.section?.find((section) =>
-                  section.sequence?.some((seq) => seq.content_id === contentId)
+                const matches: { sectionId: number; sequenceId: number }[] = (
+                  track.section ?? []
+                ).flatMap((section) =>
+                  (section.sequence ?? [])
+                    .filter((seq) => seq.content_id === contentId)
+                    .map((seq) => ({
+                      sectionId: section.id,
+                      sequenceId: seq.id,
+                    }))
                 );
+
+                if (matches.length > 1) {
+                  console.warn("Conteúdo duplicado na trilha", matches);
+                }
+
+                const firstMatch = matches[0];
+                if (!firstMatch) {
+                  return null;
+                }
+
+                const section = track.section?.find(
+                  (s) => s.id === firstMatch.sectionId
+                );
+
                 const sequence = section?.sequence?.find(
-                  (seq) => seq.content_id === contentId
+                  (seq) => seq.id === firstMatch.sequenceId
                 );
 
                 return (
@@ -178,10 +248,16 @@ export default function ContentTrackManager({
                     <TableCell>
                       <IconButton
                         size="small"
-                        onClick={() =>
-                          handleRemoveAssociation(track.id, section.id)
-                        }
                         color="error"
+                        onClick={() => {
+                          if (section && sequence) {
+                            handleRemoveAssociation(
+                              track.id,
+                              section.id,
+                              contentId
+                            );
+                          }
+                        }}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -236,9 +312,9 @@ export default function ContentTrackManager({
                 label="Selecione uma Seção"
               >
                 {allTracks
-                  .find((track) => track.id === selectedTrackId)
-                  ?.section?.filter((section) => section.active)
-                  .map((section) => (
+                  .find((track: Track) => track.id === selectedTrackId)
+                  ?.section?.filter((section: Section) => section.active)
+                  .map((section: Section) => (
                     <MenuItem key={section.id} value={section.id}>
                       {section.name}
                     </MenuItem>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { nanoid } from "nanoid";
 import { TrackService } from "../../api/services/track.service";
 import { contentService } from "../../api/services/content.service";
 import { formsService } from "../../api/services/forms.service";
@@ -56,7 +57,6 @@ function SortableSection({
   updateSectionName,
   removeSection,
   addSequenceToSection,
-  removeSequenceFromSection,
   contents,
   forms,
   children,
@@ -78,8 +78,12 @@ function SortableSection({
   forms: any[];
   children: React.ReactNode;
 }) {
+  const sortableSectionId = section.id
+    ? `section-${section.id}`
+    : `section-temp-${section.tempId}`;
+
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: `section-${sectionIndex}` });
+    useSortable({ id: sortableSectionId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -90,28 +94,40 @@ function SortableSection({
     <Accordion ref={setNodeRef} style={style} sx={{ mb: 2 }}>
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box display="flex" alignItems="center" width="100%">
-          <IconButton
+          <Box
             {...attributes}
             {...listeners}
-            size="small"
-            sx={{ mr: 1 }}
+            sx={{
+              cursor: "grab",
+              display: "flex",
+              alignItems: "center",
+              mr: 1,
+              p: 0.5,
+              borderRadius: 1,
+              "&:hover": { bgcolor: "action.hover" },
+            }}
           >
             <DragIndicatorIcon />
-          </IconButton>
+          </Box>
           <Typography>{section.name}</Typography>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+        >
+          <Typography variant="h6">Configurações da Seção</Typography>
           <IconButton
             size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeSection(sectionIndex);
-            }}
-            sx={{ ml: "auto" }}
+            onClick={() => removeSection(sectionIndex)}
+            color="error"
           >
             <DeleteIcon />
           </IconButton>
         </Box>
-      </AccordionSummary>
-      <AccordionDetails>
         <TextField
           fullWidth
           label="Nome da Seção"
@@ -208,8 +224,12 @@ function SortableSequence({
   contents: any[];
   forms: any[];
 }) {
+  const sortableId = sequence.id
+    ? `sequence-${sequence.id}`
+    : `sequence-temp-${sequence.tempId}`;
+
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: `sequence-${sectionIndex}-${seqIndex}` });
+    useSortable({ id: sortableId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -224,9 +244,21 @@ function SortableSequence({
 
   return (
     <ListItem ref={setNodeRef} style={style}>
-      <IconButton {...attributes} {...listeners} size="small" sx={{ mr: 1 }}>
+      <Box
+        {...attributes}
+        {...listeners}
+        sx={{
+          cursor: "grab",
+          display: "flex",
+          alignItems: "center",
+          mr: 1,
+          p: 0.5,
+          borderRadius: 1,
+          "&:hover": { bgcolor: "action.hover" },
+        }}
+      >
         <DragIndicatorIcon />
-      </IconButton>
+      </Box>
       <ListItemText
         primary={item?.title || item?.name || `Item ${seqIndex + 1}`}
         secondary={
@@ -268,10 +300,12 @@ export default function TrackForm() {
     show_after_completion: false,
     sections: [] as Array<{
       id?: number;
+      tempId?: string;
       name: string;
       order: number;
       sequences: Array<{
         id?: number;
+        tempId?: string;
         content_id?: number;
         form_id?: number;
         order: number;
@@ -294,24 +328,26 @@ export default function TrackForm() {
 
     // Handle section reordering
     if (activeId.startsWith("section-") && overId.startsWith("section-")) {
-      const oldIndex = parseInt(activeId.split("-")[1]);
-      const newIndex = parseInt(overId.split("-")[1]);
-
       setForm((prev) => {
+        const oldIndex = prev.sections.findIndex(
+          (section) =>
+            (section.id
+              ? `section-${section.id}`
+              : `section-temp-${section.tempId}`) === activeId
+        );
+
+        const newIndex = prev.sections.findIndex(
+          (section) =>
+            (section.id
+              ? `section-${section.id}`
+              : `section-temp-${section.tempId}`) === overId
+        );
+
+        if (oldIndex === -1 || newIndex === -1) return prev;
+
         const newSections = arrayMove(prev.sections, oldIndex, newIndex).map(
           (section, index) => ({ ...section, order: index })
         );
-
-        // Update backend
-        if (isEdit && id) {
-          TrackService.reorderSections(
-            Number(id),
-            newSections.map((s) => ({ id: s.id!, order: s.order }))
-          ).catch((error) => {
-            snackbar.showError("Erro ao reordenar seções");
-            console.error(error);
-          });
-        }
 
         return { ...prev, sections: newSections };
       });
@@ -319,46 +355,67 @@ export default function TrackForm() {
 
     // Handle sequence reordering within a section
     if (activeId.startsWith("sequence-") && overId.startsWith("sequence-")) {
-      const [activeSectionIndex, activeSeqIndex] = activeId
-        .split("-")
-        .slice(1)
-        .map(Number);
-      const [overSectionIndex, overSeqIndex] = overId
-        .split("-")
-        .slice(1)
-        .map(Number);
+      const findSequencePosition = (id: string) => {
+        for (let sIndex = 0; sIndex < form.sections.length; sIndex++) {
+          const seqIndex = form.sections[sIndex].sequences.findIndex(
+            (seq, i) => {
+              const seqId = seq.id
+                ? `sequence-${seq.id}`
+                : `sequence-temp-${sIndex}-${i}`;
+              return seqId === id;
+            }
+          );
 
-      // Only allow reordering within the same section
-      if (activeSectionIndex === overSectionIndex) {
-        setForm((prev) => {
-          const section = prev.sections[activeSectionIndex];
-          const newSequences = arrayMove(
-            section.sequences,
-            activeSeqIndex,
-            overSeqIndex
-          ).map((seq, index) => ({ ...seq, order: index }));
-
-          const newSections = [...prev.sections];
-          newSections[activeSectionIndex] = {
-            ...section,
-            sequences: newSequences,
-          };
-
-          // Update backend
-          if (isEdit && id && section.id) {
-            TrackService.reorderSequences(
-              Number(id),
-              section.id,
-              newSequences.map((s) => ({ id: s.id!, order: s.order }))
-            ).catch((error) => {
-              snackbar.showError("Erro ao reordenar sequências");
-              console.error(error);
-            });
+          if (seqIndex !== -1) {
+            return { sectionIndex: sIndex, seqIndex };
           }
+        }
+        return null;
+      };
 
-          return { ...prev, sections: newSections };
-        });
+      const activePos = findSequencePosition(activeId);
+      const overPos = findSequencePosition(overId);
+
+      if (
+        !activePos ||
+        !overPos ||
+        activePos.sectionIndex !== overPos.sectionIndex
+      ) {
+        return;
       }
+
+      const { sectionIndex, seqIndex: oldIndex } = activePos;
+      const { seqIndex: newIndex } = overPos;
+
+      setForm((prev) => {
+        const section = prev.sections[sectionIndex];
+
+        const newSequences = arrayMove(
+          section.sequences,
+          oldIndex,
+          newIndex
+        ).map((seq, index) => ({ ...seq, order: index }));
+
+        const newSections = [...prev.sections];
+        newSections[sectionIndex] = {
+          ...section,
+          sequences: newSequences,
+        };
+
+        if (isEdit && id && section.id) {
+          TrackService.reorderSequences(
+            Number(id),
+            section.id,
+            newSequences
+              .filter((s) => s.id) // só as salvas
+              .map((s) => ({ id: s.id!, order: s.order }))
+          ).catch(() => {
+            snackbar.showError("Erro ao reordenar sequências");
+          });
+        }
+
+        return { ...prev, sections: newSections };
+      });
     }
   };
 
@@ -403,6 +460,7 @@ export default function TrackForm() {
       sections: [
         ...prev.sections,
         {
+          tempId: nanoid(), // 👈 ID FIXO
           name: `Seção ${prev.sections.length + 1}`,
           order: prev.sections.length,
           sequences: [],
@@ -446,6 +504,7 @@ export default function TrackForm() {
               sequences: [
                 ...section.sequences,
                 {
+                  tempId: nanoid(),
                   [type === "content" ? "content_id" : "form_id"]: id,
                   order: section.sequences.length,
                 },
@@ -456,21 +515,36 @@ export default function TrackForm() {
     }));
   };
 
-  const removeSequenceFromSection = (
+  const removeSequenceFromSection = async (
     sectionIndex: number,
     sequenceIndex: number
   ) => {
+    const section = form.sections[sectionIndex];
+    const sequence = section.sequences[sequenceIndex];
+
+    if (isEdit && id && section.id && sequence?.id) {
+      try {
+        await TrackService.removeSequence(Number(id), section.id, sequence.id);
+
+        snackbar.showSuccess("Item removido com sucesso");
+      } catch (error) {
+        snackbar.showError("Erro ao remover item");
+        return;
+      }
+    }
+
+    // Atualização otimista
     setForm((prev) => ({
       ...prev,
-      sections: prev.sections.map((section, i) =>
+      sections: prev.sections.map((s, i) =>
         i === sectionIndex
           ? {
-              ...section,
-              sequences: section.sequences
+              ...s,
+              sequences: s.sequences
                 .filter((_, j) => j !== sequenceIndex)
                 .map((seq, j) => ({ ...seq, order: j })),
             }
-          : section
+          : s
       ),
     }));
   };
@@ -612,43 +686,63 @@ export default function TrackForm() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={form.sections.map((_, index) => `section-${index}`)}
+              items={form.sections.map((section) =>
+                section.id
+                  ? `section-${section.id}`
+                  : `section-temp-${section.tempId}`
+              )}
               strategy={verticalListSortingStrategy}
             >
-              {form.sections.map((section, sectionIndex) => (
-                <SortableSection
-                  key={`section-${sectionIndex}`}
-                  section={section}
-                  sectionIndex={sectionIndex}
-                  updateSectionName={updateSectionName}
-                  removeSection={removeSection}
-                  addSequenceToSection={addSequenceToSection}
-                  removeSequenceFromSection={removeSequenceFromSection}
-                  contents={contents}
-                  forms={forms}
-                >
-                  <SortableContext
-                    items={section.sequences.map(
-                      (_, seqIndex) => `sequence-${sectionIndex}-${seqIndex}`
-                    )}
-                    strategy={verticalListSortingStrategy}
+              {form.sections.map((section, sectionIndex) => {
+                const sectionKey = section.id
+                  ? `section-${section.id}`
+                  : `section-temp-${section.tempId}`;
+
+                return (
+                  <SortableSection
+                    key={sectionKey}
+                    section={section}
+                    sectionIndex={sectionIndex}
+                    updateSectionName={updateSectionName}
+                    removeSection={removeSection}
+                    addSequenceToSection={addSequenceToSection}
+                    removeSequenceFromSection={removeSequenceFromSection}
+                    contents={contents}
+                    forms={forms}
                   >
-                    <List>
-                      {section.sequences.map((sequence, seqIndex) => (
-                        <SortableSequence
-                          key={`sequence-${sectionIndex}-${seqIndex}`}
-                          sequence={sequence}
-                          seqIndex={seqIndex}
-                          removeSequenceFromSection={removeSequenceFromSection}
-                          sectionIndex={sectionIndex}
-                          contents={contents}
-                          forms={forms}
-                        />
-                      ))}
-                    </List>
-                  </SortableContext>
-                </SortableSection>
-              ))}
+                    <SortableContext
+                      items={section.sequences.map((seq) =>
+                        seq.id
+                          ? `sequence-${seq.id}`
+                          : `sequence-temp-${seq.tempId}`
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <List>
+                        {section.sequences.map((sequence, seqIndex) => {
+                          const sortableId = sequence.id
+                            ? `sequence-${sequence.id}`
+                            : `sequence-temp-${sequence.tempId}`;
+
+                          return (
+                            <SortableSequence
+                              key={sortableId}
+                              sequence={sequence}
+                              seqIndex={seqIndex}
+                              removeSequenceFromSection={
+                                removeSequenceFromSection
+                              }
+                              sectionIndex={sectionIndex}
+                              contents={contents}
+                              forms={forms}
+                            />
+                          );
+                        })}
+                      </List>
+                    </SortableContext>
+                  </SortableSection>
+                );
+              })}
             </SortableContext>
           </DndContext>
         </Paper>

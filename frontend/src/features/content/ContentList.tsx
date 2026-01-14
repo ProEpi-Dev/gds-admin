@@ -300,14 +300,21 @@ export default function ContentList() {
             Adicionando: {contentToAdd?.title}
           </Typography>
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Selecione a Trilha</InputLabel>
+            <InputLabel id="select-track-label">Selecione a Trilha</InputLabel>
+
             <Select
+              labelId="select-track-label"
+              label="Selecione a Trilha"
               value={selectedTrackId || ""}
               onChange={(e) => {
                 setSelectedTrackId(Number(e.target.value));
                 setSelectedSectionId(null);
               }}
             >
+              <MenuItem value="">
+                <em>Selecione a trilha</em>
+              </MenuItem>
+
               {tracks.map((track) => (
                 <MenuItem key={track.id} value={track.id}>
                   {track.name}
@@ -315,13 +322,23 @@ export default function ContentList() {
               ))}
             </Select>
           </FormControl>
+
           {selectedTrackId && (
             <FormControl fullWidth>
-              <InputLabel>Selecione a Seção</InputLabel>
+              <InputLabel id="select-section-label">
+                Selecione a Seção
+              </InputLabel>
+
               <Select
+                labelId="select-section-label"
+                label="Selecione a Seção"
                 value={selectedSectionId || ""}
                 onChange={(e) => setSelectedSectionId(Number(e.target.value))}
               >
+                <MenuItem value="">
+                  <em>Selecione a seção</em>
+                </MenuItem>
+
                 {tracks
                   .find((t) => t.id === selectedTrackId)
                   ?.section?.map((section: any) => (

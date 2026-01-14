@@ -64,6 +64,19 @@ export class TrackController {
     );
   }
 
+  @Delete(':trackId/sections/:sectionId/content/:contentId')
+  removeContentFromSection(
+    @Param('trackId') trackId: string,
+    @Param('sectionId') sectionId: string,
+    @Param('contentId') contentId: string,
+  ) {
+    return this.trackService.removeContentFromSection(
+      Number(trackId),
+      Number(sectionId),
+      Number(contentId),
+    );
+  }
+
   @Put(':trackId/sections/reorder')
   reorderSections(
     @Param('trackId') trackId: string,
