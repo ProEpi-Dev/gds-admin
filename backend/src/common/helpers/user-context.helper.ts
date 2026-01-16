@@ -134,9 +134,7 @@ export async function getUserParticipationId(
   }
 
   return participation.id;
-}
-
-/**
+}/**
  * @deprecated Use getUserContextId para visualização ou getUserContextAsManager para operações de gestão
  */
 export async function getUserContext(
