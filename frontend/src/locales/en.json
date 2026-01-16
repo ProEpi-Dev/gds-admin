@@ -62,6 +62,7 @@
     "contexts": "Contexts",
     "contents": "Contents",
     "participations": "Participations",
+    "tracks": "Tracks",
     "reports": "Reports"
   },
   "reports": {
@@ -234,6 +235,10 @@
     "errorLoadingManager": "Error loading manager",
     "errorCreating": "Error creating manager",
     "errorUpdating": "Error updating manager"
+  },
+  "tracks": {
+    "title": "Tracks",
+    "newTrack": "New Track"
   },
   "errors": {
     "uniqueConstraint": {

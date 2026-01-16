@@ -37,6 +37,8 @@ import ContextManagerEditPage from "../features/context-managers/pages/ContextMa
 import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import ContentList from "../features/content/ContentList";
 import ContentForm from "../features/content/ContentForm";
+import TrackList from "../features/tracks/TrackList";
+import TrackForm from "../features/tracks/TrackForm";
 import QuizzesListPage from "../features/quizzes/pages/QuizzesListPage";
 import QuizTakePage from "../features/quizzes/pages/QuizTakePage";
 import QuizViewPage from "../features/quizzes/pages/QuizViewPage";
@@ -331,6 +333,30 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ContentList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tracks"
+        element={
+          <ProtectedRoute>
+            <TrackList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tracks/new"
+        element={
+          <ProtectedRoute>
+            <TrackForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tracks/:id/edit"
+        element={
+          <ProtectedRoute>
+            <TrackForm />
           </ProtectedRoute>
         }
       />

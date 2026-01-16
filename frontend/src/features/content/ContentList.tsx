@@ -1,12 +1,29 @@
 import { useEffect, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
+import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, Button, Chip, IconButton } from "@mui/material";
+import { useSnackbar } from "../../hooks/useSnackbar";
+import {
+  Box,
+  Typography,
+  Button,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  PlaylistAdd as PlaylistAddIcon,
 } from "@mui/icons-material";
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -28,16 +45,61 @@ export default function ContentList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
+
+  // Add to track dialog
+  const [addToTrackDialogOpen, setAddToTrackDialogOpen] = useState(false);
+  const [contentToAdd, setContentToAdd] = useState<Content | null>(null);
+  const [tracks, setTracks] = useState<any[]>([]);
+  const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     ContentService.list().then((res) => {
       setContents(res.data);
+    });
+    TrackService.list().then((res) => {
+      setTracks(res.data);
     });
   }, []);
 
   const handleDelete = (id: number) => {
     setContentToDelete(id);
     setDeleteDialogOpen(true);
+  };
+
+  const handleAddToTrack = (content: Content) => {
+    setContentToAdd(content);
+    setAddToTrackDialogOpen(true);
+  };
+
+  const confirmAddToTrack = async () => {
+    if (!contentToAdd || !selectedTrackId || !selectedSectionId) return;
+
+    try {
+      await TrackService.addContentToSection(
+        selectedTrackId,
+        selectedSectionId,
+        contentToAdd.id
+      );
+
+      // Mostrar notificação de sucesso
+      snackbar.showSuccess("Conteúdo adicionado à trilha com sucesso!");
+
+      // Refresh tracks data
+      const res = await TrackService.list();
+      setTracks(res.data);
+
+      setAddToTrackDialogOpen(false);
+      setContentToAdd(null);
+      setSelectedTrackId(null);
+      setSelectedSectionId(null);
+    } catch (error) {
+      console.error("Erro ao adicionar conteúdo à trilha:", error);
+      snackbar.showError("Erro ao adicionar conteúdo à trilha");
+    }
   };
 
   const confirmDelete = async () => {
@@ -96,6 +158,14 @@ export default function ContentList() {
             color="primary"
           >
             <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => handleAddToTrack(row)}
+            title="Adicionar à Trilha"
+            color="secondary"
+          >
+            <PlaylistAddIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
@@ -221,6 +291,83 @@ export default function ContentList() {
           setContentToDelete(null);
         }}
       />
+
+      {/* ADD TO TRACK DIALOG */}
+      <Dialog
+        open={addToTrackDialogOpen}
+        onClose={() => setAddToTrackDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Adicionar Conteúdo à Trilha</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" mb={2}>
+            Adicionando: {contentToAdd?.title}
+          </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="select-track-label">Selecione a Trilha</InputLabel>
+
+            <Select
+              labelId="select-track-label"
+              label="Selecione a Trilha"
+              value={selectedTrackId || ""}
+              onChange={(e) => {
+                setSelectedTrackId(Number(e.target.value));
+                setSelectedSectionId(null);
+              }}
+            >
+              <MenuItem value="">
+                <em>Selecione a trilha</em>
+              </MenuItem>
+
+              {tracks.map((track) => (
+                <MenuItem key={track.id} value={track.id}>
+                  {track.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {selectedTrackId && (
+            <FormControl fullWidth>
+              <InputLabel id="select-section-label">
+                Selecione a Seção
+              </InputLabel>
+
+              <Select
+                labelId="select-section-label"
+                label="Selecione a Seção"
+                value={selectedSectionId || ""}
+                onChange={(e) => setSelectedSectionId(Number(e.target.value))}
+              >
+                <MenuItem value="">
+                  <em>Selecione a seção</em>
+                </MenuItem>
+
+                {tracks
+                  .find((t) => t.id === selectedTrackId)
+                  ?.section?.map((section: any) => (
+                    <MenuItem key={section.id} value={section.id}>
+                      {section.name}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddToTrackDialogOpen(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmAddToTrack}
+            disabled={!selectedTrackId || !selectedSectionId}
+            variant="contained"
+          >
+            Adicionar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

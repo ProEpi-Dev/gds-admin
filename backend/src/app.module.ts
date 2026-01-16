@@ -18,6 +18,7 @@ import { ContentModule } from './content/content.module';
 import { TagModule } from './tags/tag.module';
 import { ContentQuizModule } from './content-quiz/content-quiz.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
+import { TrackModule } from './tracks/track.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -44,6 +45,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     TagModule,
     ContentQuizModule,
     QuizSubmissionsModule,
+    TrackModule,
   ],
   controllers: [AppController],
   providers: [

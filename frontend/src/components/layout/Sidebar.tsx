@@ -26,6 +26,7 @@ import {
   AssignmentInd as AssignmentIndIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
+  TrackChanges as TrackChangesIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslation } from "../../hooks/useTranslation";
@@ -86,6 +87,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       path: "/quiz-submissions",
       label: "Submissões de Quizes",
       icon: <AssignmentIndIcon />,
+    },
+    {
+      path: "/tracks",
+      label: "Trilhas de Conteúdo",
+      icon: <TrackChangesIcon />,
     },
   ];
 

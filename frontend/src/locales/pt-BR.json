@@ -62,6 +62,7 @@
     "contexts": "Contextos",
     "contents": "Conteúdos",
     "participations": "Participações",
+    "tracks": "Trilhas",
     "reports": "Reports"
   },
   "reports": {
@@ -234,6 +235,10 @@
     "errorLoadingManager": "Erro ao carregar manager",
     "errorCreating": "Erro ao criar manager",
     "errorUpdating": "Erro ao atualizar manager"
+  },
+  "tracks": {
+    "title": "Trilhas",
+    "newTrack": "Nova Trilha"
   },
   "errors": {
     "uniqueConstraint": {
