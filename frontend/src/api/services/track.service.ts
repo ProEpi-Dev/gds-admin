@@ -33,9 +33,9 @@ export const TrackService = {
     );
   },
 
-  removeSequence(trackId: number, sectionId: number, contentId: number) {
+  removeSequence(trackId: number, sectionId: number, sequenceId: number) {
     return apiClient.delete(
-      `/tracks/${trackId}/sections/${sectionId}/content/${contentId}`
+      `/tracks/${trackId}/sections/${sectionId}/sequences/${sequenceId}`
     );
   },
 

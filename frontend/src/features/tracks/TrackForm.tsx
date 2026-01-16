@@ -72,7 +72,10 @@ function SortableSection({
   ) => void;
   removeSequenceFromSection: (
     sectionIndex: number,
-    sequenceIndex: number
+    sequence: {
+      id?: number;
+      tempId?: string;
+    }
   ) => void;
   contents: any[];
   forms: any[];
@@ -218,7 +221,10 @@ function SortableSequence({
   seqIndex: number;
   removeSequenceFromSection: (
     sectionIndex: number,
-    sequenceIndex: number
+    sequence: {
+      id?: number;
+      tempId?: string;
+    }
   ) => void;
   sectionIndex: number;
   contents: any[];
@@ -269,7 +275,7 @@ function SortableSequence({
       />
       <ListItemSecondaryAction>
         <IconButton
-          onClick={() => removeSequenceFromSection(sectionIndex, seqIndex)}
+          onClick={() => removeSequenceFromSection(sectionIndex, sequence)}
         >
           <DeleteIcon />
         </IconButton>
@@ -357,14 +363,13 @@ export default function TrackForm() {
     if (activeId.startsWith("sequence-") && overId.startsWith("sequence-")) {
       const findSequencePosition = (id: string) => {
         for (let sIndex = 0; sIndex < form.sections.length; sIndex++) {
-          const seqIndex = form.sections[sIndex].sequences.findIndex(
-            (seq, i) => {
-              const seqId = seq.id
-                ? `sequence-${seq.id}`
-                : `sequence-temp-${sIndex}-${i}`;
-              return seqId === id;
-            }
-          );
+          const seqIndex = form.sections[sIndex].sequences.findIndex((seq) => {
+            const seqId = seq.id
+              ? `sequence-${seq.id}`
+              : `sequence-temp-${seq.tempId}`;
+
+            return seqId === id;
+          });
 
           if (seqIndex !== -1) {
             return { sectionIndex: sIndex, seqIndex };
@@ -444,6 +449,7 @@ export default function TrackForm() {
               sequences:
                 section.sequence?.map((seq: any) => ({
                   id: seq.id,
+                  tempId: nanoid(),
                   content_id: seq.content_id,
                   form_id: seq.form_id,
                   order: seq.order,
@@ -517,17 +523,21 @@ export default function TrackForm() {
 
   const removeSequenceFromSection = async (
     sectionIndex: number,
-    sequenceIndex: number
+    sequence: {
+      id?: number;
+      tempId?: string;
+    }
   ) => {
     const section = form.sections[sectionIndex];
-    const sequence = section.sequences[sequenceIndex];
 
-    if (isEdit && id && section.id && sequence?.id) {
+    // 🔥 backend: só se a sequence já existe
+    if (isEdit && id && section.id && sequence.id) {
       try {
-        // Usar content_id se existir, senão usar o id da sequence
-        const contentId = sequence.content_id || sequence.id;
-        await TrackService.removeSequence(Number(id), section.id, contentId);
-
+        await TrackService.removeSequence(
+          Number(id),
+          section.id,
+          sequence.id // ✅ SEMPRE sequence.id
+        );
         snackbar.showSuccess("Item removido com sucesso");
       } catch (error) {
         snackbar.showError("Erro ao remover item");
@@ -535,7 +545,6 @@ export default function TrackForm() {
       }
     }
 
-    // Atualização otimista
     setForm((prev) => ({
       ...prev,
       sections: prev.sections.map((s, i) =>
@@ -543,7 +552,11 @@ export default function TrackForm() {
           ? {
               ...s,
               sequences: s.sequences
-                .filter((_, j) => j !== sequenceIndex)
+                .filter((seq) =>
+                  sequence.id
+                    ? seq.id !== sequence.id
+                    : seq.tempId !== sequence.tempId
+                )
                 .map((seq, j) => ({ ...seq, order: j })),
             }
           : s
@@ -551,18 +564,47 @@ export default function TrackForm() {
     }));
   };
 
+  const buildPayload = () => {
+    return {
+      name: form.name,
+      description: form.description,
+      control_period: form.control_period,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      show_after_completion: form.show_after_completion,
+      sections: form.sections.map((section, sectionIndex) => ({
+        // só manda id se existir (edição)
+        ...(section.id ? { id: section.id } : {}),
+        name: section.name,
+        order: sectionIndex,
+        sequences: section.sequences.map((seq, seqIndex) => ({
+          ...(seq.id ? { id: seq.id } : {}),
+          order: seqIndex,
+          content_id: seq.content_id ?? null,
+          form_id: seq.form_id ?? null,
+        })),
+      })),
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = buildPayload();
+
+    console.log("Payload enviado:", payload);
+
     try {
       if (isEdit && id) {
-        await TrackService.update(Number(id), form);
+        await TrackService.update(Number(id), payload);
         snackbar.showSuccess("Trilha atualizada com sucesso!");
       } else {
-        await TrackService.create(form);
+        await TrackService.create(payload);
         snackbar.showSuccess("Trilha criada com sucesso!");
       }
       navigate("/tracks");
     } catch (error) {
+      console.error("Erro ao salvar trilha:", error);
       snackbar.showError("Erro ao salvar trilha");
     }
   };

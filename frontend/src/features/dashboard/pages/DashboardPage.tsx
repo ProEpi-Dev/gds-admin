@@ -16,6 +16,7 @@ import {
   Description as DescriptionIcon,
   Assessment as AssessmentIcon,
   LibraryBooks as LibraryBooksIcon,
+  School as SchoolIcon,
   Add as AddIcon,
   ArrowForward as ArrowForwardIcon,
 } from "@mui/icons-material";
@@ -27,6 +28,7 @@ import { participationsService } from "../../../api/services/participations.serv
 import { formsService } from "../../../api/services/forms.service";
 import { reportsService } from "../../../api/services/reports.service";
 import { contentService } from "../../../api/services/content.service";
+import { TrackService } from "../../../api/services/track.service";
 import { useTranslation } from "../../../hooks/useTranslation";
 
 interface StatCardProps {
@@ -157,6 +159,15 @@ export default function DashboardPage() {
     queryFn: () => contentService.findAll({ page: 1, pageSize: 1 }),
   });
 
+  const { data: tracksData, isLoading: tracksLoading } = useQuery({
+    queryKey: ["tracks", { page: 1, pageSize: 1 }],
+    queryFn: () =>
+      TrackService.list().then((res) => ({
+        data: res.data,
+        meta: { totalItems: (res.data as any[]).length },
+      })),
+  });
+
   const stats: Array<{
     title: string;
     count: number | undefined;
@@ -224,10 +235,19 @@ export default function DashboardPage() {
       title: t("navigation.contents"),
       count: contentsData?.meta.totalItems,
       icon: <LibraryBooksIcon />,
-      color: "secondary", // or another color, since success is used for participations
+      color: "secondary",
       loading: contentsLoading,
       onClick: () => navigate("/contents"),
       onViewAll: () => navigate("/contents"),
+    },
+    {
+      title: t("navigation.tracks"),
+      count: tracksData?.meta.totalItems,
+      icon: <SchoolIcon />,
+      color: "warning",
+      loading: tracksLoading,
+      onClick: () => navigate("/tracks"),
+      onViewAll: () => navigate("/tracks"),
     },
   ];
 
@@ -252,6 +272,11 @@ export default function DashboardPage() {
       label: t("forms.newForm"),
       path: "/forms/new",
       icon: <DescriptionIcon />,
+    },
+    {
+      label: t("tracks.newTrack"),
+      path: "/tracks/new",
+      icon: <SchoolIcon />,
     },
     {
       label: t("contents.newContent"),

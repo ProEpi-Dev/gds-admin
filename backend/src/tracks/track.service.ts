@@ -86,6 +86,36 @@ export class TrackService {
     });
   }
 
+  async removeSequence(trackId: number, sectionId: number, sequenceId: number) {
+    const sequence = await this.prisma.sequence.findUnique({
+      where: { id: sequenceId },
+    });
+
+    if (!sequence || sequence.section_id !== sectionId) {
+      throw new Error('Sequence not found');
+    }
+
+    // remove a sequence
+    await this.prisma.sequence.delete({
+      where: { id: sequenceId },
+    });
+
+    // reordenar as restantes
+    const remainingSequences = await this.prisma.sequence.findMany({
+      where: { section_id: sectionId },
+      orderBy: { order: 'asc' },
+    });
+
+    for (let i = 0; i < remainingSequences.length; i++) {
+      await this.prisma.sequence.update({
+        where: { id: remainingSequences[i].id },
+        data: { order: i },
+      });
+    }
+
+    return this.get(trackId);
+  }
+
   async update(id: number, data: any) {
     const { sections, ...trackData } = data;
 

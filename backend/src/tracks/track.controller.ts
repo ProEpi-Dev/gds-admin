@@ -85,6 +85,19 @@ export class TrackController {
     return this.trackService.reorderSections(Number(trackId), data.sections);
   }
 
+  @Delete(':trackId/sections/:sectionId/sequences/:sequenceId')
+  removeSequence(
+    @Param('trackId') trackId: string,
+    @Param('sectionId') sectionId: string,
+    @Param('sequenceId') sequenceId: string,
+  ) {
+    return this.trackService.removeSequence(
+      Number(trackId),
+      Number(sectionId),
+      Number(sequenceId),
+    );
+  }
+
   @Put(':trackId/sections/:sectionId/sequences/reorder')
   reorderSequences(
     @Param('trackId') trackId: string,
