@@ -176,6 +176,11 @@ export default function FormsListPage() {
     },
   ];
 
+  const handlePreview = (form: Form) => {
+    setFormToPreview(form);
+    setPreviewDialogOpen(true);
+  };
+
   const filters = [
     ...(activeFilter !== undefined
       ? [
