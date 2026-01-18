@@ -27,6 +27,7 @@ import {
   Logout as LogoutIcon,
   Close as CloseIcon,
   TrackChanges as TrackChangesIcon,
+  Gavel as GavelIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslation } from "../../hooks/useTranslation";
@@ -92,6 +93,16 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       path: "/tracks",
       label: "Trilhas de Conteúdo",
       icon: <TrackChangesIcon />,
+    },
+    {
+      path: "/legal-documents",
+      label: t("navigation.legalDocuments"),
+      icon: <GavelIcon />,
+    },
+    {
+      path: "/legal-documents/types",
+      label: t("navigation.legalDocumentTypes"),
+      icon: <GavelIcon />,
     },
   ];
 

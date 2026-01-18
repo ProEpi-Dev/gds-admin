@@ -31,7 +31,15 @@ apiClient.interceptors.response.use(
       // Token inválido ou expirado
       localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       localStorage.removeItem(STORAGE_KEYS.USER);
-      window.location.href = '/login';
+      
+      // Só redireciona se não estiver em rotas públicas
+      const publicRoutes = ['/login', '/signup', '/setup'];
+      const currentPath = window.location.pathname;
+      const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+      
+      if (!isPublicRoute) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   },

@@ -24,6 +24,7 @@ import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Contexts')
 @ApiBearerAuth('bearerAuth')
@@ -48,9 +49,10 @@ export class ContextsController {
   }
 
   @Get()
+  @Public()
   @ApiOperation({
     summary: 'Listar contextos',
-    description: 'Retorna lista paginada de contextos com filtros opcionais',
+    description: 'Retorna lista paginada de contextos com filtros opcionais. Endpoint público para permitir signup.',
   })
   @ApiResponse({
     status: 200,

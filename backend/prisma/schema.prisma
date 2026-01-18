@@ -111,6 +111,7 @@ model location {
   context        context[]
   location       location?  @relation("locationTolocation", fields: [parent_id], references: [id], onUpdate: NoAction)
   other_location location[] @relation("locationTolocation")
+  user           user[]
 
   @@index([parent_id], map: "idx_location_parent_id")
 }
@@ -151,18 +152,27 @@ model report {
 }
 
 model user {
-  id              Int               @id @default(autoincrement())
-  name            String            @db.VarChar(255)
-  email           String            @unique @db.VarChar(255)
-  password        String            @db.VarChar(255)
-  created_at      DateTime          @default(now()) @db.Timestamp(6)
-  updated_at      DateTime          @default(now()) @db.Timestamp(6)
-  active          Boolean           @default(true)
-  content         content[]
-  context_manager context_manager[]
-  participation   participation[]
+  id                    Int                     @id @default(autoincrement())
+  name                  String                  @db.VarChar(255)
+  email                 String                  @unique @db.VarChar(255)
+  password              String                  @db.VarChar(255)
+  gender_id             Int?
+  location_id           Int?
+  external_identifier   String?                 @db.VarChar(100)
+  created_at            DateTime                @default(now()) @db.Timestamp(6)
+  updated_at            DateTime                @default(now()) @db.Timestamp(6)
+  active                Boolean                 @default(true)
+  content               content[]
+  context_manager       context_manager[]
+  participation         participation[]
+  gender                gender?                 @relation(fields: [gender_id], references: [id], onUpdate: NoAction)
+  location              location?               @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  user_legal_acceptance user_legal_acceptance[]
 
   @@index([email], map: "idx_user_email")
+  @@index([gender_id], map: "idx_user_gender_id")
+  @@index([location_id], map: "idx_user_location_id")
+  @@index([external_identifier], map: "idx_user_external_identifier")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -240,6 +250,67 @@ enum form_version_access_type {
 enum report_type_enum {
   POSITIVE
   NEGATIVE
+}
+
+model gender {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  active     Boolean  @default(true)
+  user       user[]
+
+  @@index([name], map: "idx_gender_name")
+}
+
+model legal_document_type {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique @db.VarChar(50)
+  name           String           @db.VarChar(100)
+  description    String?
+  is_required    Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamp(6)
+  updated_at     DateTime         @default(now()) @db.Timestamp(6)
+  active         Boolean          @default(true)
+  legal_document legal_document[]
+
+  @@index([code], map: "idx_legal_document_type_code")
+  @@index([active], map: "idx_legal_document_type_active")
+}
+
+model legal_document {
+  id                     Int                     @id @default(autoincrement())
+  type_id                Int
+  version                String                  @db.VarChar(20)
+  title                  String                  @db.VarChar(255)
+  content                String
+  effective_date         DateTime                @db.Date
+  created_at             DateTime                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime                @default(now()) @db.Timestamp(6)
+  active                 Boolean                 @default(true)
+  legal_document_type    legal_document_type     @relation(fields: [type_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user_legal_acceptance  user_legal_acceptance[]
+
+  @@unique([type_id, version])
+  @@index([type_id], map: "idx_legal_document_type_id")
+  @@index([active], map: "idx_legal_document_active")
+  @@index([effective_date], map: "idx_legal_document_effective_date")
+}
+
+model user_legal_acceptance {
+  id                 Int            @id @default(autoincrement())
+  user_id            Int
+  legal_document_id  Int
+  accepted_at        DateTime       @default(now()) @db.Timestamp(6)
+  ip_address         String?        @db.VarChar(45)
+  user_agent         String?
+  user               user           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  legal_document     legal_document @relation(fields: [legal_document_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([user_id, legal_document_id])
+  @@index([user_id], map: "idx_user_legal_acceptance_user_id")
+  @@index([legal_document_id], map: "idx_user_legal_acceptance_document_id")
+  @@index([accepted_at], map: "idx_user_legal_acceptance_accepted_at")
 }
 
 model content_quiz {

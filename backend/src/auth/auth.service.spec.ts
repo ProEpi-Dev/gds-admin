@@ -1,10 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { SignupDto } from './dto/signup.dto';
+import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -13,6 +20,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let prismaService: PrismaService;
   let jwtService: JwtService;
+  let legalDocumentsService: LegalDocumentsService;
 
   const mockUser = {
     id: 1,
@@ -75,6 +83,10 @@ describe('AuthService', () => {
             form: {
               findMany: jest.fn(),
             },
+            context: {
+              findUnique: jest.fn(),
+            },
+            $transaction: jest.fn(),
           },
         },
         {
@@ -83,12 +95,22 @@ describe('AuthService', () => {
             sign: jest.fn().mockReturnValue('mockToken'),
           },
         },
+        {
+          provide: LegalDocumentsService,
+          useValue: {
+            validateDocumentIds: jest.fn(),
+            validateRequiredDocuments: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     prismaService = module.get<PrismaService>(PrismaService);
     jwtService = module.get<JwtService>(JwtService);
+    legalDocumentsService = module.get<LegalDocumentsService>(
+      LegalDocumentsService,
+    );
   });
 
   describe('validateUser', () => {
@@ -297,6 +319,88 @@ describe('AuthService', () => {
       await expect(service.changePassword(1, changePasswordDto)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('signup', () => {
+    const signupDto: SignupDto = {
+      name: 'New User',
+      email: 'newuser@example.com',
+      password: 'password123',
+      contextId: 1,
+      acceptedLegalDocumentIds: [1, 2],
+    };
+
+    it('deve criar usuário com sucesso', async () => {
+      const mockContext = {
+        id: 1,
+        name: 'Public Context',
+        access_type: 'PUBLIC',
+        active: true,
+      };
+
+      const mockNewUser = {
+        id: 2,
+        name: 'New User',
+        email: 'newuser@example.com',
+        password: 'hashedPassword',
+        active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      const mockNewParticipation = {
+        id: 2,
+        user_id: 2,
+        context_id: 1,
+        start_date: new Date(),
+        end_date: null,
+        active: true,
+      };
+
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest.spyOn(legalDocumentsService, 'validateDocumentIds').mockResolvedValue(true);
+      jest.spyOn(legalDocumentsService, 'validateRequiredDocuments').mockResolvedValue(undefined);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+      
+      jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback: any) => {
+        return callback({
+          user: {
+            create: jest.fn().mockResolvedValue(mockNewUser),
+          },
+          participation: {
+            create: jest.fn().mockResolvedValue(mockNewParticipation),
+          },
+          user_legal_acceptance: {
+            create: jest.fn().mockResolvedValue({}),
+          },
+        });
+      });
+
+      const result = await service.signup(signupDto);
+
+      expect(result.user.email).toBe('newuser@example.com');
+      expect(result.accessToken).toBeDefined();
+      expect(result.participation.contextId).toBe(1);
+    });
+
+    it('deve lançar ConflictException se email já existe', async () => {
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+
+      await expect(service.signup(signupDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('deve lançar ForbiddenException se contexto não é público', async () => {
+      const privateContext = {
+        id: 1,
+        access_type: 'PRIVATE',
+      };
+
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(privateContext as any);
+
+      await expect(service.signup(signupDto)).rejects.toThrow(ForbiddenException);
     });
   });
 

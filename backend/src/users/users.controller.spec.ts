@@ -7,6 +7,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -49,6 +51,11 @@ describe('UsersController', () => {
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
+            getProfileStatus: jest.fn(),
+            updateProfile: jest.fn(),
+            getLegalAcceptanceStatus: jest.fn(),
+            acceptLegalDocuments: jest.fn(),
+            getUserRole: jest.fn(),
           },
         },
       ],
@@ -221,6 +228,213 @@ describe('UsersController', () => {
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
       await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getProfileStatus', () => {
+    it('deve retornar status do perfil quando completo', async () => {
+      const mockUser = { userId: 1 };
+      const mockProfileStatus = {
+        isComplete: true,
+        missingFields: [],
+        profile: mockUser,
+      };
+
+      jest
+        .spyOn(usersService, 'getProfileStatus')
+        .mockResolvedValue(mockProfileStatus as any);
+
+      const result = await controller.getProfileStatus(mockUser);
+
+      expect(result).toEqual(mockProfileStatus);
+      expect(usersService.getProfileStatus).toHaveBeenCalledWith(1);
+    });
+
+    it('deve retornar status do perfil quando incompleto', async () => {
+      const mockUser = { userId: 1 };
+      const mockProfileStatus = {
+        isComplete: false,
+        missingFields: ['gender_id', 'location_id'],
+        profile: mockUser,
+      };
+
+      jest
+        .spyOn(usersService, 'getProfileStatus')
+        .mockResolvedValue(mockProfileStatus as any);
+
+      const result = await controller.getProfileStatus(mockUser);
+
+      expect(result).toEqual(mockProfileStatus);
+      expect(usersService.getProfileStatus).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('deve atualizar perfil com sucesso', async () => {
+      const currentUser = { userId: 1 };
+      const updateProfileDto: UpdateProfileDto = {
+        genderId: 1,
+        locationId: 1,
+        externalIdentifier: 'EXT123',
+      };
+
+      jest.spyOn(usersService, 'updateProfile').mockResolvedValue(mockUser);
+
+      const result = await controller.updateProfile(
+        currentUser,
+        updateProfileDto,
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(usersService.updateProfile).toHaveBeenCalledWith(
+        1,
+        updateProfileDto,
+      );
+    });
+  });
+
+  describe('getLegalAcceptanceStatus', () => {
+    it('deve retornar status de aceite dos documentos legais', async () => {
+      const mockUser = { userId: 1 };
+      const mockLegalStatus = {
+        needsAcceptance: false,
+        pendingDocuments: [],
+        acceptedDocuments: [
+          {
+            id: 1,
+            typeCode: 'TERMS_OF_USE',
+            typeName: 'Termos de Uso',
+            version: '1.0',
+            title: 'Termos de Uso da Plataforma',
+            acceptedAt: new Date(),
+          },
+        ],
+      };
+
+      jest
+        .spyOn(usersService, 'getLegalAcceptanceStatus')
+        .mockResolvedValue(mockLegalStatus);
+
+      const result = await controller.getLegalAcceptanceStatus(mockUser);
+
+      expect(result).toEqual(mockLegalStatus);
+      expect(usersService.getLegalAcceptanceStatus).toHaveBeenCalledWith(1);
+    });
+
+    it('deve retornar documentos pendentes quando necessário', async () => {
+      const mockUser = { userId: 1 };
+      const mockLegalStatus = {
+        needsAcceptance: true,
+        pendingDocuments: [
+          {
+            id: 2,
+            typeCode: 'PRIVACY_POLICY',
+            typeName: 'Política de Privacidade',
+            version: '2.0',
+            title: 'Política de Privacidade',
+          },
+        ],
+        acceptedDocuments: [],
+      };
+
+      jest
+        .spyOn(usersService, 'getLegalAcceptanceStatus')
+        .mockResolvedValue(mockLegalStatus);
+
+      const result = await controller.getLegalAcceptanceStatus(mockUser);
+
+      expect(result).toEqual(mockLegalStatus);
+      expect(usersService.getLegalAcceptanceStatus).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('acceptLegalDocuments', () => {
+    it('deve aceitar documentos legais com sucesso', async () => {
+      const mockUser = { userId: 1 };
+      const mockRequest: any = {
+        ip: '192.168.1.1',
+      };
+      const acceptDto: AcceptLegalDocumentsDto = {
+        legalDocumentIds: [1, 2],
+      };
+      const userAgent = 'Mozilla/5.0';
+
+      jest
+        .spyOn(usersService, 'acceptLegalDocuments')
+        .mockResolvedValue(undefined);
+
+      await controller.acceptLegalDocuments(
+        mockUser,
+        acceptDto,
+        mockRequest,
+        userAgent,
+      );
+
+      expect(usersService.acceptLegalDocuments).toHaveBeenCalledWith(
+        1,
+        acceptDto,
+        '192.168.1.1',
+        'Mozilla/5.0',
+      );
+    });
+  });
+
+  describe('getUserRole', () => {
+    it('deve retornar papel do usuário como manager', async () => {
+      const mockUser = { userId: 1 };
+      const mockUserRole = {
+        isManager: true,
+        isParticipant: false,
+        contexts: {
+          asManager: [1],
+          asParticipant: [],
+        },
+      };
+
+      jest.spyOn(usersService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const result = await controller.getUserRole(mockUser);
+
+      expect(result).toEqual(mockUserRole);
+      expect(usersService.getUserRole).toHaveBeenCalledWith(1);
+    });
+
+    it('deve retornar papel do usuário como participant', async () => {
+      const mockUser = { userId: 1 };
+      const mockUserRole = {
+        isManager: false,
+        isParticipant: true,
+        contexts: {
+          asManager: [],
+          asParticipant: [2],
+        },
+      };
+
+      jest.spyOn(usersService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const result = await controller.getUserRole(mockUser);
+
+      expect(result).toEqual(mockUserRole);
+      expect(usersService.getUserRole).toHaveBeenCalledWith(1);
+    });
+
+    it('deve retornar papel do usuário como ambos', async () => {
+      const mockUser = { userId: 1 };
+      const mockUserRole = {
+        isManager: true,
+        isParticipant: true,
+        contexts: {
+          asManager: [1],
+          asParticipant: [2],
+        },
+      };
+
+      jest.spyOn(usersService, 'getUserRole').mockResolvedValue(mockUserRole);
+
+      const result = await controller.getUserRole(mockUser);
+
+      expect(result).toEqual(mockUserRole);
+      expect(usersService.getUserRole).toHaveBeenCalledWith(1);
     });
   });
 });

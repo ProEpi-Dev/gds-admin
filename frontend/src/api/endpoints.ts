@@ -3,6 +3,7 @@ export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: "/auth/login",
     CHANGE_PASSWORD: "/auth/change-password",
+    SIGNUP: "/auth/signup",
   },
 
   // Setup
@@ -22,6 +23,11 @@ export const API_ENDPOINTS = {
     CREATE: "/users",
     UPDATE: (id: number) => `/users/${id}`,
     DELETE: (id: number) => `/users/${id}`,
+    ROLE: "/users/me/role",
+    PROFILE_STATUS: "/users/me/profile-status",
+    UPDATE_PROFILE: "/users/me/profile",
+    LEGAL_ACCEPTANCE_STATUS: "/users/me/legal-acceptances/status",
+    ACCEPT_LEGAL_DOCUMENTS: "/users/me/legal-acceptances",
   },
 
   // Locations
@@ -107,5 +113,32 @@ export const API_ENDPOINTS = {
     CREATE: "/tags",
     UPDATE: (id: number) => `/tags/${id}`,
     DELETE: (id: number) => `/tags/${id}`,
+  },
+
+  // Legal Documents
+  LEGAL_DOCUMENTS: {
+    ACTIVE: "/legal-documents/active",
+    DETAIL: (id: number) => `/legal-documents/${id}`,
+    BY_TYPE: (typeCode: string) => `/legal-documents/type/${typeCode}`,
+    TYPES: "/legal-document-types",
+  },
+
+  // Legal Documents Admin
+  LEGAL_DOCUMENTS_ADMIN: {
+    LIST: "/admin/legal-documents",
+    DETAIL: (id: number) => `/admin/legal-documents/${id}`,
+    CREATE: "/admin/legal-documents",
+    UPDATE: (id: number) => `/admin/legal-documents/${id}`,
+    DELETE: (id: number) => `/admin/legal-documents/${id}`,
+    TYPES_ALL: "/admin/legal-documents/types/all",
+    TYPE_DETAIL: (id: number) => `/admin/legal-documents/types/${id}`,
+    TYPE_CREATE: "/admin/legal-documents/types",
+    TYPE_UPDATE: (id: number) => `/admin/legal-documents/types/${id}`,
+    TYPE_DELETE: (id: number) => `/admin/legal-documents/types/${id}`,
+  },
+
+  // Genders
+  GENDERS: {
+    LIST: "/genders",
   },
 };

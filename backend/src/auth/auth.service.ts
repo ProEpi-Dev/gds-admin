@@ -1,10 +1,19 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { DefaultFormDto } from './dto/default-form.dto';
+import { SignupDto } from './dto/signup.dto';
+import { SignupResponseDto } from './dto/signup-response.dto';
+import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -12,6 +21,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private legalDocumentsService: LegalDocumentsService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
@@ -220,6 +230,111 @@ export class AuthService {
       where: { id: userId },
       data: { password: hashedNewPassword },
     });
+  }
+
+  async signup(
+    signupDto: SignupDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<SignupResponseDto> {
+    // 1. Validar email único
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: signupDto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException(`Email ${signupDto.email} já está em uso`);
+    }
+
+    // 2. Validar contexto existe e é PUBLIC
+    const context = await this.prisma.context.findUnique({
+      where: { id: signupDto.contextId },
+    });
+
+    if (!context) {
+      throw new BadRequestException(
+        `Contexto com ID ${signupDto.contextId} não encontrado`,
+      );
+    }
+
+    if (context.access_type !== 'PUBLIC') {
+      throw new ForbiddenException(
+        'Apenas contextos públicos permitem signup direto',
+      );
+    }
+
+    // 3. Validar IDs dos documentos legais
+    await this.legalDocumentsService.validateDocumentIds(
+      signupDto.acceptedLegalDocumentIds,
+    );
+
+    // 4. Verificar se todos documentos obrigatórios foram aceitos
+    await this.legalDocumentsService.validateRequiredDocuments(
+      signupDto.acceptedLegalDocumentIds,
+    );
+
+    // 5. Criar usuário, participation e aceites em transação
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Hash da senha
+      const hashedPassword = await bcrypt.hash(signupDto.password, 10);
+
+      // Criar usuário
+      const user = await tx.user.create({
+        data: {
+          name: signupDto.name,
+          email: signupDto.email,
+          password: hashedPassword,
+          active: true,
+        },
+      });
+
+      // Criar participation
+      const participation = await tx.participation.create({
+        data: {
+          user_id: user.id,
+          context_id: signupDto.contextId,
+          start_date: new Date(),
+          active: true,
+        },
+      });
+
+      // Criar aceites de documentos legais
+      const acceptances = await Promise.all(
+        signupDto.acceptedLegalDocumentIds.map((docId) =>
+          tx.user_legal_acceptance.create({
+            data: {
+              user_id: user.id,
+              legal_document_id: docId,
+              ip_address: ipAddress,
+              user_agent: userAgent,
+            },
+          }),
+        ),
+      );
+
+      return { user, participation, acceptances };
+    });
+
+    // 6. Gerar JWT
+    const accessToken = this.generateToken(result.user);
+
+    // 7. Retornar resposta
+    return {
+      user: {
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        active: result.user.active,
+        createdAt: result.user.created_at,
+        updatedAt: result.user.updated_at,
+      },
+      accessToken,
+      participation: {
+        id: result.participation.id,
+        contextId: result.participation.context_id,
+        startDate: result.participation.start_date.toISOString().split('T')[0],
+      },
+    };
   }
 
   generateToken(user: any): string {
