@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../../api/services/users.service';
 import { useSnackbar } from '../../../hooks/useSnackbar';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -25,6 +25,7 @@ export default function CompleteProfilePage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -39,9 +40,33 @@ export default function CompleteProfilePage() {
     mutationFn: async (data: UpdateProfileDto) => {
       await usersService.updateProfile(data);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       snackbar.showSuccess(t('profile.success'));
-      navigate('/app/welcome');
+      
+      // Invalida todos os caches relacionados ao usuário
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['profile-status'] }),
+        queryClient.invalidateQueries({ queryKey: ['user-role'] }),
+      ]);
+      
+      // Força o refetch dos dados antes de redirecionar
+      const [, userRole] = await Promise.all([
+        queryClient.fetchQuery({ 
+          queryKey: ['profile-status'],
+          queryFn: () => usersService.getProfileStatus()
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['user-role'],
+          queryFn: () => usersService.getUserRole()
+        })
+      ]);
+      
+      // Redireciona baseado no papel do usuário (usando dados recém-carregados)
+      if (userRole.isManager) {
+        navigate('/dashboard');
+      } else {
+        navigate('/app/welcome');
+      }
     },
     onError: (err: unknown) => {
       const errorMessage = getErrorMessage(err, 'Erro ao atualizar perfil');
