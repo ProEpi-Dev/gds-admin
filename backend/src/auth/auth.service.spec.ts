@@ -99,7 +99,7 @@ describe('AuthService', () => {
           provide: LegalDocumentsService,
           useValue: {
             validateDocumentIds: jest.fn(),
-            validateRequiredDocuments: jest.fn(),
+            findByTypeCode: jest.fn(),
           },
         },
       ],
@@ -339,6 +339,16 @@ describe('AuthService', () => {
         active: true,
       };
 
+      const mockTermsOfUse = {
+        id: 1,
+        typeCode: 'TERMS_OF_USE',
+        typeName: 'Termos de Uso',
+        title: 'Termos de Uso',
+        version: '1.0',
+        content: 'Conteúdo dos termos',
+        isRequired: true,
+      };
+
       const mockNewUser = {
         id: 2,
         name: 'New User',
@@ -361,7 +371,7 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
       jest.spyOn(legalDocumentsService, 'validateDocumentIds').mockResolvedValue(true);
-      jest.spyOn(legalDocumentsService, 'validateRequiredDocuments').mockResolvedValue(undefined);
+      jest.spyOn(legalDocumentsService, 'findByTypeCode').mockResolvedValue(mockTermsOfUse as any);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
       
       jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback: any) => {
@@ -401,6 +411,33 @@ describe('AuthService', () => {
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(privateContext as any);
 
       await expect(service.signup(signupDto)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deve lançar BadRequestException se Termo de Uso não foi aceito', async () => {
+      const mockContext = {
+        id: 1,
+        name: 'Public Context',
+        access_type: 'PUBLIC',
+        active: true,
+      };
+
+      const mockTermsOfUse = {
+        id: 1,
+        typeCode: 'TERMS_OF_USE',
+        typeName: 'Termos de Uso',
+      };
+
+      const signupWithoutTerms = {
+        ...signupDto,
+        acceptedLegalDocumentIds: [2], // Não inclui o ID 1 (Termo de Uso)
+      };
+
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest.spyOn(legalDocumentsService, 'validateDocumentIds').mockResolvedValue(true);
+      jest.spyOn(legalDocumentsService, 'findByTypeCode').mockResolvedValue(mockTermsOfUse as any);
+
+      await expect(service.signup(signupWithoutTerms)).rejects.toThrow(BadRequestException);
     });
   });
 

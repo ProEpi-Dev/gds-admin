@@ -268,10 +268,13 @@ export class AuthService {
       signupDto.acceptedLegalDocumentIds,
     );
 
-    // 4. Verificar se todos documentos obrigatórios foram aceitos
-    await this.legalDocumentsService.validateRequiredDocuments(
-      signupDto.acceptedLegalDocumentIds,
-    );
+    // 4. Verificar se o Termo de Uso foi aceito (regra de negócio: apenas Termo de Uso é obrigatório no signup)
+    const termsOfUse = await this.legalDocumentsService.findByTypeCode('TERMS_OF_USE');
+    if (!signupDto.acceptedLegalDocumentIds.includes(termsOfUse.id)) {
+      throw new BadRequestException(
+        'É obrigatório aceitar o Termo de Uso para criar uma conta',
+      );
+    }
 
     // 5. Criar usuário, participation e aceites em transação
     const result = await this.prisma.$transaction(async (tx) => {
