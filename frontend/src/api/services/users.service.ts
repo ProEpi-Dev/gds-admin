@@ -1,6 +1,15 @@
 import apiClient from '../client';
 import { API_ENDPOINTS } from '../endpoints';
-import type { CreateUserDto, UpdateUserDto, UserQuery, User } from '../../types/user.types';
+import type { 
+  CreateUserDto, 
+  UpdateUserDto, 
+  UserQuery, 
+  User,
+  UserRoleResponse,
+  UpdateProfileDto,
+  ProfileStatusResponse,
+  LegalAcceptanceStatusResponse,
+} from '../../types/user.types';
 import type { ListResponse } from '../../types/api.types';
 
 export const usersService = {
@@ -32,6 +41,29 @@ export const usersService = {
 
   async remove(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.USERS.DELETE(id));
+  },
+
+  async getUserRole(): Promise<UserRoleResponse> {
+    const response = await apiClient.get(API_ENDPOINTS.USERS.ROLE);
+    return response.data;
+  },
+
+  async getProfileStatus(): Promise<ProfileStatusResponse> {
+    const response = await apiClient.get(API_ENDPOINTS.USERS.PROFILE_STATUS);
+    return response.data;
+  },
+
+  async updateProfile(data: UpdateProfileDto): Promise<void> {
+    await apiClient.patch(API_ENDPOINTS.USERS.UPDATE_PROFILE, data);
+  },
+
+  async getLegalAcceptanceStatus(): Promise<LegalAcceptanceStatusResponse> {
+    const response = await apiClient.get(API_ENDPOINTS.USERS.LEGAL_ACCEPTANCE_STATUS);
+    return response.data;
+  },
+
+  async acceptLegalDocuments(legalDocumentIds: number[]): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.USERS.ACCEPT_LEGAL_DOCUMENTS, { legalDocumentIds });
   },
 };
 

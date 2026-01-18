@@ -9,16 +9,25 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ProfileStatusResponseDto } from './dto/profile-status-response.dto';
+import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
+import { LegalAcceptanceStatusResponseDto } from './dto/legal-acceptance-status-response.dto';
+import { UserRoleResponseDto } from './dto/user-role-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private legalDocumentsService: LegalDocumentsService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     // Verificar se email já existe
@@ -181,12 +190,273 @@ export class UsersService {
     });
   }
 
+  /**
+   * Verifica o status do perfil do usuário
+   */
+  async getProfileStatus(userId: number): Promise<ProfileStatusResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    const missingFields: string[] = [];
+
+    if (!user.gender_id) {
+      missingFields.push('genderId');
+    }
+    if (!user.location_id) {
+      missingFields.push('locationId');
+    }
+    if (!user.external_identifier) {
+      missingFields.push('externalIdentifier');
+    }
+
+    return {
+      isComplete: missingFields.length === 0,
+      missingFields,
+      profile: {
+        genderId: user.gender_id,
+        locationId: user.location_id,
+        externalIdentifier: user.external_identifier,
+      },
+    };
+  }
+
+  /**
+   * Atualiza o perfil do usuário
+   */
+  async updateProfile(
+    userId: number,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    // Validar genderId se fornecido
+    if (updateProfileDto.genderId !== undefined) {
+      const gender = await this.prisma.gender.findUnique({
+        where: { id: updateProfileDto.genderId },
+      });
+
+      if (!gender) {
+        throw new BadRequestException(
+          `Gênero com ID ${updateProfileDto.genderId} não encontrado`,
+        );
+      }
+    }
+
+    // Validar locationId se fornecido
+    if (updateProfileDto.locationId !== undefined) {
+      const location = await this.prisma.location.findUnique({
+        where: { id: updateProfileDto.locationId },
+      });
+
+      if (!location) {
+        throw new BadRequestException(
+          `Localização com ID ${updateProfileDto.locationId} não encontrado`,
+        );
+      }
+    }
+
+    // Atualizar perfil
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        gender_id: updateProfileDto.genderId,
+        location_id: updateProfileDto.locationId,
+        external_identifier: updateProfileDto.externalIdentifier,
+      },
+    });
+
+    return this.mapToResponseDto(updatedUser);
+  }
+
+  /**
+   * Aceita documentos legais
+   */
+  async acceptLegalDocuments(
+    userId: number,
+    acceptLegalDocumentsDto: AcceptLegalDocumentsDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    // Validar documentos
+    await this.legalDocumentsService.validateDocumentIds(
+      acceptLegalDocumentsDto.legalDocumentIds,
+    );
+
+    // Criar aceites (usando upsert para evitar duplicados)
+    await Promise.all(
+      acceptLegalDocumentsDto.legalDocumentIds.map((docId) =>
+        this.prisma.user_legal_acceptance.upsert({
+          where: {
+            user_id_legal_document_id: {
+              user_id: userId,
+              legal_document_id: docId,
+            },
+          },
+          create: {
+            user_id: userId,
+            legal_document_id: docId,
+            ip_address: ipAddress,
+            user_agent: userAgent,
+          },
+          update: {
+            accepted_at: new Date(),
+            ip_address: ipAddress,
+            user_agent: userAgent,
+          },
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Verifica o status de aceite de termos legais
+   */
+  async getLegalAcceptanceStatus(
+    userId: number,
+  ): Promise<LegalAcceptanceStatusResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
+    }
+
+    // Buscar documentos ativos
+    const activeDocuments = await this.legalDocumentsService.findActive();
+
+    // Buscar aceites do usuário
+    const userAcceptances = await this.prisma.user_legal_acceptance.findMany({
+      where: { user_id: userId },
+      include: {
+        legal_document: {
+          include: {
+            legal_document_type: true,
+          },
+        },
+      },
+    });
+
+    // Mapear aceites por ID do documento
+    const acceptanceMap = new Map(
+      userAcceptances.map((acceptance) => [
+        acceptance.legal_document_id,
+        acceptance,
+      ]),
+    );
+
+    // Separar documentos pendentes e aceitos
+    const pendingDocuments = [];
+    const acceptedDocuments = [];
+
+    for (const doc of activeDocuments) {
+      const acceptance = acceptanceMap.get(doc.id);
+
+      if (acceptance) {
+        acceptedDocuments.push({
+          id: doc.id,
+          typeCode: doc.typeCode,
+          typeName: doc.typeName,
+          version: doc.version,
+          title: doc.title,
+          acceptedAt: acceptance.accepted_at,
+        });
+      } else {
+        pendingDocuments.push({
+          id: doc.id,
+          typeCode: doc.typeCode,
+          typeName: doc.typeName,
+          version: doc.version,
+          title: doc.title,
+        });
+      }
+    }
+
+    return {
+      needsAcceptance: pendingDocuments.length > 0,
+      pendingDocuments,
+      acceptedDocuments,
+    };
+  }
+
+  async getUserRole(userId: number): Promise<UserRoleResponseDto> {
+    // Buscar todos os context_managers ativos do usuário
+    const contextManagers = await this.prisma.context_manager.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+        context: {
+          active: true,
+        },
+      },
+      select: {
+        context_id: true,
+      },
+    });
+
+    // Buscar todas as participations ativas do usuário
+    const today = new Date();
+    const participations = await this.prisma.participation.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+        context: {
+          active: true,
+        },
+        start_date: {
+          lte: today,
+        },
+        OR: [
+          { end_date: null },
+          { end_date: { gte: today } },
+        ],
+      },
+      select: {
+        context_id: true,
+      },
+    });
+
+    const asManager = contextManagers.map((cm) => cm.context_id);
+    const asParticipant = participations.map((p) => p.context_id);
+
+    return {
+      isManager: asManager.length > 0,
+      isParticipant: asParticipant.length > 0,
+      contexts: {
+        asManager,
+        asParticipant,
+      },
+    };
+  }
+
   private mapToResponseDto(user: any): UserResponseDto {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       active: user.active,
+      genderId: user.gender_id,
+      locationId: user.location_id,
+      externalIdentifier: user.external_identifier,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };

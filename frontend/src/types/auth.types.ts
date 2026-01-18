@@ -52,6 +52,29 @@ export interface AuthUser {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  genderId?: number | null;
+  locationId?: number | null;
+  externalIdentifier?: string | null;
   participation: ParticipationLogin | null;
 }
 
+export interface SignupDto {
+  name: string;
+  email: string;
+  password: string;
+  contextId: number;
+  acceptedLegalDocumentIds: number[];
+}
+
+export interface SignupResponse {
+  token: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  participation: ParticipationLogin;
+}

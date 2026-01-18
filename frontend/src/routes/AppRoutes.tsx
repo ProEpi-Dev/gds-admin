@@ -1,9 +1,16 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useUserRole } from "../hooks/useUserRole";
 import AppLayout from "../components/layout/AppLayout";
+import AdminRoute from "./AdminRoute";
+import UserRoute from "./UserRoute";
 import LoginPage from "../features/auth/pages/LoginPage";
+import SignupPage from "../features/auth/pages/SignupPage";
 import ChangePasswordPage from "../features/auth/pages/ChangePasswordPage";
+import WelcomePage from "../features/app/pages/WelcomePage";
+import CompleteProfilePage from "../features/app/pages/CompleteProfilePage";
+import UserProfilePage from "../features/app/pages/UserProfilePage";
 import SetupPage from "../features/setup/pages/SetupPage";
 import FormBuilderPage from "../features/forms/pages/FormBuilderPage";
 import FormsListPage from "../features/forms/pages/FormsListPage";
@@ -44,6 +51,10 @@ import QuizTakePage from "../features/quizzes/pages/QuizTakePage";
 import QuizViewPage from "../features/quizzes/pages/QuizViewPage";
 import QuizSubmissionViewPage from "../features/quizzes/pages/QuizSubmissionViewPage";
 import QuizSubmissionsListPage from "../features/quizzes/pages/QuizSubmissionsListPage";
+import LegalDocumentsListPage from "../features/legal-documents/pages/LegalDocumentsListPage";
+import LegalDocumentFormPage from "../features/legal-documents/pages/LegalDocumentFormPage";
+import LegalDocumentTypesListPage from "../features/legal-documents/pages/LegalDocumentTypesListPage";
+import LegalDocumentTypeFormPage from "../features/legal-documents/pages/LegalDocumentTypeFormPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -59,11 +70,73 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+function RootRedirect() {
+  const { isAuthenticated } = useAuth();
+  const { isManager, isLoading } = useUserRole();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isLoading) {
+    return <div>Carregando...</div>;
+  }
+
+  // Se é manager, vai para dashboard, senão para área do app
+  if (isManager) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Navigate to="/app/welcome" replace />;
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Rotas Públicas */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/setup" element={<SetupPage />} />
+
+      {/* Rotas da Área do App (Usuários Comuns) */}
+      <Route
+        path="/app/complete-profile"
+        element={
+          <UserRoute requireCompleteProfile={false}>
+            <CompleteProfilePage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/welcome"
+        element={
+          <UserRoute>
+            <WelcomePage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/profile"
+        element={
+          <UserRoute>
+            <UserProfilePage />
+          </UserRoute>
+        }
+      />
+      <Route path="/app" element={<Navigate to="/app/welcome" replace />} />
+
+      {/* Rota Raiz - Redireciona baseado no role */}
+      <Route path="/" element={<RootRedirect />} />
+
+      {/* Rotas Protegidas (Apenas Admins) */}
+      <Route
+        path="/dashboard"
+        element={
+          <AdminRoute>
+            <DashboardPage />
+          </AdminRoute>
+        }
+      />
       <Route
         path="/change-password"
         element={
@@ -73,339 +146,379 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/form-builder"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormBuilderPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms/:formId/versions/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormVersionViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/forms/:formId/versions/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <FormVersionEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/reports"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ReportsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/reports/map"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ReportsMapPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/reports/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ReportCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/reports/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ReportViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/reports/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ReportEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/participations"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ParticipationsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/participations/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ParticipationCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/participations/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ParticipationViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/participations/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ParticipationEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/users"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <UsersListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/users/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <UserCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/users/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <UserViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/users/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <UserEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/locations"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <LocationsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/locations/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <LocationCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/locations/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <LocationViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/locations/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <LocationEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contexts"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContextsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contexts/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContextCreatePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contexts/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContextViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contexts/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContextEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contexts/:contextId/managers/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContextManagerEditPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contents/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContentForm />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contents/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContentForm />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/contents"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <ContentList />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/tracks"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <TrackList />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/tracks/new"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <TrackForm />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/tracks/:id/edit"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <TrackForm />
-          </ProtectedRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents"
+        element={
+          <AdminRoute>
+            <LegalDocumentsListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents/new"
+        element={
+          <AdminRoute>
+            <LegalDocumentFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents/:id/edit"
+        element={
+          <AdminRoute>
+            <LegalDocumentFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents/types"
+        element={
+          <AdminRoute>
+            <LegalDocumentTypesListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents/types/new"
+        element={
+          <AdminRoute>
+            <LegalDocumentTypeFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/legal-documents/types/:id/edit"
+        element={
+          <AdminRoute>
+            <LegalDocumentTypeFormPage />
+          </AdminRoute>
         }
       />
       <Route
         path="/quizzes"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <QuizzesListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/quizzes/:quizId/content/:contentId"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <QuizTakePage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/quizzes/:quizId"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <QuizViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/quiz-submissions"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <QuizSubmissionsListPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/quiz-submissions/:id"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <QuizSubmissionViewPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route
         path="/*"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <DashboardPage />
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
     </Routes>
