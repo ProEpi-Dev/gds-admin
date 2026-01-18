@@ -37,9 +37,9 @@ export default function SignupPage() {
   const { t } = useTranslation();
   const [acceptedDocumentIds, setAcceptedDocumentIds] = useState<number[]>([]);
 
-  const { data: legalDocuments, isLoading: documentsLoading } = useQuery({
-    queryKey: ['legal-documents-active'],
-    queryFn: () => legalDocumentsService.findActive(),
+  const { data: termsOfUse, isLoading: documentsLoading } = useQuery({
+    queryKey: ['legal-documents-terms-of-use'],
+    queryFn: () => legalDocumentsService.findByTypeCode('TERMS_OF_USE'),
   });
 
   const {
@@ -81,10 +81,7 @@ export default function SignupPage() {
     setValue('acceptedLegalDocumentIds', ids, { shouldValidate: true });
   };
 
-  const requiredDocuments = legalDocuments?.filter((doc) => doc.isRequired) || [];
-  const allRequiredAccepted = requiredDocuments.every((doc) =>
-    acceptedDocumentIds.includes(doc.id)
-  );
+  const allRequiredAccepted = termsOfUse ? acceptedDocumentIds.includes(termsOfUse.id) : false;
 
   if (documentsLoading) {
     return (
@@ -176,10 +173,10 @@ export default function SignupPage() {
               />
             </Box>
 
-            {legalDocuments && legalDocuments.length > 0 && (
+            {termsOfUse && (
               <Box sx={{ mt: 3, mb: 2 }}>
                 <LegalDocumentsAcceptance
-                  documents={legalDocuments}
+                  documents={[termsOfUse]}
                   acceptedIds={acceptedDocumentIds}
                   onAcceptedChange={handleLegalDocumentsChange}
                   error={!!errors.acceptedLegalDocumentIds}
