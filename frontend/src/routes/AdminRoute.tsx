@@ -1,10 +1,10 @@
-import { Navigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserRole } from '../hooks/useUserRole';
-import { useProfileStatus } from '../hooks/useProfileStatus';
-import { Box, CircularProgress } from '@mui/material';
-import AppLayout from '../components/layout/AppLayout';
+import { Navigate } from "react-router-dom";
+import type { ReactNode } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useUserRole } from "../hooks/useUserRole";
+import { useProfileStatus } from "../hooks/useProfileStatus";
+import { Box, CircularProgress } from "@mui/material";
+import AppLayout from "../components/layout/AppLayout";
 
 interface AdminRouteProps {
   children: ReactNode;
@@ -23,7 +23,14 @@ export default function AdminRoute({ children }: AdminRouteProps) {
   // Aguarda carregar informações de role e perfil
   if (roleLoading || profileLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
