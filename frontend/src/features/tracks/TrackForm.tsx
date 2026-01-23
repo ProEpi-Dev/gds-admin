@@ -425,9 +425,11 @@ export default function TrackForm() {
   };
 
   useEffect(() => {
-    // Load contents and forms for selection
     contentService.findAll().then((res) => setContents(res.data));
-    formsService.findAll().then((res) => setForms(res.data));
+
+    formsService
+      .findAll()
+      .then((res) => setForms(res.data.filter((f: any) => f.type === "quiz")));
   }, []);
 
   useEffect(() => {
