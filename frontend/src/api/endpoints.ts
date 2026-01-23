@@ -140,5 +140,9 @@ export const API_ENDPOINTS = {
   // Genders
   GENDERS: {
     LIST: "/genders",
+    DETAIL: (id: number) => `/genders/${id}`,
+    CREATE: "/genders",
+    UPDATE: (id: number) => `/genders/${id}`,
+    DELETE: (id: number) => `/genders/${id}`,
   },
 };

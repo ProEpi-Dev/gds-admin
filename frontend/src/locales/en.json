@@ -16,7 +16,10 @@
     "clear": "Clear",
     "itemsPerPage": "Items per page",
     "of": "of",
-    "noResults": "No records found"
+    "noResults": "No records found",
+    "clearFilters": "Clear Filters",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At"
   },
   "layout": {
     "menu": "Menu",
@@ -63,7 +66,11 @@
     "contents": "Contents",
     "participations": "Participations",
     "tracks": "Tracks",
-    "reports": "Reports"
+    "reports": "Reports",
+    "legalDocuments": "Legal Documents",
+    "legalDocumentTypes": "Document Types",
+    "basicTables": "Basic Tables",
+    "genders": "Genders"
   },
   "reports": {
     "title": "Reports",
@@ -239,6 +246,23 @@
   "tracks": {
     "title": "Tracks",
     "newTrack": "New Track"
+  },
+  "genders": {
+    "title": "Genders",
+    "newGender": "New Gender",
+    "name": "Name",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deleteConfirm": "Confirm deletion",
+    "deleteMessage": "Are you sure you want to delete the gender \"{{name}}\"?",
+    "deleteSuccess": "Gender deleted successfully",
+    "deleteError": "Error deleting gender",
+    "createSuccess": "Gender created successfully",
+    "errorCreating": "Error creating gender",
+    "updateSuccess": "Gender updated successfully",
+    "errorUpdating": "Error updating gender",
+    "errorLoading": "Error loading gender"
   },
   "errors": {
     "uniqueConstraint": {

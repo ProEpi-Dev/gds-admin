@@ -1,8 +1,15 @@
 import type { PaginationQuery } from './api.types';
 
+export interface ParentLocation {
+  id: number;
+  name: string;
+  parent?: ParentLocation; // Recursivo até 3 níveis
+}
+
 export interface Location {
   id: number;
   parentId: number | null;
+  parent?: ParentLocation; // Hierarquia até 3 níveis
   name: string;
   latitude: number | null;
   longitude: number | null;

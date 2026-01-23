@@ -55,6 +55,10 @@ import LegalDocumentsListPage from "../features/legal-documents/pages/LegalDocum
 import LegalDocumentFormPage from "../features/legal-documents/pages/LegalDocumentFormPage";
 import LegalDocumentTypesListPage from "../features/legal-documents/pages/LegalDocumentTypesListPage";
 import LegalDocumentTypeFormPage from "../features/legal-documents/pages/LegalDocumentTypeFormPage";
+import GendersListPage from "../features/genders/pages/GendersListPage";
+import GenderCreatePage from "../features/genders/pages/GenderCreatePage";
+import GenderEditPage from "../features/genders/pages/GenderEditPage";
+import GenderViewPage from "../features/genders/pages/GenderViewPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -334,6 +338,38 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <LocationEditPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/genders"
+        element={
+          <AdminRoute>
+            <GendersListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/genders/new"
+        element={
+          <AdminRoute>
+            <GenderCreatePage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/genders/:id"
+        element={
+          <AdminRoute>
+            <GenderViewPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/genders/:id/edit"
+        element={
+          <AdminRoute>
+            <GenderEditPage />
           </AdminRoute>
         }
       />

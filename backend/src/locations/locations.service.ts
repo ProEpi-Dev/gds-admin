@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { LocationQueryDto } from './dto/location-query.dto';
-import { LocationResponseDto } from './dto/location-response.dto';
+import { LocationResponseDto, ParentLocationDto } from './dto/location-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
   createPaginationMeta,
@@ -90,6 +90,26 @@ export class LocationsService {
         skip,
         take: pageSize,
         orderBy: { created_at: 'desc' },
+        include: {
+          location: {
+            select: {
+              id: true,
+              name: true,
+              location: {
+                select: {
+                  id: true,
+                  name: true,
+                  location: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       }),
       this.prisma.location.count({ where }),
     ]);
@@ -122,6 +142,26 @@ export class LocationsService {
   async findOne(id: number): Promise<LocationResponseDto> {
     const location = await this.prisma.location.findUnique({
       where: { id },
+      include: {
+        location: {
+          select: {
+            id: true,
+            name: true,
+            location: {
+              select: {
+                id: true,
+                name: true,
+                location: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!location) {
@@ -233,6 +273,7 @@ export class LocationsService {
     return {
       id: location.id,
       parentId: location.parent_id,
+      parent: location.location ? this.mapParentLocation(location.location, 1) : undefined,
       name: location.name,
       latitude: location.latitude ? Number(location.latitude) : null,
       longitude: location.longitude ? Number(location.longitude) : null,
@@ -241,5 +282,38 @@ export class LocationsService {
       createdAt: location.created_at,
       updatedAt: location.updated_at,
     };
+  }
+
+  /**
+   * Mapeia a hierarquia de parent até 3 níveis
+   * @param parentLocation - Localização parent do Prisma
+   * @param currentLevel - Nível atual (1, 2 ou 3)
+   * @returns ParentLocationDto ou undefined
+   */
+  private mapParentLocation(
+    parentLocation: any,
+    currentLevel: number = 1,
+  ): ParentLocationDto | undefined {
+    if (!parentLocation || currentLevel > 3) {
+      return undefined;
+    }
+
+    const result: ParentLocationDto = {
+      id: parentLocation.id,
+      name: parentLocation.name,
+    };
+
+    // Se há parent do parent e ainda não atingimos o limite de 3 níveis
+    if (parentLocation.location && currentLevel < 3) {
+      const nestedParent = this.mapParentLocation(
+        parentLocation.location,
+        currentLevel + 1,
+      );
+      if (nestedParent) {
+        result.parent = nestedParent;
+      }
+    }
+
+    return result;
   }
 }

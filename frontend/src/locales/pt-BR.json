@@ -18,7 +18,10 @@
     "actions": "Ações",
     "itemsPerPage": "Itens por página",
     "of": "de",
-    "noResults": "Nenhum registro encontrado"
+    "noResults": "Nenhum registro encontrado",
+    "clearFilters": "Limpar Filtros",
+    "createdAt": "Data de Criação",
+    "updatedAt": "Data de Atualização"
   },
   "layout": {
     "menu": "Menu",
@@ -67,7 +70,9 @@
     "tracks": "Trilhas",
     "reports": "Reports",
     "legalDocuments": "Documentos Legais",
-    "legalDocumentTypes": "Tipos de Documentos"
+    "legalDocumentTypes": "Tipos de Documentos",
+    "basicTables": "Tabelas Básicas",
+    "genders": "Gêneros"
   },
   "reports": {
     "title": "Reports",
@@ -351,6 +356,23 @@
   "tracks": {
     "title": "Trilhas",
     "newTrack": "Nova Trilha"
+  },
+  "genders": {
+    "title": "Gêneros",
+    "newGender": "Novo Gênero",
+    "name": "Nome",
+    "status": "Status",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "deleteConfirm": "Confirmar exclusão",
+    "deleteMessage": "Tem certeza que deseja deletar o gênero \"{{name}}\"?",
+    "deleteSuccess": "Gênero deletado com sucesso",
+    "deleteError": "Erro ao deletar gênero",
+    "createSuccess": "Gênero criado com sucesso",
+    "errorCreating": "Erro ao criar gênero",
+    "updateSuccess": "Gênero atualizado com sucesso",
+    "errorUpdating": "Erro ao atualizar gênero",
+    "errorLoading": "Erro ao carregar gênero"
   },
   "errors": {
     "uniqueConstraint": {
