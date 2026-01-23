@@ -68,14 +68,14 @@ function SortableSection({
   addSequenceToSection: (
     sectionIndex: number,
     type: "content" | "form",
-    id: number
+    id: number,
   ) => void;
   removeSequenceFromSection: (
     sectionIndex: number,
     sequence: {
       id?: number;
       tempId?: string;
-    }
+    },
   ) => void;
   contents: any[];
   forms: any[];
@@ -163,7 +163,7 @@ function SortableSection({
                   addSequenceToSection(
                     sectionIndex,
                     type as "content" | "form",
-                    Number(id)
+                    Number(id),
                   );
                 }
               }}
@@ -224,7 +224,7 @@ function SortableSequence({
     sequence: {
       id?: number;
       tempId?: string;
-    }
+    },
   ) => void;
   sectionIndex: number;
   contents: any[];
@@ -294,7 +294,7 @@ export default function TrackForm() {
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const [form, setForm] = useState({
@@ -339,20 +339,20 @@ export default function TrackForm() {
           (section) =>
             (section.id
               ? `section-${section.id}`
-              : `section-temp-${section.tempId}`) === activeId
+              : `section-temp-${section.tempId}`) === activeId,
         );
 
         const newIndex = prev.sections.findIndex(
           (section) =>
             (section.id
               ? `section-${section.id}`
-              : `section-temp-${section.tempId}`) === overId
+              : `section-temp-${section.tempId}`) === overId,
         );
 
         if (oldIndex === -1 || newIndex === -1) return prev;
 
         const newSections = arrayMove(prev.sections, oldIndex, newIndex).map(
-          (section, index) => ({ ...section, order: index })
+          (section, index) => ({ ...section, order: index }),
         );
 
         return { ...prev, sections: newSections };
@@ -398,7 +398,7 @@ export default function TrackForm() {
         const newSequences = arrayMove(
           section.sequences,
           oldIndex,
-          newIndex
+          newIndex,
         ).map((seq, index) => ({ ...seq, order: index }));
 
         const newSections = [...prev.sections];
@@ -413,7 +413,7 @@ export default function TrackForm() {
             section.id,
             newSequences
               .filter((s) => s.id) // só as salvas
-              .map((s) => ({ id: s.id!, order: s.order }))
+              .map((s) => ({ id: s.id!, order: s.order })),
           ).catch(() => {
             snackbar.showError("Erro ao reordenar sequências");
           });
@@ -425,9 +425,11 @@ export default function TrackForm() {
   };
 
   useEffect(() => {
-    // Load contents and forms for selection
     contentService.findAll().then((res) => setContents(res.data));
-    formsService.findAll().then((res) => setForms(res.data));
+
+    formsService
+      .findAll()
+      .then((res) => setForms(res.data.filter((f: any) => f.type === "quiz")));
   }, []);
 
   useEffect(() => {
@@ -491,7 +493,7 @@ export default function TrackForm() {
     setForm((prev) => ({
       ...prev,
       sections: prev.sections.map((section, i) =>
-        i === index ? { ...section, name } : section
+        i === index ? { ...section, name } : section,
       ),
     }));
   };
@@ -499,7 +501,7 @@ export default function TrackForm() {
   const addSequenceToSection = (
     sectionIndex: number,
     type: "content" | "form",
-    id: number
+    id: number,
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -516,7 +518,7 @@ export default function TrackForm() {
                 },
               ],
             }
-          : section
+          : section,
       ),
     }));
   };
@@ -526,7 +528,7 @@ export default function TrackForm() {
     sequence: {
       id?: number;
       tempId?: string;
-    }
+    },
   ) => {
     const section = form.sections[sectionIndex];
 
@@ -536,7 +538,7 @@ export default function TrackForm() {
         await TrackService.removeSequence(
           Number(id),
           section.id,
-          sequence.id // ✅ SEMPRE sequence.id
+          sequence.id, // ✅ SEMPRE sequence.id
         );
         snackbar.showSuccess("Item removido com sucesso");
       } catch (error) {
@@ -555,13 +557,18 @@ export default function TrackForm() {
                 .filter((seq) =>
                   sequence.id
                     ? seq.id !== sequence.id
-                    : seq.tempId !== sequence.tempId
+                    : seq.tempId !== sequence.tempId,
                 )
                 .map((seq, j) => ({ ...seq, order: j })),
             }
-          : s
+          : s,
       ),
     }));
+  };
+
+  const toISOStringOrNull = (date?: string) => {
+    if (!date) return null;
+    return new Date(`${date}T00:00:00`).toISOString();
   };
 
   const buildPayload = () => {
@@ -569,8 +576,12 @@ export default function TrackForm() {
       name: form.name,
       description: form.description,
       control_period: form.control_period,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
+      start_date: form.control_period
+        ? toISOStringOrNull(form.start_date)
+        : null,
+
+      end_date: form.control_period ? toISOStringOrNull(form.end_date) : null,
+
       show_after_completion: form.show_after_completion,
       sections: form.sections.map((section, sectionIndex) => ({
         // só manda id se existir (edição)
@@ -589,6 +600,18 @@ export default function TrackForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (form.control_period) {
+      if (!form.start_date || !form.end_date) {
+        snackbar.showError("Informe a data de início e fim");
+        return;
+      }
+
+      if (new Date(form.start_date) > new Date(form.end_date)) {
+        snackbar.showError("Data inicial não pode ser maior que a final");
+        return;
+      }
+    }
 
     const payload = buildPayload();
 
@@ -733,7 +756,7 @@ export default function TrackForm() {
               items={form.sections.map((section) =>
                 section.id
                   ? `section-${section.id}`
-                  : `section-temp-${section.tempId}`
+                  : `section-temp-${section.tempId}`,
               )}
               strategy={verticalListSortingStrategy}
             >
@@ -758,7 +781,7 @@ export default function TrackForm() {
                       items={section.sequences.map((seq) =>
                         seq.id
                           ? `sequence-${seq.id}`
-                          : `sequence-temp-${seq.tempId}`
+                          : `sequence-temp-${seq.tempId}`,
                       )}
                       strategy={verticalListSortingStrategy}
                     >

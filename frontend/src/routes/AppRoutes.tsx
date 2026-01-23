@@ -55,6 +55,7 @@ import LegalDocumentsListPage from "../features/legal-documents/pages/LegalDocum
 import LegalDocumentFormPage from "../features/legal-documents/pages/LegalDocumentFormPage";
 import LegalDocumentTypesListPage from "../features/legal-documents/pages/LegalDocumentTypesListPage";
 import LegalDocumentTypeFormPage from "../features/legal-documents/pages/LegalDocumentTypeFormPage";
+import TrackView from "../features/tracks/TrackView";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -414,6 +415,14 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <TrackForm />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/tracks/:id"
+        element={
+          <AdminRoute>
+            <TrackView />
           </AdminRoute>
         }
       />
