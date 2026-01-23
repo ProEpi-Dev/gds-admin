@@ -9,6 +9,7 @@ import {
 } from "@mui/icons-material";
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 
 interface Track {
   id: number;
@@ -68,6 +69,13 @@ export default function TrackList() {
       minWidth: 150,
       render: (row) => (
         <Box>
+          <IconButton
+            onClick={() => navigate(`/tracks/${row.id}`)}
+            color="success"
+          >
+            <VisibilityIcon />
+          </IconButton>
+
           <IconButton
             onClick={() => navigate(`/tracks/${row.id}/edit`)}
             color="primary"
