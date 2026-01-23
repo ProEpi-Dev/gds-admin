@@ -93,8 +93,24 @@ export default function LocationViewPage() {
             <Typography variant="caption" color="text.secondary">
               {t('locations.parent')}
             </Typography>
-            <Typography variant="body1">
-              {location.parentId ? (
+            <Box sx={{ mt: 0.5 }}>
+              {location.parent ? (
+                <Box>
+                  <Button
+                    variant="text"
+                    onClick={() => navigate(`/locations/${location.parent?.id}`)}
+                    sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+                  >
+                    {location.parent.name}
+                  </Button>
+                  {location.parent.parent && (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                      ({location.parent.parent.name}
+                      {location.parent.parent.parent && ` > ${location.parent.parent.parent.name}`})
+                    </Typography>
+                  )}
+                </Box>
+              ) : location.parentId ? (
                 <Button
                   variant="text"
                   onClick={() => navigate(`/locations/${location.parentId}`)}
@@ -103,9 +119,9 @@ export default function LocationViewPage() {
                   #{location.parentId}
                 </Button>
               ) : (
-                '-'
+                <Typography variant="body1">-</Typography>
               )}
-            </Typography>
+            </Box>
           </Box>
 
           <Divider />

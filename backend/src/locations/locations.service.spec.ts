@@ -136,7 +136,11 @@ describe('LocationsService', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(prismaService.location, 'findMany').mockResolvedValue([mockLocation] as any);
+      const mockLocationWithInclude = {
+        ...mockLocation,
+        location: null, // Sem parent
+      };
+      jest.spyOn(prismaService.location, 'findMany').mockResolvedValue([mockLocationWithInclude] as any);
       jest.spyOn(prismaService.location, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
@@ -166,6 +170,14 @@ describe('LocationsService', () => {
             active: false,
             parent_id: 1,
           }),
+          include: expect.objectContaining({
+            location: expect.objectContaining({
+              select: expect.objectContaining({
+                id: true,
+                name: true,
+              }),
+            }),
+          }),
         }),
       );
     });
@@ -173,13 +185,37 @@ describe('LocationsService', () => {
 
   describe('findOne', () => {
     it('deve retornar localização quando existe', async () => {
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      const mockLocationWithInclude = {
+        ...mockLocation,
+        location: null, // Sem parent
+      };
+      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithInclude as any);
 
       const result = await service.findOne(1);
 
       expect(result).toHaveProperty('id', 1);
       expect(prismaService.location.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
+        include: {
+          location: {
+            select: {
+              id: true,
+              name: true,
+              location: {
+                select: {
+                  id: true,
+                  name: true,
+                  location: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
     });
 
@@ -344,7 +380,11 @@ describe('LocationsService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      const mockLocationWithInclude = {
+        ...mockLocation,
+        location: null, // Sem parent
+      };
+      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithInclude as any);
 
       const result = await service.findOne(1);
 
@@ -352,6 +392,7 @@ describe('LocationsService', () => {
       expect(result).toHaveProperty('name', 'Test Location');
       expect(result).toHaveProperty('latitude', -23.5505);
       expect(result).toHaveProperty('longitude', -46.6333);
+      expect(result).toHaveProperty('parentId', null);
     });
 
     it('deve converter latitude/longitude para Number', async () => {
@@ -359,6 +400,7 @@ describe('LocationsService', () => {
         ...mockLocation,
         latitude: '-23.5505',
         longitude: '-46.6333',
+        location: null, // Sem parent
       };
 
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(locationWithDecimal as any);
@@ -367,6 +409,32 @@ describe('LocationsService', () => {
 
       expect(typeof result.latitude).toBe('number');
       expect(typeof result.longitude).toBe('number');
+    });
+
+    it('deve mapear parent quando existe', async () => {
+      const mockLocationWithParent = {
+        ...mockLocation,
+        location: {
+          id: 2,
+          name: 'Parent Location',
+          location: {
+            id: 3,
+            name: 'Grandparent Location',
+            location: null,
+          },
+        },
+      };
+
+      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithParent as any);
+
+      const result = await service.findOne(1);
+
+      expect(result).toHaveProperty('parent');
+      expect(result.parent).toHaveProperty('id', 2);
+      expect(result.parent).toHaveProperty('name', 'Parent Location');
+      expect(result.parent).toHaveProperty('parent');
+      expect(result.parent?.parent).toHaveProperty('id', 3);
+      expect(result.parent?.parent).toHaveProperty('name', 'Grandparent Location');
     });
   });
 });

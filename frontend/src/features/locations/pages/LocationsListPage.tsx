@@ -83,9 +83,14 @@ export default function LocationsListPage() {
     {
       id: 'parentId',
       label: t('locations.parent'),
-      minWidth: 100,
+      minWidth: 150,
       mobileLabel: t('locations.parent'),
-      render: (row) => row.parentId ? `#${row.parentId}` : '-',
+      render: (row) => {
+        if (row.parent) {
+          return row.parent.name;
+        }
+        return row.parentId ? `#${row.parentId}` : '-';
+      },
     },
     {
       id: 'coordinates',

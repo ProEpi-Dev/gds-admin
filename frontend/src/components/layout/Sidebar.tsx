@@ -11,6 +11,7 @@ import {
   Avatar,
   Typography,
   IconButton,
+  Collapse,
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -28,11 +29,22 @@ import {
   Close as CloseIcon,
   TrackChanges as TrackChangesIcon,
   Gavel as GavelIcon,
+  TableChart as TableChartIcon,
+  ExpandLess,
+  ExpandMore,
 } from "@mui/icons-material";
+import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslation } from "../../hooks/useTranslation";
 
 const drawerWidth = 240;
+
+interface MenuItem {
+  path?: string;
+  label: string;
+  icon: React.ReactNode;
+  children?: MenuItem[];
+}
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -44,8 +56,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
+  const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({
+    basicTables: location.pathname.startsWith('/genders') || location.pathname.startsWith('/legal-documents/types'),
+  });
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { path: "/", label: t("navigation.dashboard"), icon: <DashboardIcon /> },
     {
       path: "/form-builder",
@@ -100,11 +115,100 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       icon: <GavelIcon />,
     },
     {
-      path: "/legal-documents/types",
-      label: t("navigation.legalDocumentTypes"),
-      icon: <GavelIcon />,
+      label: t("navigation.basicTables"),
+      icon: <TableChartIcon />,
+      children: [
+        {
+          path: "/genders",
+          label: t("navigation.genders"),
+          icon: <PeopleIcon />,
+        },
+        {
+          path: "/legal-documents/types",
+          label: t("navigation.legalDocumentTypes"),
+          icon: <GavelIcon />,
+        },
+      ],
     },
   ];
+
+  const handleToggleMenu = (menuKey: string) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [menuKey]: !prev[menuKey],
+    }));
+  };
+
+  const isItemActive = (item: MenuItem): boolean => {
+    if (item.path) {
+      return location.pathname === item.path;
+    }
+    if (item.children) {
+      return item.children.some((child) => isItemActive(child));
+    }
+    return false;
+  };
+
+  const renderMenuItem = (item: MenuItem, index: number) => {
+    const menuKey = `menu-${index}`;
+    const isExpanded = expandedMenus[menuKey] || false;
+    const isActive = isItemActive(item);
+
+    if (item.children) {
+      return (
+        <Box key={menuKey}>
+          <ListItem disablePadding>
+            <ListItemButton
+              selected={isActive}
+              onClick={() => handleToggleMenu(menuKey)}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+              {isExpanded ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+          </ListItem>
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {item.children.map((child, childIndex) => (
+                <ListItem key={`${menuKey}-child-${childIndex}`} disablePadding>
+                  <ListItemButton
+                    selected={location.pathname === child.path}
+                    onClick={() => {
+                      if (child.path) {
+                        navigate(child.path);
+                        onClose();
+                      }
+                    }}
+                    sx={{ pl: 4 }}
+                  >
+                    <ListItemIcon>{child.icon}</ListItemIcon>
+                    <ListItemText primary={child.label} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Collapse>
+        </Box>
+      );
+    }
+
+    return (
+      <ListItem key={item.path || menuKey} disablePadding>
+        <ListItemButton
+          selected={isActive}
+          onClick={() => {
+            if (item.path) {
+              navigate(item.path);
+              onClose();
+            }
+          }}
+        >
+          <ListItemIcon>{item.icon}</ListItemIcon>
+          <ListItemText primary={item.label} />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
 
   const handleLogout = () => {
     logout();
@@ -159,20 +263,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       )}
 
       <List sx={{ flexGrow: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => {
-                navigate(item.path);
-                onClose();
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+        {menuItems.map((item, index) => renderMenuItem(item, index))}
       </List>
 
       {user && (

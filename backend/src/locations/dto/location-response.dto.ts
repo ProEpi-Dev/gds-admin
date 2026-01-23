@@ -1,11 +1,31 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class ParentLocationDto {
+  @ApiProperty({ description: 'ID da localização pai', example: 2 })
+  id: number;
+
+  @ApiProperty({ description: 'Nome da localização pai', example: 'Cidade Y' })
+  name: string;
+
+  @ApiPropertyOptional({
+    description: 'Localização pai do parent (até 3 níveis)',
+    type: () => ParentLocationDto,
+  })
+  parent?: ParentLocationDto;
+}
+
 export class LocationResponseDto {
   @ApiProperty({ description: 'ID da localização', example: 1 })
   id: number;
 
   @ApiPropertyOptional({ description: 'ID da localização pai', example: null })
   parentId: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Informações da localização pai (hierarquia até 3 níveis)',
+    type: () => ParentLocationDto,
+  })
+  parent?: ParentLocationDto;
 
   @ApiProperty({ description: 'Nome da localização', example: 'São Paulo' })
   name: string;
