@@ -33,7 +33,6 @@ L.Icon.Default.mergeOptions({
     for (const target of targets) {
       if (target && target.readableArea && !target._readableAreaPatched) {
         console.log('Aplicando patch readableArea em:', target);
-        const originalReadableArea = target.readableArea;
         target.readableArea = function(area: number, isMetric: boolean, precision?: number) {
           const type = isMetric ? 'metric' : 'imperial';
           
