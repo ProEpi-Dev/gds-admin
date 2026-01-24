@@ -54,7 +54,7 @@ export default function DataTable<T extends { id: number }>({
   const { t } = useTranslation();
   const defaultEmptyMessage = emptyMessage || t('common.noResults');
   const handleChangePage = (_: unknown, newPage: number) => {
-    onPageChange(newPage);
+    onPageChange(newPage + 1);
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {

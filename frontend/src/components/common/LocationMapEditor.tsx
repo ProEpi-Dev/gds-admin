@@ -17,6 +17,51 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Patch global para corrigir o bug do leaflet-draw com readableArea
+// O bug ocorre porque a função readableArea tenta usar 'type' que não está no escopo
+// Este patch deve ser aplicado imediatamente após o leaflet-draw ser carregado
+(() => {
+  const patchReadableArea = () => {
+    // Tentar múltiplos locais onde readableArea pode estar
+    const targets = [
+      (L as any).GeometryUtil,
+      (L as any).Draw?.Utils,
+      (window as any).L?.GeometryUtil,
+      (window as any).L?.Draw?.Utils,
+    ];
+
+    for (const target of targets) {
+      if (target && target.readableArea && !target._readableAreaPatched) {
+        console.log('Aplicando patch readableArea em:', target);
+        target.readableArea = function(area: number, isMetric: boolean, precision?: number) {
+          const type = isMetric ? 'metric' : 'imperial';
+          
+          if (type === 'metric') {
+            if (area >= 10000) {
+              return (area / 10000).toFixed(precision || 2) + ' ha';
+            }
+            return area.toFixed(precision || 2) + ' m²';
+          } else {
+            // Imperial (square feet)
+            const sqFeet = area * 10.7639;
+            if (sqFeet >= 43560) {
+              return (sqFeet / 43560).toFixed(precision || 2) + ' acres';
+            }
+            return sqFeet.toFixed(precision || 0) + ' ft²';
+          }
+        };
+        target._readableAreaPatched = true;
+      }
+    }
+  };
+
+  // Aplicar o patch imediatamente
+  patchReadableArea();
+
+  // Aplicar novamente após um pequeno delay para garantir que o leaflet-draw terminou de carregar
+  setTimeout(patchReadableArea, 100);
+})();
+
 interface LocationMapEditorProps {
   point?: { latitude: number; longitude: number } | null;
   polygons?: any | null;
@@ -24,6 +69,126 @@ interface LocationMapEditorProps {
   onPolygonsChange?: (polygons: any | null) => void;
   readOnly?: boolean;
   height?: number;
+}
+
+// Função auxiliar para calcular bounds de todos os elementos
+function calculateBounds(
+  point?: { latitude: number; longitude: number } | null,
+  polygons?: any | null,
+): L.LatLngBounds | null {
+  const bounds: L.LatLngBounds[] = [];
+
+  // Adicionar bounds do ponto
+  if (point) {
+    bounds.push(L.latLngBounds([point.latitude, point.longitude], [point.latitude, point.longitude]));
+  }
+
+  // Adicionar bounds dos polígonos
+  if (polygons) {
+    try {
+      if (polygons.type === 'Polygon' && polygons.coordinates) {
+        const latlngs = polygons.coordinates[0].map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+        const polygonBounds = L.latLngBounds(latlngs);
+        bounds.push(polygonBounds);
+      } else if (polygons.type === 'MultiPolygon' && polygons.coordinates) {
+        polygons.coordinates.forEach((polygonCoords: number[][][]) => {
+          const latlngs = polygonCoords[0].map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+          const polygonBounds = L.latLngBounds(latlngs);
+          bounds.push(polygonBounds);
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao calcular bounds dos polígonos:', err);
+    }
+  }
+
+  // Se há bounds, combinar todos
+  if (bounds.length > 0) {
+    const combinedBounds = bounds[0];
+    bounds.slice(1).forEach((b) => combinedBounds.extend(b));
+    return combinedBounds;
+  }
+
+  return null;
+}
+
+// Componente para ajustar o mapa aos elementos desenhados
+function MapFitBounds({
+  point,
+  polygons,
+}: {
+  point?: { latitude: number; longitude: number } | null;
+  polygons?: any | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const bounds = calculateBounds(point, polygons);
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [map, point, polygons]);
+
+  return null;
+}
+
+// Botão customizado para centralizar elementos no mapa
+function CenterButton({
+  point,
+  polygons,
+}: {
+  point?: { latitude: number; longitude: number } | null;
+  polygons?: any | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    // Criar um controle customizado do Leaflet
+    const CenterControl = L.Control.extend({
+      options: {
+        position: 'topleft',
+      },
+      onAdd: function () {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        const button = L.DomUtil.create('a', 'leaflet-control-center', container);
+        
+        button.innerHTML = '⊙';
+        button.href = '#';
+        button.title = 'Centralizar elementos';
+        button.style.fontSize = '20px';
+        button.style.lineHeight = '26px';
+        button.style.width = '30px';
+        button.style.height = '30px';
+        button.style.display = 'flex';
+        button.style.alignItems = 'center';
+        button.style.justifyContent = 'center';
+        button.style.backgroundColor = 'white';
+        button.style.textDecoration = 'none';
+        button.style.color = '#333';
+
+        L.DomEvent.on(button, 'click', (e: Event) => {
+          L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
+          
+          const bounds = calculateBounds(point, polygons);
+          if (bounds) {
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+          }
+        });
+
+        return container;
+      },
+    });
+
+    const control = new CenterControl();
+    control.addTo(map);
+
+    return () => {
+      control.remove();
+    };
+  }, [map, point, polygons]);
+
+  return null;
 }
 
 function DrawControl({
@@ -108,7 +273,7 @@ function DrawControl({
       draw: {
         polygon: {
           allowIntersection: false,
-          showArea: true,
+          showArea: false, // Desabilitado temporariamente devido a bug no leaflet-draw
           shapeOptions: {
             color: '#3388ff',
             fillColor: '#3388ff',
@@ -214,15 +379,36 @@ export default function LocationMapEditor({
   readOnly = false,
   height = 500,
 }: LocationMapEditorProps) {
-  const [mapCenter, setMapCenter] = useState<[number, number]>(
-    point ? [point.latitude, point.longitude] : [-23.5505, -46.6333]
-  );
-
-  useEffect(() => {
-    if (point) {
-      setMapCenter([point.latitude, point.longitude]);
+  // Calcular o centro baseado no polígono ou ponto
+  const getInitialCenter = (): [number, number] => {
+    if (polygons) {
+      try {
+        if (polygons.type === 'Polygon' && polygons.coordinates) {
+          const latlngs = polygons.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);
+          const bounds = L.latLngBounds(latlngs);
+          const center = bounds.getCenter();
+          return [center.lat, center.lng];
+        } else if (polygons.type === 'MultiPolygon' && polygons.coordinates) {
+          const allLatLngs: [number, number][] = [];
+          polygons.coordinates.forEach((polygonCoords: number[][][]) => {
+            const latlngs = polygonCoords[0].map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+            allLatLngs.push(...latlngs);
+          });
+          const bounds = L.latLngBounds(allLatLngs);
+          const center = bounds.getCenter();
+          return [center.lat, center.lng];
+        }
+      } catch (err) {
+        console.error('Erro ao calcular centro do polígono:', err);
+      }
     }
-  }, [point]);
+    if (point) {
+      return [point.latitude, point.longitude];
+    }
+    return [-15.7801, -47.9292]; // Brasília como padrão
+  };
+
+  const [mapCenter] = useState<[number, number]>(getInitialCenter());
 
   const handleDrawCreated = useCallback((e: L.DrawEvents.Created) => {
     const layer = e.layer;
@@ -341,7 +527,7 @@ export default function LocationMapEditor({
       <Box sx={{ height, width: '100%', position: 'relative' }}>
         <MapContainer
           center={mapCenter}
-          zoom={point ? 15 : 10}
+          zoom={10}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={true}
         >
@@ -351,6 +537,8 @@ export default function LocationMapEditor({
           />
           {point && <Marker position={[point.latitude, point.longitude]} />}
           {renderPolygons()}
+          <MapFitBounds point={point} polygons={polygons} />
+          {(point || polygons) && <CenterButton point={point} polygons={polygons} />}
           {!readOnly && (
             <DrawControl
               onDrawCreated={handleDrawCreated}
