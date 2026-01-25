@@ -1,0 +1,50 @@
+name: 🧪 Test Docs Build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs-docusauros/gds/**'
+      - '.github/workflows/docs-test.yml'
+
+jobs:
+  test-build:
+    name: 🧪 Test Docusaurus Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./docs-docusauros/gds
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: docs-docusauros/gds/package-lock.json
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Test build website
+        run: npm run build
+
+      - name: 📊 Build Summary
+        if: always()
+        run: |
+          echo "## 🧪 Resultado do Teste de Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ **Status:** Build executado com sucesso" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "A documentação está pronta para ser publicada." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Falha no build" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Verifique os logs acima para detalhes do erro." >> $GITHUB_STEP_SUMMARY
+          fi

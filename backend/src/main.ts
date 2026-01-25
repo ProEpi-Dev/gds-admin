@@ -46,7 +46,7 @@ async function bootstrap() {
   // Configurar Swagger/OpenAPI
   const config = new DocumentBuilder()
     .setTitle('Vigilância Participativa API')
-    .setDescription('API REST para sistema de vigilância participativa em saúde pública')
+    .setDescription('API REST para o backend do Guardiões da Saúde - Vigilância Participativa em Saúde Pública.')
     .setVersion('1.0.0')
     .addBearerAuth(
       {
