@@ -1,6 +1,7 @@
 import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import styles from './styles.module.css';
 
 type FeatureItem = {
@@ -12,7 +13,7 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Vigilância Participativa',
-    image: '/img/home-01.png',
+    image: 'img/home-01.png',
     description: (
       <>
         Sistema de vigilância em saúde pública que permite cidadãos reportarem sintomas e informações de saúde,
@@ -22,7 +23,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Monitoramento Epidemiológico',
-    image: '/img/home-02.png',
+    image: 'img/home-02.png',
     description: (
       <>
         Plataforma completa para coleta, análise e visualização de dados epidemiológicos,
@@ -32,7 +33,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Educação em Saúde',
-    image: '/img/home-03.png',
+    image: 'img/home-03.png',
     description: (
       <>
         Trilhas de aprendizado, conteúdos educacionais e quizzes para capacitação em saúde pública,
@@ -47,7 +48,7 @@ function Feature({title, image, description}: FeatureItem) {
     <div className={clsx('col col--4')}>
       <div className="text--center">
         <img 
-          src={image} 
+          src={useBaseUrl(image)} 
           alt={title}
           className={styles.featureImage}
           role="img"
