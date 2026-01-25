@@ -29,6 +29,14 @@ jobs:
     - name: 🔍 Detect changes
       id: changes
       run: |
+        # Se for workflow_dispatch, builda tudo
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "backend=true" >> $GITHUB_OUTPUT
+          echo "frontend=true" >> $GITHUB_OUTPUT
+          echo "📊 Workflow manual dispatch - building all components"
+          exit 0
+        fi
+        
         # Para push direto, comparar com commit anterior
         BASE_SHA=$(git rev-parse HEAD~1)
         
@@ -36,21 +44,22 @@ jobs:
         echo "Current SHA: ${{ github.sha }}"
         
         # Verificar mudanças em cada pasta
-        if git diff --quiet $BASE_SHA..${{ github.sha }} -- backend/ || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+        # git diff --quiet retorna 0 se NÃO há diferenças, então invertemos a lógica
+        if git diff --quiet $BASE_SHA..${{ github.sha }} -- backend/; then
           echo "backend=false" >> $GITHUB_OUTPUT
         else
           echo "backend=true" >> $GITHUB_OUTPUT
         fi
         
-        if git diff --quiet $BASE_SHA..${{ github.sha }} -- frontend/ || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+        if git diff --quiet $BASE_SHA..${{ github.sha }} -- frontend/; then
           echo "frontend=false" >> $GITHUB_OUTPUT
         else
           echo "frontend=true" >> $GITHUB_OUTPUT
         fi
         
         echo "📊 Changes detected:"
-        echo "  Backend: $([ -f $GITHUB_OUTPUT ] && grep backend $GITHUB_OUTPUT || echo 'checking...')"
-        echo "  Frontend: $([ -f $GITHUB_OUTPUT ] && grep frontend $GITHUB_OUTPUT || echo 'checking...')"
+        echo "  Backend: $(grep backend $GITHUB_OUTPUT | cut -d= -f2)"
+        echo "  Frontend: $(grep frontend $GITHUB_OUTPUT | cut -d= -f2)"
 
     - name: 📢 Show detected changes
       run: |
@@ -300,7 +309,9 @@ jobs:
   verify-deployment:
     name: ✅ Verify Deployment
     needs: [deploy-backend, deploy-frontend]
-    if: always()
+    if: |
+      always() &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-frontend.result == 'success')
     runs-on: ubuntu-latest
     
     steps:
