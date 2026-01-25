@@ -104,11 +104,12 @@ export default function ReportsListPage() {
     });
   }, [page, pageSize, activeFilter, reportTypeFilter, formIdFilter, startDate, endDate]);
 
-  // Buscar formulários para o filtro
+  // Buscar formulários para o filtro (apenas do tipo signal)
   const { data: formsData, isLoading: formsLoading } = useForms({
     page: 1,
     pageSize: 100,
     active: true,
+    type: 'signal', // Filtrar apenas formulários do tipo signal
   });
 
   // Buscar versões do formulário selecionado para obter a definição
