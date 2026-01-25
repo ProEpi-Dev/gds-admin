@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Vigilância Participativa API
-  description: API REST para sistema de vigilância participativa em saúde pública
+  description: API REST para o backend do Guardiões da Saúde - Vigilância Participativa em Saúde Pública.
   version: 1.0.0
   contact:
     name: API Support
