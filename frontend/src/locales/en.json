@@ -275,5 +275,16 @@
     "foreignKey": "The referenced record does not exist",
     "requiredRelation": "The change would violate a required relation",
     "database": "An unexpected database error occurred"
+  },
+  "quizzes": {
+    "menuTitle": "Quiz List",
+    "forms": {
+      "menuTitle": "Forms",
+      "title": "Quiz Forms",
+      "newQuizForm": "New Quiz Form"
+    },
+    "submissions": {
+      "menuTitle": "Submissions"
+    }
   }
 }

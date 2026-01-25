@@ -47,6 +47,7 @@ import ContentForm from "../features/content/ContentForm";
 import TrackList from "../features/tracks/TrackList";
 import TrackForm from "../features/tracks/TrackForm";
 import QuizzesListPage from "../features/quizzes/pages/QuizzesListPage";
+import QuizFormsListPage from "../features/quizzes/pages/QuizFormsListPage";
 import QuizTakePage from "../features/quizzes/pages/QuizTakePage";
 import QuizViewPage from "../features/quizzes/pages/QuizViewPage";
 import QuizSubmissionViewPage from "../features/quizzes/pages/QuizSubmissionViewPage";
@@ -515,6 +516,14 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <LegalDocumentTypeFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/quizzes/forms"
+        element={
+          <AdminRoute>
+            <QuizFormsListPage />
           </AdminRoute>
         }
       />

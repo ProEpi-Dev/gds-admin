@@ -58,6 +58,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
   const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({
     basicTables: location.pathname.startsWith('/genders') || location.pathname.startsWith('/legal-documents/types'),
+    quizzes: location.pathname.startsWith('/quizzes') || location.pathname.startsWith('/quiz-submissions'),
   });
 
   const menuItems: MenuItem[] = [
@@ -95,14 +96,25 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       icon: <LibraryBooksIcon />,
     },
     {
-      path: "/quizzes",
       label: "Quizes",
       icon: <QuizIcon />,
-    },
-    {
-      path: "/quiz-submissions",
-      label: "Submissões de Quizes",
-      icon: <AssignmentIndIcon />,
+      children: [
+        {
+          path: "/quizzes/forms",
+          label: t("quizzes.forms.menuTitle"),
+          icon: <DescriptionIcon />,
+        },
+        {
+          path: "/quizzes",
+          label: t("quizzes.menuTitle"),
+          icon: <QuizIcon />,
+        },
+        {
+          path: "/quiz-submissions",
+          label: t("quizzes.submissions.menuTitle"),
+          icon: <AssignmentIndIcon />,
+        },
+      ],
     },
     {
       path: "/tracks",

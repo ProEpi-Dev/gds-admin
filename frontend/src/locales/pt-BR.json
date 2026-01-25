@@ -385,5 +385,16 @@
     "foreignKey": "O registro referenciado não existe",
     "requiredRelation": "A alteração violaria uma relação obrigatória",
     "database": "Ocorreu um erro inesperado no banco de dados"
+  },
+  "quizzes": {
+    "menuTitle": "Lista de Quizes",
+    "forms": {
+      "menuTitle": "Formulários",
+      "title": "Formulários de Quiz",
+      "newQuizForm": "Novo Formulário de Quiz"
+    },
+    "submissions": {
+      "menuTitle": "Submissões"
+    }
   }
 }
