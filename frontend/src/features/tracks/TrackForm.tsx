@@ -211,7 +211,6 @@ function SortableSection({
 
 function SortableSequence({
   sequence,
-  seqIndex,
   removeSequenceFromSection,
   sectionIndex,
   contents,
@@ -242,11 +241,21 @@ function SortableSequence({
     transition,
   };
 
-  const content = contents.find((c) => c.id === sequence.content_id);
-  const formItem = forms.find((f) => f.id === sequence.form_id);
-  const item = content || formItem;
-  const type = content ? "Conteúdo" : "Quiz";
-  const typeColor = content ? "primary.main" : "secondary.main";
+  const isContent = !!sequence.content_id;
+  const isForm = !!sequence.form_id;
+
+  const content = isContent
+    ? contents.find((c) => c.id === sequence.content_id)
+    : undefined;
+
+  const formItem = isForm
+    ? forms.find((f) => f.id === sequence.form_id)
+    : undefined;
+
+  const item = isContent ? content : formItem;
+
+  const type = isContent ? "Conteúdo" : "Quiz";
+  const typeColor = isContent ? "primary.main" : "secondary.main";
 
   return (
     <ListItem ref={setNodeRef} style={style}>
@@ -265,16 +274,23 @@ function SortableSequence({
       >
         <DragIndicatorIcon />
       </Box>
+
       <ListItemText
-        primary={item?.title || item?.name || `Item ${seqIndex + 1}`}
+        primary={
+          <Typography fontWeight={500}>
+            {item?.title ?? "Item não encontrado"}
+          </Typography>
+        }
         secondary={
           <Typography variant="caption" color={typeColor}>
             {type}
           </Typography>
         }
       />
+
       <ListItemSecondaryAction>
         <IconButton
+          color="error"
           onClick={() => removeSequenceFromSection(sectionIndex, sequence)}
         >
           <DeleteIcon />
@@ -321,6 +337,25 @@ export default function TrackForm() {
 
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
+
+  const removeInvalidSequences = (
+    sections: typeof form.sections,
+    contents: any[],
+    forms: any[],
+  ) => {
+    return sections.map((section) => ({
+      ...section,
+      sequences: section.sequences.filter((seq) => {
+        if (seq.content_id) {
+          return contents.some((c) => c.id === seq.content_id);
+        }
+        if (seq.form_id) {
+          return forms.some((f) => f.id === seq.form_id);
+        }
+        return false;
+      }),
+    }));
+  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -425,12 +460,25 @@ export default function TrackForm() {
   };
 
   useEffect(() => {
-    contentService.findAll().then((res) => setContents(res.data));
-
-    formsService
-      .findAll()
-      .then((res) => setForms(res.data.filter((f: any) => f.type === "quiz")));
+    contentService.findAll().then((res) => {
+      setContents(res.data);
+    });
   }, []);
+
+  useEffect(() => {
+    formsService.findAll().then((res) => {
+      setForms(res.data.filter((f: any) => f.type === "quiz"));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!contents.length && !forms.length) return;
+
+    setForm((prev) => ({
+      ...prev,
+      sections: removeInvalidSequences(prev.sections, contents, forms),
+    }));
+  }, [contents, forms]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -448,14 +496,12 @@ export default function TrackForm() {
               id: section.id,
               name: section.name,
               order: section.order,
-              sequences:
-                section.sequence?.map((seq: any) => ({
-                  id: seq.id,
-                  tempId: nanoid(),
-                  content_id: seq.content_id,
-                  form_id: seq.form_id,
-                  order: seq.order,
-                })) || [],
+              sequences: section.sequence?.map((seq: any) => ({
+                id: seq.id,
+                content_id: seq.content_id,
+                form_id: seq.form_id,
+                order: seq.order,
+              })),
             })) || [],
         });
       });

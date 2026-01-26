@@ -18,26 +18,63 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from "@mui/icons-material";
 import { TrackService } from "../../api/services/track.service";
+import { useLocation } from "react-router-dom";
+import { contentService } from "../../api/services/content.service";
+import { formsService } from "../../api/services/forms.service";
 
 export default function TrackView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [track, setTrack] = useState<any>(null);
-
-  useEffect(() => {
-    if (id) {
-      TrackService.get(Number(id)).then((res) => {
-        setTrack(res.data);
-      });
-    }
-  }, [id]);
-
-  if (!track) return null;
-
+  const location = useLocation();
+  const [contents, setContents] = useState<any[]>([]);
+  const [forms, setForms] = useState<any[]>([]);
   const formatDate = (date?: string) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("pt-BR");
   };
+
+  useEffect(() => {
+    contentService.findAll().then((res) => {
+      setContents(res.data);
+    });
+
+    formsService.findAll().then((res) => {
+      setForms(res.data.filter((f: any) => f.type === "quiz"));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!id || contents.length === 0) return;
+
+    TrackService.get(Number(id)).then((res) => {
+      const normalized = {
+        ...res.data,
+        section: res.data.section.map((section: any) => ({
+          ...section,
+          sequence: section.sequence.filter((seq: any) => {
+            if (seq.content_id) {
+              return contents.some((c) => c.id === seq.content_id);
+            }
+            if (seq.form_id) {
+              return forms.some((f) => f.id === seq.form_id);
+            }
+            return false;
+          }),
+        })),
+      };
+
+      setTrack(normalized);
+    });
+  }, [id, contents, forms, location.key]);
+
+  if (!track) {
+    return (
+      <Box p={4}>
+        <Typography color="text.secondary">Carregando trilha…</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -112,10 +149,8 @@ export default function TrackView() {
               {section.sequence.map((seq: any) => (
                 <ListItem key={seq.id}>
                   <ListItemText
-                    primary={seq.content?.title || seq.form?.title || "Item"}
-                    secondary={
-                      seq.content ? "Conteúdo" : seq.form ? "Quiz" : ""
-                    }
+                    primary={seq.content?.title || seq.form?.title}
+                    secondary={seq.content ? "Conteúdo" : "Quiz"}
                   />
                 </ListItem>
               ))}
