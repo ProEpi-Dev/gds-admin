@@ -75,8 +75,8 @@ export default function ContentTrackManager({
         const associatedTracks = allTracksData.filter((track: Track) => {
           const hasContent = track.section?.some((section: Section) =>
             section.sequence?.some(
-              (seq: Sequence) => seq.content_id === contentId
-            )
+              (seq: Sequence) => seq.content_id === contentId,
+            ),
           );
           return hasContent;
         });
@@ -95,7 +95,7 @@ export default function ContentTrackManager({
   const handleRemoveAssociation = async (
     trackId: number,
     sectionId: number,
-    sequenceId: number
+    sequenceId: number,
   ) => {
     try {
       await TrackService.removeSequence(trackId, sectionId, sequenceId);
@@ -109,9 +109,9 @@ export default function ContentTrackManager({
       setTracks(
         allTracksData.filter((track: Track) =>
           track.section?.some((section) =>
-            section.sequence?.some((seq) => seq.content_id === contentId)
-          )
-        )
+            section.sequence?.some((seq) => seq.content_id === contentId),
+          ),
+        ),
       );
     } catch (error) {
       console.error("Erro ao remover associação:", error);
@@ -127,7 +127,7 @@ export default function ContentTrackManager({
 
     const track = allTracks.find((t) => t.id === selectedTrackId);
     const alreadyExists = track?.section?.some((section) =>
-      section.sequence?.some((seq) => seq.content_id === contentId)
+      section.sequence?.some((seq) => seq.content_id === contentId),
     );
 
     if (alreadyExists) {
@@ -139,7 +139,7 @@ export default function ContentTrackManager({
       await TrackService.addContentToSection(
         Number(selectedTrackId),
         Number(selectedSectionId),
-        contentId
+        contentId,
       );
 
       // Fechar modal e resetar seleção primeiro
@@ -157,8 +157,8 @@ export default function ContentTrackManager({
       const associatedTracks = allTracksData.filter((track: Track) => {
         const hasContent = track.section?.some((section: Section) =>
           section.sequence?.some(
-            (seq: Sequence) => seq.content_id === contentId
-          )
+            (seq: Sequence) => seq.content_id === contentId,
+          ),
         );
         return hasContent;
       });
@@ -220,7 +220,7 @@ export default function ContentTrackManager({
                     .map((seq) => ({
                       sectionId: section.id,
                       sequenceId: seq.id,
-                    }))
+                    })),
                 );
 
                 if (matches.length > 1) {
@@ -233,11 +233,11 @@ export default function ContentTrackManager({
                 }
 
                 const section = track.section?.find(
-                  (s) => s.id === firstMatch.sectionId
+                  (s) => s.id === firstMatch.sectionId,
                 );
 
                 const sequence = section?.sequence?.find(
-                  (seq) => seq.id === firstMatch.sequenceId
+                  (seq) => seq.id === firstMatch.sequenceId,
                 );
 
                 return (
@@ -254,7 +254,7 @@ export default function ContentTrackManager({
                             handleRemoveAssociation(
                               track.id,
                               section.id,
-                              contentId
+                              sequence.id,
                             );
                           }
                         }}
