@@ -24,6 +24,7 @@ import { contentService } from "../../api/services/content.service";
 import { formsService } from "../../api/services/forms.service";
 import { Visibility as VisibilityIcon } from "@mui/icons-material";
 import { Tooltip } from "@mui/material";
+import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 
 export default function TrackView() {
   const { id } = useParams();
@@ -35,6 +36,21 @@ export default function TrackView() {
   const formatDate = (date?: string) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("pt-BR");
+  };
+  const [previewContent, setPreviewContent] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
+
+  const handlePreview = async (seq: any) => {
+    if (!seq.content_id) return;
+
+    const content = await contentService.findOne(seq.content_id);
+
+    setPreviewContent({
+      title: content.title,
+      content: content.content,
+    });
   };
 
   useEffect(() => {
@@ -150,40 +166,34 @@ export default function TrackView() {
           <AccordionDetails>
             <List>
               {section.sequence.map((seq: any) => {
-                const handleNavigate = () => {
-                  if (seq.content_id) {
-                    navigate(`/contents/${seq.content_id}/edit`);
-                  } else if (seq.form_id) {
-                    navigate(`/forms/${seq.form_id}/edit`);
-                  }
-                };
-
                 return (
                   <ListItem
                     key={seq.id}
                     disablePadding
                     secondaryAction={
-                      <Tooltip title="Visualizar">
-                        <IconButton
-                          edge="end"
-                          aria-label="visualizar"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleNavigate();
-                          }}
-                        >
-                          <VisibilityIcon
-                            color={seq.content_id ? "primary" : "secondary"}
-                          />
-                        </IconButton>
-                      </Tooltip>
+                      seq.content_id && (
+                        <Tooltip title="Visualizar">
+                          <IconButton
+                            edge="end"
+                            aria-label="visualizar"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreview(seq);
+                            }}
+                          >
+                            <VisibilityIcon color="primary" />
+                          </IconButton>
+                        </Tooltip>
+                      )
                     }
                   >
                     <ListItemButton
-                      onClick={handleNavigate}
-                      sx={{
-                        cursor: "pointer",
+                      onClick={() => {
+                        if (seq.content_id) {
+                          handlePreview(seq);
+                        }
                       }}
+                      sx={{ cursor: "pointer" }}
                     >
                       <ListItemText
                         primary={seq.content?.title || seq.form?.title}
@@ -197,6 +207,13 @@ export default function TrackView() {
           </AccordionDetails>
         </Accordion>
       ))}
+
+      <MobilePreviewDialog
+        open={!!previewContent}
+        onClose={() => setPreviewContent(null)}
+        title={previewContent?.title || ""}
+        htmlContent={previewContent?.content || ""}
+      />
     </Box>
   );
 }
