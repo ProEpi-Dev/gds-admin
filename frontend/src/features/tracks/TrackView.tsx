@@ -10,6 +10,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemButton,
   IconButton,
   Chip,
 } from "@mui/material";
@@ -21,6 +22,8 @@ import { TrackService } from "../../api/services/track.service";
 import { useLocation } from "react-router-dom";
 import { contentService } from "../../api/services/content.service";
 import { formsService } from "../../api/services/forms.service";
+import { Visibility as VisibilityIcon } from "@mui/icons-material";
+import { Tooltip } from "@mui/material";
 
 export default function TrackView() {
   const { id } = useParams();
@@ -146,14 +149,50 @@ export default function TrackView() {
 
           <AccordionDetails>
             <List>
-              {section.sequence.map((seq: any) => (
-                <ListItem key={seq.id}>
-                  <ListItemText
-                    primary={seq.content?.title || seq.form?.title}
-                    secondary={seq.content ? "Conteúdo" : "Quiz"}
-                  />
-                </ListItem>
-              ))}
+              {section.sequence.map((seq: any) => {
+                const handleNavigate = () => {
+                  if (seq.content_id) {
+                    navigate(`/contents/${seq.content_id}/edit`);
+                  } else if (seq.form_id) {
+                    navigate(`/forms/${seq.form_id}/edit`);
+                  }
+                };
+
+                return (
+                  <ListItem
+                    key={seq.id}
+                    disablePadding
+                    secondaryAction={
+                      <Tooltip title="Visualizar">
+                        <IconButton
+                          edge="end"
+                          aria-label="visualizar"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNavigate();
+                          }}
+                        >
+                          <VisibilityIcon
+                            color={seq.content_id ? "primary" : "secondary"}
+                          />
+                        </IconButton>
+                      </Tooltip>
+                    }
+                  >
+                    <ListItemButton
+                      onClick={handleNavigate}
+                      sx={{
+                        cursor: "pointer",
+                      }}
+                    >
+                      <ListItemText
+                        primary={seq.content?.title || seq.form?.title}
+                        secondary={seq.content ? "Conteúdo" : "Quiz"}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
             </List>
           </AccordionDetails>
         </Accordion>
