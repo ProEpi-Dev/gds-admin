@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import { TrackService } from "../../api/services/track.service";
 import { contentService } from "../../api/services/content.service";
@@ -24,6 +24,8 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
+  ListItemButton,
+  ClickAwayListener,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -92,6 +94,24 @@ function SortableSection({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filteredContents = useMemo(() => {
+    if (!search) return contents.slice(-3).reverse();
+
+    return contents.filter((c) =>
+      c.title.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [search, contents]);
+
+  const filteredForms = useMemo(() => {
+    if (!search) return forms.slice(-3).reverse();
+
+    return forms.filter((f) =>
+      f.title.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [search, forms]);
 
   return (
     <Accordion ref={setNodeRef} style={style} sx={{ mb: 2 }}>
@@ -149,60 +169,106 @@ function SortableSection({
           <Typography variant="subtitle2" mb={1}>
             Adicionar Item à Seção
           </Typography>
-          <FormControl fullWidth>
-            <InputLabel id={`add-item-label-${sectionIndex}`}>
-              Selecionar Item
-            </InputLabel>
-            <Select
-              labelId={`add-item-label-${sectionIndex}`}
-              label="Selecionar Item"
-              value=""
-              onChange={(e) => {
-                const [type, id] = (e.target.value as string).split("-");
-                if (type && id) {
-                  addSequenceToSection(
-                    sectionIndex,
-                    type as "content" | "form",
-                    Number(id),
-                  );
-                }
-              }}
-            >
-              <MenuItem value="" disabled>
-                <em>Selecione um item</em>
-              </MenuItem>
-              <MenuItem
-                disabled
-                sx={{ fontWeight: "bold", color: "primary.main" }}
-              >
-                Conteúdos Disponíveis
-              </MenuItem>
-              {contents.map((content) => (
-                <MenuItem
-                  key={`content-${content.id}`}
-                  value={`content-${content.id}`}
-                  sx={{ pl: 4 }}
+          <ClickAwayListener onClickAway={() => setOpen(false)}>
+            <Box mt={2} position="relative">
+              <TextField
+                fullWidth
+                label="Buscar conteúdo ou quiz"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                placeholder="Digite para buscar..."
+              />
+
+              {open && (
+                <Paper
+                  elevation={4}
+                  sx={{
+                    position: "absolute",
+                    width: "100%",
+                    zIndex: 10,
+                    mt: 1,
+                    maxHeight: 300,
+                    overflowY: "auto",
+                  }}
                 >
-                  {content.title} (conteúdo)
-                </MenuItem>
-              ))}
-              <MenuItem
-                disabled
-                sx={{ fontWeight: "bold", color: "secondary.main", mt: 1 }}
-              >
-                Quizzes Disponíveis
-              </MenuItem>
-              {forms.map((form) => (
-                <MenuItem
-                  key={`form-${form.id}`}
-                  value={`form-${form.id}`}
-                  sx={{ pl: 4 }}
-                >
-                  {form.title} (quiz)
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                  <List dense>
+                    {/* Conteúdos */}
+                    <ListItemText
+                      primary="Conteúdos"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        color: "primary.main",
+                      }}
+                    />
+
+                    {filteredContents.length === 0 && (
+                      <ListItemText
+                        primary="Nenhum conteúdo encontrado"
+                        sx={{ px: 2, color: "text.secondary" }}
+                      />
+                    )}
+
+                    {filteredContents.map((content) => (
+                      <ListItemButton
+                        key={`content-${content.id}`}
+                        onClick={() => {
+                          addSequenceToSection(
+                            sectionIndex,
+                            "content",
+                            content.id,
+                          );
+                          setSearch("");
+                          setOpen(false);
+                        }}
+                        sx={{ pl: 4 }}
+                      >
+                        {content.title}
+                      </ListItemButton>
+                    ))}
+
+                    {/* Quizzes */}
+                    <ListItemText
+                      primary="Quizzes"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        color: "secondary.main",
+                        mt: 1,
+                      }}
+                    />
+
+                    {filteredForms.length === 0 && (
+                      <ListItemText
+                        primary="Nenhum quiz encontrado"
+                        sx={{ px: 2, color: "text.secondary" }}
+                      />
+                    )}
+
+                    {filteredForms.map((form) => (
+                      <ListItemButton
+                        key={`form-${form.id}`}
+                        onClick={() => {
+                          addSequenceToSection(sectionIndex, "form", form.id);
+                          setSearch("");
+                          setOpen(false);
+                        }}
+                        sx={{ pl: 4 }}
+                      >
+                        {form.title}
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Paper>
+              )}
+            </Box>
+          </ClickAwayListener>
         </Box>
       </AccordionDetails>
     </Accordion>
