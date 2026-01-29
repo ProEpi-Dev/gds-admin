@@ -56,9 +56,15 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
-  const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({
-    basicTables: location.pathname.startsWith('/genders') || location.pathname.startsWith('/legal-documents/types'),
-    quizzes: location.pathname.startsWith('/quizzes') || location.pathname.startsWith('/quiz-submissions'),
+  const [expandedMenus, setExpandedMenus] = useState<{
+    [key: string]: boolean;
+  }>({
+    basicTables:
+      location.pathname.startsWith("/genders") ||
+      location.pathname.startsWith("/legal-documents/types"),
+    quizzes:
+      location.pathname.startsWith("/quizzes") ||
+      location.pathname.startsWith("/quiz-submissions"),
   });
 
   const menuItems: MenuItem[] = [
@@ -117,10 +123,22 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       ],
     },
     {
-      path: "/tracks",
       label: "Trilhas de Conteúdo",
       icon: <TrackChangesIcon />,
+      children: [
+        {
+          path: "/tracks",
+          label: "Gerenciar Trilhas",
+          icon: <TrackChangesIcon />,
+        },
+        {
+          path: "/tracks/executions",
+          label: "Registro de Execução",
+          icon: <AssessmentIcon />,
+        },
+      ],
     },
+
     {
       path: "/legal-documents",
       label: t("navigation.legalDocuments"),
