@@ -10,33 +10,109 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemButton,
   IconButton,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
   ExpandMore as ExpandMoreIcon,
 } from "@mui/icons-material";
 import { TrackService } from "../../api/services/track.service";
+import { useLocation } from "react-router-dom";
+import { contentService } from "../../api/services/content.service";
+import { formsService } from "../../api/services/forms.service";
+import { Visibility as VisibilityIcon } from "@mui/icons-material";
+import { Tooltip } from "@mui/material";
+import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
+import FormPreview from "../../components/form-builder/FormPreview";
+import type { Form } from "../../types/form.types";
 
 export default function TrackView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [track, setTrack] = useState<any>(null);
-
-  useEffect(() => {
-    if (id) {
-      TrackService.get(Number(id)).then((res) => {
-        setTrack(res.data);
-      });
-    }
-  }, [id]);
-
-  if (!track) return null;
-
+  const location = useLocation();
+  const [contents, setContents] = useState<any[]>([]);
+  const [forms, setForms] = useState<any[]>([]);
   const formatDate = (date?: string) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("pt-BR");
+  };
+  const [previewContent, setPreviewContent] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
+
+  const handlePreview = async (seq: any) => {
+    if (!seq.content_id) return;
+
+    const content = await contentService.findOne(seq.content_id);
+
+    setPreviewContent({
+      title: content.title,
+      content: content.content,
+    });
+  };
+
+  const [previewQuizOpen, setPreviewQuizOpen] = useState(false);
+  const [quizToPreview, setQuizToPreview] = useState<Form | null>(null);
+
+  useEffect(() => {
+    contentService.findAll().then((res) => {
+      setContents(res.data);
+    });
+
+    formsService.findAll().then((res) => {
+      setForms(res.data.filter((f: any) => f.type === "quiz"));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!id || contents.length === 0) return;
+
+    TrackService.get(Number(id)).then((res) => {
+      const normalized = {
+        ...res.data,
+        section: res.data.section.map((section: any) => ({
+          ...section,
+          sequence: section.sequence.filter((seq: any) => {
+            if (seq.content_id) {
+              return contents.some((c) => c.id === seq.content_id);
+            }
+            if (seq.form_id) {
+              return forms.some((f) => f.id === seq.form_id);
+            }
+            return false;
+          }),
+        })),
+      };
+
+      setTrack(normalized);
+    });
+  }, [id, contents, forms, location.key]);
+
+  if (!track) {
+    return (
+      <Box p={4}>
+        <Typography color="text.secondary">Carregando trilha…</Typography>
+      </Box>
+    );
+  }
+
+  const handlePreviewQuiz = (seq: any) => {
+    if (!seq.form_id) return;
+
+    const form = forms.find((f) => f.id === seq.form_id);
+    if (!form) return;
+
+    setQuizToPreview(form);
+    setPreviewQuizOpen(true);
   };
 
   return (
@@ -97,6 +173,20 @@ export default function TrackView() {
               />
             </Box>
           )}
+          {/* Linha 3 – progressão obrigatória */}
+          {track.has_progression && (
+            <Box>
+              <Chip
+                label="Progressão obrigatória"
+                variant="outlined"
+                size="small"
+                sx={{
+                  borderColor: "warning.main",
+                  color: "warning.main",
+                }}
+              />
+            </Box>
+          )}
         </Box>
       </Paper>
 
@@ -109,20 +199,76 @@ export default function TrackView() {
 
           <AccordionDetails>
             <List>
-              {section.sequence.map((seq: any) => (
-                <ListItem key={seq.id}>
-                  <ListItemText
-                    primary={seq.content?.title || seq.form?.title || "Item"}
-                    secondary={
-                      seq.content ? "Conteúdo" : seq.form ? "Quiz" : ""
+              {section.sequence.map((seq: any) => {
+                return (
+                  <ListItem
+                    key={seq.id}
+                    disablePadding
+                    secondaryAction={
+                      (seq.content_id || seq.form_id) && (
+                        <Tooltip title="Visualizar">
+                          <IconButton
+                            edge="end"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (seq.content_id) handlePreview(seq);
+                              if (seq.form_id) handlePreviewQuiz(seq);
+                            }}
+                          >
+                            <VisibilityIcon color="success" />
+                          </IconButton>
+                        </Tooltip>
+                      )
                     }
-                  />
-                </ListItem>
-              ))}
+                  >
+                    <ListItemButton
+                      onClick={() => {
+                        if (seq.content_id) {
+                          handlePreview(seq);
+                        }
+                      }}
+                      sx={{ cursor: "pointer" }}
+                    >
+                      <ListItemText
+                        primary={seq.content?.title || seq.form?.title}
+                        secondary={seq.content ? "Conteúdo" : "Quiz"}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
             </List>
           </AccordionDetails>
         </Accordion>
       ))}
+
+      <MobilePreviewDialog
+        open={!!previewContent}
+        onClose={() => setPreviewContent(null)}
+        title={previewContent?.title || ""}
+        htmlContent={previewContent?.content || ""}
+      />
+
+      <Dialog
+        open={previewQuizOpen}
+        onClose={() => setPreviewQuizOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Preview do Quiz</DialogTitle>
+
+        <DialogContent>
+          {quizToPreview?.latestVersion ? (
+            <FormPreview definition={quizToPreview.latestVersion.definition} />
+          ) : (
+            <Typography>Nenhuma versão disponível para preview</Typography>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setPreviewQuizOpen(false)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

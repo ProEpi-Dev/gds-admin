@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import { TrackService } from "../../api/services/track.service";
 import { contentService } from "../../api/services/content.service";
@@ -13,10 +13,6 @@ import {
   Switch,
   Paper,
   IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -24,6 +20,8 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
+  ListItemButton,
+  ClickAwayListener,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -92,6 +90,24 @@ function SortableSection({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filteredContents = useMemo(() => {
+    if (!search) return contents.slice(-3).reverse();
+
+    return contents.filter((c) =>
+      c.title.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [search, contents]);
+
+  const filteredForms = useMemo(() => {
+    if (!search) return forms.slice(-3).reverse();
+
+    return forms.filter((f) =>
+      f.title.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [search, forms]);
 
   return (
     <Accordion ref={setNodeRef} style={style} sx={{ mb: 2 }}>
@@ -149,60 +165,106 @@ function SortableSection({
           <Typography variant="subtitle2" mb={1}>
             Adicionar Item à Seção
           </Typography>
-          <FormControl fullWidth>
-            <InputLabel id={`add-item-label-${sectionIndex}`}>
-              Selecionar Item
-            </InputLabel>
-            <Select
-              labelId={`add-item-label-${sectionIndex}`}
-              label="Selecionar Item"
-              value=""
-              onChange={(e) => {
-                const [type, id] = (e.target.value as string).split("-");
-                if (type && id) {
-                  addSequenceToSection(
-                    sectionIndex,
-                    type as "content" | "form",
-                    Number(id),
-                  );
-                }
-              }}
-            >
-              <MenuItem value="" disabled>
-                <em>Selecione um item</em>
-              </MenuItem>
-              <MenuItem
-                disabled
-                sx={{ fontWeight: "bold", color: "primary.main" }}
-              >
-                Conteúdos Disponíveis
-              </MenuItem>
-              {contents.map((content) => (
-                <MenuItem
-                  key={`content-${content.id}`}
-                  value={`content-${content.id}`}
-                  sx={{ pl: 4 }}
+          <ClickAwayListener onClickAway={() => setOpen(false)}>
+            <Box mt={2} position="relative">
+              <TextField
+                fullWidth
+                label="Buscar conteúdo ou quiz"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                placeholder="Digite para buscar..."
+              />
+
+              {open && (
+                <Paper
+                  elevation={4}
+                  sx={{
+                    position: "absolute",
+                    width: "100%",
+                    zIndex: 10,
+                    mt: 1,
+                    maxHeight: 300,
+                    overflowY: "auto",
+                  }}
                 >
-                  {content.title} (conteúdo)
-                </MenuItem>
-              ))}
-              <MenuItem
-                disabled
-                sx={{ fontWeight: "bold", color: "secondary.main", mt: 1 }}
-              >
-                Quizzes Disponíveis
-              </MenuItem>
-              {forms.map((form) => (
-                <MenuItem
-                  key={`form-${form.id}`}
-                  value={`form-${form.id}`}
-                  sx={{ pl: 4 }}
-                >
-                  {form.title} (quiz)
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                  <List dense>
+                    {/* Conteúdos */}
+                    <ListItemText
+                      primary="Conteúdos"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        color: "primary.main",
+                      }}
+                    />
+
+                    {filteredContents.length === 0 && (
+                      <ListItemText
+                        primary="Nenhum conteúdo encontrado"
+                        sx={{ px: 2, color: "text.secondary" }}
+                      />
+                    )}
+
+                    {filteredContents.map((content) => (
+                      <ListItemButton
+                        key={`content-${content.id}`}
+                        onClick={() => {
+                          addSequenceToSection(
+                            sectionIndex,
+                            "content",
+                            content.id,
+                          );
+                          setSearch("");
+                          setOpen(false);
+                        }}
+                        sx={{ pl: 4 }}
+                      >
+                        {content.title}
+                      </ListItemButton>
+                    ))}
+
+                    {/* Quizzes */}
+                    <ListItemText
+                      primary="Quizzes"
+                      sx={{
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        color: "secondary.main",
+                        mt: 1,
+                      }}
+                    />
+
+                    {filteredForms.length === 0 && (
+                      <ListItemText
+                        primary="Nenhum quiz encontrado"
+                        sx={{ px: 2, color: "text.secondary" }}
+                      />
+                    )}
+
+                    {filteredForms.map((form) => (
+                      <ListItemButton
+                        key={`form-${form.id}`}
+                        onClick={() => {
+                          addSequenceToSection(sectionIndex, "form", form.id);
+                          setSearch("");
+                          setOpen(false);
+                        }}
+                        sx={{ pl: 4 }}
+                      >
+                        {form.title}
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Paper>
+              )}
+            </Box>
+          </ClickAwayListener>
         </Box>
       </AccordionDetails>
     </Accordion>
@@ -211,7 +273,6 @@ function SortableSection({
 
 function SortableSequence({
   sequence,
-  seqIndex,
   removeSequenceFromSection,
   sectionIndex,
   contents,
@@ -242,11 +303,21 @@ function SortableSequence({
     transition,
   };
 
-  const content = contents.find((c) => c.id === sequence.content_id);
-  const formItem = forms.find((f) => f.id === sequence.form_id);
-  const item = content || formItem;
-  const type = content ? "Conteúdo" : "Quiz";
-  const typeColor = content ? "primary.main" : "secondary.main";
+  const isContent = !!sequence.content_id;
+  const isForm = !!sequence.form_id;
+
+  const content = isContent
+    ? contents.find((c) => c.id === sequence.content_id)
+    : undefined;
+
+  const formItem = isForm
+    ? forms.find((f) => f.id === sequence.form_id)
+    : undefined;
+
+  const item = isContent ? content : formItem;
+
+  const type = isContent ? "Conteúdo" : "Quiz";
+  const typeColor = isContent ? "primary.main" : "secondary.main";
 
   return (
     <ListItem ref={setNodeRef} style={style}>
@@ -265,16 +336,23 @@ function SortableSequence({
       >
         <DragIndicatorIcon />
       </Box>
+
       <ListItemText
-        primary={item?.title || item?.name || `Item ${seqIndex + 1}`}
+        primary={
+          <Typography fontWeight={500}>
+            {item?.title ?? "Item não encontrado"}
+          </Typography>
+        }
         secondary={
           <Typography variant="caption" color={typeColor}>
             {type}
           </Typography>
         }
       />
+
       <ListItemSecondaryAction>
         <IconButton
+          color="error"
           onClick={() => removeSequenceFromSection(sectionIndex, sequence)}
         >
           <DeleteIcon />
@@ -304,6 +382,7 @@ export default function TrackForm() {
     start_date: "",
     end_date: "",
     show_after_completion: false,
+    has_progression: false,
     sections: [] as Array<{
       id?: number;
       tempId?: string;
@@ -321,6 +400,25 @@ export default function TrackForm() {
 
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
+
+  const removeInvalidSequences = (
+    sections: typeof form.sections,
+    contents: any[],
+    forms: any[],
+  ) => {
+    return sections.map((section) => ({
+      ...section,
+      sequences: section.sequences.filter((seq) => {
+        if (seq.content_id) {
+          return contents.some((c) => c.id === seq.content_id);
+        }
+        if (seq.form_id) {
+          return forms.some((f) => f.id === seq.form_id);
+        }
+        return false;
+      }),
+    }));
+  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -425,12 +523,25 @@ export default function TrackForm() {
   };
 
   useEffect(() => {
-    contentService.findAll().then((res) => setContents(res.data));
-
-    formsService
-      .findAll()
-      .then((res) => setForms(res.data.filter((f: any) => f.type === "quiz")));
+    contentService.findAll().then((res) => {
+      setContents(res.data);
+    });
   }, []);
+
+  useEffect(() => {
+    formsService.findAll().then((res) => {
+      setForms(res.data.filter((f: any) => f.type === "quiz"));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!contents.length && !forms.length) return;
+
+    setForm((prev) => ({
+      ...prev,
+      sections: removeInvalidSequences(prev.sections, contents, forms),
+    }));
+  }, [contents, forms]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -443,19 +554,18 @@ export default function TrackForm() {
           start_date: track.start_date ? track.start_date.split("T")[0] : "",
           end_date: track.end_date ? track.end_date.split("T")[0] : "",
           show_after_completion: track.show_after_completion,
+          has_progression: track.has_progression ?? false,
           sections:
             track.section?.map((section: any) => ({
               id: section.id,
               name: section.name,
               order: section.order,
-              sequences:
-                section.sequence?.map((seq: any) => ({
-                  id: seq.id,
-                  tempId: nanoid(),
-                  content_id: seq.content_id,
-                  form_id: seq.form_id,
-                  order: seq.order,
-                })) || [],
+              sequences: section.sequence?.map((seq: any) => ({
+                id: seq.id,
+                content_id: seq.content_id,
+                form_id: seq.form_id,
+                order: seq.order,
+              })),
             })) || [],
         });
       });
@@ -468,7 +578,7 @@ export default function TrackForm() {
       sections: [
         ...prev.sections,
         {
-          tempId: nanoid(), // 👈 ID FIXO
+          tempId: nanoid(),
           name: `Seção ${prev.sections.length + 1}`,
           order: prev.sections.length,
           sequences: [],
@@ -532,14 +642,9 @@ export default function TrackForm() {
   ) => {
     const section = form.sections[sectionIndex];
 
-    // 🔥 backend: só se a sequence já existe
     if (isEdit && id && section.id && sequence.id) {
       try {
-        await TrackService.removeSequence(
-          Number(id),
-          section.id,
-          sequence.id, // ✅ SEMPRE sequence.id
-        );
+        await TrackService.removeSequence(Number(id), section.id, sequence.id);
         snackbar.showSuccess("Item removido com sucesso");
       } catch (error) {
         snackbar.showError("Erro ao remover item");
@@ -583,8 +688,8 @@ export default function TrackForm() {
       end_date: form.control_period ? toISOStringOrNull(form.end_date) : null,
 
       show_after_completion: form.show_after_completion,
+      has_progression: form.has_progression,
       sections: form.sections.map((section, sectionIndex) => ({
-        // só manda id se existir (edição)
         ...(section.id ? { id: section.id } : {}),
         name: section.name,
         order: sectionIndex,
@@ -669,38 +774,75 @@ export default function TrackForm() {
             rows={3}
             sx={{ mb: 2 }}
           />
-          <Box display="flex" gap={2} mb={2} alignItems="center">
-            <FormControlLabel
-              sx={{ m: 0 }}
-              control={
-                <Switch
-                  checked={form.control_period}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      control_period: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label="Controlar Período"
-            />
+          <Box display="flex" flexDirection="column" gap={2} mb={2}>
+            {/* Controlar período */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.control_period}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        control_period: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Controlar Período"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário terá um tempo definido para completar
+                a trilha.
+              </Typography>
+            </Box>
 
-            <FormControlLabel
-              sx={{ m: 0 }}
-              control={
-                <Switch
-                  checked={form.show_after_completion}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      show_after_completion: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label="Mostrar Após Conclusão"
-            />
+            {/* Mostrar após conclusão */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.show_after_completion}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        show_after_completion: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Mostrar Após Conclusão"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário não poderá ver os conteúdos antes de
+                concluir.
+              </Typography>
+            </Box>
+
+            {/* Progressão */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.has_progression}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        has_progression: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Exigir conclusão da etapa anterior"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário só poderá avançar após concluir a
+                etapa anterior.
+              </Typography>
+            </Box>
           </Box>
 
           {form.control_period && (
