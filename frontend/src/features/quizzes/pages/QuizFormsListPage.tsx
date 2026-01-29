@@ -38,7 +38,7 @@ export default function QuizFormsListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
-    undefined
+    undefined,
   );
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [formToPreview, setFormToPreview] = useState<Form | null>(null);
@@ -85,7 +85,9 @@ export default function QuizFormsListPage() {
     try {
       // Nota: Para adicionar um quiz à trilha, precisaríamos de uma seção específica
       // Por ora, vamos apenas fechar o diálogo com uma mensagem
-      alert("Funcionalidade de adicionar quiz à trilha requer seleção de seção. Use a página de trilhas para adicionar conteúdo.");
+      alert(
+        "Funcionalidade de adicionar quiz à trilha requer seleção de seção. Use a página de trilhas para adicionar conteúdo.",
+      );
       setAddToTrackDialogOpen(false);
       setFormToAdd(null);
       setSelectedTrackId(null);
