@@ -61,6 +61,7 @@ import GenderCreatePage from "../features/genders/pages/GenderCreatePage";
 import GenderEditPage from "../features/genders/pages/GenderEditPage";
 import GenderViewPage from "../features/genders/pages/GenderViewPage";
 import TrackView from "../features/tracks/TrackView";
+import TrackExecutionRegistry from "../features/tracks/TrackRegister";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -471,6 +472,15 @@ export default function AppRoutes() {
           </AdminRoute>
         }
       />
+      <Route
+        path="/tracks/executions"
+        element={
+          <AdminRoute>
+            <TrackExecutionRegistry />
+          </AdminRoute>
+        }
+      />
+
       <Route
         path="/legal-documents"
         element={

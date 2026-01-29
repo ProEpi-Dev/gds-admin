@@ -13,10 +13,6 @@ import {
   Switch,
   Paper,
   IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -386,6 +382,7 @@ export default function TrackForm() {
     start_date: "",
     end_date: "",
     show_after_completion: false,
+    has_progression: false,
     sections: [] as Array<{
       id?: number;
       tempId?: string;
@@ -557,6 +554,7 @@ export default function TrackForm() {
           start_date: track.start_date ? track.start_date.split("T")[0] : "",
           end_date: track.end_date ? track.end_date.split("T")[0] : "",
           show_after_completion: track.show_after_completion,
+          has_progression: track.has_progression ?? false,
           sections:
             track.section?.map((section: any) => ({
               id: section.id,
@@ -580,7 +578,7 @@ export default function TrackForm() {
       sections: [
         ...prev.sections,
         {
-          tempId: nanoid(), // 👈 ID FIXO
+          tempId: nanoid(),
           name: `Seção ${prev.sections.length + 1}`,
           order: prev.sections.length,
           sequences: [],
@@ -644,14 +642,9 @@ export default function TrackForm() {
   ) => {
     const section = form.sections[sectionIndex];
 
-    // 🔥 backend: só se a sequence já existe
     if (isEdit && id && section.id && sequence.id) {
       try {
-        await TrackService.removeSequence(
-          Number(id),
-          section.id,
-          sequence.id, // ✅ SEMPRE sequence.id
-        );
+        await TrackService.removeSequence(Number(id), section.id, sequence.id);
         snackbar.showSuccess("Item removido com sucesso");
       } catch (error) {
         snackbar.showError("Erro ao remover item");
@@ -695,8 +688,8 @@ export default function TrackForm() {
       end_date: form.control_period ? toISOStringOrNull(form.end_date) : null,
 
       show_after_completion: form.show_after_completion,
+      has_progression: form.has_progression,
       sections: form.sections.map((section, sectionIndex) => ({
-        // só manda id se existir (edição)
         ...(section.id ? { id: section.id } : {}),
         name: section.name,
         order: sectionIndex,
@@ -781,38 +774,75 @@ export default function TrackForm() {
             rows={3}
             sx={{ mb: 2 }}
           />
-          <Box display="flex" gap={2} mb={2} alignItems="center">
-            <FormControlLabel
-              sx={{ m: 0 }}
-              control={
-                <Switch
-                  checked={form.control_period}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      control_period: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label="Controlar Período"
-            />
+          <Box display="flex" flexDirection="column" gap={2} mb={2}>
+            {/* Controlar período */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.control_period}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        control_period: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Controlar Período"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário terá um tempo definido para completar
+                a trilha.
+              </Typography>
+            </Box>
 
-            <FormControlLabel
-              sx={{ m: 0 }}
-              control={
-                <Switch
-                  checked={form.show_after_completion}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      show_after_completion: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label="Mostrar Após Conclusão"
-            />
+            {/* Mostrar após conclusão */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.show_after_completion}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        show_after_completion: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Mostrar Após Conclusão"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário não poderá ver os conteúdos antes de
+                concluir.
+              </Typography>
+            </Box>
+
+            {/* Progressão */}
+            <Box display="flex" flexDirection="column">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={form.has_progression}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        has_progression: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="Exigir conclusão da etapa anterior"
+              />
+              <Typography variant="caption" color="text.secondary">
+                Quando ativado, o usuário só poderá avançar após concluir a
+                etapa anterior.
+              </Typography>
+            </Box>
           </Box>
 
           {form.control_period && (

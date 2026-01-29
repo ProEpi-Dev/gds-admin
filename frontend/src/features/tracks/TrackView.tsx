@@ -153,6 +153,20 @@ export default function TrackView() {
               />
             </Box>
           )}
+          {/* Linha 3 – progressão obrigatória */}
+          {track.has_progression && (
+            <Box>
+              <Chip
+                label="Progressão obrigatória"
+                variant="outlined"
+                size="small"
+                sx={{
+                  borderColor: "warning.main",
+                  color: "warning.main",
+                }}
+              />
+            </Box>
+          )}
         </Box>
       </Paper>
 

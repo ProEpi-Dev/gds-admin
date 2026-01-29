@@ -18,6 +18,7 @@ interface Track {
   control_period: boolean;
   start_date?: string;
   end_date?: string;
+  has_progression: boolean;
   show_after_completion: boolean;
 }
 
@@ -58,6 +59,12 @@ export default function TrackList() {
       render: (row) => (row.control_period ? "Sim" : "Não"),
     },
     {
+      id: "has_progression",
+      label: "Conta Progresso",
+      minWidth: 150,
+      render: (row) => (row.has_progression ? "Sim" : "Não"),
+    },
+    {
       id: "show_after_completion",
       label: "Mostrar Após Conclusão",
       minWidth: 200,
@@ -75,7 +82,6 @@ export default function TrackList() {
           >
             <VisibilityIcon />
           </IconButton>
-
           <IconButton
             onClick={() => navigate(`/tracks/${row.id}/edit`)}
             color="primary"
