@@ -265,6 +265,179 @@ describe('TrackProgressService', () => {
     expect(result).toEqual([]);
   });
 
+  it('recalculateTrackProgress – ciclo não encontrado', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue(null);
+
+    await expect(service.recalculateTrackProgress(1)).rejects.toThrow();
+  });
+
+  it('recalculateTrackProgress – sem sequências ativas', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      sequence_progress: [],
+      track_cycle: {
+        track: {
+          section: [
+            {
+              sequence: [],
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await service.recalculateTrackProgress(1);
+    expect(result).toHaveProperty('progress_percentage');
+  });
+
+  it('recalculateTrackProgress – com sequências completas e incompletas', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      status: progress_status_enum.in_progress,
+      completed_at: null,
+      sequence_progress: [
+        { sequence_id: 1, status: progress_status_enum.completed },
+        { sequence_id: 2, status: progress_status_enum.in_progress },
+      ],
+      track_cycle: {
+        track: {
+          section: [
+            {
+              sequence: [
+                { id: 1, active: true },
+                { id: 2, active: true },
+                { id: 3, active: true },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    prismaMock.track_progress.update.mockResolvedValue({
+      id: 1,
+      progress_percentage: 33.33,
+      status: progress_status_enum.in_progress,
+      completed_at: null,
+    });
+
+    const result = await service.recalculateTrackProgress(1);
+    expect(prismaMock.track_progress.update).toHaveBeenCalled();
+    expect(result.progress_percentage).toBeCloseTo(33.33);
+  });
+
+  it('completeContentSequence – erro se for quiz', async () => {
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      form_id: 123, // É quiz
+    });
+
+    await expect(service.completeContentSequence(1, 1)).rejects.toThrow(
+      'Esta sequência é um quiz e deve ser completada através de submissão',
+    );
+  });
+
+  it('completeContentSequence – sucesso', async () => {
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      form_id: null, // Conteúdo
+    });
+
+    jest.spyOn(service, 'updateSequenceProgress').mockResolvedValue({
+      id: 1,
+      status: progress_status_enum.completed,
+    } as any);
+
+    const result = await service.completeContentSequence(1, 1);
+
+    expect(result.status).toBe(progress_status_enum.completed);
+  });
+
+  it('completeQuizSequence – erro se não for quiz', async () => {
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      form_id: null, // não é quiz
+    });
+
+    await expect(service.completeQuizSequence(1, 1, 99)).rejects.toThrow(
+      'Esta sequência não é um quiz',
+    );
+  });
+
+  it('completeQuizSequence – sucesso', async () => {
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      form_id: 10, // quiz
+    });
+
+    prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
+    prismaMock.sequence_progress.create.mockResolvedValue({ id: 5 });
+    prismaMock.quiz_submission.update.mockResolvedValue({});
+    jest.spyOn(service, 'updateSequenceProgress').mockResolvedValue({
+      id: 5,
+      status: progress_status_enum.completed,
+    } as any);
+
+    const result = await service.completeQuizSequence(1, 1, 99);
+    expect(result.status).toBe(progress_status_enum.completed);
+  });
+
+  it('findByUserAndCycle – bloqueia sequência', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      progress_percentage: 0,
+      track_cycle: {
+        track: {
+          section: [
+            {
+              order: 1,
+              sequence: [
+                { id: 1, order: 1, active: true },
+                { id: 2, order: 2, active: true },
+              ],
+            },
+          ],
+        },
+      },
+      sequence_progress: [
+        { sequence_id: 1, status: progress_status_enum.in_progress },
+        { sequence_id: 2, status: progress_status_enum.not_started },
+      ],
+    });
+
+    const result = await service.findByUserAndCycle(1, 1);
+
+    expect(result.sequence_locked[1]).toBe(false);
+    expect(result.sequence_locked[2]).toBe(true);
+  });
+
+  it('findExecutions – filtra e retorna', async () => {
+    prismaMock.sequence_progress.findMany.mockResolvedValue([
+      {
+        id: 1,
+        completed_at: new Date(),
+        track_progress: {
+          id: 10,
+          track_cycle_id: 20,
+          track_cycle: { name: 'Cycle 1' },
+          participation_id: 100,
+          participation: { user: { name: 'User1' } },
+        },
+        sequence: {
+          form_id: null,
+          content: { title: 'Content title' },
+          form: null,
+          content_id: 500,
+        },
+      },
+    ]);
+
+    const result = await service.findExecutions({});
+
+    expect(result.length).toBe(1);
+    expect(result[0]).toHaveProperty('activityName', 'Content title');
+  });
+
   it('findCompletedByUser', async () => {
     prismaMock.track_progress.findMany.mockResolvedValue([]);
     const result = await service.findCompletedByUser(1);
