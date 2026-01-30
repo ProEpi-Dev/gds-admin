@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsInt } from 'class-validator';
+import { IsEnum, IsOptional, IsInt, Min } from 'class-validator';
 import { progress_status_enum } from '@prisma/client';
 
 export class UpdateSequenceProgressDto {
@@ -21,4 +21,14 @@ export class UpdateSequenceProgressDto {
   @IsInt()
   @IsOptional()
   timeSpentSeconds?: number;
+
+  @ApiProperty({
+    description: 'Quantidade de visitas na sequência',
+    example: 3,
+    required: false,
+  })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  visits_count?: number;
 }

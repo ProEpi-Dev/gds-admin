@@ -123,7 +123,9 @@ export class TrackProgressService {
     });
 
     // Criar sequence_progress para todas as sequências da trilha
-    const sequences = cycle.track.section.flatMap((section) => section.sequence);
+    const sequences = cycle.track.section.flatMap(
+      (section) => section.sequence,
+    );
 
     if (sequences.length > 0) {
       await this.prisma.sequence_progress.createMany({
@@ -177,9 +179,27 @@ export class TrackProgressService {
     sequenceId: number,
     dto: UpdateSequenceProgressDto,
   ) {
-    // Verificar se track_progress existe
     const trackProgress = await this.prisma.track_progress.findUnique({
       where: { id: trackProgressId },
+      include: {
+        sequence_progress: true,
+        track_cycle: {
+          include: {
+            track: {
+              include: {
+                section: {
+                  where: { active: true },
+                  include: {
+                    sequence: {
+                      where: { active: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!trackProgress) {
@@ -188,61 +208,45 @@ export class TrackProgressService {
       );
     }
 
-    // Buscar ou criar sequence_progress
-    const sequenceProgress = await this.getOrCreateSequenceProgress(
+    const sequence = await this.prisma.sequence.findUnique({
+      where: { id: sequenceId },
+    });
+
+    if (!sequence) {
+      throw new NotFoundException(
+        `Sequência com ID ${sequenceId} não encontrada`,
+      );
+    }
+
+    if (!sequence.active) {
+      throw new BadRequestException(
+        `Sequência com ID ${sequenceId} está inativa`,
+      );
+    }
+
+    // Buscar ou criar sequenceProgress
+    let sequenceProgress = await this.getOrCreateSequenceProgress(
       trackProgressId,
       sequenceId,
     );
 
-    // Atualizar sequence_progress
-    const updateData: any = {
-      visits_count: sequenceProgress.visits_count + 1,
-      updated_at: new Date(),
-    };
-
-    // Se está marcando como iniciado pela primeira vez
-    if (
-      sequenceProgress.status === progress_status_enum.not_started &&
-      !sequenceProgress.started_at
-    ) {
-      updateData.status = progress_status_enum.in_progress;
-      updateData.started_at = new Date();
-    }
-
-    // Se forneceu status
-    if (dto.status) {
-      updateData.status = dto.status;
-
-      // Se está marcando como completo
-      if (dto.status === progress_status_enum.completed && !sequenceProgress.completed_at) {
-        updateData.completed_at = new Date();
-      }
-    }
-
-    // Se forneceu tempo gasto
-    if (dto.timeSpentSeconds !== undefined) {
-      updateData.time_spent_seconds =
-        (sequenceProgress.time_spent_seconds || 0) + dto.timeSpentSeconds;
-    }
-
-    const updated = await this.prisma.sequence_progress.update({
+    // Atualizar sequenceProgress com dados do dto
+    sequenceProgress = await this.prisma.sequence_progress.update({
       where: { id: sequenceProgress.id },
-      data: updateData,
-    });
-
-    // Atualizar last_sequence_id no track_progress
-    await this.prisma.track_progress.update({
-      where: { id: trackProgressId },
       data: {
-        last_sequence_id: sequenceId,
+        ...dto,
+        visits_count:
+          typeof dto.visits_count === 'number'
+            ? dto.visits_count
+            : sequenceProgress.visits_count,
         updated_at: new Date(),
       },
     });
 
-    // Recalcular progresso da trilha
+    // Recalcular e atualizar progresso total da track_progress
     await this.recalculateTrackProgress(trackProgressId);
 
-    return updated;
+    return sequenceProgress;
   }
 
   /**
@@ -643,8 +647,10 @@ export class TrackProgressService {
     const andConditions: any[] = [{ completed_at: { not: null } }];
 
     const trackProgressWhere: any = {};
-    if (query.trackCycleId != null) trackProgressWhere.track_cycle_id = query.trackCycleId;
-    if (query.participationId != null) trackProgressWhere.participation_id = query.participationId;
+    if (query.trackCycleId != null)
+      trackProgressWhere.track_cycle_id = query.trackCycleId;
+    if (query.participationId != null)
+      trackProgressWhere.participation_id = query.participationId;
     if (Object.keys(trackProgressWhere).length > 0) {
       andConditions.push({ track_progress: trackProgressWhere });
     }
