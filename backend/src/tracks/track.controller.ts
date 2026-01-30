@@ -6,21 +6,33 @@ import {
   Delete,
   Param,
   Body,
+  Query,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { TrackService } from './track.service';
+import { TrackQueryDto } from './dto/track-query.dto';
+import { CreateTrackDto } from './dto/create-track.dto';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+@ApiTags('Tracks')
 @Controller('tracks')
+@ApiBearerAuth()
 export class TrackController {
   constructor(private readonly trackService: TrackService) {}
 
   @Post()
-  create(@Body() data: any) {
-    return this.trackService.create(data);
+  @ApiOperation({
+    summary: 'Criar nova trilha',
+    description:
+      'Cria uma nova trilha. O context_id é opcional - se não fornecido, será inferido automaticamente do usuário logado (se gerenciar apenas 1 contexto)',
+  })
+  create(@Body() data: CreateTrackDto, @CurrentUser() user: any) {
+    return this.trackService.create(data, user);
   }
 
   @Get()
-  list() {
-    return this.trackService.list();
+  list(@Query() query: TrackQueryDto) {
+    return this.trackService.list(query);
   }
 
   @Get(':id')
@@ -29,8 +41,16 @@ export class TrackController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.trackService.update(Number(id), data);
+  @ApiOperation({
+    summary: 'Atualizar trilha',
+    description: 'Atualiza os dados de uma trilha existente',
+  })
+  update(
+    @Param('id') id: string,
+    @Body() data: CreateTrackDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.trackService.update(Number(id), data, user);
   }
 
   @Delete(':id')

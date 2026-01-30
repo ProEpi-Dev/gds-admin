@@ -11,6 +11,8 @@ export const participationsService = {
     if (query?.active !== undefined) params.append('active', query.active.toString());
     if (query?.userId) params.append('userId', query.userId.toString());
     if (query?.contextId) params.append('contextId', query.contextId.toString());
+    if (query?.includeUser !== undefined) params.append('includeUser', query.includeUser.toString());
+    if (query?.search) params.append('search', query.search);
 
     const response = await apiClient.get(`${API_ENDPOINTS.PARTICIPATIONS.LIST}?${params.toString()}`);
     return response.data;

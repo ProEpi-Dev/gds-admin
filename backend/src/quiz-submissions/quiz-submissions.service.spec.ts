@@ -1,13 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { QuizSubmissionsService } from './quiz-submissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
+import { TrackProgressService } from '../track-progress/track-progress.service';
 
 describe('QuizSubmissionsService', () => {
   let service: QuizSubmissionsService;
@@ -102,6 +100,10 @@ describe('QuizSubmissionsService', () => {
     },
   };
 
+  const trackProgressServiceMock = {
+    completeQuizSequence: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -109,12 +111,8 @@ describe('QuizSubmissionsService', () => {
         {
           provide: PrismaService,
           useValue: {
-            participation: {
-              findUnique: jest.fn(),
-            },
-            form_version: {
-              findUnique: jest.fn(),
-            },
+            participation: { findUnique: jest.fn() },
+            form_version: { findUnique: jest.fn() },
             quiz_submission: {
               create: jest.fn(),
               findMany: jest.fn(),
@@ -124,6 +122,10 @@ describe('QuizSubmissionsService', () => {
               update: jest.fn(),
             },
           },
+        },
+        {
+          provide: TrackProgressService,
+          useValue: trackProgressServiceMock,
         },
       ],
     }).compile();
@@ -150,9 +152,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -220,9 +220,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(3); // Já atingiu o limite
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(3); // Já atingiu o limite
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -239,9 +237,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue({ attempt_number: 2 } as any);
@@ -267,9 +263,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -306,9 +300,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(formVersionWithTimeLimit as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -328,9 +320,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -357,9 +347,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(formVersionWithPassingScore as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -390,9 +378,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(formVersionWithoutPassingScore as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -417,20 +403,16 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
-      jest
-        .spyOn(prismaService.quiz_submission, 'create')
-        .mockResolvedValue({
-          ...mockQuizSubmission,
-          score: null,
-          percentage: null,
-          is_passed: null,
-        } as any);
+      jest.spyOn(prismaService.quiz_submission, 'create').mockResolvedValue({
+        ...mockQuizSubmission,
+        score: null,
+        percentage: null,
+        is_passed: null,
+      } as any);
 
       const result = await service.create(createDtoIncomplete);
 
@@ -451,9 +433,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
       jest
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
@@ -483,9 +463,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([mockQuizSubmission] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(1);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
 
@@ -505,9 +483,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -530,9 +506,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -555,9 +529,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -580,9 +552,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -604,9 +574,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -630,9 +598,7 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -819,12 +785,10 @@ describe('QuizSubmissionsService', () => {
       jest
         .spyOn(prismaService.quiz_submission, 'findUnique')
         .mockResolvedValue(mockQuizSubmission as any);
-      jest
-        .spyOn(prismaService.quiz_submission, 'update')
-        .mockResolvedValue({
-          ...mockQuizSubmission,
-          active: false,
-        } as any);
+      jest.spyOn(prismaService.quiz_submission, 'update').mockResolvedValue({
+        ...mockQuizSubmission,
+        active: false,
+      } as any);
 
       await service.remove(1);
 

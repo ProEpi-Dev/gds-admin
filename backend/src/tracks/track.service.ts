@@ -1,12 +1,84 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateTrackDto } from './dto/create-track.dto';
 
 @Injectable()
 export class TrackService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: any) {
-    const { sections, ...trackData } = data;
+  /**
+   * Determina o context_id a ser usado para a trilha
+   * Se não for fornecido, busca os contextos gerenciados pelo usuário
+   */
+  private async resolveContextId(
+    contextId: number | undefined,
+    userId: number,
+  ): Promise<number> {
+    if (contextId) {
+      // Se foi fornecido, valida se o usuário gerencia esse contexto
+      const isManager = await this.prisma.context_manager.findFirst({
+        where: {
+          user_id: userId,
+          context_id: contextId,
+          active: true,
+        },
+      });
+
+      if (!isManager) {
+        throw new BadRequestException(
+          'Você não tem permissão para criar trilhas neste contexto',
+        );
+      }
+
+      return contextId;
+    }
+
+    // Se não foi fornecido, busca os contextos gerenciados pelo usuário
+    const managedContexts = await this.prisma.context_manager.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+      },
+      include: {
+        context: {
+          select: {
+            id: true,
+            name: true,
+            active: true,
+          },
+        },
+      },
+    });
+
+    const activeContexts = managedContexts.filter((mc) => mc.context.active);
+
+    if (activeContexts.length === 0) {
+      throw new BadRequestException(
+        'Você não gerencia nenhum contexto. Entre em contato com um administrador.',
+      );
+    }
+
+    if (activeContexts.length > 1) {
+      const contextNames = activeContexts
+        .map((mc) => mc.context.name)
+        .join(', ');
+      throw new BadRequestException(
+        `Você gerencia múltiplos contextos (${contextNames}). Por favor, especifique o context_id no payload.`,
+      );
+    }
+
+    return activeContexts[0].context_id;
+  }
+
+  async create(data: CreateTrackDto, user: any) {
+    const { sections, context_id, ...trackData } = data;
+
+    // Resolve o context_id
+    const resolvedContextId = await this.resolveContextId(context_id, user.id);
 
     // Handle empty date strings
     if (trackData.start_date === '') trackData.start_date = undefined;
@@ -15,6 +87,7 @@ export class TrackService {
     return this.prisma.track.create({
       data: {
         ...trackData,
+        context_id: resolvedContextId,
         section: sections
           ? {
               create: sections.map((section: any, index: number) => {
@@ -50,9 +123,15 @@ export class TrackService {
     });
   }
 
-  async list() {
+  async list(query?: { contextId?: number }) {
+    const where: any = { active: true };
+    
+    if (query?.contextId) {
+      where.context_id = query.contextId;
+    }
+
     return this.prisma.track.findMany({
-      where: { active: true },
+      where,
       include: {
         section: {
           include: {
@@ -116,17 +195,36 @@ export class TrackService {
     return this.get(trackId);
   }
 
-  async update(id: number, data: any) {
-    const { sections, ...trackData } = data;
+  async update(id: number, data: CreateTrackDto, user: any) {
+    const { sections, context_id, ...trackData } = data;
+
+    // Verifica se a trilha existe
+    const existingTrack = await this.prisma.track.findUnique({
+      where: { id },
+    });
+
+    if (!existingTrack) {
+      throw new NotFoundException('Trilha não encontrada');
+    }
+
+    // Se context_id foi fornecido e é diferente do atual, valida permissão
+    if (context_id && context_id !== existingTrack.context_id) {
+      await this.resolveContextId(context_id, user.id);
+    }
 
     // Handle empty date strings
     if (trackData.start_date === '') trackData.start_date = undefined;
     if (trackData.end_date === '') trackData.end_date = undefined;
 
     // First update the track
+    const updateData: any = { ...trackData };
+    if (context_id && context_id !== existingTrack.context_id) {
+      updateData.context_id = context_id;
+    }
+
     await this.prisma.track.update({
       where: { id },
-      data: trackData,
+      data: updateData,
     });
 
     // Handle sections if provided

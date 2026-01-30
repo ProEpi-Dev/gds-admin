@@ -24,6 +24,7 @@ model context {
   form            form[]
   participation   participation[]
   track           track[]
+  track_cycle     track_cycle[]
 
   @@index([location_id], map: "idx_context_location_id")
 }
@@ -129,6 +130,7 @@ model participation {
   user             user              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   report           report[]
   quiz_submission  quiz_submission[]
+  track_progress   track_progress[]
 
   @@index([context_id], map: "idx_participation_context_id")
   @@index([user_id], map: "idx_participation_user_id")
@@ -252,6 +254,19 @@ enum report_type_enum {
   NEGATIVE
 }
 
+enum progress_status_enum {
+  not_started
+  in_progress
+  completed
+}
+
+enum track_cycle_status_enum {
+  draft
+  active
+  closed
+  archived
+}
+
 model gender {
   id         Int      @id @default(autoincrement())
   name       String   @unique @db.VarChar(50)
@@ -333,26 +348,29 @@ model content_quiz {
 }
 
 model quiz_submission {
-  id                 Int            @id @default(autoincrement())
-  participation_id   Int
-  form_version_id     Int
-  quiz_response       Json
-  question_results    Json?         // Resultados detalhados por questão: [{questionName, isCorrect, pointsEarned, userAnswer, correctAnswer, feedback}]
-  score              Decimal?       @db.Decimal(5, 2)
-  percentage         Decimal?       @db.Decimal(5, 2)
-  is_passed          Boolean?
-  attempt_number     Int
-  time_spent_seconds Int?
-  started_at         DateTime       @db.Timestamp(6)
-  completed_at       DateTime?      @db.Timestamp(6)
-  created_at         DateTime       @default(now()) @db.Timestamp(6)
-  updated_at         DateTime       @default(now()) @db.Timestamp(6)
-  active             Boolean        @default(true)
-  participation      participation  @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  form_version       form_version   @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id                   Int                @id @default(autoincrement())
+  participation_id     Int
+  form_version_id      Int
+  sequence_progress_id Int?
+  quiz_response        Json
+  question_results     Json?              // Resultados detalhados por questão: [{questionName, isCorrect, pointsEarned, userAnswer, correctAnswer, feedback}]
+  score                Decimal?           @db.Decimal(5, 2)
+  percentage           Decimal?           @db.Decimal(5, 2)
+  is_passed            Boolean?
+  attempt_number       Int
+  time_spent_seconds   Int?
+  started_at           DateTime           @db.Timestamp(6)
+  completed_at         DateTime?          @db.Timestamp(6)
+  created_at           DateTime           @default(now()) @db.Timestamp(6)
+  updated_at           DateTime           @default(now()) @db.Timestamp(6)
+  active               Boolean            @default(true)
+  participation        participation      @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form_version         form_version       @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  sequence_progress    sequence_progress? @relation(fields: [sequence_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([participation_id], map: "idx_quiz_submission_participation_id")
   @@index([form_version_id], map: "idx_quiz_submission_form_version_id")
+  @@index([sequence_progress_id], map: "idx_quiz_submission_sequence_progress")
   @@index([score], map: "idx_quiz_submission_score")
   @@index([is_passed], map: "idx_quiz_submission_is_passed")
   @@index([participation_id, form_version_id, attempt_number], map: "idx_quiz_submission_attempt")
@@ -360,55 +378,129 @@ model quiz_submission {
 }
 
 model track {
-  id                    Int       @id @default(autoincrement())
-  name                  String    @db.VarChar(255)
+  id                    Int           @id @default(autoincrement())
+  name                  String        @db.VarChar(255)
   description           String?
   context_id            Int?
-  control_period        Boolean   @default(false)
-  start_date            DateTime? @db.Date
-  end_date              DateTime? @db.Date
-  show_after_completion Boolean   @default(false)
-  has_progression       Boolean   @default(false)
-  created_at            DateTime  @default(now()) @db.Timestamp(6)
-  updated_at            DateTime  @default(now()) @db.Timestamp(6)
-  active                Boolean   @default(true)
-  context               context?  @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  control_period        Boolean       @default(false)
+  start_date            DateTime?     @db.Date
+  end_date              DateTime?     @db.Date
+  show_after_completion Boolean       @default(false)
+  has_progression       Boolean       @default(false)
+  created_at            DateTime      @default(now()) @db.Timestamp(6)
+  updated_at            DateTime      @default(now()) @db.Timestamp(6)
+  active                Boolean       @default(true)
+  context               context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
   section               section[]
+  track_cycle           track_cycle[]
 
   @@index([context_id], map: "idx_track_context_id")
   @@index([active], map: "idx_track_active")
 }
 
 model section {
-  id         Int       @id @default(autoincrement())
-  track_id   Int
-  name       String    @db.VarChar(255)
-  order      Int       @default(0)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @db.Timestamp(6)
-  active     Boolean   @default(true)
-  track      track     @relation(fields: [track_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sequence   sequence[]
+  id             Int              @id @default(autoincrement())
+  track_id       Int
+  name           String           @db.VarChar(255)
+  order          Int              @default(0)
+  created_at     DateTime         @default(now()) @db.Timestamp(6)
+  updated_at     DateTime         @default(now()) @db.Timestamp(6)
+  active         Boolean          @default(true)
+  track          track            @relation(fields: [track_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence       sequence[]
+  track_progress track_progress[]
 
   @@index([track_id], map: "idx_section_track_id")
   @@index([order], map: "idx_section_order")
 }
 
 model sequence {
-  id         Int       @id @default(autoincrement())
-  section_id Int
-  content_id Int?
-  form_id    Int?      // Quiz
-  order      Int       @default(0)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @db.Timestamp(6)
-  active     Boolean   @default(true)
-  section    section   @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  content    content?  @relation(fields: [content_id], references: [id], onUpdate: NoAction)
-  form       form?     @relation(fields: [form_id], references: [id], onUpdate: NoAction)
+  id                Int                 @id @default(autoincrement())
+  section_id        Int
+  content_id        Int?
+  form_id           Int?                // Quiz
+  order             Int                 @default(0)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  active            Boolean             @default(true)
+  section           section             @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  content           content?            @relation(fields: [content_id], references: [id], onUpdate: NoAction)
+  form              form?               @relation(fields: [form_id], references: [id], onUpdate: NoAction)
+  sequence_progress sequence_progress[]
+  track_progress_last track_progress[]  @relation("last_sequence")
 
   @@index([section_id], map: "idx_sequence_section_id")
   @@index([content_id], map: "idx_sequence_content_id")
   @@index([form_id], map: "idx_sequence_form_id")
   @@index([order], map: "idx_sequence_order")
+}
+
+model track_cycle {
+  id             Int                      @id @default(autoincrement())
+  track_id       Int
+  context_id     Int
+  name           String                   @db.VarChar(100)
+  description    String?
+  status         track_cycle_status_enum  @default(draft)
+  start_date     DateTime                 @db.Date
+  end_date       DateTime                 @db.Date
+  created_at     DateTime                 @default(now()) @db.Timestamp(6)
+  updated_at     DateTime                 @default(now()) @db.Timestamp(6)
+  active         Boolean                  @default(true)
+  track          track                    @relation(fields: [track_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  context        context                  @relation(fields: [context_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  track_progress track_progress[]
+
+  @@unique([track_id, context_id, name], map: "uq_track_cycle_track_context_name")
+  @@index([track_id], map: "idx_track_cycle_track_id")
+  @@index([context_id], map: "idx_track_cycle_context_id")
+  @@index([status], map: "idx_track_cycle_status")
+  @@index([start_date, end_date], map: "idx_track_cycle_dates")
+}
+
+model track_progress {
+  id                  Int                   @id @default(autoincrement())
+  participation_id    Int
+  track_cycle_id      Int
+  status              progress_status_enum  @default(in_progress)
+  progress_percentage Decimal               @default(0.00) @db.Decimal(5, 2)
+  last_sequence_id    Int?
+  current_section_id  Int?
+  started_at          DateTime?             @db.Timestamp(6)
+  completed_at        DateTime?             @db.Timestamp(6)
+  created_at          DateTime              @default(now()) @db.Timestamp(6)
+  updated_at          DateTime              @default(now()) @db.Timestamp(6)
+  participation       participation         @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  track_cycle         track_cycle           @relation(fields: [track_cycle_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  last_sequence       sequence?             @relation("last_sequence", fields: [last_sequence_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  current_section     section?              @relation(fields: [current_section_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  sequence_progress   sequence_progress[]
+
+  @@unique([participation_id, track_cycle_id], map: "uq_track_progress_participation_cycle")
+  @@index([participation_id], map: "idx_track_progress_participation")
+  @@index([track_cycle_id], map: "idx_track_progress_cycle")
+  @@index([status], map: "idx_track_progress_status")
+  @@index([completed_at], map: "idx_track_progress_completed_at")
+}
+
+model sequence_progress {
+  id                 Int                  @id @default(autoincrement())
+  track_progress_id  Int
+  sequence_id        Int
+  status             progress_status_enum @default(not_started)
+  started_at         DateTime?            @db.Timestamp(6)
+  completed_at       DateTime?            @db.Timestamp(6)
+  time_spent_seconds Int?
+  visits_count       Int                  @default(0)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  updated_at         DateTime             @default(now()) @db.Timestamp(6)
+  track_progress     track_progress       @relation(fields: [track_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence           sequence             @relation(fields: [sequence_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  quiz_submission    quiz_submission[]
+
+  @@unique([track_progress_id, sequence_id], map: "uq_sequence_progress_track_sequence")
+  @@index([track_progress_id], map: "idx_sequence_progress_track_progress")
+  @@index([sequence_id], map: "idx_sequence_progress_sequence")
+  @@index([status], map: "idx_sequence_progress_status")
+  @@index([completed_at], map: "idx_sequence_progress_completed_at")
 }

@@ -9,6 +9,10 @@ export interface Participation {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Nome do usuário (quando includeUser=true na listagem) */
+  userName?: string;
+  /** Email do usuário (quando includeUser=true na listagem) */
+  userEmail?: string;
 }
 
 export interface CreateParticipationDto {
@@ -31,5 +35,9 @@ export interface ParticipationQuery extends PaginationQuery {
   active?: boolean;
   userId?: number;
   contextId?: number;
+  /** Incluir nome e email do usuário na resposta */
+  includeUser?: boolean;
+  /** Buscar por nome ou email do usuário (server-side) */
+  search?: string;
 }
 

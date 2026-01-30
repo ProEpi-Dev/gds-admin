@@ -62,6 +62,11 @@ import GenderEditPage from "../features/genders/pages/GenderEditPage";
 import GenderViewPage from "../features/genders/pages/GenderViewPage";
 import TrackView from "../features/tracks/TrackView";
 import TrackExecutionRegistry from "../features/tracks/TrackRegister";
+import TrackCyclesListPage from "../features/track-cycles/pages/TrackCyclesListPage";
+import TrackCycleFormPage from "../features/track-cycles/pages/TrackCycleFormPage";
+import TrackCycleStudentsPage from "../features/track-cycles/pages/TrackCycleStudentsPage";
+import TrackCycleProgressPage from "../features/track-cycles/pages/TrackCycleProgressPage";
+import TrackCycleQuizTakePage from "../features/track-cycles/pages/TrackCycleQuizTakePage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -477,6 +482,56 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <TrackExecutionRegistry />
+          </AdminRoute>
+        }
+      />
+
+      {/* Track Cycles Routes */}
+      <Route
+        path="/admin/track-cycles"
+        element={
+          <AdminRoute>
+            <TrackCyclesListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/track-cycles/create"
+        element={
+          <AdminRoute>
+            <TrackCycleFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/track-cycles/:id/edit"
+        element={
+          <AdminRoute>
+            <TrackCycleFormPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/track-cycles/:id/students"
+        element={
+          <AdminRoute>
+            <TrackCycleStudentsPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/track-cycles/:id/participation/:participationId/trilha"
+        element={
+          <AdminRoute>
+            <TrackCycleProgressPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/track-cycles/:id/participation/:participationId/quiz/:sequenceId"
+        element={
+          <AdminRoute>
+            <TrackCycleQuizTakePage />
           </AdminRoute>
         }
       />

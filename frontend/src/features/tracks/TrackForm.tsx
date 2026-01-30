@@ -22,6 +22,8 @@ import {
   ListItemSecondaryAction,
   ListItemButton,
   ClickAwayListener,
+  Autocomplete,
+  Alert,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -31,6 +33,7 @@ import {
   DragIndicator as DragIndicatorIcon,
 } from "@mui/icons-material";
 import { useSnackbar } from "../../hooks/useSnackbar";
+import { useContexts } from "../contexts/hooks/useContexts";
 import {
   DndContext,
   closestCenter,
@@ -376,6 +379,7 @@ export default function TrackForm() {
   );
 
   const [form, setForm] = useState({
+    context_id: undefined as number | undefined,
     name: "",
     description: "",
     control_period: false,
@@ -400,6 +404,7 @@ export default function TrackForm() {
 
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
+  const { data: contextsResponse } = useContexts();
 
   const removeInvalidSequences = (
     sections: typeof form.sections,
@@ -548,6 +553,7 @@ export default function TrackForm() {
       TrackService.get(Number(id)).then((res) => {
         const track = res.data;
         setForm({
+          context_id: track.context_id,
           name: track.name,
           description: track.description || "",
           control_period: track.control_period,
@@ -677,7 +683,7 @@ export default function TrackForm() {
   };
 
   const buildPayload = () => {
-    return {
+    const payload: any = {
       name: form.name,
       description: form.description,
       control_period: form.control_period,
@@ -701,6 +707,13 @@ export default function TrackForm() {
         })),
       })),
     };
+
+    // Adiciona context_id se foi selecionado
+    if (form.context_id) {
+      payload.context_id = form.context_id;
+    }
+
+    return payload;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -753,6 +766,37 @@ export default function TrackForm() {
           <Typography variant="h6" mb={2}>
             Informações Gerais
           </Typography>
+
+          {/* Contexto (Opcional) */}
+          <Alert severity="info" sx={{ mb: 2 }}>
+            O contexto é opcional. Se você gerencia apenas um contexto, ele será
+            selecionado automaticamente. Se gerencia múltiplos contextos, selecione
+            um abaixo.
+          </Alert>
+          <Autocomplete
+            options={contextsResponse?.data || []}
+            getOptionLabel={(option: any) => option.name || ""}
+            value={
+              contextsResponse?.data?.find((c: any) => c.id === form.context_id) ||
+              null
+            }
+            onChange={(_, newValue) => {
+              setForm((prev) => ({
+                ...prev,
+                context_id: newValue?.id || undefined,
+              }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Contexto (Opcional)"
+                helperText="Se vazio, será usado o contexto padrão do usuário"
+              />
+            )}
+            noOptionsText="Nenhum contexto encontrado"
+            sx={{ mb: 2 }}
+          />
+
           <TextField
             fullWidth
             label="Nome da Trilha"

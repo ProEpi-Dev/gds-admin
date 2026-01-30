@@ -57,5 +57,25 @@ export class CreateQuizSubmissionDto {
   })
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'ID do progresso da trilha. Quando informado junto com sequenceId, a submissão é vinculada ao sequence_progress e a sequência é marcada como concluída (operação atômica).',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  trackProgressId?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'ID da sequência no ciclo. Usado junto com trackProgressId para vincular a submissão ao progresso da trilha.',
+    example: 2,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  sequenceId?: number;
 }
 
