@@ -1,9 +1,12 @@
-export enum TrackCycleStatus {
-  DRAFT = 'draft',
-  ACTIVE = 'active',
-  CLOSED = 'closed',
-  ARCHIVED = 'archived',
-}
+export const TrackCycleStatus = {
+  DRAFT: "draft",
+  ACTIVE: "active",
+  CLOSED: "closed",
+  ARCHIVED: "archived",
+} as const;
+
+export type TrackCycleStatus =
+  (typeof TrackCycleStatus)[keyof typeof TrackCycleStatus];
 
 export interface TrackCycle {
   id: number;
