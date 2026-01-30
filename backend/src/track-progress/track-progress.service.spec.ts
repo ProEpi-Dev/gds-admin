@@ -65,7 +65,10 @@ describe('TrackProgressService', () => {
       trackCycleId: 1,
     } as any);
 
-    expect(result).toEqual({ id: 1 });
+    expect(result).toMatchObject({
+      id: 1,
+      progress_percentage: 0,
+    });
   });
 
   it('startTrackProgress – participação não encontrada', async () => {
