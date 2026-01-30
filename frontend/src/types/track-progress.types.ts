@@ -1,8 +1,11 @@
-export enum ProgressStatus {
-  NOT_STARTED = 'not_started',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-}
+export const ProgressStatus = {
+  NOT_STARTED: "not_started",
+  IN_PROGRESS: "in_progress",
+  COMPLETED: "completed",
+} as const;
+
+export type ProgressStatus =
+  (typeof ProgressStatus)[keyof typeof ProgressStatus];
 
 export interface SequenceProgress {
   id: number;
@@ -89,7 +92,7 @@ export interface TrackExecutionRow {
   trackCycleId: number;
   trackCycleName: string;
   activityName: string;
-  sequenceType: 'content' | 'quiz';
+  sequenceType: "content" | "quiz";
   participationId: number;
   participantName: string;
   completedAt: string;
@@ -98,7 +101,7 @@ export interface TrackExecutionRow {
 export interface TrackExecutionsQueryParams {
   trackCycleId?: number;
   participationId?: number;
-  sequenceType?: 'content' | 'quiz';
+  sequenceType?: "content" | "quiz";
   activityName?: string;
   dateFrom?: string;
   dateTo?: string;
