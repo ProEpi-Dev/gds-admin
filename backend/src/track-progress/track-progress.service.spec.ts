@@ -17,7 +17,6 @@ describe('TrackProgressService', () => {
       findFirst: jest.fn(),
     },
     sequence_progress: {
-      createMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -136,17 +135,36 @@ describe('TrackProgressService', () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,
       status: progress_status_enum.in_progress,
-    });
+      sequence_progress: [
+        { id: 1, status: progress_status_enum.completed },
+        { id: 2, status: progress_status_enum.in_progress },
+      ],
+      track_cycle: {
+        track: {
+          section: [
+            {
+              sequence: [
+                { id: 1, active: true },
+                { id: 2, active: true },
+              ],
+            },
+          ],
+        },
+      },
+    } as any);
 
-    prismaMock.sequence.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.sequence.findUnique.mockResolvedValue({ id: 1, active: true });
     prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
     prismaMock.sequence_progress.create.mockResolvedValue({ id: 1 });
+    prismaMock.track_progress.update.mockResolvedValue({ id: 1 });
 
-    const result = await service.updateSequenceProgress(1, 1, {
+    await service.updateSequenceProgress(1, 1, {
       progress: 100,
     } as any);
 
-    expect(result).toBeDefined();
+    // ✅ ASSERTS CORRETOS
+    expect(prismaMock.sequence_progress.create).toHaveBeenCalled();
+    expect(prismaMock.track_progress.update).toHaveBeenCalled();
   });
 
   it('canAccessSequence – sem progresso', async () => {
