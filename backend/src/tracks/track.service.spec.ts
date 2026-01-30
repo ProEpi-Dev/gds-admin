@@ -13,6 +13,8 @@ describe('TrackService', () => {
     section: [],
   };
 
+  const mockUser = { id: 1 } as any;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,9 +63,12 @@ describe('TrackService', () => {
         .spyOn(prismaService.track, 'create')
         .mockResolvedValue(mockTrack as any);
 
-      const result = await service.create({
-        name: 'Track Teste',
-      });
+      const result = await service.create(
+        {
+          name: 'Track Teste',
+        },
+        mockUser,
+      );
 
       expect(result).toEqual(mockTrack);
       expect(prismaService.track.create).toHaveBeenCalled();
@@ -138,9 +143,7 @@ describe('TrackService', () => {
             id: 1,
             name: 'Seção 1',
             order: 0,
-            sequence: [
-              { id: 1, order: 0, content_id: 1, form_id: null },
-            ],
+            sequence: [{ id: 1, order: 0, content_id: 1, form_id: null }],
           },
         ],
       };
@@ -149,15 +152,19 @@ describe('TrackService', () => {
         .spyOn(prismaService.track, 'create')
         .mockResolvedValue(trackWithSections as any);
 
-      const result = await service.create({
-        name: 'Track Teste',
-        sections: [
-          {
-            name: 'Seção 1',
-            sequences: [{ content_id: 1 }],
-          },
-        ],
-      });
+      const result = await service.create(
+        {
+          name: 'Track Teste',
+          sections: [
+            {
+              name: 'Seção 1',
+              order: 0,
+              sequences: [{ content_id: 1, order: 0 }],
+            },
+          ],
+        },
+        mockUser,
+      );
 
       expect(result).toEqual(trackWithSections);
       expect(prismaService.track.create).toHaveBeenCalled();
@@ -168,11 +175,14 @@ describe('TrackService', () => {
         .spyOn(prismaService.track, 'create')
         .mockResolvedValue(mockTrack as any);
 
-      await service.create({
-        name: 'Track Teste',
-        start_date: '',
-        end_date: '',
-      });
+      await service.create(
+        {
+          name: 'Track Teste',
+          start_date: '',
+          end_date: '',
+        },
+        mockUser,
+      );
 
       expect(prismaService.track.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -195,9 +205,13 @@ describe('TrackService', () => {
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
 
-      const result = await service.update(1, {
-        name: 'Track Atualizada',
-      });
+      const result = await service.update(
+        1,
+        {
+          name: 'Track Atualizada',
+        },
+        mockUser,
+      );
 
       expect(result).toEqual(mockTrack);
       expect(prismaService.track.update).toHaveBeenCalledWith({
@@ -216,22 +230,25 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.section, 'deleteMany')
         .mockResolvedValue({ count: 0 } as any);
-      jest
-        .spyOn(prismaService.section, 'create')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.section, 'create').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
 
-      await service.update(1, {
-        name: 'Track Atualizada',
-        sections: [
-          {
-            name: 'Seção 1',
-            sequences: [{ content_id: 1 }],
-          },
-        ],
-      });
+      await service.update(
+        1,
+        {
+          name: 'Track Atualizada',
+          sections: [
+            {
+              name: 'Seção 1',
+              order: 0,
+              sequences: [{ content_id: 1, order: 0 }],
+            },
+          ],
+        },
+        mockUser,
+      );
 
       expect(prismaService.sequence.deleteMany).toHaveBeenCalled();
       expect(prismaService.section.deleteMany).toHaveBeenCalled();
@@ -246,11 +263,15 @@ describe('TrackService', () => {
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
 
-      await service.update(1, {
-        name: 'Track Atualizada',
-        start_date: '',
-        end_date: '',
-      });
+      await service.update(
+        1,
+        {
+          name: 'Track Atualizada',
+          start_date: '',
+          end_date: '',
+        },
+        mockUser,
+      );
 
       expect(prismaService.track.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -277,12 +298,10 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.sequence, 'delete')
         .mockResolvedValue(mockSequence as any);
-      jest.spyOn(prismaService.sequence, 'findMany').mockResolvedValue([
-        { id: 2, section_id: 1, order: 1 },
-      ] as any);
       jest
-        .spyOn(prismaService.sequence, 'update')
-        .mockResolvedValue({} as any);
+        .spyOn(prismaService.sequence, 'findMany')
+        .mockResolvedValue([{ id: 2, section_id: 1, order: 1 }] as any);
+      jest.spyOn(prismaService.sequence, 'update').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -327,9 +346,7 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.section, 'findUnique')
         .mockResolvedValue(mockSection as any);
-      jest
-        .spyOn(prismaService.sequence, 'create')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.sequence, 'create').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -355,9 +372,7 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.section, 'findUnique')
         .mockResolvedValue(mockSection as any);
-      jest
-        .spyOn(prismaService.sequence, 'create')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.sequence, 'create').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -393,9 +408,7 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.section, 'findUnique')
         .mockResolvedValue(mockSection as any);
-      jest
-        .spyOn(prismaService.sequence, 'create')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.sequence, 'create').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -421,9 +434,7 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.section, 'findUnique')
         .mockResolvedValue(mockSection as any);
-      jest
-        .spyOn(prismaService.sequence, 'create')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.sequence, 'create').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -463,12 +474,10 @@ describe('TrackService', () => {
       jest
         .spyOn(prismaService.sequence, 'delete')
         .mockResolvedValue(mockSequence as any);
-      jest.spyOn(prismaService.sequence, 'findMany').mockResolvedValue([
-        { id: 2, order: 1 },
-      ] as any);
       jest
-        .spyOn(prismaService.sequence, 'update')
-        .mockResolvedValue({} as any);
+        .spyOn(prismaService.sequence, 'findMany')
+        .mockResolvedValue([{ id: 2, order: 1 }] as any);
+      jest.spyOn(prismaService.sequence, 'update').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -492,9 +501,7 @@ describe('TrackService', () => {
 
   describe('reorderSections', () => {
     it('deve reordenar seções', async () => {
-      jest
-        .spyOn(prismaService.section, 'update')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.section, 'update').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);
@@ -518,9 +525,7 @@ describe('TrackService', () => {
 
   describe('reorderSequences', () => {
     it('deve reordenar sequences', async () => {
-      jest
-        .spyOn(prismaService.sequence, 'update')
-        .mockResolvedValue({} as any);
+      jest.spyOn(prismaService.sequence, 'update').mockResolvedValue({} as any);
       jest
         .spyOn(prismaService.track, 'findUnique')
         .mockResolvedValue(mockTrack as any);

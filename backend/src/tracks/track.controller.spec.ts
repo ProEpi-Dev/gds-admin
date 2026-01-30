@@ -15,6 +15,8 @@ describe('TrackController', () => {
     updated_at: new Date('2024-01-01'),
   };
 
+  const mockUser = { id: 1 } as any;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TrackController],
@@ -48,10 +50,10 @@ describe('TrackController', () => {
 
       jest.spyOn(service, 'create').mockResolvedValue(mockTrack as any);
 
-      const result = await controller.create(createData);
+      const result = await controller.create(createData, mockUser);
 
       expect(result).toEqual(mockTrack);
-      expect(service.create).toHaveBeenCalledWith(createData);
+      expect(service.create).toHaveBeenCalledWith(createData, mockUser);
     });
   });
 
@@ -61,10 +63,10 @@ describe('TrackController', () => {
 
       jest.spyOn(service, 'list').mockResolvedValue(mockTracks as any);
 
-      const result = await controller.list();
+      const result = await controller.list({});
 
       expect(result).toEqual(mockTracks);
-      expect(service.list).toHaveBeenCalled();
+      expect(service.list).toHaveBeenCalledWith({});
     });
   });
 
@@ -100,18 +102,22 @@ describe('TrackController', () => {
 
       jest.spyOn(service, 'update').mockResolvedValue(updatedTrack as any);
 
-      const result = await controller.update('1', updateData);
+      const result = await controller.update('1', updateData, mockUser);
 
       expect(result).toEqual(updatedTrack);
-      expect(service.update).toHaveBeenCalledWith(1, updateData);
+      expect(service.update).toHaveBeenCalledWith(1, updateData, mockUser);
     });
 
     it('deve converter string id para number', async () => {
       jest.spyOn(service, 'update').mockResolvedValue(mockTrack as any);
 
-      await controller.update('456', { name: 'Teste' });
+      await controller.update('456', { name: 'Teste' }, mockUser);
 
-      expect(service.update).toHaveBeenCalledWith(456, { name: 'Teste' });
+      expect(service.update).toHaveBeenCalledWith(
+        456,
+        { name: 'Teste' },
+        mockUser,
+      );
     });
   });
 
