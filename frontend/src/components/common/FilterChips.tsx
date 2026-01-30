@@ -1,4 +1,4 @@
-import { Box, Chip } from '@mui/material';
+import { Box, Chip } from "@mui/material";
 
 interface FilterChip {
   label: string;
@@ -11,27 +11,33 @@ interface FilterChipsProps {
   onClearAll?: () => void;
 }
 
-export default function FilterChips({ filters, onClearAll }: FilterChipsProps) {
+export default function FilterChips({ filters }: FilterChipsProps) {
   if (filters.length === 0) {
     return null;
   }
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+    <Box
+      sx={{
+        display: "flex",
+        gap: 1,
+        flexWrap: "wrap",
+        alignItems: "center",
+        mb: 2,
+      }}
+    >
       {filters.map((filter, index) => (
         <Chip
           key={index}
-          label={filter.value !== undefined && filter.value !== null
-            ? `${filter.label}: ${filter.value}`
-            : filter.label}
+          label={
+            filter.value !== undefined && filter.value !== null
+              ? `${filter.label}: ${filter.value}`
+              : filter.label
+          }
           onDelete={filter.onDelete}
           size="small"
         />
       ))}
-      {onClearAll && (
-        <Chip label="Limpar todos" onDelete={onClearAll} size="small" color="default" />
-      )}
     </Box>
   );
 }
-

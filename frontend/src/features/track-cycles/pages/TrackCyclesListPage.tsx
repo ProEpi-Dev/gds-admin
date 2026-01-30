@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -11,58 +11,66 @@ import {
   InputLabel,
   Select,
   MenuItem,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Visibility as VisibilityIcon,
   People as PeopleIcon,
-} from '@mui/icons-material';
-import DataTable, { type Column } from '../../../components/common/DataTable';
-import FilterChips from '../../../components/common/FilterChips';
-import ConfirmDialog from '../../../components/common/ConfirmDialog';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
+} from "@mui/icons-material";
+import DataTable, { type Column } from "../../../components/common/DataTable";
+import FilterChips from "../../../components/common/FilterChips";
+import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
+import ErrorAlert from "../../../components/common/ErrorAlert";
+import { useTrackCycles, useDeleteTrackCycle } from "../hooks/useTrackCycles";
 import {
-  useTrackCycles,
-  useDeleteTrackCycle,
-  useUpdateTrackCycleStatus,
-} from '../hooks/useTrackCycles';
-import { TrackCycleStatus, type TrackCycle } from '../../../types/track-cycle.types';
+  TrackCycleStatus,
+  type TrackCycle,
+} from "../../../types/track-cycle.types";
 
 const STATUS_LABELS: Record<TrackCycleStatus, string> = {
-  [TrackCycleStatus.DRAFT]: 'Rascunho',
-  [TrackCycleStatus.ACTIVE]: 'Ativo',
-  [TrackCycleStatus.CLOSED]: 'Encerrado',
-  [TrackCycleStatus.ARCHIVED]: 'Arquivado',
+  [TrackCycleStatus.DRAFT]: "Rascunho",
+  [TrackCycleStatus.ACTIVE]: "Ativo",
+  [TrackCycleStatus.CLOSED]: "Encerrado",
+  [TrackCycleStatus.ARCHIVED]: "Arquivado",
 };
 
-const STATUS_COLORS: Record<TrackCycleStatus, 'default' | 'primary' | 'success' | 'warning' | 'error'> = {
-  [TrackCycleStatus.DRAFT]: 'default',
-  [TrackCycleStatus.ACTIVE]: 'success',
-  [TrackCycleStatus.CLOSED]: 'warning',
-  [TrackCycleStatus.ARCHIVED]: 'default',
+const STATUS_COLORS: Record<
+  TrackCycleStatus,
+  "default" | "primary" | "success" | "warning" | "error"
+> = {
+  [TrackCycleStatus.DRAFT]: "default",
+  [TrackCycleStatus.ACTIVE]: "success",
+  [TrackCycleStatus.CLOSED]: "warning",
+  [TrackCycleStatus.ARCHIVED]: "default",
 };
 
 const DEFAULT_PAGE_SIZE = 10;
 
 export default function TrackCyclesListPage() {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<TrackCycleStatus | undefined>(undefined);
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<
+    TrackCycleStatus | undefined
+  >(undefined);
+  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
+    undefined,
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [cycleToDelete, setCycleToDelete] = useState<TrackCycle | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: cycles, isLoading, error } = useTrackCycles({
+  const {
+    data: cycles,
+    isLoading,
+    error,
+  } = useTrackCycles({
     status: statusFilter,
     active: activeFilter,
   });
 
   const deleteMutation = useDeleteTrackCycle();
-  const updateStatusMutation = useUpdateTrackCycleStatus();
 
   const handleDelete = (cycle: TrackCycle) => {
     setCycleToDelete(cycle);
@@ -80,45 +88,38 @@ export default function TrackCyclesListPage() {
     }
   };
 
-  const handleStatusChange = (cycleId: number, newStatus: TrackCycleStatus) => {
-    updateStatusMutation.mutate({
-      id: cycleId,
-      data: { status: newStatus },
-    });
-  };
-
   const columns: Column<TrackCycle>[] = [
     {
-      id: 'id',
-      label: 'ID',
+      id: "id",
+      label: "ID",
       minWidth: 70,
-      mobileLabel: 'ID',
+      mobileLabel: "ID",
     },
     {
-      id: 'name',
-      label: 'Ciclo',
+      id: "name",
+      label: "Ciclo",
       minWidth: 120,
-      mobileLabel: 'Ciclo',
+      mobileLabel: "Ciclo",
     },
     {
-      id: 'track',
-      label: 'Trilha',
+      id: "track",
+      label: "Trilha",
       minWidth: 160,
-      mobileLabel: 'Trilha',
-      render: (row) => row.track?.name || '-',
+      mobileLabel: "Trilha",
+      render: (row) => row.track?.name || "-",
     },
     {
-      id: 'context',
-      label: 'Contexto',
+      id: "context",
+      label: "Contexto",
       minWidth: 140,
-      mobileLabel: 'Contexto',
-      render: (row) => row.context?.name || '-',
+      mobileLabel: "Contexto",
+      render: (row) => row.context?.name || "-",
     },
     {
-      id: 'status',
-      label: 'Status',
+      id: "status",
+      label: "Status",
       minWidth: 120,
-      mobileLabel: 'Status',
+      mobileLabel: "Status",
       render: (row) => (
         <Chip
           label={STATUS_LABELS[row.status]}
@@ -128,37 +129,31 @@ export default function TrackCyclesListPage() {
       ),
     },
     {
-      id: 'start_date',
-      label: 'Início',
+      id: "start_date",
+      label: "Início",
       minWidth: 100,
-      mobileLabel: 'Início',
-      render: (row) => new Date(row.start_date).toLocaleDateString('pt-BR'),
+      mobileLabel: "Início",
+      render: (row) => new Date(row.start_date).toLocaleDateString("pt-BR"),
     },
     {
-      id: 'end_date',
-      label: 'Término',
+      id: "end_date",
+      label: "Término",
       minWidth: 100,
-      mobileLabel: 'Término',
-      render: (row) => new Date(row.end_date).toLocaleDateString('pt-BR'),
+      mobileLabel: "Término",
+      render: (row) => new Date(row.end_date).toLocaleDateString("pt-BR"),
     },
     {
-      id: 'actions',
-      label: 'Ações',
+      id: "actions",
+      label: "Ações",
       minWidth: 180,
-      mobileLabel: 'Ações',
+      mobileLabel: "Ações",
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <IconButton
             size="small"
-            onClick={() => navigate(`/admin/track-cycles/${row.id}`)}
-            title="Ver detalhes"
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
             onClick={() => navigate(`/admin/track-cycles/${row.id}/edit`)}
             title="Editar"
+            color="primary"
           >
             <EditIcon fontSize="small" />
           </IconButton>
@@ -166,6 +161,7 @@ export default function TrackCyclesListPage() {
             size="small"
             onClick={() => navigate(`/admin/track-cycles/${row.id}/students`)}
             title="Ver participantes"
+            color="success"
           >
             <PeopleIcon fontSize="small" />
           </IconButton>
@@ -186,7 +182,7 @@ export default function TrackCyclesListPage() {
     ...(statusFilter && STATUS_LABELS[statusFilter]
       ? [
           {
-            label: 'Status',
+            label: "Status",
             value: STATUS_LABELS[statusFilter],
             onDelete: () => setStatusFilter(undefined),
           },
@@ -195,8 +191,8 @@ export default function TrackCyclesListPage() {
     ...(activeFilter !== undefined
       ? [
           {
-            label: 'Ativos',
-            value: activeFilter ? 'Sim' : 'Não',
+            label: "Ativos",
+            value: activeFilter ? "Sim" : "Não",
             onDelete: () => setActiveFilter(undefined),
           },
         ]
@@ -204,34 +200,46 @@ export default function TrackCyclesListPage() {
   ];
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert error={error} />;
+  if (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao carregar dados";
+
+    return <ErrorAlert message={message} />;
+  }
 
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h4" component="h1">
           Ciclos de Trilhas
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/admin/track-cycles/create')}
+          onClick={() => navigate("/admin/track-cycles/create")}
         >
           Novo Ciclo
         </Button>
       </Stack>
 
       {/* Filtros */}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} mb={2}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} mb={2}>
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel>Status</InputLabel>
           <Select
-            value={statusFilter ?? 'all'}
+            value={statusFilter ?? "all"}
             label="Status"
             onChange={(e) => {
               const value = e.target.value;
-              setStatusFilter(value === 'all' ? undefined : (value as TrackCycleStatus));
+              setStatusFilter(
+                value === "all" ? undefined : (value as TrackCycleStatus),
+              );
             }}
           >
             <MenuItem value="all">Todos</MenuItem>
@@ -245,13 +253,17 @@ export default function TrackCyclesListPage() {
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel>Ativos</InputLabel>
           <Select
-            value={activeFilter === undefined ? 'all' : activeFilter ? 'true' : 'false'}
+            value={
+              activeFilter === undefined
+                ? "all"
+                : activeFilter
+                  ? "true"
+                  : "false"
+            }
             label="Ativos"
             onChange={(e) => {
               const value = e.target.value;
-              setActiveFilter(
-                value === 'all' ? undefined : value === 'true',
-              );
+              setActiveFilter(value === "all" ? undefined : value === "true");
             }}
           >
             <MenuItem value="all">Todos</MenuItem>
@@ -288,7 +300,7 @@ export default function TrackCyclesListPage() {
           setDeleteDialogOpen(false);
           setCycleToDelete(null);
         }}
-        isLoading={deleteMutation.isPending}
+        loading={deleteMutation.isPending}
       />
     </Box>
   );

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Box,
   Button,
@@ -18,33 +18,36 @@ import {
   MenuItem,
   FormHelperText,
   Autocomplete,
-} from '@mui/material';
-import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+} from "@mui/material";
+import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
 import {
   useTrackCycle,
   useCreateTrackCycle,
   useUpdateTrackCycle,
-} from '../hooks/useTrackCycles';
-import { useContexts } from '../../contexts/hooks/useContexts';
-import { useTracks } from '../../tracks/hooks/useTracks';
-import { TrackCycleStatus } from '../../../types/track-cycle.types';
-import { getErrorMessage } from '../../../utils/errorHandler';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
+} from "../hooks/useTrackCycles";
+import { useContexts } from "../../contexts/hooks/useContexts";
+import { useTracks } from "../../tracks/hooks/useTracks";
+import { TrackCycleStatus } from "../../../types/track-cycle.types";
+import { getErrorMessage } from "../../../utils/errorHandler";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
+import ErrorAlert from "../../../components/common/ErrorAlert";
 
 const formSchema = z
   .object({
-    trackId: z.number().min(1, 'Trilha é obrigatória'),
-    contextId: z.number().min(1, 'Contexto é obrigatório'),
-    name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome deve ter no máximo 100 caracteres'),
+    trackId: z.number().min(1, "Trilha é obrigatória"),
+    contextId: z.number().min(1, "Contexto é obrigatório"),
+    name: z
+      .string()
+      .min(1, "Nome é obrigatório")
+      .max(100, "Nome deve ter no máximo 100 caracteres"),
     description: z.string().optional(),
     status: z.nativeEnum(TrackCycleStatus),
-    startDate: z.string().min(1, 'Data de início é obrigatória'),
-    endDate: z.string().min(1, 'Data de término é obrigatória'),
+    startDate: z.string().min(1, "Data de início é obrigatória"),
+    endDate: z.string().min(1, "Data de término é obrigatória"),
   })
   .refine((data) => new Date(data.endDate) >= new Date(data.startDate), {
-    message: 'Data de término deve ser maior ou igual à data de início',
-    path: ['endDate'],
+    message: "Data de término deve ser maior ou igual à data de início",
+    path: ["endDate"],
   });
 
 type FormData = z.infer<typeof formSchema>;
@@ -55,8 +58,13 @@ export default function TrackCycleFormPage() {
   const isEditing = !!id;
   const [error, setError] = useState<string | null>(null);
 
-  const { data: cycle, isLoading: isLoadingCycle, error: cycleError } = useTrackCycle(id ? parseInt(id) : null);
-  const { data: contextsResponse, isLoading: isLoadingContexts } = useContexts();
+  const {
+    data: cycle,
+    isLoading: isLoadingCycle,
+    error: cycleError,
+  } = useTrackCycle(id ? parseInt(id) : null);
+  const { data: contextsResponse, isLoading: isLoadingContexts } =
+    useContexts();
   const createMutation = useCreateTrackCycle();
   const updateMutation = useUpdateTrackCycle();
 
@@ -73,21 +81,26 @@ export default function TrackCycleFormPage() {
     defaultValues: {
       trackId: 0,
       contextId: 0,
-      name: '',
-      description: '',
+      name: "",
+      description: "",
       status: TrackCycleStatus.DRAFT,
-      startDate: '',
-      endDate: '',
+      startDate: "",
+      endDate: "",
     },
   });
 
-  const contextId = watch('contextId');
+  const contextId = watch("contextId");
   const { data: tracksData, isLoading: isLoadingTracks } = useTracks(contextId);
 
   // Debug: verificar dados das trilhas
   useEffect(() => {
     if (tracksData && contextId) {
-      console.log('📚 Trilhas carregadas para contexto', contextId, ':', tracksData);
+      console.log(
+        "📚 Trilhas carregadas para contexto",
+        contextId,
+        ":",
+        tracksData,
+      );
     }
   }, [tracksData, contextId]);
 
@@ -98,10 +111,10 @@ export default function TrackCycleFormPage() {
         trackId: cycle.track_id,
         contextId: cycle.context_id,
         name: cycle.name,
-        description: cycle.description || '',
+        description: cycle.description || "",
         status: cycle.status,
-        startDate: cycle.start_date.split('T')[0],
-        endDate: cycle.end_date.split('T')[0],
+        startDate: cycle.start_date.split("T")[0],
+        endDate: cycle.end_date.split("T")[0],
       });
     }
   }, [cycle, reset]);
@@ -109,7 +122,7 @@ export default function TrackCycleFormPage() {
   // Resetar trilha quando contexto mudar
   useEffect(() => {
     if (!isEditing && contextId) {
-      setValue('trackId', 0);
+      setValue("trackId", 0);
     }
   }, [contextId, isEditing, setValue]);
 
@@ -131,7 +144,7 @@ export default function TrackCycleFormPage() {
         { id: parseInt(id), data: cycleData },
         {
           onSuccess: () => {
-            navigate('/admin/track-cycles');
+            navigate("/admin/track-cycles");
           },
           onError: (err) => {
             setError(getErrorMessage(err));
@@ -141,7 +154,7 @@ export default function TrackCycleFormPage() {
     } else {
       createMutation.mutate(cycleData, {
         onSuccess: () => {
-          navigate('/admin/track-cycles');
+          navigate("/admin/track-cycles");
         },
         onError: (err) => {
           setError(getErrorMessage(err));
@@ -151,7 +164,16 @@ export default function TrackCycleFormPage() {
   };
 
   if (isLoadingCycle || isLoadingContexts) return <LoadingSpinner />;
-  if (cycleError) return <ErrorAlert error={cycleError} />;
+  if (cycleError)
+    return (
+      <ErrorAlert
+        message={
+          cycleError instanceof Error
+            ? cycleError.message
+            : "Erro ao carregar ciclo"
+        }
+      />
+    );
 
   const contexts = contextsResponse?.data || [];
   const tracks = tracksData || []; // tracksData já é o array, não precisa acessar .data
@@ -160,7 +182,7 @@ export default function TrackCycleFormPage() {
     <Box sx={{ p: 3 }}>
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/admin/track-cycles')}
+        onClick={() => navigate("/admin/track-cycles")}
         sx={{ mb: 2 }}
       >
         Voltar
@@ -168,7 +190,7 @@ export default function TrackCycleFormPage() {
 
       <Paper sx={{ p: 3 }}>
         <Typography variant="h5" component="h1" gutterBottom>
-          {isEditing ? 'Editar Ciclo' : 'Novo Ciclo'}
+          {isEditing ? "Editar Ciclo" : "Novo Ciclo"}
         </Typography>
 
         {error && (
@@ -187,8 +209,10 @@ export default function TrackCycleFormPage() {
                 <Autocomplete
                   {...field}
                   options={contexts}
-                  getOptionLabel={(option: any) => option.name || ''}
-                  value={contexts.find((c: any) => c.id === field.value) || null}
+                  getOptionLabel={(option: any) => option.name || ""}
+                  value={
+                    contexts.find((c: any) => c.id === field.value) || null
+                  }
                   onChange={(_, newValue) => {
                     field.onChange(newValue?.id || 0);
                   }}
@@ -214,7 +238,7 @@ export default function TrackCycleFormPage() {
                 <Autocomplete
                   {...field}
                   options={tracks}
-                  getOptionLabel={(option: any) => option.name || ''}
+                  getOptionLabel={(option: any) => option.name || ""}
                   value={tracks.find((t: any) => t.id === value) || null}
                   onChange={(_, newValue) => {
                     onChange(newValue?.id || 0);
@@ -228,7 +252,7 @@ export default function TrackCycleFormPage() {
                       error={!!errors.trackId}
                       helperText={
                         errors.trackId?.message ||
-                        (!contextId ? 'Selecione um contexto primeiro' : '')
+                        (!contextId ? "Selecione um contexto primeiro" : "")
                       }
                       InputProps={{
                         ...params.InputProps,
@@ -245,10 +269,10 @@ export default function TrackCycleFormPage() {
                   )}
                   noOptionsText={
                     !contextId
-                      ? 'Selecione um contexto primeiro'
+                      ? "Selecione um contexto primeiro"
                       : isLoadingTracks
-                      ? 'Carregando trilhas...'
-                      : 'Nenhuma trilha encontrada neste contexto'
+                        ? "Carregando trilhas..."
+                        : "Nenhuma trilha encontrada neste contexto"
                   }
                 />
               )}
@@ -260,7 +284,7 @@ export default function TrackCycleFormPage() {
               placeholder="Ex: 2026.1, Primeiro Semestre, Turma A"
               error={!!errors.name}
               helperText={errors.name?.message}
-              {...register('name')}
+              {...register("name")}
               fullWidth
             />
 
@@ -270,7 +294,7 @@ export default function TrackCycleFormPage() {
               placeholder="Descrição opcional do ciclo"
               error={!!errors.description}
               helperText={errors.description?.message}
-              {...register('description')}
+              {...register("description")}
               multiline
               rows={3}
               fullWidth
@@ -281,8 +305,10 @@ export default function TrackCycleFormPage() {
               <InputLabel>Status *</InputLabel>
               <Select
                 label="Status *"
-                value={watch('status')}
-                onChange={(e) => setValue('status', e.target.value as TrackCycleStatus)}
+                value={watch("status")}
+                onChange={(e) =>
+                  setValue("status", e.target.value as TrackCycleStatus)
+                }
               >
                 <MenuItem value={TrackCycleStatus.DRAFT}>Rascunho</MenuItem>
                 <MenuItem value={TrackCycleStatus.ACTIVE}>Ativo</MenuItem>
@@ -295,13 +321,13 @@ export default function TrackCycleFormPage() {
             </FormControl>
 
             {/* Datas */}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 label="Data de Início *"
                 type="date"
                 error={!!errors.startDate}
                 helperText={errors.startDate?.message}
-                {...register('startDate')}
+                {...register("startDate")}
                 InputLabelProps={{ shrink: true }}
                 fullWidth
               />
@@ -311,7 +337,7 @@ export default function TrackCycleFormPage() {
                 type="date"
                 error={!!errors.endDate}
                 helperText={errors.endDate?.message}
-                {...register('endDate')}
+                {...register("endDate")}
                 InputLabelProps={{ shrink: true }}
                 fullWidth
               />
@@ -321,7 +347,7 @@ export default function TrackCycleFormPage() {
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
                 variant="outlined"
-                onClick={() => navigate('/admin/track-cycles')}
+                onClick={() => navigate("/admin/track-cycles")}
               >
                 Cancelar
               </Button>
@@ -335,7 +361,7 @@ export default function TrackCycleFormPage() {
                   )
                 }
               >
-                {isEditing ? 'Salvar' : 'Criar'}
+                {isEditing ? "Salvar" : "Criar"}
               </Button>
             </Stack>
           </Stack>

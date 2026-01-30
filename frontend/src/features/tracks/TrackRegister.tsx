@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -11,35 +11,48 @@ import {
   MenuItem,
   TextField,
   Autocomplete,
-} from '@mui/material';
-import { FileDownload as FileDownloadIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
-import DataTable, { type Column } from '../../components/common/DataTable';
-import FilterChips from '../../components/common/FilterChips';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ErrorAlert from '../../components/common/ErrorAlert';
-import SelectParticipationSearch from '../../components/common/SelectParticipationSearch';
-import { useDebounce } from '../../hooks/useDebounce';
-import { useTrackExecutions } from '../track-progress/hooks/useTrackProgress';
-import { useTrackCycles } from '../track-cycles/hooks/useTrackCycles';
-import { useParticipation } from '../participations/hooks/useParticipations';
-import type { TrackExecutionRow, TrackExecutionsQueryParams } from '../../types/track-progress.types';
-import type { TrackCycle } from '../../types/track-cycle.types';
-import type { Participation } from '../../types/participation.types';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+} from "@mui/material";
+import {
+  FileDownload as FileDownloadIcon,
+  OpenInNew as OpenInNewIcon,
+} from "@mui/icons-material";
+import DataTable, { type Column } from "../../components/common/DataTable";
+import FilterChips from "../../components/common/FilterChips";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import ErrorAlert from "../../components/common/ErrorAlert";
+import SelectParticipationSearch from "../../components/common/SelectParticipationSearch";
+import { useDebounce } from "../../hooks/useDebounce";
+import { useTrackExecutions } from "../track-progress/hooks/useTrackProgress";
+import { useTrackCycles } from "../track-cycles/hooks/useTrackCycles";
+import { useParticipation } from "../participations/hooks/useParticipations";
+import type {
+  TrackExecutionRow,
+  TrackExecutionsQueryParams,
+} from "../../types/track-progress.types";
+import type { TrackCycle } from "../../types/track-cycle.types";
+import type { Participation } from "../../types/participation.types";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const DEFAULT_PAGE_SIZE = 15;
 
 export default function TrackExecutionRegistry() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [trackCycleId, setTrackCycleId] = useState<number | undefined>(undefined);
-  const [participationId, setParticipationId] = useState<number | undefined>(undefined);
-  const [selectedParticipation, setSelectedParticipation] = useState<Participation | null>(null);
-  const [sequenceType, setSequenceType] = useState<'content' | 'quiz' | undefined>(undefined);
-  const [activityNameInput, setActivityNameInput] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [trackCycleId, setTrackCycleId] = useState<number | undefined>(
+    undefined,
+  );
+  const [participationId, setParticipationId] = useState<number | undefined>(
+    undefined,
+  );
+  const [selectedParticipation, setSelectedParticipation] =
+    useState<Participation | null>(null);
+  const [sequenceType, setSequenceType] = useState<
+    "content" | "quiz" | undefined
+  >(undefined);
+  const [activityNameInput, setActivityNameInput] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const activityName = useDebounce(activityNameInput, 400);
 
@@ -52,11 +65,24 @@ export default function TrackExecutionRegistry() {
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo) params.dateTo = dateTo;
     return params;
-  }, [trackCycleId, participationId, sequenceType, activityName, dateFrom, dateTo]);
+  }, [
+    trackCycleId,
+    participationId,
+    sequenceType,
+    activityName,
+    dateFrom,
+    dateTo,
+  ]);
 
-  const { data: executions = [], isLoading, error } = useTrackExecutions(queryParams);
+  const {
+    data: executions = [],
+    isLoading,
+    error,
+  } = useTrackExecutions(queryParams);
   const { data: cycles = [] } = useTrackCycles({ active: true });
-  const { data: participationDetail } = useParticipation(participationId ?? null);
+  const { data: participationDetail } = useParticipation(
+    participationId ?? null,
+  );
 
   const paginatedData = useMemo(
     () => executions.slice((page - 1) * pageSize, page * pageSize),
@@ -65,34 +91,36 @@ export default function TrackExecutionRegistry() {
 
   const handleExportCSV = () => {
     const headers = [
-      'Ciclo de Trilha',
-      'Atividade',
-      'Tipo da Sequência',
-      'Participante',
-      'Data de Conclusão',
+      "Ciclo de Trilha",
+      "Atividade",
+      "Tipo da Sequência",
+      "Participante",
+      "Data de Conclusão",
     ];
     const rows = executions.map((row) => [
       row.trackCycleName,
       row.activityName,
-      row.sequenceType === 'quiz' ? 'Quiz' : 'Conteúdo',
+      row.sequenceType === "quiz" ? "Quiz" : "Conteúdo",
       row.participantName,
       row.completedAt
-        ? format(new Date(row.completedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })
-        : '-',
+        ? format(new Date(row.completedAt), "dd/MM/yyyy HH:mm", {
+            locale: ptBR,
+          })
+        : "-",
     ]);
     const csvContent = [
-      headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(';'),
+      headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(";"),
       ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'),
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"),
       ),
-    ].join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], {
-      type: 'text/csv;charset=utf-8;',
+    ].join("\n");
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = `execucoes_trilhas_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `execucoes_trilhas_${format(new Date(), "yyyy-MM-dd")}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -104,9 +132,9 @@ export default function TrackExecutionRegistry() {
     setParticipationId(undefined);
     setSelectedParticipation(null);
     setSequenceType(undefined);
-    setActivityNameInput('');
-    setDateFrom('');
-    setDateTo('');
+    setActivityNameInput("");
+    setDateFrom("");
+    setDateTo("");
     setPage(1);
   };
 
@@ -114,7 +142,7 @@ export default function TrackExecutionRegistry() {
     ...(trackCycleId != null && cycles.find((c) => c.id === trackCycleId)
       ? [
           {
-            label: 'Ciclo de Trilha',
+            label: "Ciclo de Trilha",
             value: cycles.find((c) => c.id === trackCycleId)?.name,
             onDelete: () => setTrackCycleId(undefined),
           },
@@ -123,8 +151,11 @@ export default function TrackExecutionRegistry() {
     ...(participationId != null
       ? [
           {
-            label: 'Participante',
-            value: participationDetail?.userName ?? selectedParticipation?.userName ?? `#${participationId}`,
+            label: "Participante",
+            value:
+              participationDetail?.userName ??
+              selectedParticipation?.userName ??
+              `#${participationId}`,
             onDelete: () => {
               setParticipationId(undefined);
               setSelectedParticipation(null);
@@ -135,8 +166,8 @@ export default function TrackExecutionRegistry() {
     ...(sequenceType
       ? [
           {
-            label: 'Tipo',
-            value: sequenceType === 'quiz' ? 'Quiz' : 'Conteúdo',
+            label: "Tipo",
+            value: sequenceType === "quiz" ? "Quiz" : "Conteúdo",
             onDelete: () => setSequenceType(undefined),
           },
         ]
@@ -144,27 +175,27 @@ export default function TrackExecutionRegistry() {
     ...(activityName.trim()
       ? [
           {
-            label: 'Atividade',
+            label: "Atividade",
             value: activityName.trim(),
-            onDelete: () => setActivityNameInput(''),
+            onDelete: () => setActivityNameInput(""),
           },
         ]
       : []),
     ...(dateFrom
       ? [
           {
-            label: 'Data de',
+            label: "Data de",
             value: dateFrom,
-            onDelete: () => setDateFrom(''),
+            onDelete: () => setDateFrom(""),
           },
         ]
       : []),
     ...(dateTo
       ? [
           {
-            label: 'Data até',
+            label: "Data até",
             value: dateTo,
-            onDelete: () => setDateTo(''),
+            onDelete: () => setDateTo(""),
           },
         ]
       : []),
@@ -172,48 +203,50 @@ export default function TrackExecutionRegistry() {
 
   const columns: Column<TrackExecutionRow>[] = [
     {
-      id: 'trackCycleName',
-      label: 'Ciclo de Trilha',
+      id: "trackCycleName",
+      label: "Ciclo de Trilha",
       minWidth: 180,
-      mobileLabel: 'Ciclo',
+      mobileLabel: "Ciclo",
       render: (row) => row.trackCycleName,
     },
     {
-      id: 'activityName',
-      label: 'Atividade',
+      id: "activityName",
+      label: "Atividade",
       minWidth: 200,
-      mobileLabel: 'Atividade',
+      mobileLabel: "Atividade",
       render: (row) => row.activityName,
     },
     {
-      id: 'sequenceType',
-      label: 'Tipo da Sequência',
+      id: "sequenceType",
+      label: "Tipo da Sequência",
       minWidth: 120,
-      mobileLabel: 'Tipo',
-      render: (row) => (row.sequenceType === 'quiz' ? 'Quiz' : 'Conteúdo'),
+      mobileLabel: "Tipo",
+      render: (row) => (row.sequenceType === "quiz" ? "Quiz" : "Conteúdo"),
     },
     {
-      id: 'participantName',
-      label: 'Participante',
+      id: "participantName",
+      label: "Participante",
       minWidth: 180,
-      mobileLabel: 'Participante',
+      mobileLabel: "Participante",
       render: (row) => row.participantName,
     },
     {
-      id: 'completedAt',
-      label: 'Data de Conclusão',
+      id: "completedAt",
+      label: "Data de Conclusão",
       minWidth: 160,
-      mobileLabel: 'Conclusão',
+      mobileLabel: "Conclusão",
       render: (row) =>
         row.completedAt
-          ? format(new Date(row.completedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })
-          : '-',
+          ? format(new Date(row.completedAt), "dd/MM/yyyy HH:mm", {
+              locale: ptBR,
+            })
+          : "-",
     },
     {
-      id: 'actions',
-      label: 'Ações',
+      id: "actions",
+      label: "Ações",
       minWidth: 100,
-      mobileLabel: 'Ações',
+      mobileLabel: "Ações",
       render: (row) => (
         <Button
           component={Link}
@@ -230,12 +263,23 @@ export default function TrackExecutionRegistry() {
     },
   ];
 
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert message={error instanceof Error ? error.message : 'Erro ao carregar execuções'} />;
+  if (error)
+    return (
+      <ErrorAlert
+        message={
+          error instanceof Error ? error.message : "Erro ao carregar execuções"
+        }
+      />
+    );
 
   return (
     <Box sx={{ p: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h4" component="h1">
           Registro de Execução das Trilhas
         </Typography>
@@ -252,7 +296,7 @@ export default function TrackExecutionRegistry() {
 
       {/* Filtros */}
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
+        direction={{ xs: "column", md: "row" }}
         spacing={2}
         mb={2}
         flexWrap="wrap"
@@ -261,11 +305,16 @@ export default function TrackExecutionRegistry() {
         <Autocomplete
           sx={{ minWidth: 260 }}
           options={cycles}
-          getOptionLabel={(opt: TrackCycle) => opt.name ?? ''}
+          getOptionLabel={(opt: TrackCycle) => opt.name ?? ""}
           value={cycles.find((c) => c.id === trackCycleId) ?? null}
           onChange={(_, v) => setTrackCycleId(v?.id)}
           renderInput={(params) => (
-            <TextField {...params} label="Ciclo de Trilha" size="small" placeholder="Todos" />
+            <TextField
+              {...params}
+              label="Ciclo de Trilha"
+              size="small"
+              placeholder="Todos"
+            />
           )}
         />
         <TextField
@@ -278,11 +327,13 @@ export default function TrackExecutionRegistry() {
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Tipo da Sequência</InputLabel>
           <Select
-            value={sequenceType ?? 'all'}
+            value={sequenceType ?? "all"}
             label="Tipo da Sequência"
             onChange={(e) => {
               const v = e.target.value;
-              setSequenceType(v === 'all' ? undefined : (v as 'content' | 'quiz'));
+              setSequenceType(
+                v === "all" ? undefined : (v as "content" | "quiz"),
+              );
             }}
           >
             <MenuItem value="all">Todos</MenuItem>
@@ -327,20 +378,26 @@ export default function TrackExecutionRegistry() {
         <FilterChips filters={activeFilters} onClearAll={clearFilters} />
       )}
 
-      <DataTable
-        columns={columns}
-        data={paginatedData}
-        page={page}
-        pageSize={pageSize}
-        totalItems={executions.length}
-        onPageChange={setPage}
-        onPageSizeChange={(newSize) => {
-          setPageSize(newSize);
-          setPage(1);
-        }}
-        variant="table"
-        emptyMessage="Nenhuma execução encontrada. Ajuste os filtros ou aguarde conclusões de atividades."
-      />
+      {isLoading ? (
+        <Box sx={{ mt: 4 }}>
+          <LoadingSpinner />
+        </Box>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={paginatedData}
+          page={page}
+          pageSize={pageSize}
+          totalItems={executions.length}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          variant="table"
+          emptyMessage="Nenhuma execução encontrada. Ajuste os filtros ou aguarde conclusões de atividades."
+        />
+      )}
     </Box>
   );
 }
