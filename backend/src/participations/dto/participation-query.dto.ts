@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
 export class ParticipationQueryDto extends PaginationQueryDto {
@@ -34,5 +34,21 @@ export class ParticipationQueryDto extends PaginationQueryDto {
   @IsInt()
   @IsOptional()
   contextId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Incluir dados do usuário (nome, email) na resposta',
+    example: true,
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsOptional()
+  includeUser?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Buscar por nome ou email do usuário (busca no servidor)',
+    example: 'João',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 

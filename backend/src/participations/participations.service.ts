@@ -100,6 +100,18 @@ export class ParticipationsService {
       where.context_id = query.contextId;
     }
 
+    const searchTerm = query.search?.trim();
+    if (searchTerm) {
+      where.user = {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const includeUser = query.includeUser === true;
+
     // Buscar participações e total
     const [participations, totalItems] = await Promise.all([
       this.prisma.participation.findMany({
@@ -107,6 +119,13 @@ export class ParticipationsService {
         skip,
         take: pageSize,
         orderBy: { created_at: 'desc' },
+        include: includeUser
+          ? {
+              user: {
+                select: { name: true, email: true },
+              },
+            }
+          : undefined,
       }),
       this.prisma.participation.count({ where }),
     ]);
@@ -117,10 +136,12 @@ export class ParticipationsService {
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.userId !== undefined) queryParams.userId = query.userId;
     if (query.contextId !== undefined) queryParams.contextId = query.contextId;
+    if (query.includeUser !== undefined) queryParams.includeUser = query.includeUser;
+    if (query.search !== undefined) queryParams.search = query.search;
 
     return {
       data: participations.map((participation) =>
-        this.mapToResponseDto(participation),
+        this.mapToResponseDto(participation, includeUser),
       ),
       meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
       links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
@@ -130,13 +151,16 @@ export class ParticipationsService {
   async findOne(id: number): Promise<ParticipationResponseDto> {
     const participation = await this.prisma.participation.findUnique({
       where: { id },
+      include: {
+        user: { select: { name: true, email: true } },
+      },
     });
 
     if (!participation) {
       throw new NotFoundException(`Participação com ID ${id} não encontrada`);
     }
 
-    return this.mapToResponseDto(participation);
+    return this.mapToResponseDto(participation, true);
   }
 
   async update(
@@ -260,8 +284,11 @@ export class ParticipationsService {
     });
   }
 
-  private mapToResponseDto(participation: any): ParticipationResponseDto {
-    return {
+  private mapToResponseDto(
+    participation: any,
+    includeUser = false,
+  ): ParticipationResponseDto {
+    const dto: ParticipationResponseDto = {
       id: participation.id,
       userId: participation.user_id,
       contextId: participation.context_id,
@@ -271,6 +298,11 @@ export class ParticipationsService {
       createdAt: participation.created_at,
       updatedAt: participation.updated_at,
     };
+    if (includeUser && participation.user) {
+      dto.userName = participation.user.name;
+      dto.userEmail = participation.user.email;
+    }
+    return dto;
   }
 }
 

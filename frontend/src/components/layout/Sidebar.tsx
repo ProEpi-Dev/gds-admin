@@ -32,6 +32,7 @@ import {
   TableChart as TableChartIcon,
   ExpandLess,
   ExpandMore,
+  Autorenew as AutorenewIcon,
 } from "@mui/icons-material";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -65,6 +66,9 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     quizzes:
       location.pathname.startsWith("/quizzes") ||
       location.pathname.startsWith("/quiz-submissions"),
+    "menu-9":
+      location.pathname.startsWith("/tracks") ||
+      location.pathname.startsWith("/admin/track-cycles"),
   });
 
   const menuItems: MenuItem[] = [
@@ -130,6 +134,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           path: "/tracks",
           label: "Gerenciar Trilhas",
           icon: <TrackChangesIcon />,
+        },
+        {
+          path: "/admin/track-cycles",
+          label: "Ciclos de Trilha",
+          icon: <AutorenewIcon />,
         },
         {
           path: "/tracks/executions",

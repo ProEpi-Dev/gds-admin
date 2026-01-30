@@ -34,5 +34,17 @@ export class ParticipationResponseDto {
 
   @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
   updatedAt: Date;
+
+  @ApiPropertyOptional({
+    description: 'Nome do usuário (quando includeUser=true na listagem)',
+    example: 'João Silva',
+  })
+  userName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Email do usuário (quando includeUser=true na listagem)',
+    example: 'joao@example.com',
+  })
+  userEmail?: string;
 }
 

@@ -2,7 +2,7 @@ import { Box, Chip } from '@mui/material';
 
 interface FilterChip {
   label: string;
-  value: string | number | boolean;
+  value?: string | number | boolean;
   onDelete?: () => void;
 }
 
@@ -21,7 +21,9 @@ export default function FilterChips({ filters, onClearAll }: FilterChipsProps) {
       {filters.map((filter, index) => (
         <Chip
           key={index}
-          label={`${filter.label}: ${filter.value}`}
+          label={filter.value !== undefined && filter.value !== null
+            ? `${filter.label}: ${filter.value}`
+            : filter.label}
           onDelete={filter.onDelete}
           size="small"
         />

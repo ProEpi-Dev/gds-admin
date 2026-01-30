@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrackProgressService } from '../track-progress/track-progress.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
@@ -45,7 +46,10 @@ interface QuizDefinition {
 
 @Injectable()
 export class QuizSubmissionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private trackProgressService: TrackProgressService,
+  ) {}
 
   async create(
     createQuizSubmissionDto: CreateQuizSubmissionDto,
@@ -182,6 +186,20 @@ export class QuizSubmissionsService {
         active: createQuizSubmissionDto.active ?? true,
       },
     });
+
+    // Se contexto de trilha foi informado, vincular submissão ao sequence_progress e marcar sequência como concluída (operação atômica na mesma requisição)
+    const { trackProgressId, sequenceId } = createQuizSubmissionDto;
+    if (
+      trackProgressId != null &&
+      sequenceId != null &&
+      createQuizSubmissionDto.completedAt
+    ) {
+      await this.trackProgressService.completeQuizSequence(
+        trackProgressId,
+        sequenceId,
+        quizSubmission.id,
+      );
+    }
 
     return this.mapToResponseDto(quizSubmission);
   }

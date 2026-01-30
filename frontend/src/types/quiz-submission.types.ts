@@ -54,6 +54,9 @@ export interface CreateQuizSubmissionDto {
   completedAt?: string;
   timeSpentSeconds?: number;
   active?: boolean;
+  /** Quando informados, a submissão é vinculada ao sequence_progress e a sequência é marcada como concluída (operação atômica no backend). */
+  trackProgressId?: number;
+  sequenceId?: number;
 }
 
 export interface UpdateQuizSubmissionDto {

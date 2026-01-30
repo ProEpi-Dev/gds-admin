@@ -1,8 +1,8 @@
 import apiClient from "../client";
 
 export const TrackService = {
-  list() {
-    return apiClient.get("/tracks");
+  list(params?: { contextId?: number }) {
+    return apiClient.get("/tracks", { params });
   },
 
   get(id: number) {

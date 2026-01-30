@@ -19,6 +19,8 @@ import { TagModule } from './tags/tag.module';
 import { ContentQuizModule } from './content-quiz/content-quiz.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
 import { TrackModule } from './tracks/track.module';
+import { TrackCyclesModule } from './track-cycles/track-cycles.module';
+import { TrackProgressModule } from './track-progress/track-progress.module';
 import { LegalDocumentsModule } from './legal-documents/legal-documents.module';
 import { GendersModule } from './genders/genders.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -48,6 +50,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     ContentQuizModule,
     QuizSubmissionsModule,
     TrackModule,
+    TrackCyclesModule,
+    TrackProgressModule,
     LegalDocumentsModule,
     GendersModule,
   ],
