@@ -14,6 +14,7 @@ describe('TrackProgressService', () => {
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
     sequence_progress: {
       createMany: jest.fn(),
@@ -58,7 +59,10 @@ describe('TrackProgressService', () => {
     });
 
     prismaMock.track_progress.findUnique.mockResolvedValue(null);
-    prismaMock.track_progress.create.mockResolvedValue({ id: 1 });
+    prismaMock.track_progress.create.mockResolvedValue({
+      id: 1,
+      progress_percentage: 0,
+    });
 
     const result = await service.startTrackProgress({
       participationId: 1,
@@ -82,10 +86,67 @@ describe('TrackProgressService', () => {
     ).rejects.toThrow();
   });
 
+  it('startTrackProgress – track cycle não encontrado', async () => {
+    prismaMock.participation.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+    });
+
+    prismaMock.track_cycle.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.startTrackProgress({
+        participationId: 1,
+        trackCycleId: 1,
+      } as any),
+    ).rejects.toThrow();
+  });
+
+  it('startTrackProgress – progresso já existe', async () => {
+    prismaMock.participation.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+    });
+
+    prismaMock.track_cycle.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+      track: { section: [] },
+    });
+
+    prismaMock.track_progress.findUnique.mockResolvedValue({ id: 99 });
+
+    await expect(
+      service.startTrackProgress({
+        participationId: 1,
+        trackCycleId: 1,
+      } as any),
+    ).rejects.toThrow();
+  });
+
   it('updateSequenceProgress – progresso não encontrado', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue(null);
 
-    await expect(service.updateSequenceProgress(1, 2, {})).rejects.toThrow();
+    await expect(
+      service.updateSequenceProgress(1, 2, {} as any),
+    ).rejects.toThrow();
+  });
+
+  it('updateSequenceProgress – sucesso', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      status: progress_status_enum.in_progress,
+    });
+
+    prismaMock.sequence.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
+    prismaMock.sequence_progress.create.mockResolvedValue({ id: 1 });
+
+    const result = await service.updateSequenceProgress(1, 1, {
+      progress: 100,
+    } as any);
+
+    expect(result).toBeDefined();
   });
 
   it('canAccessSequence – sem progresso', async () => {
