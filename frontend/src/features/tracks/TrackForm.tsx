@@ -782,11 +782,7 @@ export default function TrackForm() {
               }));
             }}
             renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Contexto (Opcional)"
-                helperText="Se vazio, será usado o contexto padrão do usuário"
-              />
+              <TextField {...params} label="Contexto (Opcional)" />
             )}
             noOptionsText="Nenhum contexto encontrado"
             sx={{ mb: 2 }}

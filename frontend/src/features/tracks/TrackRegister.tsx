@@ -34,7 +34,7 @@ import type { Participation } from "../../types/participation.types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const DEFAULT_PAGE_SIZE = 15;
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function TrackExecutionRegistry() {
   const [page, setPage] = useState(1);
