@@ -23,7 +23,6 @@ import {
   ListItemButton,
   ClickAwayListener,
   Autocomplete,
-  Alert,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -768,17 +767,13 @@ export default function TrackForm() {
           </Typography>
 
           {/* Contexto (Opcional) */}
-          <Alert severity="info" sx={{ mb: 2 }}>
-            O contexto é opcional. Se você gerencia apenas um contexto, ele será
-            selecionado automaticamente. Se gerencia múltiplos contextos, selecione
-            um abaixo.
-          </Alert>
           <Autocomplete
             options={contextsResponse?.data || []}
             getOptionLabel={(option: any) => option.name || ""}
             value={
-              contextsResponse?.data?.find((c: any) => c.id === form.context_id) ||
-              null
+              contextsResponse?.data?.find(
+                (c: any) => c.id === form.context_id,
+              ) || null
             }
             onChange={(_, newValue) => {
               setForm((prev) => ({

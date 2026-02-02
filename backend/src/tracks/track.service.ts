@@ -17,61 +17,28 @@ export class TrackService {
   private async resolveContextId(
     contextId: number | undefined,
     userId: number,
-  ): Promise<number> {
-    if (contextId) {
-      // Se foi fornecido, valida se o usuário gerencia esse contexto
-      const isManager = await this.prisma.context_manager.findFirst({
-        where: {
-          user_id: userId,
-          context_id: contextId,
-          active: true,
-        },
-      });
-
-      if (!isManager) {
-        throw new BadRequestException(
-          'Você não tem permissão para criar trilhas neste contexto',
-        );
-      }
-
-      return contextId;
+  ): Promise<number | null> {
+    // Se NÃO veio contexto → trilha sem contexto
+    if (contextId === undefined) {
+      return null;
     }
 
-    // Se não foi fornecido, busca os contextos gerenciados pelo usuário
-    const managedContexts = await this.prisma.context_manager.findMany({
+    // Se veio, valida permissão
+    const isManager = await this.prisma.context_manager.findFirst({
       where: {
         user_id: userId,
+        context_id: contextId,
         active: true,
-      },
-      include: {
-        context: {
-          select: {
-            id: true,
-            name: true,
-            active: true,
-          },
-        },
       },
     });
 
-    const activeContexts = managedContexts.filter((mc) => mc.context.active);
-
-    if (activeContexts.length === 0) {
+    if (!isManager) {
       throw new BadRequestException(
-        'Você não gerencia nenhum contexto. Entre em contato com um administrador.',
+        'Você não tem permissão para criar trilhas neste contexto',
       );
     }
 
-    if (activeContexts.length > 1) {
-      const contextNames = activeContexts
-        .map((mc) => mc.context.name)
-        .join(', ');
-      throw new BadRequestException(
-        `Você gerencia múltiplos contextos (${contextNames}). Por favor, especifique o context_id no payload.`,
-      );
-    }
-
-    return activeContexts[0].context_id;
+    return contextId;
   }
 
   async create(data: CreateTrackDto, user: any) {
@@ -125,7 +92,7 @@ export class TrackService {
 
   async list(query?: { contextId?: number }) {
     const where: any = { active: true };
-    
+
     if (query?.contextId) {
       where.context_id = query.contextId;
     }
@@ -218,8 +185,8 @@ export class TrackService {
 
     // First update the track
     const updateData: any = { ...trackData };
-    if (context_id && context_id !== existingTrack.context_id) {
-      updateData.context_id = context_id;
+    if (context_id !== undefined && context_id !== existingTrack.context_id) {
+      updateData.context_id = context_id; // pode ser null
     }
 
     await this.prisma.track.update({
