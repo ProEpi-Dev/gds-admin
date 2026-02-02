@@ -42,6 +42,7 @@ describe('UsersService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
               count: jest.fn(),
             },
             gender: {
@@ -365,7 +366,7 @@ describe('UsersService', () => {
   });
 
   describe('remove', () => {
-    it('deve desativar usuário', async () => {
+    it('deve desativar usuário ativo (soft delete)', async () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.user, 'update').mockResolvedValue({
         ...mockUser,
@@ -378,6 +379,28 @@ describe('UsersService', () => {
         where: { id: 1 },
         data: { active: false },
       });
+      expect(prismaService.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('deve excluir permanentemente usuário inativo', async () => {
+      const inactiveUser = { ...mockUser, active: false };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(inactiveUser as any);
+      jest.spyOn(prismaService.user, 'delete').mockResolvedValue(inactiveUser as any);
+
+      await service.remove(1);
+
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(prismaService.user.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    });
+
+    it('deve lançar BadRequestException quando exclusão permanente falha por dependências', async () => {
+      const inactiveUser = { ...mockUser, active: false };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(inactiveUser as any);
+      const prismaError = new Error('Foreign key constraint failed') as any;
+      prismaError.code = 'P2003';
+      jest.spyOn(prismaService.user, 'delete').mockRejectedValue(prismaError);
+
+      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {

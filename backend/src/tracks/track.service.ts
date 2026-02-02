@@ -17,35 +17,70 @@ export class TrackService {
   private async resolveContextId(
     contextId: number | undefined,
     userId: number,
-  ): Promise<number | null> {
-    // Se NÃO veio contexto → trilha sem contexto
-    if (contextId === undefined) {
-      return null;
+  ): Promise<number> {
+    if (contextId) {
+      // Se foi fornecido, valida se o usuário gerencia esse contexto
+      const isManager = await this.prisma.context_manager.findFirst({
+        where: {
+          user_id: userId,
+          context_id: contextId,
+          active: true,
+        },
+      });
+
+      if (!isManager) {
+        throw new BadRequestException(
+          'Você não tem permissão para criar trilhas neste contexto',
+        );
+      }
+
+      return contextId;
     }
 
-    // Se veio, valida permissão
-    const isManager = await this.prisma.context_manager.findFirst({
+    // Se não foi fornecido, busca os contextos gerenciados pelo usuário
+    const managedContexts = await this.prisma.context_manager.findMany({
       where: {
         user_id: userId,
-        context_id: contextId,
         active: true,
+      },
+      include: {
+        context: {
+          select: {
+            id: true,
+            name: true,
+            active: true,
+          },
+        },
       },
     });
 
-    if (!isManager) {
+    const activeContexts = managedContexts.filter((mc) => mc.context.active);
+
+    if (activeContexts.length === 0) {
       throw new BadRequestException(
-        'Você não tem permissão para criar trilhas neste contexto',
+        'Você não gerencia nenhum contexto. Entre em contato com um administrador.',
       );
     }
 
-    return contextId;
+    if (activeContexts.length > 1) {
+      const contextNames = activeContexts
+        .map((mc) => mc.context.name)
+        .join(', ');
+      throw new BadRequestException(
+        `Você gerencia múltiplos contextos (${contextNames}). Por favor, especifique o context_id no payload.`,
+      );
+    }
+
+    return activeContexts[0].context_id;
   }
 
   async create(data: CreateTrackDto, user: any) {
     const { sections, context_id, ...trackData } = data;
-
     // Resolve o context_id
-    const resolvedContextId = await this.resolveContextId(context_id, user.id);
+    const resolvedContextId = await this.resolveContextId(
+      context_id,
+      user.userId,
+    );
 
     // Handle empty date strings
     if (trackData.start_date === '') trackData.start_date = undefined;

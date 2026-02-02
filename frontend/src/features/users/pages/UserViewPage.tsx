@@ -8,6 +8,7 @@ import {
   Divider,
   Stack,
   IconButton,
+  Alert,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -20,6 +21,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import { useTranslation } from '../../../hooks/useTranslation';
+import { getErrorMessage } from '../../../utils/errorHandler';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -28,6 +30,7 @@ export default function UserViewPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const userId = id ? parseInt(id, 10) : null;
   const { data: user, isLoading, error } = useUser(userId);
@@ -35,10 +38,16 @@ export default function UserViewPage() {
   const deleteMutation = useDeleteUser();
 
   const handleDelete = () => {
+    setDeleteError(null);
     if (userId) {
       deleteMutation.mutate(userId, {
         onSuccess: () => {
           navigate('/users');
+        },
+        onError: (err: unknown) => {
+          setDeleteError(
+            getErrorMessage(err, t('users.errorDeletingUserDependencies')),
+          );
         },
       });
     }
@@ -72,11 +81,20 @@ export default function UserViewPage() {
           variant="outlined"
           color="error"
           startIcon={<DeleteIcon />}
-          onClick={() => setDeleteDialogOpen(true)}
+          onClick={() => {
+            setDeleteError(null);
+            setDeleteDialogOpen(true);
+          }}
         >
           {t('common.delete')}
         </Button>
       </Box>
+
+      {deleteError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeleteError(null)}>
+          {deleteError}
+        </Alert>
+      )}
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Stack spacing={2}>
@@ -138,11 +156,18 @@ export default function UserViewPage() {
       <ConfirmDialog
         open={deleteDialogOpen}
         title={t('users.deleteConfirm')}
-        message={t('users.deleteMessage', { name: user.name })}
+        message={
+          user.active
+            ? t('users.deleteMessage', { name: user.name })
+            : t('users.deleteMessageInactive', { name: user.name })
+        }
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         onConfirm={handleDelete}
-        onCancel={() => setDeleteDialogOpen(false)}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setDeleteError(null);
+        }}
         loading={deleteMutation.isPending}
       />
     </Box>

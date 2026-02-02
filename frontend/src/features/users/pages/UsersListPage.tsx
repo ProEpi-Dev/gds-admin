@@ -9,6 +9,7 @@ import {
   Stack,
   TextField,
   InputAdornment,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -24,6 +25,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
+import { getErrorMessage } from '../../../utils/errorHandler';
 import { useDebounce } from '../../../hooks/useDebounce';
 import type { User } from '../../../types/user.types';
 
@@ -36,6 +38,7 @@ export default function UsersListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchTerm, 500);
 
@@ -50,15 +53,22 @@ export default function UsersListPage() {
 
   const handleDelete = (user: User) => {
     setUserToDelete(user);
+    setDeleteError(null);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
+    setDeleteError(null);
     if (userToDelete) {
       deleteMutation.mutate(userToDelete.id, {
         onSuccess: () => {
           setDeleteDialogOpen(false);
           setUserToDelete(null);
+        },
+        onError: (err: unknown) => {
+          setDeleteError(
+            getErrorMessage(err, t('users.errorDeletingUserDependencies')),
+          );
         },
       });
     }
@@ -227,6 +237,12 @@ export default function UsersListPage() {
           }}
         />
 
+        {deleteError && (
+          <Alert severity="error" onClose={() => setDeleteError(null)}>
+            {deleteError}
+          </Alert>
+        )}
+
         <DataTable
           columns={columns}
           data={data?.data || []}
@@ -242,13 +258,18 @@ export default function UsersListPage() {
       <ConfirmDialog
         open={deleteDialogOpen}
         title={t('users.deleteConfirm')}
-        message={t('users.deleteMessage', { name: userToDelete?.name })}
+        message={
+          userToDelete?.active
+            ? t('users.deleteMessage', { name: userToDelete?.name })
+            : t('users.deleteMessageInactive', { name: userToDelete?.name })
+        }
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
         onCancel={() => {
           setDeleteDialogOpen(false);
           setUserToDelete(null);
+          setDeleteError(null);
         }}
         loading={deleteMutation.isPending}
       />

@@ -110,10 +110,12 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar usuário',
-    description: 'Remove um usuário (soft delete - desativa)',
+    description:
+      'Se o usuário estiver ativo: desativa (soft delete). Se já estiver inativo: tenta exclusão permanente do banco; falha com 400 se houver dependências que impeçam a exclusão.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
-  @ApiResponse({ status: 204, description: 'Usuário deletado com sucesso' })
+  @ApiResponse({ status: 204, description: 'Usuário removido (desativado ou excluído permanentemente)' })
+  @ApiResponse({ status: 400, description: 'Usuário inativo com vínculos que impedem exclusão permanente' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.usersService.remove(id);

@@ -63,6 +63,7 @@ export class CreateTrackDto {
   })
   @IsOptional()
   @IsInt()
+  @Min(1)
   context_id?: number;
 
   @ApiProperty({ description: 'Nome da trilha', example: 'JavaScript Básico' })
