@@ -9,7 +9,7 @@ export const TrackService = {
     return apiClient.get(`/tracks/${id}`);
   },
 
-  create(data: any) {
+  create(data: { context_id: number } & any) {
     return apiClient.post("/tracks", data);
   },
 
@@ -23,25 +23,25 @@ export const TrackService = {
 
   addContentToSection(trackId: number, sectionId: number, contentId: number) {
     return apiClient.post(
-      `/tracks/${trackId}/sections/${sectionId}/content/${contentId}`
+      `/tracks/${trackId}/sections/${sectionId}/content/${contentId}`,
     );
   },
 
   addFormToSection(trackId: number, sectionId: number, formId: number) {
     return apiClient.post(
-      `/tracks/${trackId}/sections/${sectionId}/form/${formId}`
+      `/tracks/${trackId}/sections/${sectionId}/form/${formId}`,
     );
   },
 
   removeSequence(trackId: number, sectionId: number, sequenceId: number) {
     return apiClient.delete(
-      `/tracks/${trackId}/sections/${sectionId}/sequences/${sequenceId}`
+      `/tracks/${trackId}/sections/${sectionId}/sequences/${sequenceId}`,
     );
   },
 
   reorderSections(
     trackId: number,
-    sections: Array<{ id: number; order: number }>
+    sections: Array<{ id: number; order: number }>,
   ) {
     return apiClient.put(`/tracks/${trackId}/sections/reorder`, { sections });
   },
@@ -49,11 +49,11 @@ export const TrackService = {
   reorderSequences(
     trackId: number,
     sectionId: number,
-    sequences: Array<{ id: number; order: number }>
+    sequences: Array<{ id: number; order: number }>,
   ) {
     return apiClient.put(
       `/tracks/${trackId}/sections/${sectionId}/sequences/reorder`,
-      { sequences }
+      { sequences },
     );
   },
 };

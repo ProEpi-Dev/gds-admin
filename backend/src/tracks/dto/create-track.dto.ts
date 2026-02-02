@@ -57,12 +57,12 @@ class SectionDto {
 
 export class CreateTrackDto {
   @ApiPropertyOptional({
-    description: 'ID do contexto (opcional - será inferido do usuário se não fornecido)',
+    description:
+      'ID do contexto (opcional). Se não informado, a trilha será criada sem contexto.',
     example: 1,
   })
   @IsOptional()
   @IsInt()
-  @Min(1)
   context_id?: number;
 
   @ApiProperty({ description: 'Nome da trilha', example: 'JavaScript Básico' })
@@ -117,7 +117,7 @@ export class CreateTrackDto {
   @IsBoolean()
   has_progression?: boolean;
 
-  @ApiProperty({ description: 'Seções da trilha', type: [SectionDto] })
+  @ApiPropertyOptional({ description: 'Seções da trilha', type: [SectionDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
