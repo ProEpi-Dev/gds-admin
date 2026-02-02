@@ -108,12 +108,20 @@ describe('TrackService', () => {
       );
     });
 
-    it('deve lançar erro se usuário não gerencia contexto', async () => {
+    it('deve criar trilha sem contexto quando context_id não for informado', async () => {
       prismaMock.context_manager.findMany.mockResolvedValue([]);
 
-      await expect(
-        service.create({ name: 'Track Teste' }, mockUser),
-      ).rejects.toThrow(BadRequestException);
+      prismaMock.track.create.mockResolvedValue({
+        id: 1,
+        name: 'Track Teste',
+        active: true,
+        section: [],
+      } as any);
+
+      const result = await service.create({ name: 'Track Teste' }, mockUser);
+
+      expect(result).toBeDefined();
+      expect(result.context_id).toBeUndefined();
     });
   });
 
