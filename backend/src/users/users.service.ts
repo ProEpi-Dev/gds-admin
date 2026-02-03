@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -174,7 +175,6 @@ export class UsersService {
   }
 
   async remove(id: number): Promise<void> {
-    // Verificar se usuário existe
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -183,11 +183,31 @@ export class UsersService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    // Soft delete - apenas desativar
-    await this.prisma.user.update({
-      where: { id },
-      data: { active: false },
-    });
+    if (user.active) {
+      // Usuário ativo: soft delete (apenas desativar)
+      await this.prisma.user.update({
+        where: { id },
+        data: { active: false },
+      });
+      return;
+    }
+
+    // Usuário já inativo: tentar exclusão permanente
+    try {
+      await this.prisma.user.delete({
+        where: { id },
+      });
+    } catch (error) {
+      const isFkError =
+        error instanceof Prisma.PrismaClientKnownRequestError ||
+        (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2003');
+      if (isFkError) {
+        throw new BadRequestException(
+          'Não é possível excluir permanentemente este usuário: existem vínculos no sistema que impedem a exclusão (ex.: conteúdos em que é autor). Remova as dependências ou mantenha o usuário inativo.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**
