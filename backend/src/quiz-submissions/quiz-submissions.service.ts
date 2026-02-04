@@ -10,6 +10,7 @@ import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
 import { QuizSubmissionResponseDto } from './dto/quiz-submission-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { progress_status_enum } from '@prisma/client';
 import {
   createPaginationMeta,
   createPaginationLinks,
@@ -187,18 +188,44 @@ export class QuizSubmissionsService {
       },
     });
 
-    // Se contexto de trilha foi informado, vincular submissão ao sequence_progress e marcar sequência como concluída (operação atômica na mesma requisição)
+    // Se contexto de trilha foi informado, vincular submissão ao sequence_progress
     const { trackProgressId, sequenceId } = createQuizSubmissionDto;
     if (
       trackProgressId != null &&
       sequenceId != null &&
       createQuizSubmissionDto.completedAt
     ) {
-      await this.trackProgressService.completeQuizSequence(
-        trackProgressId,
-        sequenceId,
-        quizSubmission.id,
-      );
+      // Vincular a submissão ao sequence_progress
+      const sequenceProgress =
+        await this.trackProgressService.getOrCreateSequenceProgress(
+          trackProgressId,
+          sequenceId,
+        );
+
+      await this.prisma.quiz_submission.update({
+        where: { id: quizSubmission.id },
+        data: {
+          sequence_progress_id: sequenceProgress.id,
+        },
+      });
+
+      // Só marca como concluído se foi APROVADO
+      if (isPassed === true) {
+        await this.trackProgressService.completeQuizSequence(
+          trackProgressId,
+          sequenceId,
+          quizSubmission.id,
+        );
+      } else {
+        // Se reprovou, marca como em progresso (tentou mas não passou)
+        await this.trackProgressService.updateSequenceProgress(
+          trackProgressId,
+          sequenceId,
+          {
+            status: progress_status_enum.in_progress,
+          },
+        );
+      }
     }
 
     return this.mapToResponseDto(quizSubmission);
@@ -255,10 +282,7 @@ export class QuizSubmissionsService {
         where,
         skip,
         take: pageSize,
-        orderBy: [
-          { completed_at: 'desc' },
-          { created_at: 'desc' },
-        ],
+        orderBy: [{ completed_at: 'desc' }, { created_at: 'desc' }],
         include: {
           participation: {
             select: {
@@ -409,7 +433,8 @@ export class QuizSubmissionsService {
           // Determinar aprovação
           if (existing.form_version.passing_score !== null) {
             updateData.is_passed =
-              scoringResult.score >= Number(existing.form_version.passing_score);
+              scoringResult.score >=
+              Number(existing.form_version.passing_score);
           } else {
             // Se não houver nota mínima configurada, considerar 100% como aprovado
             updateData.is_passed = scoringResult.percentage === 100;
@@ -440,8 +465,7 @@ export class QuizSubmissionsService {
       // Calcular tempo gasto
       if (updateData.completed_at && existing.started_at) {
         updateData.time_spent_seconds = Math.floor(
-          (updateData.completed_at.getTime() -
-            existing.started_at.getTime()) /
+          (updateData.completed_at.getTime() - existing.started_at.getTime()) /
             1000,
         );
       }
@@ -539,8 +563,7 @@ export class QuizSubmissionsService {
       };
     }
 
-    const scoringMethod =
-      definition.scoring?.method || 'simple';
+    const scoringMethod = definition.scoring?.method || 'simple';
     let totalPoints = 0;
     let obtainedPoints = 0;
     const questionResults: Array<{
@@ -557,9 +580,10 @@ export class QuizSubmissionsService {
     for (const question of definition.fields) {
       const questionPoints = question.points || 1;
       const questionWeight = question.weight || 1;
-      const pointsTotal = scoringMethod === 'weighted'
-        ? questionPoints * questionWeight
-        : questionPoints;
+      const pointsTotal =
+        scoringMethod === 'weighted'
+          ? questionPoints * questionWeight
+          : questionPoints;
       totalPoints += pointsTotal;
 
       const userAnswer = responses[question.name];
@@ -578,29 +602,34 @@ export class QuizSubmissionsService {
 
       // Determinar feedback
       let feedback: string | undefined;
-      
+
       // Prioridade 1: Feedback da opção selecionada (se for select/multiselect)
-      if ((question.type === 'select' || question.type === 'multiselect') && question.options) {
+      if (
+        (question.type === 'select' || question.type === 'multiselect') &&
+        question.options
+      ) {
         if (Array.isArray(userAnswer)) {
           // Multiselect: combinar feedbacks de todas as opções selecionadas
-          const selectedOptions = question.options.filter(opt => 
-            userAnswer.includes(opt.value)
+          const selectedOptions = question.options.filter((opt) =>
+            userAnswer.includes(opt.value),
           );
           const feedbacks = selectedOptions
-            .map(opt => opt.feedback)
+            .map((opt) => opt.feedback)
             .filter((fb): fb is string => !!fb);
           if (feedbacks.length > 0) {
             feedback = feedbacks.join('\n\n'); // Combinar múltiplos feedbacks
           }
         } else {
           // Select: pegar feedback da opção selecionada
-          const selectedOption = question.options.find(opt => opt.value === userAnswer);
+          const selectedOption = question.options.find(
+            (opt) => opt.value === userAnswer,
+          );
           if (selectedOption?.feedback) {
             feedback = selectedOption.feedback;
           }
         }
       }
-      
+
       // Prioridade 2: Feedback geral (correct/incorrect) - apenas se não tiver feedback por opção
       if (!feedback && question.feedback) {
         feedback = isCorrect
@@ -674,7 +703,8 @@ export class QuizSubmissionsService {
       formVersionId: quizSubmission.form_version_id,
       quizResponse: quizSubmission.quiz_response,
       questionResults: quizSubmission.question_results || null,
-      score: quizSubmission.score !== null ? Number(quizSubmission.score) : null,
+      score:
+        quizSubmission.score !== null ? Number(quizSubmission.score) : null,
       percentage:
         quizSubmission.percentage !== null
           ? Number(quizSubmission.percentage)
@@ -715,4 +745,3 @@ export class QuizSubmissionsService {
     };
   }
 }
-

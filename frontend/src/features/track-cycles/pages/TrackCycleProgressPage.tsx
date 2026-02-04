@@ -242,7 +242,31 @@ export default function TrackCycleProgressPage() {
 
                   // Formatar informações adicionais
                   let additionalInfo = "";
-                  if (status === ProgressStatus.COMPLETED && completedAt) {
+
+                  // Para quizzes, se tem dados de submissão, mostrar informações detalhadas
+                  if (isQuiz && quizData && quizData.completed_at) {
+                    const formattedDate = new Date(
+                      quizData.completed_at,
+                    ).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const score =
+                      quizData.percentage !== null
+                        ? `${Number(quizData.percentage).toFixed(1)}%`
+                        : quizData.score !== null
+                          ? `${Number(quizData.score).toFixed(1)} pts`
+                          : "-";
+                    const passed = quizData.is_passed
+                      ? "Aprovado"
+                      : "Reprovado";
+                    additionalInfo = `${passed} • Nota: ${score} • Tentativa: ${quizData.attempt_number} • ${formattedDate}`;
+                  }
+                  // Para conteúdos concluídos, mostrar data de conclusão
+                  else if (status === ProgressStatus.COMPLETED && completedAt) {
                     const formattedDate = new Date(completedAt).toLocaleString(
                       "pt-BR",
                       {
@@ -253,24 +277,10 @@ export default function TrackCycleProgressPage() {
                         minute: "2-digit",
                       },
                     );
-
-                    if (isContent) {
-                      additionalInfo = `Concluído em ${formattedDate}`;
-                    } else if (isQuiz && quizData) {
-                      const score =
-                        quizData.percentage !== null
-                          ? `${Number(quizData.percentage).toFixed(1)}%`
-                          : quizData.score !== null
-                            ? `${Number(quizData.score).toFixed(1)} pts`
-                            : "-";
-                      const passed = quizData.is_passed
-                        ? "Aprovado"
-                        : "Reprovado";
-                      additionalInfo = `${passed} • Nota: ${score} • Tentativa: ${quizData.attempt_number} • ${formattedDate}`;
-                    } else {
-                      additionalInfo = "Concluído";
-                    }
-                  } else if (locked) {
+                    additionalInfo = `Concluído em ${formattedDate}`;
+                  }
+                  // Estados padrão
+                  else if (locked) {
                     additionalInfo =
                       "Conclua a sequência anterior para desbloquear";
                   } else if (status === ProgressStatus.IN_PROGRESS) {

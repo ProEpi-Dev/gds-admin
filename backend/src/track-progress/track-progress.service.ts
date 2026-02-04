@@ -638,21 +638,23 @@ export class TrackProgressService {
       throw new BadRequestException('Esta sequência não é um quiz');
     }
 
-    // Buscar ou criar sequence_progress
-    const sequenceProgress = await this.getOrCreateSequenceProgress(
-      trackProgressId,
-      sequenceId,
-    );
-
-    // Vincular quiz_submission ao sequence_progress
-    await this.prisma.quiz_submission.update({
+    // Verificar se o quiz foi aprovado
+    const quizSubmission = await this.prisma.quiz_submission.findUnique({
       where: { id: quizSubmissionId },
-      data: {
-        sequence_progress_id: sequenceProgress.id,
-      },
+      select: { is_passed: true },
     });
 
-    // Marcar como completado
+    if (!quizSubmission) {
+      throw new NotFoundException('Submissão de quiz não encontrada');
+    }
+
+    if (quizSubmission.is_passed !== true) {
+      throw new BadRequestException(
+        'Quiz não foi aprovado. Não pode ser marcado como concluído.',
+      );
+    }
+
+    // Marcar como completado (apenas se aprovado)
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
       completed_at: new Date(),
