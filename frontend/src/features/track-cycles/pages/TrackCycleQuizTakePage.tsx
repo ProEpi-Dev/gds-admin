@@ -130,7 +130,9 @@ export default function TrackCycleQuizTakePage() {
             snackbar.showSuccess(
               "Quiz submetido com sucesso! O progresso da trilha foi atualizado.",
             );
-            queryClient.invalidateQueries({ queryKey: ["track-progress"] });
+            queryClient.invalidateQueries({
+              queryKey: ["track-progress", participationId, cycleId],
+            });
             resolve(submission);
             navigate(backUrl);
           },

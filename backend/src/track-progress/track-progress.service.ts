@@ -441,6 +441,23 @@ export class TrackProgressService {
         sequence_progress: {
           include: {
             sequence: true,
+            quiz_submission: {
+              where: {
+                active: true,
+                completed_at: { not: null },
+              },
+              orderBy: { completed_at: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                score: true,
+                percentage: true,
+                is_passed: true,
+                attempt_number: true,
+                completed_at: true,
+                started_at: true,
+              },
+            },
           },
         },
         participation: {
@@ -596,6 +613,7 @@ export class TrackProgressService {
     // Atualizar para completado
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
+      completed_at: new Date(),
     });
   }
 
@@ -637,6 +655,7 @@ export class TrackProgressService {
     // Marcar como completado
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
+      completed_at: new Date(),
     });
   }
 

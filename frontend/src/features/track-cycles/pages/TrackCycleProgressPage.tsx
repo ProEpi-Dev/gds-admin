@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Button,
@@ -17,7 +17,7 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Alert,
-} from '@mui/material';
+} from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
   ExpandMore as ExpandMoreIcon,
@@ -26,12 +26,12 @@ import {
   Article as ArticleIcon,
   Quiz as QuizIcon,
   OpenInNew as OpenInNewIcon,
-} from '@mui/icons-material';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
-import { useTrackProgressByParticipationAndCycle } from '../../track-progress/hooks/useTrackProgress';
-import { TrackProgressService } from '../../../api/services/track-progress.service';
-import { ProgressStatus } from '../../../types/track-progress.types';
+} from "@mui/icons-material";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
+import ErrorAlert from "../../../components/common/ErrorAlert";
+import { useTrackProgressByParticipationAndCycle } from "../../track-progress/hooks/useTrackProgress";
+import { TrackProgressService } from "../../../api/services/track-progress.service";
+import { ProgressStatus } from "../../../types/track-progress.types";
 
 interface SectionWithSequences {
   id: number;
@@ -48,25 +48,75 @@ interface SectionWithSequences {
 }
 
 export default function TrackCycleProgressPage() {
-  const { id: cycleIdParam, participationId: participationIdParam } = useParams<{
-    id: string;
-    participationId: string;
-  }>();
+  const { id: cycleIdParam, participationId: participationIdParam } =
+    useParams<{
+      id: string;
+      participationId: string;
+    }>();
   const navigate = useNavigate();
   const cycleId = cycleIdParam ? parseInt(cycleIdParam) : null;
-  const participationId = participationIdParam ? parseInt(participationIdParam) : null;
+  const participationId = participationIdParam
+    ? parseInt(participationIdParam)
+    : null;
 
   const queryClient = useQueryClient();
-  const { data: progress, isLoading, error } = useTrackProgressByParticipationAndCycle(
-    participationId,
-    cycleId,
-  );
+  const {
+    data: progress,
+    isLoading,
+    error,
+  } = useTrackProgressByParticipationAndCycle(participationId, cycleId);
 
   const completeContentMutation = useMutation({
     mutationFn: ({ sequenceId }: { sequenceId: number }) =>
       TrackProgressService.completeContent(progress!.id, sequenceId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['track-progress'] });
+    onMutate: async ({ sequenceId }) => {
+      // Cancelar queries pendentes
+      await queryClient.cancelQueries({
+        queryKey: ["track-progress", participationId, cycleId],
+      });
+
+      // Snapshot do valor anterior
+      const previousProgress = queryClient.getQueryData([
+        "track-progress",
+        participationId,
+        cycleId,
+      ]);
+
+      // Atualizar otimisticamente
+      queryClient.setQueryData(
+        ["track-progress", participationId, cycleId],
+        (old: any) => {
+          if (!old) return old;
+
+          const now = new Date().toISOString();
+          return {
+            ...old,
+            sequence_progress: old.sequence_progress.map((sp: any) =>
+              sp.sequence_id === sequenceId
+                ? { ...sp, status: "completed", completed_at: now }
+                : sp,
+            ),
+          };
+        },
+      );
+
+      return { previousProgress };
+    },
+    onError: (_err, _variables, context) => {
+      // Reverter em caso de erro
+      if (context?.previousProgress) {
+        queryClient.setQueryData(
+          ["track-progress", participationId, cycleId],
+          context.previousProgress,
+        );
+      }
+    },
+    onSuccess: async () => {
+      // Forçar refetch sem usar cache
+      await queryClient.refetchQueries({
+        queryKey: ["track-progress", participationId, cycleId],
+        type: "active",
+      });
     },
   });
 
@@ -78,27 +128,54 @@ export default function TrackCycleProgressPage() {
   }, [progress]);
 
   const sequenceProgressMap = useMemo(() => {
-    const map = new Map<number, { status: string; sequenceProgressId?: number }>();
+    const map = new Map<
+      number,
+      {
+        status: string;
+        sequenceProgressId?: number;
+        completed_at?: string;
+        quiz_submission?: Array<{
+          id: number;
+          score: number | null;
+          percentage: number | null;
+          is_passed: boolean | null;
+          attempt_number: number;
+          completed_at: string | null;
+          started_at: string;
+        }>;
+      }
+    >();
     (progress?.sequence_progress ?? []).forEach((sp: any) => {
       map.set(sp.sequence_id, {
         status: sp.status,
         sequenceProgressId: sp.id,
+        completed_at: sp.completed_at,
+        quiz_submission: sp.quiz_submission,
       });
     });
     return map;
   }, [progress]);
 
-  const handleMarkContentComplete = (_trackProgressId: number, sequenceId: number) => {
+  const handleMarkContentComplete = (
+    _trackProgressId: number,
+    sequenceId: number,
+  ) => {
     completeContentMutation.mutate({ sequenceId });
   };
 
   if (isLoading || !progress) return <LoadingSpinner />;
-  if (error) return <ErrorAlert message={error instanceof Error ? error.message : String(error)} />;
+  if (error)
+    return (
+      <ErrorAlert
+        message={error instanceof Error ? error.message : String(error)}
+      />
+    );
   if (!progress) return <ErrorAlert message="Progresso não encontrado" />;
 
   const participantName =
-    progress.participation?.user?.name ?? `Participação #${progress.participation_id}`;
-  const trackName = progress.track_cycle?.track?.name ?? 'Trilha';
+    progress.participation?.user?.name ??
+    `Participação #${progress.participation_id}`;
+  const trackName = progress.track_cycle?.track?.name ?? "Trilha";
 
   return (
     <Box sx={{ p: 3 }}>
@@ -135,13 +212,16 @@ export default function TrackCycleProgressPage() {
       </Paper>
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        As sequências são liberadas em ordem. Conclua uma para desbloquear a próxima. Use
-        &quot;Marcar como concluído&quot; em conteúdos ou abra o quiz em outra aba e conclua-o.
+        As sequências são liberadas em ordem. Conclua uma para desbloquear a
+        próxima. Use &quot;Marcar como concluído&quot; em conteúdos ou abra o
+        quiz em outra aba e conclua-o.
       </Alert>
 
       {sectionsOrdered.map((section) => {
         const sequences = Array.isArray(section.sequence)
-          ? [...section.sequence].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+          ? [...section.sequence].sort(
+              (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0),
+            )
           : [];
         return (
           <Accordion key={section.id} defaultExpanded>
@@ -152,10 +232,52 @@ export default function TrackCycleProgressPage() {
               <List disablePadding>
                 {sequences.map((seq: any) => {
                   const seqProgress = sequenceProgressMap.get(seq.id);
-                  const status = seqProgress?.status ?? ProgressStatus.NOT_STARTED;
+                  const status =
+                    seqProgress?.status ?? ProgressStatus.NOT_STARTED;
                   const locked = progress.sequence_locked?.[seq.id] ?? false;
                   const isContent = !!seq.content_id;
                   const isQuiz = !!seq.form_id;
+                  const completedAt = seqProgress?.completed_at;
+                  const quizData = seqProgress?.quiz_submission?.[0];
+
+                  // Formatar informações adicionais
+                  let additionalInfo = "";
+                  if (status === ProgressStatus.COMPLETED && completedAt) {
+                    const formattedDate = new Date(completedAt).toLocaleString(
+                      "pt-BR",
+                      {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    );
+
+                    if (isContent) {
+                      additionalInfo = `Concluído em ${formattedDate}`;
+                    } else if (isQuiz && quizData) {
+                      const score =
+                        quizData.percentage !== null
+                          ? `${Number(quizData.percentage).toFixed(1)}%`
+                          : quizData.score !== null
+                            ? `${Number(quizData.score).toFixed(1)} pts`
+                            : "-";
+                      const passed = quizData.is_passed
+                        ? "Aprovado"
+                        : "Reprovado";
+                      additionalInfo = `${passed} • Nota: ${score} • Tentativa: ${quizData.attempt_number} • ${formattedDate}`;
+                    } else {
+                      additionalInfo = "Concluído";
+                    }
+                  } else if (locked) {
+                    additionalInfo =
+                      "Conclua a sequência anterior para desbloquear";
+                  } else if (status === ProgressStatus.IN_PROGRESS) {
+                    additionalInfo = "Em progresso";
+                  } else {
+                    additionalInfo = "Não iniciado";
+                  }
 
                   return (
                     <ListItem
@@ -165,10 +287,10 @@ export default function TrackCycleProgressPage() {
                         borderLeft: 2,
                         borderColor:
                           status === ProgressStatus.COMPLETED
-                            ? 'success.main'
+                            ? "success.main"
                             : status === ProgressStatus.IN_PROGRESS
-                            ? 'primary.main'
-                            : 'divider',
+                              ? "primary.main"
+                              : "divider",
                         mb: 1,
                       }}
                     >
@@ -186,22 +308,19 @@ export default function TrackCycleProgressPage() {
                       <ListItemText
                         primary={
                           isContent
-                            ? seq.content?.title ?? `Conteúdo #${seq.content_id}`
-                            : seq.form?.title ?? `Quiz #${seq.form_id}`
+                            ? (seq.content?.title ??
+                              `Conteúdo #${seq.content_id}`)
+                            : (seq.form?.title ?? `Quiz #${seq.form_id}`)
                         }
-                        secondary={
-                          locked
-                            ? 'Conclua a sequência anterior para desbloquear'
-                            : status === ProgressStatus.COMPLETED
-                            ? 'Concluído'
-                            : status === ProgressStatus.IN_PROGRESS
-                            ? 'Em progresso'
-                            : 'Não iniciado'
-                        }
+                        secondary={additionalInfo}
                       />
                       <ListItemSecondaryAction>
                         {locked ? (
-                          <Chip label="Bloqueado" size="small" icon={<LockIcon />} />
+                          <Chip
+                            label="Bloqueado"
+                            size="small"
+                            icon={<LockIcon />}
+                          />
                         ) : (
                           <Stack direction="row" spacing={1}>
                             {isContent && (
@@ -223,13 +342,18 @@ export default function TrackCycleProgressPage() {
                                     status === ProgressStatus.COMPLETED ||
                                     completeContentMutation.isPending
                                   }
-                                  onClick={() => handleMarkContentComplete(progress.id, seq.id)}
+                                  onClick={() =>
+                                    handleMarkContentComplete(
+                                      progress.id,
+                                      seq.id,
+                                    )
+                                  }
                                 >
                                   {status === ProgressStatus.COMPLETED
-                                    ? 'Concluído'
+                                    ? "Concluído"
                                     : completeContentMutation.isPending
-                                    ? 'Salvando...'
-                                    : 'Marcar como concluído'}
+                                      ? "Salvando..."
+                                      : "Marcar como concluído"}
                                 </Button>
                               </>
                             )}
