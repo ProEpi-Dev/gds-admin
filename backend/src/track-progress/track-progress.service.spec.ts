@@ -26,7 +26,10 @@ describe('TrackProgressService', () => {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
-    quiz_submission: { update: jest.fn() },
+    quiz_submission: {
+      update: jest.fn(),
+      findUnique: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -370,9 +373,13 @@ describe('TrackProgressService', () => {
       form_id: 10, // quiz
     });
 
+    prismaMock.quiz_submission.findUnique.mockResolvedValue({
+      id: 99,
+      is_passed: true,
+    });
+
     prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
     prismaMock.sequence_progress.create.mockResolvedValue({ id: 5 });
-    prismaMock.quiz_submission.update.mockResolvedValue({});
     jest.spyOn(service, 'updateSequenceProgress').mockResolvedValue({
       id: 5,
       status: progress_status_enum.completed,
@@ -380,6 +387,22 @@ describe('TrackProgressService', () => {
 
     const result = await service.completeQuizSequence(1, 1, 99);
     expect(result.status).toBe(progress_status_enum.completed);
+  });
+
+  it('completeQuizSequence – erro quiz reprovado', async () => {
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      form_id: 10, // quiz
+    });
+
+    prismaMock.quiz_submission.findUnique.mockResolvedValue({
+      id: 99,
+      is_passed: false,
+    });
+
+    await expect(service.completeQuizSequence(1, 1, 99)).rejects.toThrow(
+      'Quiz não foi aprovado',
+    );
   });
 
   it('findByUserAndCycle – bloqueia sequência', async () => {
