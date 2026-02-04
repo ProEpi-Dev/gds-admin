@@ -441,6 +441,23 @@ export class TrackProgressService {
         sequence_progress: {
           include: {
             sequence: true,
+            quiz_submission: {
+              where: {
+                active: true,
+                completed_at: { not: null },
+              },
+              orderBy: { completed_at: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                score: true,
+                percentage: true,
+                is_passed: true,
+                attempt_number: true,
+                completed_at: true,
+                started_at: true,
+              },
+            },
           },
         },
         participation: {
@@ -596,6 +613,7 @@ export class TrackProgressService {
     // Atualizar para completado
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
+      completed_at: new Date(),
     });
   }
 
@@ -620,23 +638,26 @@ export class TrackProgressService {
       throw new BadRequestException('Esta sequência não é um quiz');
     }
 
-    // Buscar ou criar sequence_progress
-    const sequenceProgress = await this.getOrCreateSequenceProgress(
-      trackProgressId,
-      sequenceId,
-    );
-
-    // Vincular quiz_submission ao sequence_progress
-    await this.prisma.quiz_submission.update({
+    // Verificar se o quiz foi aprovado
+    const quizSubmission = await this.prisma.quiz_submission.findUnique({
       where: { id: quizSubmissionId },
-      data: {
-        sequence_progress_id: sequenceProgress.id,
-      },
+      select: { is_passed: true },
     });
 
-    // Marcar como completado
+    if (!quizSubmission) {
+      throw new NotFoundException('Submissão de quiz não encontrada');
+    }
+
+    if (quizSubmission.is_passed !== true) {
+      throw new BadRequestException(
+        'Quiz não foi aprovado. Não pode ser marcado como concluído.',
+      );
+    }
+
+    // Marcar como completado (apenas se aprovado)
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
+      completed_at: new Date(),
     });
   }
 

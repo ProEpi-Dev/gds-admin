@@ -25,6 +25,15 @@ export interface SequenceProgress {
     form_id?: number;
     order: number;
   };
+  quiz_submission?: Array<{
+    id: number;
+    score: number | null;
+    percentage: number | null;
+    is_passed: boolean | null;
+    attempt_number: number;
+    completed_at: string | null;
+    started_at: string;
+  }>;
 }
 
 export interface TrackProgress {
