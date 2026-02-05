@@ -109,9 +109,7 @@ describe('LegalDocumentsController', () => {
       it('deve lançar NotFoundException quando documento não existe', async () => {
         jest
           .spyOn(service, 'findOne')
-          .mockRejectedValue(
-            new NotFoundException('Documento não encontrado'),
-          );
+          .mockRejectedValue(new NotFoundException('Documento não encontrado'));
 
         await expect(publicController.findOne(999)).rejects.toThrow(
           NotFoundException,
@@ -294,9 +292,7 @@ describe('LegalDocumentsController', () => {
 
     describe('deleteDocumentType', () => {
       it('deve deletar um tipo de documento', async () => {
-        jest
-          .spyOn(service, 'deleteDocumentType')
-          .mockResolvedValue(undefined);
+        jest.spyOn(service, 'deleteDocumentType').mockResolvedValue(undefined);
 
         await adminController.deleteDocumentType(1);
 

@@ -25,10 +25,12 @@ describe('TransformInterceptor', () => {
 
       mockCallHandler.handle = jest.fn().mockReturnValue(of(formattedData));
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result).toBe(formattedData);
-        done();
-      });
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result) => {
+          expect(result).toBe(formattedData);
+          done();
+        });
     });
 
     it('deve retornar dados diretamente quando não formatados', (done) => {
@@ -36,11 +38,12 @@ describe('TransformInterceptor', () => {
 
       mockCallHandler.handle = jest.fn().mockReturnValue(of(simpleData));
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe((result) => {
-        expect(result).toBe(simpleData);
-        done();
-      });
+      interceptor
+        .intercept(mockExecutionContext, mockCallHandler)
+        .subscribe((result) => {
+          expect(result).toBe(simpleData);
+          done();
+        });
     });
   });
 });
-

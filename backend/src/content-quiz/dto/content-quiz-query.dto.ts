@@ -35,4 +35,3 @@ export class ContentQuizQueryDto extends PaginationQueryDto {
   @IsOptional()
   active?: boolean;
 }
-

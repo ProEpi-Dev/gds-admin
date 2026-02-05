@@ -39,10 +39,7 @@ export async function getUserContextId(
       start_date: {
         lte: new Date(),
       },
-      OR: [
-        { end_date: null },
-        { end_date: { gte: new Date() } },
-      ],
+      OR: [{ end_date: null }, { end_date: { gte: new Date() } }],
     },
     orderBy: {
       created_at: 'desc',
@@ -108,10 +105,7 @@ export async function getUserParticipationId(
     start_date: {
       lte: new Date(),
     },
-    OR: [
-      { end_date: null },
-      { end_date: { gte: new Date() } },
-    ],
+    OR: [{ end_date: null }, { end_date: { gte: new Date() } }],
   };
 
   if (contextId) {
@@ -134,7 +128,7 @@ export async function getUserParticipationId(
   }
 
   return participation.id;
-}/**
+} /**
  * @deprecated Use getUserContextId para visualização ou getUserContextAsManager para operações de gestão
  */
 export async function getUserContext(

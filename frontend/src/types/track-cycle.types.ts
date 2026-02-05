@@ -14,6 +14,7 @@ export interface TrackCycle {
   context_id: number;
   name: string;
   description?: string;
+  mandatory_slug?: string | null;
   status: TrackCycleStatus;
   start_date: string;
   end_date: string;
@@ -36,6 +37,7 @@ export interface CreateTrackCycleDto {
   contextId: number;
   name: string;
   description?: string;
+  mandatorySlug?: string;
   status?: TrackCycleStatus;
   startDate: string;
   endDate: string;
@@ -44,6 +46,7 @@ export interface CreateTrackCycleDto {
 export interface UpdateTrackCycleDto {
   name?: string;
   description?: string;
+  mandatorySlug?: string;
   status?: TrackCycleStatus;
   startDate?: string;
   endDate?: string;

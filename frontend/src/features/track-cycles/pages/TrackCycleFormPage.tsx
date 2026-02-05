@@ -18,8 +18,13 @@ import {
   MenuItem,
   FormHelperText,
   Autocomplete,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
-import { ArrowBack as ArrowBackIcon } from "@mui/icons-material";
+import {
+  ArrowBack as ArrowBackIcon,
+  InfoOutlined as InfoOutlinedIcon,
+} from "@mui/icons-material";
 import {
   useTrackCycle,
   useCreateTrackCycle,
@@ -32,6 +37,8 @@ import { getErrorMessage } from "../../../utils/errorHandler";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 
+const MANDATORY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const formSchema = z
   .object({
     trackId: z.number().min(1, "Trilha é obrigatória"),
@@ -41,6 +48,15 @@ const formSchema = z
       .min(1, "Nome é obrigatório")
       .max(100, "Nome deve ter no máximo 100 caracteres"),
     description: z.string().optional(),
+    mandatorySlug: z
+      .string()
+      .max(80, "Máximo 80 caracteres")
+      .refine(
+        (s) => !s || MANDATORY_SLUG_REGEX.test(s),
+        "Apenas letras minúsculas, números e hífens (ex.: formacao-inicial)",
+      )
+      .optional()
+      .or(z.literal("")),
     status: z.nativeEnum(TrackCycleStatus),
     startDate: z.string().min(1, "Data de início é obrigatória"),
     endDate: z.string().min(1, "Data de término é obrigatória"),
@@ -83,6 +99,7 @@ export default function TrackCycleFormPage() {
       contextId: 0,
       name: "",
       description: "",
+      mandatorySlug: "",
       status: TrackCycleStatus.DRAFT,
       startDate: "",
       endDate: "",
@@ -112,6 +129,7 @@ export default function TrackCycleFormPage() {
         contextId: cycle.context_id,
         name: cycle.name,
         description: cycle.description || "",
+        mandatorySlug: cycle.mandatory_slug ?? "",
         status: cycle.status,
         startDate: cycle.start_date.split("T")[0],
         endDate: cycle.end_date.split("T")[0],
@@ -134,6 +152,7 @@ export default function TrackCycleFormPage() {
       contextId: data.contextId,
       name: data.name,
       description: data.description?.trim() || undefined,
+      mandatorySlug: data.mandatorySlug?.trim() || (isEditing ? "" : undefined),
       status: data.status,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -299,6 +318,41 @@ export default function TrackCycleFormPage() {
               rows={3}
               fullWidth
             />
+
+            {/* Slug obrigatório */}
+            <Box>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+                sx={{ mb: 0.5 }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  component="span"
+                >
+                  Slug obrigatório
+                </Typography>
+                <Tooltip
+                  title="Identificador único que marca este ciclo como trilha obrigatória no contexto. Só pode existir um ciclo com o mesmo slug em todo o sistema. Deixe em branco se este ciclo não for obrigatório. Ex.: formacao-inicial, boas-vidas"
+                  placement="top"
+                  arrow
+                >
+                  <IconButton size="small" sx={{ p: 0.25 }}>
+                    <InfoOutlinedIcon fontSize="small" color="action" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <TextField
+                placeholder="Ex.: formacao-inicial (deixe vazio se não for obrigatório)"
+                error={!!errors.mandatorySlug}
+                helperText={errors.mandatorySlug?.message}
+                {...register("mandatorySlug")}
+                fullWidth
+                size="small"
+              />
+            </Box>
 
             {/* Status */}
             <FormControl error={!!errors.status} fullWidth>

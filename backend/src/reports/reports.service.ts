@@ -62,7 +62,9 @@ export class ReportsService {
     return this.mapToResponseDto(report);
   }
 
-  async findAll(query: ReportQueryDto): Promise<ListResponseDto<ReportResponseDto>> {
+  async findAll(
+    query: ReportQueryDto,
+  ): Promise<ListResponseDto<ReportResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
@@ -126,17 +128,32 @@ export class ReportsService {
     const baseUrl = '/v1/reports';
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
-    if (query.participationId !== undefined) queryParams.participationId = query.participationId;
-    if (query.formVersionId !== undefined) queryParams.formVersionId = query.formVersionId;
-    if (query.reportType !== undefined) queryParams.reportType = query.reportType;
+    if (query.participationId !== undefined)
+      queryParams.participationId = query.participationId;
+    if (query.formVersionId !== undefined)
+      queryParams.formVersionId = query.formVersionId;
+    if (query.reportType !== undefined)
+      queryParams.reportType = query.reportType;
     if (query.formId !== undefined) queryParams.formId = query.formId;
     if (query.startDate !== undefined) queryParams.startDate = query.startDate;
     if (query.endDate !== undefined) queryParams.endDate = query.endDate;
 
     return {
       data: reports.map((report) => this.mapToResponseDto(report)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -152,7 +169,10 @@ export class ReportsService {
     return this.mapToResponseDto(report);
   }
 
-  async update(id: number, updateReportDto: UpdateReportDto): Promise<ReportResponseDto> {
+  async update(
+    id: number,
+    updateReportDto: UpdateReportDto,
+  ): Promise<ReportResponseDto> {
     // Verificar se report existe
     const existingReport = await this.prisma.report.findUnique({
       where: { id },
@@ -343,4 +363,3 @@ export class ReportsService {
     };
   }
 }
-

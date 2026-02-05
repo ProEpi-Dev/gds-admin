@@ -72,18 +72,25 @@ describe('SetupController', () => {
     it('deve lançar BadRequestException quando já foi inicializado', async () => {
       jest
         .spyOn(setupService, 'setup')
-        .mockRejectedValue(new BadRequestException('Sistema já foi inicializado'));
+        .mockRejectedValue(
+          new BadRequestException('Sistema já foi inicializado'),
+        );
 
-      await expect(controller.setup(mockSetupDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.setup(mockSetupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando email já existe', async () => {
       jest
         .spyOn(setupService, 'setup')
-        .mockRejectedValue(new BadRequestException('Já existe um usuário com o email'));
+        .mockRejectedValue(
+          new BadRequestException('Já existe um usuário com o email'),
+        );
 
-      await expect(controller.setup(mockSetupDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.setup(mockSetupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-

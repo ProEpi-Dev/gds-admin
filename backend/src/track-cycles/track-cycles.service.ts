@@ -32,7 +32,9 @@ export class TrackCyclesService {
     });
 
     if (!track) {
-      throw new NotFoundException(`Trilha com ID ${createDto.trackId} não encontrada`);
+      throw new NotFoundException(
+        `Trilha com ID ${createDto.trackId} não encontrada`,
+      );
     }
 
     const context = await this.prisma.context.findUnique({
@@ -40,7 +42,9 @@ export class TrackCyclesService {
     });
 
     if (!context) {
-      throw new NotFoundException(`Contexto com ID ${createDto.contextId} não encontrado`);
+      throw new NotFoundException(
+        `Contexto com ID ${createDto.contextId} não encontrado`,
+      );
     }
 
     // Verificar se já existe ciclo com mesmo nome no track/context
@@ -58,12 +62,24 @@ export class TrackCyclesService {
       );
     }
 
+    if (createDto.mandatorySlug) {
+      const slugTaken = await this.prisma.track_cycle.findFirst({
+        where: { mandatory_slug: createDto.mandatorySlug },
+      });
+      if (slugTaken) {
+        throw new ConflictException(
+          `Já existe um ciclo com o slug obrigatório "${createDto.mandatorySlug}" (ciclo ID: ${slugTaken.id}). O slug deve ser único em todo o sistema.`,
+        );
+      }
+    }
+
     return this.prisma.track_cycle.create({
       data: {
         track_id: createDto.trackId,
         context_id: createDto.contextId,
         name: createDto.name,
         description: createDto.description,
+        mandatory_slug: createDto.mandatorySlug ?? null,
         status: createDto.status || track_cycle_status_enum.draft,
         start_date: startDate,
         end_date: endDate,
@@ -208,13 +224,36 @@ export class TrackCyclesService {
       }
     }
 
+    // Verificar conflito de mandatory_slug se alterado
+    const newSlug =
+      updateDto.mandatorySlug !== undefined
+        ? updateDto.mandatorySlug === ''
+          ? null
+          : updateDto.mandatorySlug
+        : undefined;
+    if (newSlug !== undefined && newSlug != null) {
+      const slugTaken = await this.prisma.track_cycle.findFirst({
+        where: {
+          mandatory_slug: newSlug,
+          id: { not: id },
+        },
+      });
+      if (slugTaken) {
+        throw new ConflictException(
+          `Já existe um ciclo com o slug obrigatório "${newSlug}" (ciclo ID: ${slugTaken.id}). O slug deve ser único em todo o sistema.`,
+        );
+      }
+    }
+
     const updateData: any = {};
 
     if (updateDto.name) updateData.name = updateDto.name;
     if (updateDto.description !== undefined)
       updateData.description = updateDto.description;
+    if (newSlug !== undefined) updateData.mandatory_slug = newSlug;
     if (updateDto.status) updateData.status = updateDto.status;
-    if (updateDto.startDate) updateData.start_date = new Date(updateDto.startDate);
+    if (updateDto.startDate)
+      updateData.start_date = new Date(updateDto.startDate);
     if (updateDto.endDate) updateData.end_date = new Date(updateDto.endDate);
 
     updateData.updated_at = new Date();

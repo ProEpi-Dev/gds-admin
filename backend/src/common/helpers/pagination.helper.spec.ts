@@ -1,4 +1,7 @@
-import { createPaginationMeta, createPaginationLinks } from './pagination.helper';
+import {
+  createPaginationMeta,
+  createPaginationLinks,
+} from './pagination.helper';
 
 describe('PaginationHelper', () => {
   describe('createPaginationMeta', () => {
@@ -124,4 +127,3 @@ describe('PaginationHelper', () => {
     });
   });
 });
-

@@ -64,9 +64,13 @@ describe('AuthController', () => {
         password: 'wrongPassword',
       };
 
-      jest.spyOn(authService, 'login').mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+      jest
+        .spyOn(authService, 'login')
+        .mockRejectedValue(new UnauthorizedException('Invalid credentials'));
 
-      await expect(controller.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -83,7 +87,10 @@ describe('AuthController', () => {
 
       await controller.changePassword(changePasswordDto, mockUser);
 
-      expect(authService.changePassword).toHaveBeenCalledWith(mockUser.userId, changePasswordDto);
+      expect(authService.changePassword).toHaveBeenCalledWith(
+        mockUser.userId,
+        changePasswordDto,
+      );
     });
 
     it('deve lançar UnauthorizedException quando senha atual está incorreta', async () => {
@@ -98,9 +105,9 @@ describe('AuthController', () => {
         .spyOn(authService, 'changePassword')
         .mockRejectedValue(new UnauthorizedException('Senha atual incorreta'));
 
-      await expect(controller.changePassword(changePasswordDto, mockUser)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        controller.changePassword(changePasswordDto, mockUser),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('deve lançar BadRequestException quando nova senha é igual à atual', async () => {
@@ -113,19 +120,28 @@ describe('AuthController', () => {
 
       jest
         .spyOn(authService, 'changePassword')
-        .mockRejectedValue(new BadRequestException('A nova senha deve ser diferente da senha atual'));
+        .mockRejectedValue(
+          new BadRequestException(
+            'A nova senha deve ser diferente da senha atual',
+          ),
+        );
 
-      await expect(controller.changePassword(changePasswordDto, mockUser)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.changePassword(changePasswordDto, mockUser),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('forgotPassword', () => {
     it('deve retornar mensagem genérica', async () => {
       const dto = { email: 'user@example.com' };
-      const message = { message: 'Se o email estiver cadastrado, você receberá as instruções para redefinir sua senha.' };
-      jest.spyOn(authService, 'requestPasswordReset').mockResolvedValue(message);
+      const message = {
+        message:
+          'Se o email estiver cadastrado, você receberá as instruções para redefinir sua senha.',
+      };
+      jest
+        .spyOn(authService, 'requestPasswordReset')
+        .mockResolvedValue(message);
 
       const result = await controller.forgotPassword(dto);
 
@@ -141,15 +157,23 @@ describe('AuthController', () => {
 
       await controller.resetPassword(dto);
 
-      expect(authService.resetPassword).toHaveBeenCalledWith(dto.token, dto.newPassword);
+      expect(authService.resetPassword).toHaveBeenCalledWith(
+        dto.token,
+        dto.newPassword,
+      );
     });
 
     it('deve lançar BadRequestException quando token é inválido', async () => {
       const dto = { token: 'invalid-token', newPassword: 'NewPass123' };
-      jest.spyOn(authService, 'resetPassword').mockRejectedValue(new BadRequestException('Link inválido ou expirado'));
+      jest
+        .spyOn(authService, 'resetPassword')
+        .mockRejectedValue(
+          new BadRequestException('Link inválido ou expirado'),
+        );
 
-      await expect(controller.resetPassword(dto)).rejects.toThrow(BadRequestException);
+      await expect(controller.resetPassword(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-

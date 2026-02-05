@@ -52,7 +52,9 @@ describe('LocationsService', () => {
         active: true,
       };
 
-      jest.spyOn(prismaService.location, 'create').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'create')
+        .mockResolvedValue(mockLocation as any);
 
       const result = await service.create(createLocationDto);
 
@@ -68,7 +70,9 @@ describe('LocationsService', () => {
         longitude: -46.6333,
       };
 
-      jest.spyOn(prismaService.location, 'create').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'create')
+        .mockResolvedValue(mockLocation as any);
 
       await service.create(createLocationDto);
 
@@ -86,7 +90,9 @@ describe('LocationsService', () => {
         polygons: { type: 'Polygon', coordinates: [] },
       };
 
-      jest.spyOn(prismaService.location, 'create').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'create')
+        .mockResolvedValue(mockLocation as any);
 
       await service.create(createLocationDto);
 
@@ -104,7 +110,9 @@ describe('LocationsService', () => {
       };
 
       const mockParent = { id: 1, name: 'Parent Location' };
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockParent as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockParent as any);
       jest.spyOn(prismaService.location, 'create').mockResolvedValue({
         ...mockLocation,
         parent_id: 1,
@@ -125,7 +133,9 @@ describe('LocationsService', () => {
 
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(createLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -140,7 +150,9 @@ describe('LocationsService', () => {
         ...mockLocation,
         location: null, // Sem parent
       };
-      jest.spyOn(prismaService.location, 'findMany').mockResolvedValue([mockLocationWithInclude] as any);
+      jest
+        .spyOn(prismaService.location, 'findMany')
+        .mockResolvedValue([mockLocationWithInclude] as any);
       jest.spyOn(prismaService.location, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
@@ -159,7 +171,9 @@ describe('LocationsService', () => {
         parentId: 1,
       };
 
-      jest.spyOn(prismaService.location, 'findMany').mockResolvedValue([] as any);
+      jest
+        .spyOn(prismaService.location, 'findMany')
+        .mockResolvedValue([] as any);
       jest.spyOn(prismaService.location, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
@@ -189,7 +203,9 @@ describe('LocationsService', () => {
         ...mockLocation,
         location: null, // Sem parent
       };
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithInclude as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocationWithInclude as any);
 
       const result = await service.findOne(1);
 
@@ -232,7 +248,9 @@ describe('LocationsService', () => {
         name: 'Updated Location',
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
       jest.spyOn(prismaService.location, 'update').mockResolvedValue({
         ...mockLocation,
         name: 'Updated Location',
@@ -252,8 +270,12 @@ describe('LocationsService', () => {
         latitude: -24.0,
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
-      jest.spyOn(prismaService.location, 'update').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'update')
+        .mockResolvedValue(mockLocation as any);
 
       await service.update(1, updateLocationDto);
 
@@ -268,8 +290,12 @@ describe('LocationsService', () => {
         longitude: -47.0,
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
-      jest.spyOn(prismaService.location, 'update').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'update')
+        .mockResolvedValue(mockLocation as any);
 
       await service.update(1, updateLocationDto);
 
@@ -284,8 +310,12 @@ describe('LocationsService', () => {
         polygons: { type: 'Polygon', coordinates: [] },
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
-      jest.spyOn(prismaService.location, 'update').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'update')
+        .mockResolvedValue(mockLocation as any);
 
       await service.update(1, updateLocationDto);
 
@@ -301,7 +331,8 @@ describe('LocationsService', () => {
       };
 
       const mockParent = { id: 2, name: 'Parent Location' };
-      jest.spyOn(prismaService.location, 'findUnique')
+      jest
+        .spyOn(prismaService.location, 'findUnique')
         .mockResolvedValueOnce(mockLocation as any)
         .mockResolvedValueOnce(mockParent as any);
       jest.spyOn(prismaService.location, 'update').mockResolvedValue({
@@ -321,7 +352,9 @@ describe('LocationsService', () => {
 
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(999, updateLocationDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, updateLocationDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando parent não existe', async () => {
@@ -329,11 +362,14 @@ describe('LocationsService', () => {
         parentId: 999,
       };
 
-      jest.spyOn(prismaService.location, 'findUnique')
+      jest
+        .spyOn(prismaService.location, 'findUnique')
         .mockResolvedValueOnce(mockLocation as any)
         .mockResolvedValueOnce(null);
 
-      await expect(service.update(1, updateLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando tenta ser pai de si mesma', async () => {
@@ -341,15 +377,21 @@ describe('LocationsService', () => {
         parentId: 1,
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
 
-      await expect(service.update(1, updateLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar localização', async () => {
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
       jest.spyOn(prismaService.location, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.location, 'update').mockResolvedValue({
         ...mockLocation,
@@ -371,7 +413,9 @@ describe('LocationsService', () => {
     });
 
     it('deve lançar BadRequestException quando possui filhos', async () => {
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
       jest.spyOn(prismaService.location, 'count').mockResolvedValue(2);
 
       await expect(service.remove(1)).rejects.toThrow(BadRequestException);
@@ -384,7 +428,9 @@ describe('LocationsService', () => {
         ...mockLocation,
         location: null, // Sem parent
       };
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithInclude as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocationWithInclude as any);
 
       const result = await service.findOne(1);
 
@@ -403,7 +449,9 @@ describe('LocationsService', () => {
         location: null, // Sem parent
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(locationWithDecimal as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(locationWithDecimal as any);
 
       const result = await service.findOne(1);
 
@@ -425,7 +473,9 @@ describe('LocationsService', () => {
         },
       };
 
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocationWithParent as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocationWithParent as any);
 
       const result = await service.findOne(1);
 
@@ -434,8 +484,10 @@ describe('LocationsService', () => {
       expect(result.parent).toHaveProperty('name', 'Parent Location');
       expect(result.parent).toHaveProperty('parent');
       expect(result.parent?.parent).toHaveProperty('id', 3);
-      expect(result.parent?.parent).toHaveProperty('name', 'Grandparent Location');
+      expect(result.parent?.parent).toHaveProperty(
+        'name',
+        'Grandparent Location',
+      );
     });
   });
 });
-

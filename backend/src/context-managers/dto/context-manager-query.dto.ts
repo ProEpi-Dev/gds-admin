@@ -17,4 +17,3 @@ export class ContextManagerQueryDto extends PaginationQueryDto {
   @IsOptional()
   active?: boolean;
 }
-

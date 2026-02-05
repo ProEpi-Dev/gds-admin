@@ -36,7 +36,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Iniciar progresso em um ciclo de trilha',
-    description: 'Cria registro de progresso e sequências para um usuário em um ciclo específico',
+    description:
+      'Cria registro de progresso e sequências para um usuário em um ciclo específico',
   })
   @ApiResponse({
     status: 201,
@@ -62,7 +63,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar progressos',
-    description: 'Lista progressos com filtros opcionais por usuário, ciclo, participação e status',
+    description:
+      'Lista progressos com filtros opcionais por usuário, ciclo, participação e status',
   })
   @ApiResponse({
     status: 200,
@@ -100,6 +102,41 @@ export class TrackProgressController {
     return this.trackProgressService.findCompletedByUser(user.id);
   }
 
+  @Get('mandatory-compliance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Conformidade de trilhas obrigatórias',
+    description:
+      'Para uma participação, lista os slugs obrigatórios do contexto e indica se o usuário já completou um ciclo com cada slug. Usado pelo app e pela tela Welcome para validar regras de trilhas obrigatórias.',
+  })
+  @ApiQuery({
+    name: 'participationId',
+    type: Number,
+    required: true,
+    description: 'ID da participação (deve ser do usuário autenticado)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de itens obrigatórios e status de conclusão',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Participação não pertence ao usuário autenticado',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Participação não encontrada',
+  })
+  async getMandatoryCompliance(
+    @Query('participationId', ParseIntPipe) participationId: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.trackProgressService.getMandatoryCompliance(
+      participationId,
+      user.userId,
+    );
+  }
+
   @Get('executions')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -119,7 +156,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Buscar progresso por participação e ciclo',
-    description: 'Retorna progresso detalhado de um usuário em um ciclo específico',
+    description:
+      'Retorna progresso detalhado de um usuário em um ciclo específico',
   })
   @ApiParam({
     name: 'participationId',
@@ -143,14 +181,18 @@ export class TrackProgressController {
     @Param('participationId', ParseIntPipe) participationId: number,
     @Param('cycleId', ParseIntPipe) cycleId: number,
   ) {
-    return this.trackProgressService.findByUserAndCycle(participationId, cycleId);
+    return this.trackProgressService.findByUserAndCycle(
+      participationId,
+      cycleId,
+    );
   }
 
   @Get(':id/can-access/sequence/:sequenceId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Verificar acesso a sequência',
-    description: 'Verifica se o usuário pode acessar uma sequência específica (bloqueio sequencial)',
+    description:
+      'Verifica se o usuário pode acessar uma sequência específica (bloqueio sequencial)',
   })
   @ApiParam({
     name: 'id',
@@ -192,7 +234,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Atualizar progresso de sequência',
-    description: 'Atualiza status, tempo gasto e incrementa contador de visitas de uma sequência',
+    description:
+      'Atualiza status, tempo gasto e incrementa contador de visitas de uma sequência',
   })
   @ApiParam({
     name: 'id',
@@ -228,7 +271,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Marcar conteúdo como completado',
-    description: 'Marca uma sequência de conteúdo como completada automaticamente ao visualizar',
+    description:
+      'Marca uma sequência de conteúdo como completada automaticamente ao visualizar',
   })
   @ApiParam({
     name: 'id',
@@ -262,7 +306,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Marcar quiz como completado',
-    description: 'Marca uma sequência de quiz como completada e vincula a submissão',
+    description:
+      'Marca uma sequência de quiz como completada e vincula a submissão',
   })
   @ApiParam({
     name: 'id',
@@ -298,7 +343,8 @@ export class TrackProgressController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Recalcular progresso da trilha',
-    description: 'Força recálculo do percentual de progresso baseado nas sequências completadas',
+    description:
+      'Força recálculo do percentual de progresso baseado nas sequências completadas',
   })
   @ApiParam({
     name: 'id',

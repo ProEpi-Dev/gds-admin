@@ -47,4 +47,3 @@ export class ContentQuizResponseDto {
     type: string;
   };
 }
-

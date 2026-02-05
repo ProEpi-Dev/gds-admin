@@ -124,4 +124,3 @@ export class QuizSubmissionsController {
     return this.quizSubmissionsService.remove(id);
   }
 }
-

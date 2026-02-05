@@ -36,7 +36,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar novo ciclo de trilha',
-    description: 'Cria uma nova instância/oferta de trilha em um contexto específico. Requer permissão de administrador.',
+    description:
+      'Cria uma nova instância/oferta de trilha em um contexto específico. Requer permissão de administrador.',
   })
   @ApiResponse({
     status: 201,
@@ -58,7 +59,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar ciclos de trilhas',
-    description: 'Lista ciclos com filtros opcionais por contexto, trilha e status',
+    description:
+      'Lista ciclos com filtros opcionais por contexto, trilha e status',
   })
   @ApiResponse({
     status: 200,
@@ -72,7 +74,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar ciclos ativos',
-    description: 'Lista apenas ciclos com status "active" e dentro do período de vigência',
+    description:
+      'Lista apenas ciclos com status "active" e dentro do período de vigência',
   })
   @ApiQuery({
     name: 'contextId',
@@ -101,7 +104,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Buscar ciclo por ID',
-    description: 'Retorna detalhes de um ciclo específico incluindo trilha e seções',
+    description:
+      'Retorna detalhes de um ciclo específico incluindo trilha e seções',
   })
   @ApiParam({
     name: 'id',
@@ -124,7 +128,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar progresso de alunos no ciclo',
-    description: 'Retorna lista de alunos e seus progressos em um ciclo específico. Requer permissão de professor/administrador.',
+    description:
+      'Retorna lista de alunos e seus progressos em um ciclo específico. Requer permissão de professor/administrador.',
   })
   @ApiParam({
     name: 'id',
@@ -147,7 +152,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Atualizar ciclo',
-    description: 'Atualiza informações de um ciclo. Requer permissão de administrador.',
+    description:
+      'Atualiza informações de um ciclo. Requer permissão de administrador.',
   })
   @ApiParam({
     name: 'id',
@@ -173,7 +179,8 @@ export class TrackCyclesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Alterar status do ciclo',
-    description: 'Altera o status de um ciclo (draft, active, closed, archived). Requer permissão de administrador.',
+    description:
+      'Altera o status de um ciclo (draft, active, closed, archived). Requer permissão de administrador.',
   })
   @ApiParam({
     name: 'id',

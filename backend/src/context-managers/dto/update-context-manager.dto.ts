@@ -10,4 +10,3 @@ export class UpdateContextManagerDto {
   @IsOptional()
   active?: boolean;
 }
-

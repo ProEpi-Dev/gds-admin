@@ -32,4 +32,3 @@ import { LegalDocumentsModule } from '../legal-documents/legal-documents.module'
   exports: [AuthService],
 })
 export class AuthModule {}
-

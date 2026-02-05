@@ -116,6 +116,13 @@ export default function TrackCyclesListPage() {
       render: (row) => row.context?.name || "-",
     },
     {
+      id: "mandatory_slug",
+      label: "Slug obrigatório",
+      minWidth: 120,
+      mobileLabel: "Obrigatório",
+      render: (row) => row.mandatory_slug || "-",
+    },
+    {
       id: "status",
       label: "Status",
       minWidth: 120,

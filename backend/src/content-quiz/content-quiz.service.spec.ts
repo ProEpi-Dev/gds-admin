@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ContentQuizService } from './content-quiz.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContentQuizDto } from './dto/create-content-quiz.dto';
@@ -105,9 +102,7 @@ describe('ContentQuizService', () => {
     });
 
     it('deve lançar BadRequestException quando conteúdo não existe', async () => {
-      jest
-        .spyOn(prismaService.content, 'findUnique')
-        .mockResolvedValue(null);
+      jest.spyOn(prismaService.content, 'findUnique').mockResolvedValue(null);
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -121,9 +116,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content, 'findUnique')
         .mockResolvedValue(mockContent as any);
-      jest
-        .spyOn(prismaService.form, 'findUnique')
-        .mockResolvedValue(null);
+      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -214,9 +207,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([mockContentQuiz] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(1);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
 
@@ -236,9 +227,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -261,9 +250,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -286,9 +273,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -310,9 +295,7 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
@@ -334,18 +317,13 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findMany')
         .mockResolvedValue([] as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'count')
-        .mockResolvedValue(0);
+      jest.spyOn(prismaService.content_quiz, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
 
       expect(prismaService.content_quiz.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: [
-            { content_id: 'asc' },
-            { display_order: 'asc' },
-          ],
+          orderBy: [{ content_id: 'asc' }, { display_order: 'asc' }],
         }),
       );
     });
@@ -461,12 +439,10 @@ describe('ContentQuizService', () => {
       jest
         .spyOn(prismaService.content_quiz, 'findUnique')
         .mockResolvedValue(mockContentQuiz as any);
-      jest
-        .spyOn(prismaService.content_quiz, 'update')
-        .mockResolvedValue({
-          ...mockContentQuiz,
-          active: false,
-        } as any);
+      jest.spyOn(prismaService.content_quiz, 'update').mockResolvedValue({
+        ...mockContentQuiz,
+        active: false,
+      } as any);
 
       await service.remove(1);
 

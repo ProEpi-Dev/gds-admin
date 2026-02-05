@@ -2,13 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TrackProgressService } from './track-progress.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { progress_status_enum } from '@prisma/client';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 
 describe('TrackProgressService', () => {
   let service: TrackProgressService;
 
   const prismaMock = {
-    participation: { findUnique: jest.fn() },
-    track_cycle: { findUnique: jest.fn() },
+    participation: { findUnique: jest.fn(), findFirst: jest.fn() },
+    track_cycle: { findUnique: jest.fn(), findMany: jest.fn() },
     track_progress: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -442,5 +443,102 @@ describe('TrackProgressService', () => {
     prismaMock.track_progress.findMany.mockResolvedValue([]);
     const result = await service.findCompletedByUser(1);
     expect(result).toEqual([]);
+  });
+
+  describe('getMandatoryCompliance', () => {
+    it('throws NotFound when participation does not exist', async () => {
+      prismaMock.participation.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getMandatoryCompliance(999, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws Forbidden when participation belongs to another user', async () => {
+      prismaMock.participation.findUnique.mockResolvedValue({
+        id: 1,
+        user_id: 2,
+        context_id: 10,
+        context: {},
+      });
+
+      await expect(
+        service.getMandatoryCompliance(1, 1),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns empty items when no mandatory cycles in context', async () => {
+      prismaMock.participation.findUnique.mockResolvedValue({
+        id: 1,
+        user_id: 1,
+        context_id: 10,
+        context: {},
+      });
+      prismaMock.track_cycle.findMany.mockResolvedValue([]);
+
+      const result = await service.getMandatoryCompliance(1, 1);
+
+      expect(result).toEqual({
+        items: [],
+        totalRequired: 0,
+        completedCount: 0,
+      });
+    });
+
+    it('returns items with completed false when no progress completed', async () => {
+      prismaMock.participation.findUnique.mockResolvedValue({
+        id: 1,
+        user_id: 1,
+        context_id: 10,
+        context: {},
+      });
+      prismaMock.track_cycle.findMany.mockResolvedValue([
+        {
+          id: 5,
+          mandatory_slug: 'formacao-inicial',
+          name: '2026.1',
+          track: { name: 'Trilha Formação' },
+        },
+      ]);
+      prismaMock.track_progress.findMany.mockResolvedValue([]);
+
+      const result = await service.getMandatoryCompliance(1, 1);
+
+      expect(result.totalRequired).toBe(1);
+      expect(result.completedCount).toBe(0);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        mandatorySlug: 'formacao-inicial',
+        label: 'Trilha Formação – 2026.1',
+        completed: false,
+        trackCycleId: 5,
+      });
+    });
+
+    it('returns items with completed true when progress exists', async () => {
+      prismaMock.participation.findUnique.mockResolvedValue({
+        id: 1,
+        user_id: 1,
+        context_id: 10,
+        context: {},
+      });
+      prismaMock.track_cycle.findMany.mockResolvedValue([
+        {
+          id: 5,
+          mandatory_slug: 'formacao-inicial',
+          name: '2026.1',
+          track: { name: 'Trilha Formação' },
+        },
+      ]);
+      prismaMock.track_progress.findMany.mockResolvedValue([
+        { track_cycle: { mandatory_slug: 'formacao-inicial' } },
+      ]);
+
+      const result = await service.getMandatoryCompliance(1, 1);
+
+      expect(result.totalRequired).toBe(1);
+      expect(result.completedCount).toBe(1);
+      expect(result.items[0].completed).toBe(true);
+    });
   });
 });

@@ -37,7 +37,9 @@ describe('JwtAuthGuard', () => {
 
     it('deve verificar token quando rota não é pública', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      const superCanActivateSpy = jest.spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate').mockReturnValue(true);
+      const superCanActivateSpy = jest
+        .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
+        .mockReturnValue(true);
 
       const result = guard.canActivate(mockExecutionContext);
 
@@ -47,7 +49,9 @@ describe('JwtAuthGuard', () => {
 
     it('deve usar reflector para verificar decorator Public', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      jest.spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate').mockReturnValue(true);
+      jest
+        .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
+        .mockReturnValue(true);
 
       guard.canActivate(mockExecutionContext);
 
@@ -58,4 +62,3 @@ describe('JwtAuthGuard', () => {
     });
   });
 });
-

@@ -40,19 +40,35 @@ export class QuizSubmissionResponseDto {
     feedback?: string;
   }> | null;
 
-  @ApiProperty({ description: 'Nota final (0-100)', example: 85.5, nullable: true })
+  @ApiProperty({
+    description: 'Nota final (0-100)',
+    example: 85.5,
+    nullable: true,
+  })
   score: number | null;
 
-  @ApiProperty({ description: 'Percentual de acertos', example: 85.5, nullable: true })
+  @ApiProperty({
+    description: 'Percentual de acertos',
+    example: 85.5,
+    nullable: true,
+  })
   percentage: number | null;
 
-  @ApiProperty({ description: 'Se foi aprovado', example: true, nullable: true })
+  @ApiProperty({
+    description: 'Se foi aprovado',
+    example: true,
+    nullable: true,
+  })
   isPassed: boolean | null;
 
   @ApiProperty({ description: 'Número da tentativa', example: 1 })
   attemptNumber: number;
 
-  @ApiProperty({ description: 'Tempo gasto em segundos', example: 1800, nullable: true })
+  @ApiProperty({
+    description: 'Tempo gasto em segundos',
+    example: 1800,
+    nullable: true,
+  })
   timeSpentSeconds: number | null;
 
   @ApiProperty({ description: 'Data/hora de início' })
@@ -97,4 +113,3 @@ export class QuizSubmissionResponseDto {
     };
   };
 }
-

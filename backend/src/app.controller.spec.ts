@@ -29,7 +29,9 @@ describe('AppController', () => {
 
   describe('getHealth', () => {
     it('deve retornar status de saúde quando banco está conectado', async () => {
-      jest.spyOn(prismaService, '$queryRaw').mockResolvedValue([{ '?column?': 1 }]);
+      jest
+        .spyOn(prismaService, '$queryRaw')
+        .mockResolvedValue([{ '?column?': 1 }]);
       jest.spyOn(appService, 'getHealth').mockResolvedValue({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -46,7 +48,9 @@ describe('AppController', () => {
     });
 
     it('deve retornar status de erro quando banco está desconectado', async () => {
-      jest.spyOn(prismaService, '$queryRaw').mockRejectedValue(new Error('Connection failed'));
+      jest
+        .spyOn(prismaService, '$queryRaw')
+        .mockRejectedValue(new Error('Connection failed'));
       jest.spyOn(appService, 'getHealth').mockResolvedValue({
         status: 'ok',
         timestamp: new Date().toISOString(),

@@ -62,7 +62,9 @@ describe('ContextsService', () => {
         active: true,
       };
 
-      jest.spyOn(prismaService.context, 'create').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'create')
+        .mockResolvedValue(mockContext as any);
 
       const result = await service.create(createContextDto);
 
@@ -77,7 +79,9 @@ describe('ContextsService', () => {
         description: 'Test Description',
       };
 
-      jest.spyOn(prismaService.context, 'create').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'create')
+        .mockResolvedValue(mockContext as any);
 
       await service.create(createContextDto);
 
@@ -95,7 +99,9 @@ describe('ContextsService', () => {
         type: 'TEST',
       };
 
-      jest.spyOn(prismaService.context, 'create').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'create')
+        .mockResolvedValue(mockContext as any);
 
       await service.create(createContextDto);
 
@@ -114,8 +120,12 @@ describe('ContextsService', () => {
       };
 
       const mockLocation = { id: 1, name: 'Test Location' };
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
-      jest.spyOn(prismaService.context, 'create').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.context, 'create')
+        .mockResolvedValue(mockContext as any);
 
       await service.create(createContextDto);
 
@@ -133,7 +143,9 @@ describe('ContextsService', () => {
 
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(createContextDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createContextDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -144,7 +156,9 @@ describe('ContextsService', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(prismaService.context, 'findMany').mockResolvedValue([mockContext] as any);
+      jest
+        .spyOn(prismaService.context, 'findMany')
+        .mockResolvedValue([mockContext] as any);
       jest.spyOn(prismaService.context, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
@@ -163,7 +177,9 @@ describe('ContextsService', () => {
         accessType: 'PUBLIC',
       };
 
-      jest.spyOn(prismaService.context, 'findMany').mockResolvedValue([] as any);
+      jest
+        .spyOn(prismaService.context, 'findMany')
+        .mockResolvedValue([] as any);
       jest.spyOn(prismaService.context, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
@@ -182,7 +198,9 @@ describe('ContextsService', () => {
 
   describe('findOne', () => {
     it('deve retornar contexto quando existe', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
 
       const result = await service.findOne(1);
 
@@ -202,7 +220,9 @@ describe('ContextsService', () => {
         name: 'Updated Context',
       };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.context, 'update').mockResolvedValue({
         ...mockContext,
         name: 'Updated Context',
@@ -218,8 +238,12 @@ describe('ContextsService', () => {
         accessType: 'PRIVATE',
       };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context, 'update').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'update')
+        .mockResolvedValue(mockContext as any);
 
       await service.update(1, updateContextDto);
 
@@ -234,8 +258,12 @@ describe('ContextsService', () => {
         description: 'Updated Description',
       };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context, 'update').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'update')
+        .mockResolvedValue(mockContext as any);
 
       await service.update(1, updateContextDto);
 
@@ -250,8 +278,12 @@ describe('ContextsService', () => {
         type: 'UPDATED',
       };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context, 'update').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'update')
+        .mockResolvedValue(mockContext as any);
 
       await service.update(1, updateContextDto);
 
@@ -267,10 +299,15 @@ describe('ContextsService', () => {
       };
 
       const mockLocation = { id: 2, name: 'New Location' };
-      jest.spyOn(prismaService.context, 'findUnique')
+      jest
+        .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValueOnce(mockContext as any);
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
-      jest.spyOn(prismaService.context, 'update').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.context, 'update')
+        .mockResolvedValue(mockContext as any);
 
       await service.update(1, updateContextDto);
 
@@ -286,7 +323,9 @@ describe('ContextsService', () => {
 
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(999, updateContextDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, updateContextDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando location não existe', async () => {
@@ -294,17 +333,22 @@ describe('ContextsService', () => {
         locationId: 999,
       };
 
-      jest.spyOn(prismaService.context, 'findUnique')
+      jest
+        .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValueOnce(mockContext as any);
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(1, updateContextDto)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateContextDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar contexto', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.context, 'update').mockResolvedValue({
@@ -327,14 +371,18 @@ describe('ContextsService', () => {
     });
 
     it('deve lançar BadRequestException quando possui participações', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(2);
 
       await expect(service.remove(1)).rejects.toThrow(BadRequestException);
     });
 
     it('deve lançar BadRequestException quando possui formulários', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(2);
 
@@ -344,7 +392,9 @@ describe('ContextsService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
 
       const result = await service.findOne(1);
 
@@ -355,4 +405,3 @@ describe('ContextsService', () => {
     });
   });
 });
-

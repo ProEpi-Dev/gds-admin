@@ -443,6 +443,7 @@ model track_cycle {
   context_id     Int
   name           String                   @db.VarChar(100)
   description    String?
+  mandatory_slug String?                  @unique @db.VarChar(80)
   status         track_cycle_status_enum  @default(draft)
   start_date     DateTime                 @db.Date
   end_date       DateTime                 @db.Date

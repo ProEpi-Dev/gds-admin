@@ -40,4 +40,3 @@ export class UpdateContentQuizDto {
   @IsOptional()
   active?: boolean;
 }
-

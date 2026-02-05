@@ -26,4 +26,3 @@ export class LocationQueryDto extends PaginationQueryDto {
   @IsOptional()
   parentId?: number;
 }
-

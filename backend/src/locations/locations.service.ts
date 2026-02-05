@@ -7,7 +7,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { LocationQueryDto } from './dto/location-query.dto';
-import { LocationResponseDto, ParentLocationDto } from './dto/location-response.dto';
+import {
+  LocationResponseDto,
+  ParentLocationDto,
+} from './dto/location-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
   createPaginationMeta,
@@ -273,7 +276,9 @@ export class LocationsService {
     return {
       id: location.id,
       parentId: location.parent_id,
-      parent: location.location ? this.mapParentLocation(location.location, 1) : undefined,
+      parent: location.location
+        ? this.mapParentLocation(location.location, 1)
+        : undefined,
       name: location.name,
       latitude: location.latitude ? Number(location.latitude) : null,
       longitude: location.longitude ? Number(location.longitude) : null,

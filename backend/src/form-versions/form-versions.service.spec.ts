@@ -63,9 +63,15 @@ describe('FormVersionsService', () => {
         active: true,
       };
 
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.form_version, 'create').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.form_version, 'create')
+        .mockResolvedValue(mockFormVersion as any);
 
       const result = await service.create(1, createDto);
 
@@ -88,8 +94,12 @@ describe('FormVersionsService', () => {
         version_number: 2,
       };
 
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(lastVersion as any);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(lastVersion as any);
       jest.spyOn(prismaService.form_version, 'create').mockResolvedValue({
         ...mockFormVersion,
         version_number: 3,
@@ -112,7 +122,9 @@ describe('FormVersionsService', () => {
 
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(999, createDto)).rejects.toThrow(NotFoundException);
+      await expect(service.create(999, createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -123,8 +135,12 @@ describe('FormVersionsService', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([mockFormVersion] as any);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findMany')
+        .mockResolvedValue([mockFormVersion] as any);
       jest.spyOn(prismaService.form_version, 'count').mockResolvedValue(1);
 
       const result = await service.findAllByForm(1, query);
@@ -141,14 +157,20 @@ describe('FormVersionsService', () => {
 
       jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.findAllByForm(999, query)).rejects.toThrow(NotFoundException);
+      await expect(service.findAllByForm(999, query)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('findOne', () => {
     it('deve retornar versão quando existe', async () => {
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
 
       const result = await service.findOne(1, 1);
 
@@ -162,8 +184,12 @@ describe('FormVersionsService', () => {
     });
 
     it('deve lançar NotFoundException quando versão não existe', async () => {
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(service.findOne(1, 999)).rejects.toThrow(NotFoundException);
     });
@@ -175,7 +201,9 @@ describe('FormVersionsService', () => {
         accessType: 'PRIVATE',
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
       jest.spyOn(prismaService.form_version, 'update').mockResolvedValue({
         ...mockFormVersion,
         access_type: 'PRIVATE',
@@ -191,8 +219,12 @@ describe('FormVersionsService', () => {
         definition: {},
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
-      jest.spyOn(prismaService.form_version, 'update').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'update')
+        .mockResolvedValue(mockFormVersion as any);
 
       await service.update(1, 1, updateDto);
 
@@ -204,7 +236,9 @@ describe('FormVersionsService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
       jest.spyOn(prismaService.form_version, 'update').mockResolvedValue({
         ...mockFormVersion,
         active: false,
@@ -223,10 +257,16 @@ describe('FormVersionsService', () => {
         definition: { newField: 'value' },
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
-      jest.spyOn(prismaService.form_version, 'findFirst')
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
         .mockResolvedValueOnce(mockFormVersion as any)
-        .mockResolvedValueOnce({ ...mockFormVersion, version_number: 1 } as any);
+        .mockResolvedValueOnce({
+          ...mockFormVersion,
+          version_number: 1,
+        } as any);
       jest.spyOn(prismaService.form_version, 'create').mockResolvedValue({
         ...mockFormVersion,
         id: 2,
@@ -250,7 +290,8 @@ describe('FormVersionsService', () => {
         version_number: 3,
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst')
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
         .mockResolvedValueOnce(mockFormVersion as any)
         .mockResolvedValueOnce(lastVersion as any);
       jest.spyOn(prismaService.form_version, 'create').mockResolvedValue({
@@ -272,15 +313,21 @@ describe('FormVersionsService', () => {
         accessType: 'PRIVATE',
       };
 
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(service.update(1, 999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(1, 999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar versão', async () => {
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.form_version, 'update').mockResolvedValue({
         ...mockFormVersion,
@@ -296,13 +343,17 @@ describe('FormVersionsService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(service.remove(1, 999)).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando possui reports', async () => {
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(2);
 
       await expect(service.remove(1, 1)).rejects.toThrow(BadRequestException);
@@ -311,8 +362,12 @@ describe('FormVersionsService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.form, 'findUnique').mockResolvedValue(mockForm as any);
-      jest.spyOn(prismaService.form_version, 'findFirst').mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.form, 'findUnique')
+        .mockResolvedValue(mockForm as any);
+      jest
+        .spyOn(prismaService.form_version, 'findFirst')
+        .mockResolvedValue(mockFormVersion as any);
 
       const result = await service.findOne(1, 1);
 
@@ -323,4 +378,3 @@ describe('FormVersionsService', () => {
     });
   });
 });
-

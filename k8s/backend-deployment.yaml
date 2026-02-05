@@ -43,6 +43,31 @@ spec:
             secretKeyRef:
               name: gds-secrets
               key: JWT_EXPIRES_IN
+        - name: MAILER_SMTP_ADDRESS
+          valueFrom:
+            secretKeyRef:
+              name: mails-credentials
+              key: MAILER_SMTP_ADDRESS
+        - name: MAILER_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: mails-credentials
+              key: MAILER_EMAIL
+        - name: MAILER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mails-credentials
+              key: MAILER_PASSWORD
+        - name: MAILER_SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: mails-credentials
+              key: MAILER_SMTP_PORT
+        - name: FRONTEND_URL
+          valueFrom:
+            secretKeyRef:
+              name: mails-credentials
+              key: FRONTEND_URL
         resources:
           requests:
             memory: "256Mi"

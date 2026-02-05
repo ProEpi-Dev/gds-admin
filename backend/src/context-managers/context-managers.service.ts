@@ -29,7 +29,9 @@ export class ContextManagersService {
     });
 
     if (!context) {
-      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
+      throw new NotFoundException(
+        `Contexto com ID ${contextId} não encontrado`,
+      );
     }
 
     // Validar usuário
@@ -79,7 +81,9 @@ export class ContextManagersService {
     });
 
     if (!context) {
-      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
+      throw new NotFoundException(
+        `Contexto com ID ${contextId} não encontrado`,
+      );
     }
 
     const page = query.page || 1;
@@ -116,19 +120,36 @@ export class ContextManagersService {
 
     return {
       data: managers.map((manager) => this.mapToResponseDto(manager)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
-  async findOne(contextId: number, id: number): Promise<ContextManagerResponseDto> {
+  async findOne(
+    contextId: number,
+    id: number,
+  ): Promise<ContextManagerResponseDto> {
     // Validar contexto
     const context = await this.prisma.context.findUnique({
       where: { id: contextId },
     });
 
     if (!context) {
-      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
+      throw new NotFoundException(
+        `Contexto com ID ${contextId} não encontrado`,
+      );
     }
 
     const contextManager = await this.prisma.context_manager.findFirst({
@@ -215,4 +236,3 @@ export class ContextManagersService {
     };
   }
 }
-

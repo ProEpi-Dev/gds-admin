@@ -5,10 +5,16 @@ export class ContextResponseDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })
   id: number;
 
-  @ApiPropertyOptional({ description: 'ID da localização associada', example: 1 })
+  @ApiPropertyOptional({
+    description: 'ID da localização associada',
+    example: 1,
+  })
   locationId: number | null;
 
-  @ApiProperty({ description: 'Nome do contexto', example: 'Contexto de Saúde Pública' })
+  @ApiProperty({
+    description: 'Nome do contexto',
+    example: 'Contexto de Saúde Pública',
+  })
   name: string;
 
   @ApiPropertyOptional({
@@ -30,10 +36,15 @@ export class ContextResponseDto {
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;
 
-  @ApiProperty({ description: 'Data de criação', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de criação',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de atualização',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: Date;
 }
-

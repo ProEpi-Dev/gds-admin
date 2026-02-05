@@ -7,8 +7,14 @@ import {
   IsEnum,
   IsOptional,
   MaxLength,
+  Matches,
+  ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { track_cycle_status_enum } from '@prisma/client';
+
+/** Slug: apenas letras minúsculas, números e hífens (ex.: formacao-inicial) */
+const MANDATORY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class CreateTrackCycleDto {
   @ApiProperty({
@@ -45,6 +51,24 @@ export class CreateTrackCycleDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({
+    description:
+      'Slug único que marca o ciclo como trilha obrigatória. Apenas um ciclo no sistema pode ter cada valor; deixe em branco se não for obrigatório. Ex.: formacao-inicial, boas-vidas',
+    example: 'formacao-inicial',
+    maxLength: 80,
+    required: false,
+  })
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @ValidateIf((o) => o.mandatorySlug != null && o.mandatorySlug !== '')
+  @IsString()
+  @MaxLength(80)
+  @Matches(MANDATORY_SLUG_REGEX, {
+    message:
+      'mandatorySlug deve conter apenas letras minúsculas, números e hífens (ex.: formacao-inicial)',
+  })
+  mandatorySlug?: string;
 
   @ApiProperty({
     description: 'Status do ciclo',

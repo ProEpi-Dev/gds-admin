@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GenderResponseDto } from './dto/gender-response.dto';
 import { CreateGenderDto } from './dto/create-gender.dto';
@@ -15,7 +19,8 @@ export class GendersService {
    */
   async findAll(activeOnly?: boolean): Promise<GenderResponseDto[]> {
     // Por padrão, retornar apenas ativos quando não especificado
-    const where = activeOnly !== undefined ? { active: activeOnly } : { active: true };
+    const where =
+      activeOnly !== undefined ? { active: activeOnly } : { active: true };
     const genders = await this.prisma.gender.findMany({
       where,
       orderBy: { name: 'asc' },

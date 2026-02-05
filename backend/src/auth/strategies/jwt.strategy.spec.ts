@@ -46,7 +46,9 @@ describe('JwtStrategy', () => {
     it('deve retornar dados do usuário quando válido', async () => {
       const payload = { sub: 1, email: 'test@example.com' };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
 
       const result = await strategy.validate(payload);
 
@@ -64,17 +66,22 @@ describe('JwtStrategy', () => {
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
 
-      await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('deve lançar UnauthorizedException quando usuário está inativo', async () => {
       const payload = { sub: 1, email: 'test@example.com' };
       const inactiveUser = { ...mockUser, active: false };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(inactiveUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(inactiveUser as any);
 
-      await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });
-

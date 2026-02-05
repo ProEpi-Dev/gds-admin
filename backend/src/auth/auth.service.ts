@@ -182,7 +182,9 @@ export class AuthService {
 
     // Verificar se o usuário tem senha definida
     if (!user.password) {
-      throw new UnauthorizedException('User password not set. Please contact administrator.');
+      throw new UnauthorizedException(
+        'User password not set. Please contact administrator.',
+      );
     }
 
     // Validar senha usando bcrypt
@@ -194,7 +196,10 @@ export class AuthService {
     return user;
   }
 
-  async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: number,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
     // Buscar usuário
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -206,7 +211,9 @@ export class AuthService {
 
     // Verificar se o usuário tem senha definida
     if (!user.password) {
-      throw new UnauthorizedException('Senha não definida. Entre em contato com o administrador.');
+      throw new UnauthorizedException(
+        'Senha não definida. Entre em contato com o administrador.',
+      );
     }
 
     // Validar senha atual
@@ -226,11 +233,16 @@ export class AuthService {
     );
 
     if (isSamePassword) {
-      throw new BadRequestException('A nova senha deve ser diferente da senha atual');
+      throw new BadRequestException(
+        'A nova senha deve ser diferente da senha atual',
+      );
     }
 
     // Hash da nova senha
-    const hashedNewPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    const hashedNewPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      10,
+    );
 
     // Atualizar senha
     await this.prisma.user.update({
@@ -276,7 +288,8 @@ export class AuthService {
     );
 
     // 4. Verificar se o Termo de Uso foi aceito (regra de negócio: apenas Termo de Uso é obrigatório no signup)
-    const termsOfUse = await this.legalDocumentsService.findByTypeCode('TERMS_OF_USE');
+    const termsOfUse =
+      await this.legalDocumentsService.findByTypeCode('TERMS_OF_USE');
     if (!signupDto.acceptedLegalDocumentIds.includes(termsOfUse.id)) {
       throw new BadRequestException(
         'É obrigatório aceitar o Termo de Uso para criar uma conta',

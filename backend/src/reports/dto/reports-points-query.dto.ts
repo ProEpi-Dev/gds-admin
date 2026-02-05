@@ -4,7 +4,8 @@ import { IsInt, IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class ReportsPointsQueryDto {
   @ApiPropertyOptional({
-    description: 'ID do formulário (opcional - se não fornecido, retorna todos os formulários do contexto)',
+    description:
+      'ID do formulário (opcional - se não fornecido, retorna todos os formulários do contexto)',
     example: 1,
   })
   @Type(() => Number)
@@ -13,7 +14,8 @@ export class ReportsPointsQueryDto {
   formId?: number;
 
   @ApiPropertyOptional({
-    description: 'Referência do formulário (opcional - filtra por referência do formulário)',
+    description:
+      'Referência do formulário (opcional - filtra por referência do formulário)',
     example: 'FORM-001',
   })
   @IsString()
@@ -38,4 +40,3 @@ export class ReportsPointsQueryDto {
   @IsDateString()
   endDate: string;
 }
-

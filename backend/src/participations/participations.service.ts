@@ -136,15 +136,28 @@ export class ParticipationsService {
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.userId !== undefined) queryParams.userId = query.userId;
     if (query.contextId !== undefined) queryParams.contextId = query.contextId;
-    if (query.includeUser !== undefined) queryParams.includeUser = query.includeUser;
+    if (query.includeUser !== undefined)
+      queryParams.includeUser = query.includeUser;
     if (query.search !== undefined) queryParams.search = query.search;
 
     return {
       data: participations.map((participation) =>
         this.mapToResponseDto(participation, includeUser),
       ),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -305,4 +318,3 @@ export class ParticipationsService {
     return dto;
   }
 }
-

@@ -3,13 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StartTrackProgressDto } from './dto/start-track-progress.dto';
 import { UpdateSequenceProgressDto } from './dto/update-sequence-progress.dto';
 import { TrackProgressQueryDto } from './dto/track-progress-query.dto';
 import { TrackExecutionsQueryDto } from './dto/track-executions-query.dto';
-import { progress_status_enum } from '@prisma/client';
+import { progress_status_enum, track_cycle_status_enum } from '@prisma/client';
 
 @Injectable()
 export class TrackProgressService {
@@ -638,6 +639,98 @@ export class TrackProgressService {
     return this.updateSequenceProgress(trackProgressId, sequenceId, {
       status: progress_status_enum.completed,
     });
+  }
+
+  /**
+   * Conformidade de trilhas obrigatórias para uma participação.
+   * Lista os slugs obrigatórios do contexto e indica se o usuário já completou algum ciclo com cada slug.
+   */
+  async getMandatoryCompliance(participationId: number, userId: number) {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id: participationId },
+      include: { context: true },
+    });
+
+    if (!participation) {
+      throw new NotFoundException(
+        `Participação com ID ${participationId} não encontrada`,
+      );
+    }
+
+    if (participation.user_id !== userId) {
+      throw new ForbiddenException(
+        'Só é possível consultar conformidade da própria participação',
+      );
+    }
+
+    const today = new Date();
+    const mandatoryCycles = await this.prisma.track_cycle.findMany({
+      where: {
+        context_id: participation.context_id,
+        status: track_cycle_status_enum.active,
+        active: true,
+        mandatory_slug: { not: null },
+        start_date: { lte: today },
+        end_date: { gte: today },
+      },
+      include: { track: true },
+      orderBy: { start_date: 'desc' },
+    });
+
+    const completedBySlug = new Map<string, boolean>();
+    const trackCycleIdBySlug = new Map<string, number>();
+    const labelBySlug = new Map<string, string>();
+
+    for (const cycle of mandatoryCycles) {
+      const slug = cycle.mandatory_slug!;
+      if (trackCycleIdBySlug.has(slug)) continue; // já temos um ciclo para este slug (pegamos o primeiro por ordem)
+      trackCycleIdBySlug.set(slug, cycle.id);
+      labelBySlug.set(
+        slug,
+        `${cycle.track?.name ?? 'Trilha'} – ${cycle.name}`.trim(),
+      );
+    }
+
+    const slugs = Array.from(trackCycleIdBySlug.keys());
+    if (slugs.length === 0) {
+      return {
+        items: [],
+        totalRequired: 0,
+        completedCount: 0,
+      };
+    }
+
+    const completedProgress = await this.prisma.track_progress.findMany({
+      where: {
+        participation_id: participationId,
+        status: progress_status_enum.completed,
+        track_cycle: {
+          mandatory_slug: { in: slugs },
+          context_id: participation.context_id,
+        },
+      },
+      select: { track_cycle: { select: { mandatory_slug: true } } },
+    });
+
+    for (const p of completedProgress) {
+      const s = p.track_cycle?.mandatory_slug;
+      if (s) completedBySlug.set(s, true);
+    }
+
+    const items = slugs.map((mandatorySlug) => ({
+      mandatorySlug,
+      label: labelBySlug.get(mandatorySlug) ?? mandatorySlug,
+      completed: completedBySlug.get(mandatorySlug) ?? false,
+      trackCycleId: trackCycleIdBySlug.get(mandatorySlug),
+    }));
+
+    const completedCount = items.filter((i) => i.completed).length;
+
+    return {
+      items,
+      totalRequired: items.length,
+      completedCount,
+    };
   }
 
   /**

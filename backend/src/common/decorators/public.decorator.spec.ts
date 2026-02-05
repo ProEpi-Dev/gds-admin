@@ -6,7 +6,7 @@ describe('Public Decorator', () => {
     // O decorator Public() retorna uma função decorator factory
     expect(typeof Public).toBe('function');
     expect(IS_PUBLIC_KEY).toBe('isPublic');
-    
+
     // O decorator retorna uma função que será executada pelo NestJS
     const decorator = Public();
     expect(typeof decorator).toBe('function');
@@ -16,4 +16,3 @@ describe('Public Decorator', () => {
     expect(IS_PUBLIC_KEY).toBe('isPublic');
   });
 });
-

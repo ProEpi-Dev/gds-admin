@@ -33,4 +33,3 @@ export class UpdateQuizSubmissionDto {
   @IsOptional()
   active?: boolean;
 }
-

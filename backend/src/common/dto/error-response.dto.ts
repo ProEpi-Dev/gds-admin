@@ -4,7 +4,10 @@ export class ErrorDetailDto {
   @ApiProperty({ description: 'Código do erro', example: 'VALIDATION_ERROR' })
   code: string;
 
-  @ApiProperty({ description: 'Mensagem de erro', example: 'Invalid input data' })
+  @ApiProperty({
+    description: 'Mensagem de erro',
+    example: 'Invalid input data',
+  })
   message: string;
 
   @ApiProperty({
@@ -19,4 +22,3 @@ export class ErrorResponseDto {
   @ApiProperty({ description: 'Informações do erro', type: ErrorDetailDto })
   error: ErrorDetailDto;
 }
-

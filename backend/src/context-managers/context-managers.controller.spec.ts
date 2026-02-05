@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { ContextManagersController } from './context-managers.controller';
 import { ContextManagersService } from './context-managers.service';
 import { CreateContextManagerDto } from './dto/create-context-manager.dto';
@@ -54,15 +58,21 @@ describe('ContextManagersController', () => {
       ],
     }).compile();
 
-    controller = module.get<ContextManagersController>(ContextManagersController);
-    contextManagersService = module.get<ContextManagersService>(ContextManagersService);
+    controller = module.get<ContextManagersController>(
+      ContextManagersController,
+    );
+    contextManagersService = module.get<ContextManagersService>(
+      ContextManagersService,
+    );
   });
 
   describe('create', () => {
     it('deve adicionar manager com sucesso', async () => {
       const createDto: CreateContextManagerDto = { userId: 1, active: true };
 
-      jest.spyOn(contextManagersService, 'create').mockResolvedValue(mockContextManager);
+      jest
+        .spyOn(contextManagersService, 'create')
+        .mockResolvedValue(mockContextManager);
 
       const result = await controller.create(1, createDto);
 
@@ -77,7 +87,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'create')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.create(999, createDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.create(999, createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando user não existe', async () => {
@@ -87,7 +99,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'create')
         .mockRejectedValue(new BadRequestException('Usuário não encontrado'));
 
-      await expect(controller.create(1, createDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(1, createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar ConflictException quando já é manager', async () => {
@@ -97,7 +111,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'create')
         .mockRejectedValue(new ConflictException('Já é manager'));
 
-      await expect(controller.create(1, createDto)).rejects.toThrow(ConflictException);
+      await expect(controller.create(1, createDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -105,7 +121,9 @@ describe('ContextManagersController', () => {
     it('deve retornar lista paginada', async () => {
       const query: ContextManagerQueryDto = { page: 1, pageSize: 20 };
 
-      jest.spyOn(contextManagersService, 'findAllByContext').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(contextManagersService, 'findAllByContext')
+        .mockResolvedValue(mockListResponse);
 
       const result = await controller.findAllByContext(1, query);
 
@@ -119,13 +137,17 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'findAllByContext')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.findAllByContext(999, query)).rejects.toThrow(NotFoundException);
+      await expect(controller.findAllByContext(999, query)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('findOne', () => {
     it('deve retornar manager quando existe', async () => {
-      jest.spyOn(contextManagersService, 'findOne').mockResolvedValue(mockContextManager);
+      jest
+        .spyOn(contextManagersService, 'findOne')
+        .mockResolvedValue(mockContextManager);
 
       const result = await controller.findOne(1, 1);
 
@@ -137,7 +159,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'findOne')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.findOne(999, 1)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(999, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar NotFoundException quando manager não existe', async () => {
@@ -145,7 +169,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'findOne')
         .mockRejectedValue(new NotFoundException('Manager não encontrado'));
 
-      await expect(controller.findOne(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -154,7 +180,9 @@ describe('ContextManagersController', () => {
       const updateDto: UpdateContextManagerDto = { active: false };
 
       const updatedManager = { ...mockContextManager, active: false };
-      jest.spyOn(contextManagersService, 'update').mockResolvedValue(updatedManager);
+      jest
+        .spyOn(contextManagersService, 'update')
+        .mockResolvedValue(updatedManager);
 
       const result = await controller.update(1, 1, updateDto);
 
@@ -168,7 +196,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'update')
         .mockRejectedValue(new NotFoundException('Manager não encontrado'));
 
-      await expect(controller.update(1, 999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(1, 999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -186,8 +216,9 @@ describe('ContextManagersController', () => {
         .spyOn(contextManagersService, 'remove')
         .mockRejectedValue(new NotFoundException('Manager não encontrado'));
 
-      await expect(controller.remove(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
-

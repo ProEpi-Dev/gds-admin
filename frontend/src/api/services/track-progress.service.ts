@@ -8,6 +8,7 @@ import type {
   SequenceProgress,
   TrackExecutionRow,
   TrackExecutionsQueryParams,
+  MandatoryComplianceResponse,
 } from '../../types/track-progress.types';
 
 export const TrackProgressService = {
@@ -46,6 +47,16 @@ export const TrackProgressService = {
    */
   getHistory() {
     return apiClient.get<TrackProgress[]>('/track-progress/history');
+  },
+
+  /**
+   * Conformidade de trilhas obrigatórias para uma participação
+   */
+  getMandatoryCompliance(participationId: number) {
+    return apiClient.get<MandatoryComplianceResponse>(
+      '/track-progress/mandatory-compliance',
+      { params: { participationId } },
+    );
   },
 
   /**

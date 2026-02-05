@@ -38,17 +38,33 @@ export class LocationResponseDto {
 
   @ApiPropertyOptional({
     description: 'Polígonos geográficos (GeoJSON)',
-    example: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+    example: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0, 0],
+        ],
+      ],
+    },
   })
   polygons: any | null;
 
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;
 
-  @ApiProperty({ description: 'Data de criação', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de criação',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de atualização',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: Date;
 }
-

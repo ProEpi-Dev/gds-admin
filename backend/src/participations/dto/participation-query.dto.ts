@@ -51,4 +51,3 @@ export class ParticipationQueryDto extends PaginationQueryDto {
   @IsString()
   search?: string;
 }
-

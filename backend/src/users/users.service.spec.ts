@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
@@ -75,7 +79,9 @@ describe('UsersService', () => {
 
     service = module.get<UsersService>(UsersService);
     prismaService = module.get<PrismaService>(PrismaService);
-    legalDocumentsService = module.get<LegalDocumentsService>(LegalDocumentsService);
+    legalDocumentsService = module.get<LegalDocumentsService>(
+      LegalDocumentsService,
+    );
   });
 
   describe('create', () => {
@@ -89,7 +95,9 @@ describe('UsersService', () => {
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      jest.spyOn(prismaService.user, 'create').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'create')
+        .mockResolvedValue(mockUser as any);
 
       const result = await service.create(createUserDto);
 
@@ -116,9 +124,13 @@ describe('UsersService', () => {
         password: 'password123',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
 
-      await expect(service.create(createUserDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(createUserDto)).rejects.toThrow(
+        ConflictException,
+      );
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: createUserDto.email },
       });
@@ -133,7 +145,9 @@ describe('UsersService', () => {
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      jest.spyOn(prismaService.user, 'create').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'create')
+        .mockResolvedValue(mockUser as any);
 
       await service.create(createUserDto);
 
@@ -155,7 +169,9 @@ describe('UsersService', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(prismaService.user, 'findMany').mockResolvedValue([mockUser] as any);
+      jest
+        .spyOn(prismaService.user, 'findMany')
+        .mockResolvedValue([mockUser] as any);
       jest.spyOn(prismaService.user, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
@@ -248,7 +264,9 @@ describe('UsersService', () => {
 
   describe('findOne', () => {
     it('deve retornar usuário quando existe', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
 
       const result = await service.findOne(1);
 
@@ -275,7 +293,9 @@ describe('UsersService', () => {
         name: 'Updated Name',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.user, 'update').mockResolvedValue({
         ...mockUser,
         name: 'Updated Name',
@@ -295,10 +315,13 @@ describe('UsersService', () => {
         email: 'updated@example.com',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique')
+      jest
+        .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValueOnce(mockUser as any)
         .mockResolvedValueOnce(null);
-      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'update')
+        .mockResolvedValue(mockUser as any);
 
       await service.update(1, updateUserDto);
 
@@ -313,8 +336,12 @@ describe('UsersService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'update')
+        .mockResolvedValue(mockUser as any);
 
       await service.update(1, updateUserDto);
 
@@ -329,9 +356,13 @@ describe('UsersService', () => {
         password: 'newPassword123',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       (bcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
-      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'update')
+        .mockResolvedValue(mockUser as any);
 
       await service.update(1, updateUserDto);
 
@@ -349,7 +380,9 @@ describe('UsersService', () => {
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(999, updateUserDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, updateUserDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar ConflictException quando email já está em uso', async () => {
@@ -357,17 +390,22 @@ describe('UsersService', () => {
         email: 'existing@example.com',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique')
+      jest
+        .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValueOnce(mockUser as any)
         .mockResolvedValueOnce({ id: 2, email: 'existing@example.com' } as any);
 
-      await expect(service.update(1, updateUserDto)).rejects.toThrow(ConflictException);
+      await expect(service.update(1, updateUserDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar usuário ativo (soft delete)', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.user, 'update').mockResolvedValue({
         ...mockUser,
         active: false,
@@ -384,18 +422,26 @@ describe('UsersService', () => {
 
     it('deve excluir permanentemente usuário inativo', async () => {
       const inactiveUser = { ...mockUser, active: false };
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(inactiveUser as any);
-      jest.spyOn(prismaService.user, 'delete').mockResolvedValue(inactiveUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(inactiveUser as any);
+      jest
+        .spyOn(prismaService.user, 'delete')
+        .mockResolvedValue(inactiveUser as any);
 
       await service.remove(1);
 
       expect(prismaService.user.update).not.toHaveBeenCalled();
-      expect(prismaService.user.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaService.user.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('deve lançar BadRequestException quando exclusão permanente falha por dependências', async () => {
       const inactiveUser = { ...mockUser, active: false };
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(inactiveUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(inactiveUser as any);
       const prismaError = new Error('Foreign key constraint failed') as any;
       prismaError.code = 'P2003';
       jest.spyOn(prismaService.user, 'delete').mockRejectedValue(prismaError);
@@ -412,7 +458,9 @@ describe('UsersService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
 
       const result = await service.findOne(1);
 
@@ -432,7 +480,9 @@ describe('UsersService', () => {
 
   describe('getProfileStatus', () => {
     it('deve retornar perfil incompleto quando faltam campos', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
 
       const result = await service.getProfileStatus(1);
 
@@ -449,7 +499,9 @@ describe('UsersService', () => {
         location_id: 150,
         external_identifier: '12345678900',
       };
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(completeUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(completeUser as any);
 
       const result = await service.getProfileStatus(1);
 
@@ -463,7 +515,9 @@ describe('UsersService', () => {
     it('deve lançar NotFoundException quando usuário não existe', async () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.getProfileStatus(999)).rejects.toThrow(NotFoundException);
+      await expect(service.getProfileStatus(999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -478,9 +532,15 @@ describe('UsersService', () => {
       const mockGender = { id: 1, name: 'Masculino', active: true };
       const mockLocation = { id: 150, name: 'São Paulo', active: true };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.gender, 'findUnique').mockResolvedValue(mockGender as any);
-      jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(mockLocation as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.gender, 'findUnique')
+        .mockResolvedValue(mockGender as any);
+      jest
+        .spyOn(prismaService.location, 'findUnique')
+        .mockResolvedValue(mockLocation as any);
       jest.spyOn(prismaService.user, 'update').mockResolvedValue({
         ...mockUser,
         gender_id: 1,
@@ -500,7 +560,9 @@ describe('UsersService', () => {
         genderId: 999,
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.gender, 'findUnique').mockResolvedValue(null);
 
       await expect(service.updateProfile(1, updateProfileDto)).rejects.toThrow(
@@ -513,7 +575,9 @@ describe('UsersService', () => {
         locationId: 999,
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
       await expect(service.updateProfile(1, updateProfileDto)).rejects.toThrow(
@@ -528,14 +592,29 @@ describe('UsersService', () => {
         legalDocumentIds: [1, 2],
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(legalDocumentsService, 'validateDocumentIds').mockResolvedValue(true);
-      jest.spyOn(prismaService.user_legal_acceptance, 'upsert').mockResolvedValue({} as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(legalDocumentsService, 'validateDocumentIds')
+        .mockResolvedValue(true);
+      jest
+        .spyOn(prismaService.user_legal_acceptance, 'upsert')
+        .mockResolvedValue({} as any);
 
-      await service.acceptLegalDocuments(1, acceptDto, '127.0.0.1', 'Mozilla/5.0');
+      await service.acceptLegalDocuments(
+        1,
+        acceptDto,
+        '127.0.0.1',
+        'Mozilla/5.0',
+      );
 
-      expect(legalDocumentsService.validateDocumentIds).toHaveBeenCalledWith([1, 2]);
-      expect(prismaService.user_legal_acceptance.upsert).toHaveBeenCalledTimes(2);
+      expect(legalDocumentsService.validateDocumentIds).toHaveBeenCalledWith([
+        1, 2,
+      ]);
+      expect(prismaService.user_legal_acceptance.upsert).toHaveBeenCalledTimes(
+        2,
+      );
     });
 
     it('deve lançar NotFoundException quando usuário não existe', async () => {
@@ -572,9 +651,15 @@ describe('UsersService', () => {
         },
       ];
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(legalDocumentsService, 'findActive').mockResolvedValue(mockActiveDocuments as any);
-      jest.spyOn(prismaService.user_legal_acceptance, 'findMany').mockResolvedValue([]);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(legalDocumentsService, 'findActive')
+        .mockResolvedValue(mockActiveDocuments as any);
+      jest
+        .spyOn(prismaService.user_legal_acceptance, 'findMany')
+        .mockResolvedValue([]);
 
       const result = await service.getLegalAcceptanceStatus(1);
 
@@ -611,9 +696,15 @@ describe('UsersService', () => {
         },
       ];
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(legalDocumentsService, 'findActive').mockResolvedValue(mockActiveDocuments as any);
-      jest.spyOn(prismaService.user_legal_acceptance, 'findMany').mockResolvedValue(mockAcceptances as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(legalDocumentsService, 'findActive')
+        .mockResolvedValue(mockActiveDocuments as any);
+      jest
+        .spyOn(prismaService.user_legal_acceptance, 'findMany')
+        .mockResolvedValue(mockAcceptances as any);
 
       const result = await service.getLegalAcceptanceStatus(1);
 
@@ -625,16 +716,15 @@ describe('UsersService', () => {
 
   describe('getUserRole', () => {
     it('deve retornar isManager=true quando usuário é manager de um contexto', async () => {
-      const mockContextManagers = [
-        { context_id: 1 },
-        { context_id: 2 },
-      ];
-      const mockParticipations = [
-        { context_id: 3 },
-      ];
+      const mockContextManagers = [{ context_id: 1 }, { context_id: 2 }];
+      const mockParticipations = [{ context_id: 3 }];
 
-      jest.spyOn(prismaService.context_manager, 'findMany').mockResolvedValue(mockContextManagers as any);
-      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue(mockParticipations as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findMany')
+        .mockResolvedValue(mockContextManagers as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue(mockParticipations as any);
 
       const result = await service.getUserRole(1);
 
@@ -645,12 +735,14 @@ describe('UsersService', () => {
     });
 
     it('deve retornar isManager=false quando usuário não é manager', async () => {
-      const mockParticipations = [
-        { context_id: 1 },
-      ];
+      const mockParticipations = [{ context_id: 1 }];
 
-      jest.spyOn(prismaService.context_manager, 'findMany').mockResolvedValue([]);
-      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue(mockParticipations as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findMany')
+        .mockResolvedValue([]);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue(mockParticipations as any);
 
       const result = await service.getUserRole(1);
 
@@ -661,11 +753,11 @@ describe('UsersService', () => {
     });
 
     it('deve retornar isParticipant=false quando usuário não é participante', async () => {
-      const mockContextManagers = [
-        { context_id: 1 },
-      ];
+      const mockContextManagers = [{ context_id: 1 }];
 
-      jest.spyOn(prismaService.context_manager, 'findMany').mockResolvedValue(mockContextManagers as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findMany')
+        .mockResolvedValue(mockContextManagers as any);
       jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
 
       const result = await service.getUserRole(1);
@@ -677,7 +769,9 @@ describe('UsersService', () => {
     });
 
     it('deve retornar ambos false quando usuário não tem contextos', async () => {
-      jest.spyOn(prismaService.context_manager, 'findMany').mockResolvedValue([]);
+      jest
+        .spyOn(prismaService.context_manager, 'findMany')
+        .mockResolvedValue([]);
       jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
 
       const result = await service.getUserRole(1);
@@ -689,4 +783,3 @@ describe('UsersService', () => {
     });
   });
 });
-

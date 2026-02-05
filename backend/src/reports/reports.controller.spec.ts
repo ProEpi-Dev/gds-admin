@@ -100,9 +100,13 @@ describe('ReportsController', () => {
 
       jest
         .spyOn(reportsService, 'create')
-        .mockRejectedValue(new BadRequestException('Participação não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Participação não encontrada'),
+        );
 
-      await expect(controller.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando formVersion não existe', async () => {
@@ -115,9 +119,13 @@ describe('ReportsController', () => {
 
       jest
         .spyOn(reportsService, 'create')
-        .mockRejectedValue(new BadRequestException('Versão do formulário não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Versão do formulário não encontrada'),
+        );
 
-      await expect(controller.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -265,7 +273,9 @@ describe('ReportsController', () => {
         .spyOn(reportsService, 'update')
         .mockRejectedValue(new NotFoundException('Report não encontrado'));
 
-      await expect(controller.update(999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve validar participation e formVersion quando fornecidos', async () => {
@@ -274,7 +284,11 @@ describe('ReportsController', () => {
         formVersionId: 2,
       };
 
-      const updatedReport = { ...mockReport, participationId: 2, formVersionId: 2 };
+      const updatedReport = {
+        ...mockReport,
+        participationId: 2,
+        formVersionId: 2,
+      };
       jest.spyOn(reportsService, 'update').mockResolvedValue(updatedReport);
 
       await controller.update(1, updateDto);
@@ -301,4 +315,3 @@ describe('ReportsController', () => {
     });
   });
 });
-

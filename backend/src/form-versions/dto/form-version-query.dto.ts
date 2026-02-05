@@ -17,4 +17,3 @@ export class FormVersionQueryDto extends PaginationQueryDto {
   @IsOptional()
   active?: boolean;
 }
-

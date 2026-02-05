@@ -45,8 +45,13 @@ export class ReportsController {
     description: 'Report criado com sucesso',
     type: ReportResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou entidades relacionadas não encontradas' })
-  async create(@Body() createReportDto: CreateReportDto): Promise<ReportResponseDto> {
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou entidades relacionadas não encontradas',
+  })
+  async create(
+    @Body() createReportDto: CreateReportDto,
+  ): Promise<ReportResponseDto> {
     return this.reportsService.create(createReportDto);
   }
 
@@ -60,14 +65,17 @@ export class ReportsController {
     description: 'Lista de reports',
     type: ListResponseDto<ReportResponseDto>,
   })
-  async findAll(@Query() query: ReportQueryDto): Promise<ListResponseDto<ReportResponseDto>> {
+  async findAll(
+    @Query() query: ReportQueryDto,
+  ): Promise<ListResponseDto<ReportResponseDto>> {
     return this.reportsService.findAll(query);
   }
 
   @Get('points')
   @ApiOperation({
     summary: 'Obter pontos de reports para mapa',
-    description: 'Retorna latitude, longitude e status de reports ativos em um período específico. Pode ser filtrado por ID do formulário (formId) ou referência do formulário (formReference).',
+    description:
+      'Retorna latitude, longitude e status de reports ativos em um período específico. Pode ser filtrado por ID do formulário (formId) ou referência do formulário (formReference).',
   })
   @ApiResponse({
     status: 200,
@@ -92,7 +100,9 @@ export class ReportsController {
     type: ReportResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Report não encontrado' })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ReportResponseDto> {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ReportResponseDto> {
     return this.reportsService.findOne(id);
   }
 
@@ -120,7 +130,8 @@ export class ReportsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar report',
-    description: 'Remove um report permanentemente do banco de dados (hard delete)',
+    description:
+      'Remove um report permanentemente do banco de dados (hard delete)',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do report' })
   @ApiResponse({ status: 204, description: 'Report deletado com sucesso' })
@@ -129,4 +140,3 @@ export class ReportsController {
     return this.reportsService.remove(id);
   }
 }
-

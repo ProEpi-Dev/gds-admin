@@ -29,7 +29,9 @@ import { ListResponseDto } from '../common/dto/list-response.dto';
 @ApiBearerAuth('bearerAuth')
 @Controller('contexts/:contextId/managers')
 export class ContextManagersController {
-  constructor(private readonly contextManagersService: ContextManagersService) {}
+  constructor(
+    private readonly contextManagersService: ContextManagersService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -43,14 +45,23 @@ export class ContextManagersController {
     description: 'Manager adicionado com sucesso',
     type: ContextManagerResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou usuário não encontrado' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou usuário não encontrado',
+  })
   @ApiResponse({ status: 404, description: 'Contexto não encontrado' })
-  @ApiResponse({ status: 409, description: 'Usuário já é manager deste contexto' })
+  @ApiResponse({
+    status: 409,
+    description: 'Usuário já é manager deste contexto',
+  })
   async create(
     @Param('contextId', ParseIntPipe) contextId: number,
     @Body() createContextManagerDto: CreateContextManagerDto,
   ): Promise<ContextManagerResponseDto> {
-    return this.contextManagersService.create(contextId, createContextManagerDto);
+    return this.contextManagersService.create(
+      contextId,
+      createContextManagerDto,
+    );
   }
 
   @Get()
@@ -84,7 +95,10 @@ export class ContextManagersController {
     description: 'Detalhes do manager',
     type: ContextManagerResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Contexto ou manager não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Contexto ou manager não encontrado',
+  })
   async findOne(
     @Param('contextId', ParseIntPipe) contextId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -104,13 +118,20 @@ export class ContextManagersController {
     description: 'Manager atualizado com sucesso',
     type: ContextManagerResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Contexto ou manager não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Contexto ou manager não encontrado',
+  })
   async update(
     @Param('contextId', ParseIntPipe) contextId: number,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateContextManagerDto: UpdateContextManagerDto,
   ): Promise<ContextManagerResponseDto> {
-    return this.contextManagersService.update(contextId, id, updateContextManagerDto);
+    return this.contextManagersService.update(
+      contextId,
+      id,
+      updateContextManagerDto,
+    );
   }
 
   @Delete(':id')
@@ -122,7 +143,10 @@ export class ContextManagersController {
   @ApiParam({ name: 'contextId', type: Number, description: 'ID do contexto' })
   @ApiParam({ name: 'id', type: Number, description: 'ID do context manager' })
   @ApiResponse({ status: 204, description: 'Manager removido com sucesso' })
-  @ApiResponse({ status: 404, description: 'Contexto ou manager não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Contexto ou manager não encontrado',
+  })
   async remove(
     @Param('contextId', ParseIntPipe) contextId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -130,4 +154,3 @@ export class ContextManagersController {
     return this.contextManagersService.remove(contextId, id);
   }
 }
-

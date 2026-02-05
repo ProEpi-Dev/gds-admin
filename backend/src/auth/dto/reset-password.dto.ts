@@ -17,12 +17,9 @@ export class ResetPasswordDto {
   })
   @IsString()
   @MinLength(8, { message: 'A nova senha deve ter no mínimo 8 caracteres' })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    {
-      message:
-        'A nova senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número',
-    },
-  )
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+    message:
+      'A nova senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número',
+  })
   newPassword: string;
 }

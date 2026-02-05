@@ -69,7 +69,9 @@ describe('ContentService', () => {
         context_id: 1,
       };
 
-      jest.spyOn(prismaService.content, 'create').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(mockContent as any);
 
       const result = await service.create(createData);
 
@@ -102,8 +104,12 @@ describe('ContentService', () => {
         tags: [1, 2],
       };
 
-      jest.spyOn(prismaService.tag, 'findMany').mockResolvedValue([mockTag] as any);
-      jest.spyOn(prismaService.content, 'create').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.tag, 'findMany')
+        .mockResolvedValue([mockTag] as any);
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(mockContent as any);
 
       const result = await service.create(createData);
 
@@ -124,7 +130,9 @@ describe('ContentService', () => {
         context_id: 1,
       };
 
-      jest.spyOn(prismaService.content, 'create').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(mockContent as any);
 
       await service.create(createData);
 
@@ -149,7 +157,9 @@ describe('ContentService', () => {
         active: true,
       };
 
-      jest.spyOn(prismaService.content, 'create').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(mockContent as any);
 
       await service.create(createData);
 
@@ -174,7 +184,9 @@ describe('ContentService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.content, 'create').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(mockContent as any);
 
       await service.create(createData);
 
@@ -191,7 +203,9 @@ describe('ContentService', () => {
   describe('list', () => {
     it('deve retornar lista de conteúdos ativos', async () => {
       const mockContents = [mockContent];
-      jest.spyOn(prismaService.content, 'findMany').mockResolvedValue(mockContents as any);
+      jest
+        .spyOn(prismaService.content, 'findMany')
+        .mockResolvedValue(mockContents as any);
 
       const result = await service.list();
 
@@ -220,7 +234,9 @@ describe('ContentService', () => {
 
   describe('get', () => {
     it('deve retornar conteúdo por id', async () => {
-      jest.spyOn(prismaService.content, 'findUnique').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'findUnique')
+        .mockResolvedValue(mockContent as any);
 
       const result = await service.get(1);
 
@@ -253,7 +269,9 @@ describe('ContentService', () => {
         content: '<p>Updated content</p>',
       };
 
-      jest.spyOn(prismaService.content, 'update').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'update')
+        .mockResolvedValue(mockContent as any);
 
       const result = await service.update(1, updateData);
 
@@ -280,8 +298,12 @@ describe('ContentService', () => {
         tags: [1, 2],
       };
 
-      jest.spyOn(prismaService.tag, 'findMany').mockResolvedValue([mockTag] as any);
-      jest.spyOn(prismaService.content, 'update').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.tag, 'findMany')
+        .mockResolvedValue([mockTag] as any);
+      jest
+        .spyOn(prismaService.content, 'update')
+        .mockResolvedValue(mockContent as any);
 
       const result = await service.update(1, updateData);
 
@@ -307,7 +329,9 @@ describe('ContentService', () => {
         title: 'Updated Content',
       };
 
-      jest.spyOn(prismaService.content, 'update').mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'update')
+        .mockResolvedValue(mockContent as any);
 
       await service.update(1, updateData);
 

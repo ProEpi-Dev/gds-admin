@@ -9,6 +9,7 @@ describe('TrackProgressController', () => {
   const mockService = {
     startTrackProgress: jest.fn(),
     findAll: jest.fn(),
+    getMandatoryCompliance: jest.fn(),
     findCompletedByUser: jest.fn(),
     findExecutions: jest.fn(),
     findByUserAndCycle: jest.fn(),
@@ -19,7 +20,7 @@ describe('TrackProgressController', () => {
     recalculateTrackProgress: jest.fn(),
   };
 
-  const mockUser = { id: 1 };
+  const mockUser = { id: 1, userId: 1 };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +68,18 @@ describe('TrackProgressController', () => {
     mockService.findCompletedByUser.mockResolvedValue(['done']);
     const result = await controller.getHistory(mockUser);
     expect(result).toEqual(['done']);
+  });
+
+  it('getMandatoryCompliance', async () => {
+    const compliance = {
+      items: [{ mandatorySlug: 'formacao-inicial', label: 'Trilha – 2026.1', completed: false, trackCycleId: 5 }],
+      totalRequired: 1,
+      completedCount: 0,
+    };
+    mockService.getMandatoryCompliance.mockResolvedValue(compliance);
+    const result = await controller.getMandatoryCompliance(1, mockUser);
+    expect(service.getMandatoryCompliance).toHaveBeenCalledWith(1, mockUser.userId);
+    expect(result).toEqual(compliance);
   });
 
   it('getExecutions', async () => {

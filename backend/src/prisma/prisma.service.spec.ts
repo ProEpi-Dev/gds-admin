@@ -22,7 +22,9 @@ describe('PrismaService', () => {
 
   describe('onModuleInit', () => {
     it('deve conectar ao banco quando módulo inicia', async () => {
-      const connectSpy = jest.spyOn(service, '$connect').mockResolvedValue(undefined);
+      const connectSpy = jest
+        .spyOn(service, '$connect')
+        .mockResolvedValue(undefined);
       service.onModuleInit = jest.fn().mockImplementation(async () => {
         await service.$connect();
       });
@@ -33,4 +35,3 @@ describe('PrismaService', () => {
     });
   });
 });
-

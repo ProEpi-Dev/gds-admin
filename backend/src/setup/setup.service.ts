@@ -19,7 +19,9 @@ export class SetupService {
     });
 
     if (existingContext) {
-      throw new BadRequestException('Sistema já foi inicializado. Já existe um contexto padrão.');
+      throw new BadRequestException(
+        'Sistema já foi inicializado. Já existe um contexto padrão.',
+      );
     }
 
     // Verificar se já existe um usuário com o email fornecido
@@ -52,7 +54,8 @@ export class SetupService {
       const context = await tx.context.create({
         data: {
           name: setupDto.contextName || 'Contexto Principal',
-          description: setupDto.contextDescription || 'Contexto padrão do sistema',
+          description:
+            setupDto.contextDescription || 'Contexto padrão do sistema',
           access_type: context_access_type.PUBLIC,
           active: true,
         },
@@ -100,4 +103,3 @@ export class SetupService {
     };
   }
 }
-

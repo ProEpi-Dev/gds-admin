@@ -15,7 +15,8 @@ export class SetupController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Inicializar sistema',
-    description: 'Cria um contexto padrão e um manager default para o sistema. Só pode ser executado uma vez.',
+    description:
+      'Cria um contexto padrão e um manager default para o sistema. Só pode ser executado uma vez.',
   })
   @ApiBody({ type: SetupDto })
   @ApiResponse({
@@ -31,4 +32,3 @@ export class SetupController {
     return this.setupService.setup(setupDto);
   }
 }
-

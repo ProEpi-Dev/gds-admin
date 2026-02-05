@@ -47,4 +47,3 @@ export class CreateParticipationDto {
   @IsOptional()
   active?: boolean;
 }
-

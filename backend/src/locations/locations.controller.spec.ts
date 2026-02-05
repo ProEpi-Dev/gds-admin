@@ -84,9 +84,13 @@ describe('LocationsController', () => {
 
       jest
         .spyOn(locationsService, 'create')
-        .mockRejectedValue(new BadRequestException('Localização pai não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Localização pai não encontrada'),
+        );
 
-      await expect(controller.create(createLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -97,7 +101,9 @@ describe('LocationsController', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(locationsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(locationsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await controller.findAll(query);
 
@@ -113,7 +119,9 @@ describe('LocationsController', () => {
         parentId: 1,
       };
 
-      jest.spyOn(locationsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(locationsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       await controller.findAll(query);
 
@@ -152,7 +160,10 @@ describe('LocationsController', () => {
       const result = await controller.update(1, updateLocationDto);
 
       expect(result).toEqual(updatedLocation);
-      expect(locationsService.update).toHaveBeenCalledWith(1, updateLocationDto);
+      expect(locationsService.update).toHaveBeenCalledWith(
+        1,
+        updateLocationDto,
+      );
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -164,7 +175,9 @@ describe('LocationsController', () => {
         .spyOn(locationsService, 'update')
         .mockRejectedValue(new NotFoundException('Localização não encontrada'));
 
-      await expect(controller.update(999, updateLocationDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(999, updateLocationDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando parent não existe', async () => {
@@ -174,9 +187,13 @@ describe('LocationsController', () => {
 
       jest
         .spyOn(locationsService, 'update')
-        .mockRejectedValue(new BadRequestException('Localização pai não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Localização pai não encontrada'),
+        );
 
-      await expect(controller.update(1, updateLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.update(1, updateLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando tenta ser pai de si mesma', async () => {
@@ -186,9 +203,15 @@ describe('LocationsController', () => {
 
       jest
         .spyOn(locationsService, 'update')
-        .mockRejectedValue(new BadRequestException('Uma localização não pode ser pai de si mesma'));
+        .mockRejectedValue(
+          new BadRequestException(
+            'Uma localização não pode ser pai de si mesma',
+          ),
+        );
 
-      await expect(controller.update(1, updateLocationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.update(1, updateLocationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -212,10 +235,11 @@ describe('LocationsController', () => {
     it('deve lançar BadRequestException quando possui filhos', async () => {
       jest
         .spyOn(locationsService, 'remove')
-        .mockRejectedValue(new BadRequestException('Localização possui filhos'));
+        .mockRejectedValue(
+          new BadRequestException('Localização possui filhos'),
+        );
 
       await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
     });
   });
 });
-
