@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,9 +7,14 @@ import {
   Button,
   TextField,
   CircularProgress,
+  Link,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTranslation } from '../../../hooks/useTranslation';
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '../../../api/client';
 import { API_ENDPOINTS } from '../../../api/endpoints';
@@ -25,8 +31,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { login } = useAuth();
   const snackbar = useSnackbar();
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -78,13 +86,33 @@ export default function LoginForm() {
       <TextField
         {...register('password')}
         label="Senha"
-        type="password"
+        type={showPassword ? 'text' : 'password'}
         fullWidth
         margin="normal"
         error={!!errors.password}
         helperText={errors.password?.message}
         autoComplete="current-password"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                onClick={() => setShowPassword((prev) => !prev)}
+                onMouseDown={(e) => e.preventDefault()}
+                edge="end"
+              >
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
       />
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+        <Link component={RouterLink} to="/forgot-password" variant="body2">
+          {t('auth.forgotPasswordLink')}
+        </Link>
+      </Box>
 
       <Button
         type="submit"

@@ -23,6 +23,7 @@ import { TrackCyclesModule } from './track-cycles/track-cycles.module';
 import { TrackProgressModule } from './track-progress/track-progress.module';
 import { LegalDocumentsModule } from './legal-documents/legal-documents.module';
 import { GendersModule } from './genders/genders.module';
+import { MailModule } from './mail/mail.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -54,6 +55,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     TrackProgressModule,
     LegalDocumentsModule,
     GendersModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

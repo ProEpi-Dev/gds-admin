@@ -6,8 +6,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SignupDto } from './dto/signup.dto';
@@ -21,6 +23,7 @@ describe('AuthService', () => {
   let prismaService: PrismaService;
   let jwtService: JwtService;
   let legalDocumentsService: LegalDocumentsService;
+  let mailService: MailService;
 
   const mockUser = {
     id: 1,
@@ -75,6 +78,7 @@ describe('AuthService', () => {
           useValue: {
             user: {
               findUnique: jest.fn(),
+              findFirst: jest.fn(),
               update: jest.fn(),
             },
             participation: {
@@ -102,6 +106,19 @@ describe('AuthService', () => {
             findByTypeCode: jest.fn(),
           },
         },
+        {
+          provide: MailService,
+          useValue: {
+            sendMail: jest.fn(),
+            isConfigured: jest.fn().mockReturnValue(true),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => (key === 'FRONTEND_URL' ? 'http://localhost:5173' : undefined)),
+          },
+        },
       ],
     }).compile();
 
@@ -111,6 +128,7 @@ describe('AuthService', () => {
     legalDocumentsService = module.get<LegalDocumentsService>(
       LegalDocumentsService,
     );
+    mailService = module.get<MailService>(MailService);
   });
 
   describe('validateUser', () => {
@@ -450,6 +468,99 @@ describe('AuthService', () => {
         email: mockUser.email,
         sub: mockUser.id,
       });
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('deve retornar mensagem genérica sempre', async () => {
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+
+      const result = await service.requestPasswordReset('unknown@example.com');
+
+      expect(result.message).toContain('Se o email estiver cadastrado');
+    });
+
+    it('quando usuário existe e mail está configurado, deve salvar token e enviar email', async () => {
+      const userWithEmail = { ...mockUser, email: 'user@example.com', name: 'User' };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(userWithEmail as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(userWithEmail as any);
+
+      const result = await service.requestPasswordReset('user@example.com');
+
+      expect(result.message).toContain('Se o email estiver cadastrado');
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: userWithEmail.id },
+          data: expect.objectContaining({
+            password_reset_token: expect.any(String),
+            password_reset_expires: expect.any(Date),
+          }),
+        }),
+      );
+      expect(mailService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'user@example.com',
+          subject: expect.stringContaining('Redefinição de senha'),
+        }),
+      );
+    });
+
+    it('quando usuário não existe, não deve chamar update nem sendMail', async () => {
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+
+      await service.requestPasswordReset('nobody@example.com');
+
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('deve atualizar senha e limpar token quando token é válido', async () => {
+      const userWithToken = {
+        ...mockUser,
+        password_reset_token: 'valid-token',
+        password_reset_expires: new Date(Date.now() + 3600000),
+      };
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(userWithToken as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser as any);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
+
+      await service.resetPassword('valid-token', 'NewPass123');
+
+      expect(prismaService.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          password_reset_token: 'valid-token',
+          password_reset_expires: { gt: expect.any(Date) },
+          active: true,
+        },
+      });
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', 10);
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: userWithToken.id },
+        data: {
+          password: 'newHashedPassword',
+          password_reset_token: null,
+          password_reset_expires: null,
+        },
+      });
+    });
+
+    it('deve lançar BadRequestException quando token é inválido', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+
+      await expect(service.resetPassword('invalid-token', 'NewPass123')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar BadRequestException quando token expirou', async () => {
+      jest.spyOn(prismaService.user, 'findFirst').mockResolvedValue(null);
+
+      await expect(service.resetPassword('expired-token', 'NewPass123')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

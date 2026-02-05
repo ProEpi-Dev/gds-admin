@@ -32,6 +32,8 @@ describe('AuthController', () => {
           useValue: {
             login: jest.fn(),
             changePassword: jest.fn(),
+            requestPasswordReset: jest.fn(),
+            resetPassword: jest.fn(),
           },
         },
       ],
@@ -116,6 +118,37 @@ describe('AuthController', () => {
       await expect(controller.changePassword(changePasswordDto, mockUser)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('deve retornar mensagem genérica', async () => {
+      const dto = { email: 'user@example.com' };
+      const message = { message: 'Se o email estiver cadastrado, você receberá as instruções para redefinir sua senha.' };
+      jest.spyOn(authService, 'requestPasswordReset').mockResolvedValue(message);
+
+      const result = await controller.forgotPassword(dto);
+
+      expect(result).toEqual(message);
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith(dto.email);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('deve retornar 204 quando token e senha são válidos', async () => {
+      const dto = { token: 'valid-token', newPassword: 'NewPass123' };
+      jest.spyOn(authService, 'resetPassword').mockResolvedValue(undefined);
+
+      await controller.resetPassword(dto);
+
+      expect(authService.resetPassword).toHaveBeenCalledWith(dto.token, dto.newPassword);
+    });
+
+    it('deve lançar BadRequestException quando token é inválido', async () => {
+      const dto = { token: 'invalid-token', newPassword: 'NewPass123' };
+      jest.spyOn(authService, 'resetPassword').mockRejectedValue(new BadRequestException('Link inválido ou expirado'));
+
+      await expect(controller.resetPassword(dto)).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -163,13 +163,15 @@ model user {
   external_identifier   String?                 @db.VarChar(100)
   created_at            DateTime                @default(now()) @db.Timestamp(6)
   updated_at            DateTime                @default(now()) @db.Timestamp(6)
-  active                Boolean                 @default(true)
-  content               content[]
-  context_manager       context_manager[]
-  participation         participation[]
-  gender                gender?                 @relation(fields: [gender_id], references: [id], onUpdate: NoAction)
-  location              location?               @relation(fields: [location_id], references: [id], onUpdate: NoAction)
-  user_legal_acceptance user_legal_acceptance[]
+  active                    Boolean                 @default(true)
+  password_reset_token      String?                 @db.VarChar(255)
+  password_reset_expires    DateTime?               @db.Timestamp(6)
+  content                   content[]
+  context_manager           context_manager[]
+  participation             participation[]
+  gender                    gender?                 @relation(fields: [gender_id], references: [id], onUpdate: NoAction)
+  location                  location?               @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  user_legal_acceptance     user_legal_acceptance[]
 
   @@index([email], map: "idx_user_email")
   @@index([gender_id], map: "idx_user_gender_id")

@@ -28,10 +28,12 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^11.2.1",
     "@prisma/client": "^6.19.0",
+    "@types/nodemailer": "^7.0.9",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.3",
+    "nodemailer": "^8.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.0",
@@ -84,7 +86,12 @@
       "app\\.module\\.ts$"
     ],
     "coverageDirectory": "../coverage",
-    "coverageReporters": ["text", "lcov", "json", "json-summary"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "json",
+      "json-summary"
+    ],
     "testEnvironment": "node"
   }
 }
