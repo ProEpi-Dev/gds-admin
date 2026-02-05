@@ -1,5 +1,5 @@
 export const API_ENDPOINTS = {
-  // Auth
+  // Auth endpoint
   AUTH: {
     LOGIN: "/auth/login",
     CHANGE_PASSWORD: "/auth/change-password",
