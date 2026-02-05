@@ -8,7 +8,9 @@ export interface PaginationOptions {
   queryParams?: Record<string, any>;
 }
 
-export function createPaginationMeta(options: PaginationOptions): PaginationMetaDto {
+export function createPaginationMeta(
+  options: PaginationOptions,
+): PaginationMetaDto {
   const { page, pageSize, totalItems } = options;
   const totalPages = Math.ceil(totalItems / pageSize);
 
@@ -20,7 +22,9 @@ export function createPaginationMeta(options: PaginationOptions): PaginationMeta
   };
 }
 
-export function createPaginationLinks(options: PaginationOptions): PaginationLinksDto {
+export function createPaginationLinks(
+  options: PaginationOptions,
+): PaginationLinksDto {
   const { page, pageSize, totalItems, baseUrl, queryParams = {} } = options;
   const totalPages = Math.ceil(totalItems / pageSize);
 
@@ -40,4 +44,3 @@ export function createPaginationLinks(options: PaginationOptions): PaginationLin
     next: page < totalPages ? buildUrl(page + 1) : null,
   };
 }
-

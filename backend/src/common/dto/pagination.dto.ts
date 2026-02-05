@@ -45,10 +45,16 @@ export class PaginationMetaDto {
 }
 
 export class PaginationLinksDto {
-  @ApiProperty({ description: 'Link para primeira página', example: '/users?page=1&pageSize=20' })
+  @ApiProperty({
+    description: 'Link para primeira página',
+    example: '/users?page=1&pageSize=20',
+  })
   first: string;
 
-  @ApiProperty({ description: 'Link para última página', example: '/users?page=5&pageSize=20' })
+  @ApiProperty({
+    description: 'Link para última página',
+    example: '/users?page=5&pageSize=20',
+  })
   last: string;
 
   @ApiPropertyOptional({
@@ -65,4 +71,3 @@ export class PaginationLinksDto {
   })
   next: string | null;
 }
-

@@ -5,7 +5,10 @@ export class FormWithVersionDto {
   @ApiProperty({ description: 'ID do formulário', example: 1 })
   formId: number;
 
-  @ApiProperty({ description: 'Título do formulário', example: 'Formulário de Vigilância' })
+  @ApiProperty({
+    description: 'Título do formulário',
+    example: 'Formulário de Vigilância',
+  })
   formTitle: string;
 
   @ApiProperty({
@@ -14,4 +17,3 @@ export class FormWithVersionDto {
   })
   version: FormVersionResponseDto;
 }
-

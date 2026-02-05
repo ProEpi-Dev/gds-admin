@@ -104,8 +104,20 @@ export class FormVersionsService {
 
     return {
       data: versions.map((version) => this.mapToResponseDto(version)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -171,7 +183,9 @@ export class FormVersionsService {
         });
 
         // Calcular o próximo número de versão
-        const nextVersionNumber = lastVersion ? lastVersion.version_number + 1 : 1;
+        const nextVersionNumber = lastVersion
+          ? lastVersion.version_number + 1
+          : 1;
 
         // Criar nova versão com os dados atualizados
         const newVersion = await this.prisma.form_version.create({
@@ -183,7 +197,10 @@ export class FormVersionsService {
                 ? updateFormVersionDto.accessType
                 : existingVersion.access_type,
             definition: updateFormVersionDto.definition,
-            active: updateFormVersionDto.active !== undefined ? updateFormVersionDto.active : true,
+            active:
+              updateFormVersionDto.active !== undefined
+                ? updateFormVersionDto.active
+                : true,
             passing_score:
               updateFormVersionDto.passingScore !== undefined
                 ? updateFormVersionDto.passingScore
@@ -299,7 +316,10 @@ export class FormVersionsService {
       active: formVersion.active,
       createdAt: formVersion.created_at,
       updatedAt: formVersion.updated_at,
-      passingScore: formVersion.passing_score !== null ? Number(formVersion.passing_score) : null,
+      passingScore:
+        formVersion.passing_score !== null
+          ? Number(formVersion.passing_score)
+          : null,
       maxAttempts: formVersion.max_attempts,
       timeLimitMinutes: formVersion.time_limit_minutes,
       showFeedback: formVersion.show_feedback ?? true,
@@ -307,4 +327,3 @@ export class FormVersionsService {
     };
   }
 }
-

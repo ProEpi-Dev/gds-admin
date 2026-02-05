@@ -21,4 +21,3 @@ export class ReportPointResponseDto {
   })
   reportType: report_type_enum;
 }
-

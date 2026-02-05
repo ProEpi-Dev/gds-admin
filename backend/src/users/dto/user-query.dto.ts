@@ -25,4 +25,3 @@ export class UserQueryDto extends PaginationQueryDto {
   @IsOptional()
   search?: string;
 }
-

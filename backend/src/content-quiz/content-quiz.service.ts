@@ -109,10 +109,7 @@ export class ContentQuizService {
         where,
         skip,
         take: pageSize,
-        orderBy: [
-          { content_id: 'asc' },
-          { display_order: 'asc' },
-        ],
+        orderBy: [{ content_id: 'asc' }, { display_order: 'asc' }],
         include: {
           content: {
             select: {
@@ -143,8 +140,20 @@ export class ContentQuizService {
 
     return {
       data: contentQuizzes.map((cq) => this.mapToResponseDto(cq)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -292,4 +301,3 @@ export class ContentQuizService {
     return dto;
   }
 }
-

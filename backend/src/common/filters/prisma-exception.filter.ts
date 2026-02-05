@@ -14,8 +14,12 @@ import { Response } from 'express';
 @Catch(Prisma.PrismaClientKnownRequestError)
 export class PrismaExceptionFilter implements ExceptionFilter {
   catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
-    console.log('PrismaExceptionFilter caught error:', exception.code, exception.message);
-    
+    console.log(
+      'PrismaExceptionFilter caught error:',
+      exception.code,
+      exception.message,
+    );
+
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest();
@@ -33,11 +37,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         status = HttpStatus.CONFLICT;
         type = '/errors/unique-constraint';
         title = 'Unique Constraint Violation';
-        
+
         // Extract field name from meta
         const target = exception.meta?.target as string[];
         field = target?.[0];
-        detail = field 
+        detail = field
           ? `A record with this ${field} already exists`
           : 'A record with these values already exists';
         break;

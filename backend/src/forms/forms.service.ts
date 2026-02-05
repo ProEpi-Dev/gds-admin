@@ -337,11 +337,15 @@ export class FormsService {
             active: form.form_version[0].active,
             createdAt: form.form_version[0].created_at,
             updatedAt: form.form_version[0].updated_at,
-            passingScore: form.form_version[0].passing_score !== null ? Number(form.form_version[0].passing_score) : null,
+            passingScore:
+              form.form_version[0].passing_score !== null
+                ? Number(form.form_version[0].passing_score)
+                : null,
             maxAttempts: form.form_version[0].max_attempts,
             timeLimitMinutes: form.form_version[0].time_limit_minutes,
             showFeedback: form.form_version[0].show_feedback ?? true,
-            randomizeQuestions: form.form_version[0].randomize_questions ?? false,
+            randomizeQuestions:
+              form.form_version[0].randomize_questions ?? false,
           }
         : null;
 

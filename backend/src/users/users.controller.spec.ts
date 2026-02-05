@@ -93,7 +93,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'create')
         .mockRejectedValue(new ConflictException('Email já está em uso'));
 
-      await expect(controller.create(createUserDto)).rejects.toThrow(ConflictException);
+      await expect(controller.create(createUserDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -197,7 +199,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.update(999, updateUserDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(999, updateUserDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar ConflictException quando email já está em uso', async () => {
@@ -209,7 +213,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new ConflictException('Email já está em uso'));
 
-      await expect(controller.update(1, updateUserDto)).rejects.toThrow(ConflictException);
+      await expect(controller.update(1, updateUserDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -438,4 +444,3 @@ describe('UsersController', () => {
     });
   });
 });
-

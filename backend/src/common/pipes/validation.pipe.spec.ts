@@ -58,7 +58,9 @@ describe('ValidationPipe', () => {
       (plainToInstance as jest.Mock).mockReturnValue(value);
       (validate as jest.Mock).mockResolvedValue(errors);
 
-      await expect(pipe.transform(value, metadata as any)).rejects.toThrow(BadRequestException);
+      await expect(pipe.transform(value, metadata as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve retornar objeto transformado quando válido', async () => {
@@ -91,4 +93,3 @@ describe('ValidationPipe', () => {
     });
   });
 });
-

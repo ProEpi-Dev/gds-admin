@@ -43,8 +43,13 @@ export class ContextsController {
     description: 'Contexto criado com sucesso',
     type: ContextResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou localização não encontrada' })
-  async create(@Body() createContextDto: CreateContextDto): Promise<ContextResponseDto> {
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos ou localização não encontrada',
+  })
+  async create(
+    @Body() createContextDto: CreateContextDto,
+  ): Promise<ContextResponseDto> {
     return this.contextsService.create(createContextDto);
   }
 
@@ -52,7 +57,8 @@ export class ContextsController {
   @Public()
   @ApiOperation({
     summary: 'Listar contextos',
-    description: 'Retorna lista paginada de contextos com filtros opcionais. Endpoint público para permitir signup.',
+    description:
+      'Retorna lista paginada de contextos com filtros opcionais. Endpoint público para permitir signup.',
   })
   @ApiResponse({
     status: 200,
@@ -77,7 +83,9 @@ export class ContextsController {
     type: ContextResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Contexto não encontrado' })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ContextResponseDto> {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ContextResponseDto> {
     return this.contextsService.findOne(id);
   }
 
@@ -105,7 +113,8 @@ export class ContextsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar contexto',
-    description: 'Remove um contexto (soft delete - desativa). Não permite deletar se houver participações ou formulários associados.',
+    description:
+      'Remove um contexto (soft delete - desativa). Não permite deletar se houver participações ou formulários associados.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do contexto' })
   @ApiResponse({ status: 204, description: 'Contexto deletado com sucesso' })
@@ -115,4 +124,3 @@ export class ContextsController {
     return this.contextsService.remove(id);
   }
 }
-

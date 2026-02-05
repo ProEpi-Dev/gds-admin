@@ -73,4 +73,3 @@ export class QuizSubmissionQueryDto extends PaginationQueryDto {
   @IsOptional()
   endDate?: string;
 }
-

@@ -78,7 +78,9 @@ describe('GendersController', () => {
         .spyOn(gendersService, 'findOne')
         .mockRejectedValue(new NotFoundException('Gênero não encontrado'));
 
-      await expect(controller.findOne('999')).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne('999')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -103,9 +105,13 @@ describe('GendersController', () => {
 
       jest
         .spyOn(gendersService, 'create')
-        .mockRejectedValue(new BadRequestException('Já existe um gênero com esse nome'));
+        .mockRejectedValue(
+          new BadRequestException('Já existe um gênero com esse nome'),
+        );
 
-      await expect(controller.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -133,7 +139,9 @@ describe('GendersController', () => {
         .spyOn(gendersService, 'update')
         .mockRejectedValue(new NotFoundException('Gênero não encontrado'));
 
-      await expect(controller.update('999', updateDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update('999', updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando nome já existe', async () => {
@@ -143,9 +151,13 @@ describe('GendersController', () => {
 
       jest
         .spyOn(gendersService, 'update')
-        .mockRejectedValue(new BadRequestException('Já existe um gênero com esse nome'));
+        .mockRejectedValue(
+          new BadRequestException('Já existe um gênero com esse nome'),
+        );
 
-      await expect(controller.update('1', updateDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.update('1', updateDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

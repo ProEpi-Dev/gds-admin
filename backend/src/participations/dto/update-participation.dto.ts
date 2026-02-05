@@ -49,4 +49,3 @@ export class UpdateParticipationDto {
   @IsOptional()
   active?: boolean;
 }
-

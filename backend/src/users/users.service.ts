@@ -37,7 +37,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException(`Email ${createUserDto.email} já está em uso`);
+      throw new ConflictException(
+        `Email ${createUserDto.email} já está em uso`,
+      );
     }
 
     // Hash da senha
@@ -56,7 +58,9 @@ export class UsersService {
     return this.mapToResponseDto(user);
   }
 
-  async findAll(query: UserQueryDto): Promise<ListResponseDto<UserResponseDto>> {
+  async findAll(
+    query: UserQueryDto,
+  ): Promise<ListResponseDto<UserResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
@@ -108,8 +112,20 @@ export class UsersService {
 
     return {
       data: users.map((user) => this.mapToResponseDto(user)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -125,7 +141,10 @@ export class UsersService {
     return this.mapToResponseDto(user);
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
     // Verificar se usuário existe
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
@@ -142,7 +161,9 @@ export class UsersService {
       });
 
       if (emailInUse) {
-        throw new ConflictException(`Email ${updateUserDto.email} já está em uso`);
+        throw new ConflictException(
+          `Email ${updateUserDto.email} já está em uso`,
+        );
       }
     }
 
@@ -200,7 +221,10 @@ export class UsersService {
     } catch (error) {
       const isFkError =
         error instanceof Prisma.PrismaClientKnownRequestError ||
-        (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2003');
+        (error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          (error as { code: string }).code === 'P2003');
       if (isFkError) {
         throw new BadRequestException(
           'Não é possível excluir permanentemente este usuário: existem vínculos no sistema que impedem a exclusão (ex.: conteúdos em que é autor). Remova as dependências ou mantenha o usuário inativo.',
@@ -445,10 +469,7 @@ export class UsersService {
         start_date: {
           lte: today,
         },
-        OR: [
-          { end_date: null },
-          { end_date: { gte: today } },
-        ],
+        OR: [{ end_date: null }, { end_date: { gte: today } }],
       },
       select: {
         context_id: true,
@@ -482,4 +503,3 @@ export class UsersService {
     };
   }
 }
-

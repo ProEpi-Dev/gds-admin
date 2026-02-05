@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { ContextManagersService } from './context-managers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContextManagerDto } from './dto/create-context-manager.dto';
@@ -55,10 +59,18 @@ describe('ContextManagersService', () => {
     it('deve criar manager com sucesso', async () => {
       const createDto: CreateContextManagerDto = { userId: 1, active: true };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.context_manager, 'create').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'create')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await service.create(1, createDto);
 
@@ -68,10 +80,18 @@ describe('ContextManagersService', () => {
     it('deve validar context e user', async () => {
       const createDto: CreateContextManagerDto = { userId: 1 };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.context_manager, 'create').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'create')
+        .mockResolvedValue(mockContextManager as any);
 
       await service.create(1, createDto);
 
@@ -84,26 +104,40 @@ describe('ContextManagersService', () => {
 
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(999, createDto)).rejects.toThrow(NotFoundException);
+      await expect(service.create(999, createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando user não existe', async () => {
       const createDto: CreateContextManagerDto = { userId: 999 };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(1, createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(1, createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar ConflictException quando já é manager', async () => {
       const createDto: CreateContextManagerDto = { userId: 1 };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
-      await expect(service.create(1, createDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(1, createDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -111,8 +145,12 @@ describe('ContextManagersService', () => {
     it('deve retornar lista paginada', async () => {
       const query: ContextManagerQueryDto = { page: 1, pageSize: 20 };
 
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context_manager, 'findMany').mockResolvedValue([mockContextManager] as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findMany')
+        .mockResolvedValue([mockContextManager] as any);
       jest.spyOn(prismaService.context_manager, 'count').mockResolvedValue(1);
 
       const result = await service.findAllByContext(1, query);
@@ -126,14 +164,20 @@ describe('ContextManagersService', () => {
 
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.findAllByContext(999, query)).rejects.toThrow(NotFoundException);
+      await expect(service.findAllByContext(999, query)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('findOne', () => {
     it('deve retornar manager quando existe', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await service.findOne(1, 1);
 
@@ -147,8 +191,12 @@ describe('ContextManagersService', () => {
     });
 
     it('deve lançar NotFoundException quando manager não existe', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(service.findOne(1, 999)).rejects.toThrow(NotFoundException);
     });
@@ -158,7 +206,9 @@ describe('ContextManagersService', () => {
     it('deve atualizar campos fornecidos', async () => {
       const updateDto: UpdateContextManagerDto = { active: false };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
       jest.spyOn(prismaService.context_manager, 'update').mockResolvedValue({
         ...mockContextManager,
         active: false,
@@ -172,15 +222,21 @@ describe('ContextManagersService', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       const updateDto: UpdateContextManagerDto = { active: false };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(service.update(1, 999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(1, 999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar manager', async () => {
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
       jest.spyOn(prismaService.context_manager, 'update').mockResolvedValue({
         ...mockContextManager,
         active: false,
@@ -195,7 +251,9 @@ describe('ContextManagersService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(service.remove(1, 999)).rejects.toThrow(NotFoundException);
     });
@@ -203,8 +261,12 @@ describe('ContextManagersService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await service.findOne(1, 1);
 
@@ -214,4 +276,3 @@ describe('ContextManagersService', () => {
     });
   });
 });
-

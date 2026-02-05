@@ -20,4 +20,3 @@ export class CreateContextManagerDto {
   @IsOptional()
   active?: boolean;
 }
-

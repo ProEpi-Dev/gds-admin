@@ -36,4 +36,3 @@ export class ContextQueryDto extends PaginationQueryDto {
   @IsOptional()
   accessType?: context_access_type;
 }
-

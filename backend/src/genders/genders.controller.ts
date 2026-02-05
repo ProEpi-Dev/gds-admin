@@ -10,7 +10,13 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { GendersService } from './genders.service';
 import { GenderResponseDto } from './dto/gender-response.dto';
 import { CreateGenderDto } from './dto/create-gender.dto';
@@ -41,8 +47,11 @@ export class GendersController {
     description: 'Lista de gêneros',
     type: [GenderResponseDto],
   })
-  async findAll(@Query('activeOnly') activeOnly?: string): Promise<GenderResponseDto[]> {
-    const activeOnlyBool = activeOnly === undefined ? true : activeOnly === 'true';
+  async findAll(
+    @Query('activeOnly') activeOnly?: string,
+  ): Promise<GenderResponseDto[]> {
+    const activeOnlyBool =
+      activeOnly === undefined ? true : activeOnly === 'true';
     return this.gendersService.findAll(activeOnlyBool);
   }
 
@@ -124,7 +133,8 @@ export class GendersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar gênero',
-    description: 'Remove um gênero do sistema. Não permite deletar se houver usuários associados.',
+    description:
+      'Remove um gênero do sistema. Não permite deletar se houver usuários associados.',
   })
   @ApiParam({
     name: 'id',

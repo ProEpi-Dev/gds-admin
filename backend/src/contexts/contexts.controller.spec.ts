@@ -86,9 +86,13 @@ describe('ContextsController', () => {
 
       jest
         .spyOn(contextsService, 'create')
-        .mockRejectedValue(new BadRequestException('Localização não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Localização não encontrada'),
+        );
 
-      await expect(controller.create(createContextDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createContextDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -99,7 +103,9 @@ describe('ContextsController', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(contextsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(contextsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await controller.findAll(query);
 
@@ -115,7 +121,9 @@ describe('ContextsController', () => {
         accessType: 'PUBLIC',
       };
 
-      jest.spyOn(contextsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(contextsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       await controller.findAll(query);
 
@@ -164,7 +172,9 @@ describe('ContextsController', () => {
         .spyOn(contextsService, 'update')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.update(999, updateContextDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(999, updateContextDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando location não existe', async () => {
@@ -174,9 +184,13 @@ describe('ContextsController', () => {
 
       jest
         .spyOn(contextsService, 'update')
-        .mockRejectedValue(new BadRequestException('Localização não encontrada'));
+        .mockRejectedValue(
+          new BadRequestException('Localização não encontrada'),
+        );
 
-      await expect(controller.update(1, updateContextDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.update(1, updateContextDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -200,7 +214,9 @@ describe('ContextsController', () => {
     it('deve lançar BadRequestException quando possui participações', async () => {
       jest
         .spyOn(contextsService, 'remove')
-        .mockRejectedValue(new BadRequestException('Contexto possui participações'));
+        .mockRejectedValue(
+          new BadRequestException('Contexto possui participações'),
+        );
 
       await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
     });
@@ -208,10 +224,11 @@ describe('ContextsController', () => {
     it('deve lançar BadRequestException quando possui formulários', async () => {
       jest
         .spyOn(contextsService, 'remove')
-        .mockRejectedValue(new BadRequestException('Contexto possui formulários'));
+        .mockRejectedValue(
+          new BadRequestException('Contexto possui formulários'),
+        );
 
       await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
     });
   });
 });
-

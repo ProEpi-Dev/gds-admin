@@ -5,13 +5,23 @@ export class ContextResponseDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })
   id: number;
 
-  @ApiProperty({ description: 'Nome do contexto', example: 'Contexto Principal' })
+  @ApiProperty({
+    description: 'Nome do contexto',
+    example: 'Contexto Principal',
+  })
   name: string;
 
-  @ApiProperty({ description: 'Descrição do contexto', example: 'Contexto padrão do sistema' })
+  @ApiProperty({
+    description: 'Descrição do contexto',
+    example: 'Contexto padrão do sistema',
+  })
   description: string | null;
 
-  @ApiProperty({ description: 'Tipo de acesso', example: 'PUBLIC', enum: ['PUBLIC', 'PRIVATE'] })
+  @ApiProperty({
+    description: 'Tipo de acesso',
+    example: 'PUBLIC',
+    enum: ['PUBLIC', 'PRIVATE'],
+  })
   accessType: string;
 
   @ApiProperty({ description: 'Status ativo', example: true })
@@ -57,4 +67,3 @@ export class SetupResponseDto {
   })
   contextManager: ContextManagerResponseDto;
 }
-

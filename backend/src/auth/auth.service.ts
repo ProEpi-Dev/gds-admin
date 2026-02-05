@@ -5,8 +5,10 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -15,13 +17,18 @@ import { SignupDto } from './dto/signup.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly resetTokenExpiryHours = 1;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private legalDocumentsService: LegalDocumentsService,
+    private mailService: MailService,
+    private configService: ConfigService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
@@ -175,7 +182,9 @@ export class AuthService {
 
     // Verificar se o usuário tem senha definida
     if (!user.password) {
-      throw new UnauthorizedException('User password not set. Please contact administrator.');
+      throw new UnauthorizedException(
+        'User password not set. Please contact administrator.',
+      );
     }
 
     // Validar senha usando bcrypt
@@ -187,7 +196,10 @@ export class AuthService {
     return user;
   }
 
-  async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: number,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
     // Buscar usuário
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -199,7 +211,9 @@ export class AuthService {
 
     // Verificar se o usuário tem senha definida
     if (!user.password) {
-      throw new UnauthorizedException('Senha não definida. Entre em contato com o administrador.');
+      throw new UnauthorizedException(
+        'Senha não definida. Entre em contato com o administrador.',
+      );
     }
 
     // Validar senha atual
@@ -219,11 +233,16 @@ export class AuthService {
     );
 
     if (isSamePassword) {
-      throw new BadRequestException('A nova senha deve ser diferente da senha atual');
+      throw new BadRequestException(
+        'A nova senha deve ser diferente da senha atual',
+      );
     }
 
     // Hash da nova senha
-    const hashedNewPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+    const hashedNewPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      10,
+    );
 
     // Atualizar senha
     await this.prisma.user.update({
@@ -269,7 +288,8 @@ export class AuthService {
     );
 
     // 4. Verificar se o Termo de Uso foi aceito (regra de negócio: apenas Termo de Uso é obrigatório no signup)
-    const termsOfUse = await this.legalDocumentsService.findByTypeCode('TERMS_OF_USE');
+    const termsOfUse =
+      await this.legalDocumentsService.findByTypeCode('TERMS_OF_USE');
     if (!signupDto.acceptedLegalDocumentIds.includes(termsOfUse.id)) {
       throw new BadRequestException(
         'É obrigatório aceitar o Termo de Uso para criar uma conta',
@@ -343,5 +363,73 @@ export class AuthService {
   generateToken(user: any): string {
     const payload = { email: user.email, sub: user.id };
     return this.jwtService.sign(payload);
+  }
+
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (user && user.active && this.mailService.isConfigured()) {
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + this.resetTokenExpiryHours);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password_reset_token: token,
+          password_reset_expires: expiresAt,
+        },
+      });
+
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        this.configService.get<string>('APP_URL') ||
+        'http://localhost:5173';
+      const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+
+      await this.mailService.sendMail({
+        to: user.email,
+        subject: 'Redefinição de senha - Guardiões da Saúde',
+        html: `
+          <p>Olá, ${user.name}</p>
+          <p>Você solicitou a redefinição de senha. Clique no link abaixo para definir uma nova senha (válido por ${this.resetTokenExpiryHours}h):</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p>Se você não solicitou isso, ignore este email.</p>
+        `,
+      });
+    }
+
+    return {
+      message:
+        'Se o email estiver cadastrado, você receberá as instruções para redefinir sua senha.',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        password_reset_token: token,
+        password_reset_expires: { gt: new Date() },
+        active: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'Link inválido ou expirado. Solicite uma nova redefinição de senha.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        password_reset_token: null,
+        password_reset_expires: null,
+      },
+    });
   }
 }

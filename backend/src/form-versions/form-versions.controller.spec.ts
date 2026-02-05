@@ -68,7 +68,9 @@ describe('FormVersionsController', () => {
         active: true,
       };
 
-      jest.spyOn(formVersionsService, 'create').mockResolvedValue(mockFormVersion);
+      jest
+        .spyOn(formVersionsService, 'create')
+        .mockResolvedValue(mockFormVersion);
 
       const result = await controller.create(1, createDto);
 
@@ -86,7 +88,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'create')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.create(999, createDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.create(999, createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve calcular número de versão automaticamente', async () => {
@@ -95,7 +99,9 @@ describe('FormVersionsController', () => {
         definition: {},
       };
 
-      jest.spyOn(formVersionsService, 'create').mockResolvedValue(mockFormVersion);
+      jest
+        .spyOn(formVersionsService, 'create')
+        .mockResolvedValue(mockFormVersion);
 
       await controller.create(1, createDto);
 
@@ -110,7 +116,9 @@ describe('FormVersionsController', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(formVersionsService, 'findAllByForm').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(formVersionsService, 'findAllByForm')
+        .mockResolvedValue(mockListResponse);
 
       const result = await controller.findAllByForm(1, query);
 
@@ -127,13 +135,17 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'findAllByForm')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.findAllByForm(999, query)).rejects.toThrow(NotFoundException);
+      await expect(controller.findAllByForm(999, query)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('findOne', () => {
     it('deve retornar versão quando existe', async () => {
-      jest.spyOn(formVersionsService, 'findOne').mockResolvedValue(mockFormVersion);
+      jest
+        .spyOn(formVersionsService, 'findOne')
+        .mockResolvedValue(mockFormVersion);
 
       const result = await controller.findOne(1, 1);
 
@@ -145,7 +157,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'findOne')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.findOne(999, 1)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(999, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar NotFoundException quando versão não existe', async () => {
@@ -153,7 +167,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'findOne')
         .mockRejectedValue(new NotFoundException('Versão não encontrada'));
 
-      await expect(controller.findOne(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -163,8 +179,13 @@ describe('FormVersionsController', () => {
         accessType: 'PRIVATE',
       };
 
-      const updatedVersion = { ...mockFormVersion, accessType: 'PRIVATE' as const };
-      jest.spyOn(formVersionsService, 'update').mockResolvedValue(updatedVersion);
+      const updatedVersion = {
+        ...mockFormVersion,
+        accessType: 'PRIVATE' as const,
+      };
+      jest
+        .spyOn(formVersionsService, 'update')
+        .mockResolvedValue(updatedVersion);
 
       const result = await controller.update(1, 1, updateDto);
 
@@ -193,7 +214,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'update')
         .mockRejectedValue(new NotFoundException('Versão não encontrada'));
 
-      await expect(controller.update(1, 999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(controller.update(1, 999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -211,7 +234,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'remove')
         .mockRejectedValue(new NotFoundException('Versão não encontrada'));
 
-      await expect(controller.remove(1, 999)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove(1, 999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando possui reports', async () => {
@@ -219,8 +244,9 @@ describe('FormVersionsController', () => {
         .spyOn(formVersionsService, 'remove')
         .mockRejectedValue(new BadRequestException('Versão possui reports'));
 
-      await expect(controller.remove(1, 1)).rejects.toThrow(BadRequestException);
+      await expect(controller.remove(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-

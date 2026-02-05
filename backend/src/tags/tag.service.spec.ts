@@ -48,7 +48,9 @@ describe('TagService', () => {
   describe('findAll', () => {
     it('deve retornar lista de tags ordenadas por nome', async () => {
       const mockTags = [mockTag, { ...mockTag, id: 2, name: 'Another Tag' }];
-      jest.spyOn(prismaService.tag, 'findMany').mockResolvedValue(mockTags as any);
+      jest
+        .spyOn(prismaService.tag, 'findMany')
+        .mockResolvedValue(mockTags as any);
 
       const result = await service.findAll();
 
@@ -115,7 +117,9 @@ describe('TagService', () => {
 
       jest.spyOn(prismaService.tag, 'create').mockRejectedValue(prismaError);
 
-      await expect(service.create(createData)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createData)).rejects.toThrow(
+        BadRequestException,
+      );
       await expect(service.create(createData)).rejects.toThrow(
         'Já existe uma tag com esse nome',
       );
@@ -129,13 +133,17 @@ describe('TagService', () => {
       const genericError = new Error('Database error');
       jest.spyOn(prismaService.tag, 'create').mockRejectedValue(genericError);
 
-      await expect(service.create(createData)).rejects.toThrow('Database error');
+      await expect(service.create(createData)).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 
   describe('findOne', () => {
     it('deve retornar tag quando existe', async () => {
-      jest.spyOn(prismaService.tag, 'findUnique').mockResolvedValue(mockTag as any);
+      jest
+        .spyOn(prismaService.tag, 'findUnique')
+        .mockResolvedValue(mockTag as any);
 
       const result = await service.findOne(1);
 
@@ -164,7 +172,9 @@ describe('TagService', () => {
       };
 
       const updatedTag = { ...mockTag, ...updateData };
-      jest.spyOn(prismaService.tag, 'update').mockResolvedValue(updatedTag as any);
+      jest
+        .spyOn(prismaService.tag, 'update')
+        .mockResolvedValue(updatedTag as any);
 
       const result = await service.update(1, updateData);
 
@@ -211,7 +221,9 @@ describe('TagService', () => {
 
       jest.spyOn(prismaService.tag, 'update').mockRejectedValue(prismaError);
 
-      await expect(service.update(1, updateData)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateData)).rejects.toThrow(
+        BadRequestException,
+      );
       await expect(service.update(1, updateData)).rejects.toThrow(
         'Já existe uma tag com esse nome',
       );
@@ -225,7 +237,9 @@ describe('TagService', () => {
       const genericError = new Error('Database error');
       jest.spyOn(prismaService.tag, 'update').mockRejectedValue(genericError);
 
-      await expect(service.update(1, updateData)).rejects.toThrow('Database error');
+      await expect(service.update(1, updateData)).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 

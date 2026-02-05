@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsBoolean, IsOptional, IsObject, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsObject,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateLocationDto {
@@ -44,7 +52,18 @@ export class UpdateLocationDto {
 
   @ApiPropertyOptional({
     description: 'Polígonos geográficos (GeoJSON)',
-    example: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+    example: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0, 0],
+        ],
+      ],
+    },
   })
   @IsObject()
   @IsOptional()
@@ -58,4 +77,3 @@ export class UpdateLocationDto {
   @IsOptional()
   active?: boolean;
 }
-

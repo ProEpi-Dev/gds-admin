@@ -79,9 +79,7 @@ describe('ContentQuizController', () => {
         isRequired: false,
       };
 
-      jest
-        .spyOn(service, 'create')
-        .mockResolvedValue(mockContentQuiz as any);
+      jest.spyOn(service, 'create').mockResolvedValue(mockContentQuiz as any);
 
       const result = await controller.create(createDto);
 
@@ -123,9 +121,7 @@ describe('ContentQuizController', () => {
 
   describe('findOne', () => {
     it('deve retornar associação por ID', async () => {
-      jest
-        .spyOn(service, 'findOne')
-        .mockResolvedValue(mockContentQuiz as any);
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockContentQuiz as any);
 
       const result = await controller.findOne(1);
 
@@ -141,9 +137,7 @@ describe('ContentQuizController', () => {
         isRequired: true,
       };
 
-      jest
-        .spyOn(service, 'update')
-        .mockResolvedValue(mockContentQuiz as any);
+      jest.spyOn(service, 'update').mockResolvedValue(mockContentQuiz as any);
 
       const result = await controller.update(1, updateDto);
 

@@ -119,4 +119,3 @@ export class ContentQuizController {
     return this.contentQuizService.remove(id);
   }
 }
-

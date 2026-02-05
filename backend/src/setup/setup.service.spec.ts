@@ -73,24 +73,29 @@ describe('SetupService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
 
-      jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback) => {
-        const tx = {
-          user: {
-            create: jest.fn().mockResolvedValue(mockManager),
-          },
-          context: {
-            create: jest.fn().mockResolvedValue(mockContext),
-          },
-          context_manager: {
-            create: jest.fn().mockResolvedValue(mockContextManager),
-          },
-        };
-        return callback(tx as any);
-      });
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue(mockManager),
+            },
+            context: {
+              create: jest.fn().mockResolvedValue(mockContext),
+            },
+            context_manager: {
+              create: jest.fn().mockResolvedValue(mockContextManager),
+            },
+          };
+          return callback(tx as any);
+        });
 
       const result = await service.setup(mockSetupDto);
 
-      expect(result).toHaveProperty('message', 'Sistema inicializado com sucesso');
+      expect(result).toHaveProperty(
+        'message',
+        'Sistema inicializado com sucesso',
+      );
       expect(result).toHaveProperty('context');
       expect(result).toHaveProperty('manager');
       expect(result).toHaveProperty('contextManager');
@@ -105,18 +110,20 @@ describe('SetupService', () => {
         create: jest.fn().mockResolvedValue(mockManager),
       };
 
-      jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback) => {
-        const tx = {
-          user: txUser,
-          context: {
-            create: jest.fn().mockResolvedValue(mockContext),
-          },
-          context_manager: {
-            create: jest.fn().mockResolvedValue(mockContextManager),
-          },
-        };
-        return callback(tx as any);
-      });
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          const tx = {
+            user: txUser,
+            context: {
+              create: jest.fn().mockResolvedValue(mockContext),
+            },
+            context_manager: {
+              create: jest.fn().mockResolvedValue(mockContextManager),
+            },
+          };
+          return callback(tx as any);
+        });
 
       await service.setup(mockSetupDto);
 
@@ -139,18 +146,20 @@ describe('SetupService', () => {
         create: jest.fn().mockResolvedValue(mockContextManager),
       };
 
-      jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback) => {
-        const tx = {
-          user: {
-            create: jest.fn().mockResolvedValue(mockManager),
-          },
-          context: {
-            create: jest.fn().mockResolvedValue(mockContext),
-          },
-          context_manager: txContextManager,
-        };
-        return callback(tx as any);
-      });
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue(mockManager),
+            },
+            context: {
+              create: jest.fn().mockResolvedValue(mockContext),
+            },
+            context_manager: txContextManager,
+          };
+          return callback(tx as any);
+        });
 
       await service.setup(mockSetupDto);
 
@@ -168,24 +177,29 @@ describe('SetupService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
 
-      jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback) => {
-        const tx = {
-          user: {
-            create: jest.fn().mockResolvedValue(mockManager),
-          },
-          context: {
-            create: jest.fn().mockResolvedValue(mockContext),
-          },
-          context_manager: {
-            create: jest.fn().mockResolvedValue(mockContextManager),
-          },
-        };
-        return callback(tx as any);
-      });
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue(mockManager),
+            },
+            context: {
+              create: jest.fn().mockResolvedValue(mockContext),
+            },
+            context_manager: {
+              create: jest.fn().mockResolvedValue(mockContextManager),
+            },
+          };
+          return callback(tx as any);
+        });
 
       await service.setup(mockSetupDto);
 
-      expect(bcrypt.hash).toHaveBeenCalledWith(mockSetupDto.managerPassword, 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith(
+        mockSetupDto.managerPassword,
+        10,
+      );
     });
 
     it('deve usar transação para garantir atomicidade', async () => {
@@ -193,20 +207,22 @@ describe('SetupService', () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
 
-      const transactionSpy = jest.spyOn(prismaService, '$transaction').mockImplementation(async (callback) => {
-        const tx = {
-          user: {
-            create: jest.fn().mockResolvedValue(mockManager),
-          },
-          context: {
-            create: jest.fn().mockResolvedValue(mockContext),
-          },
-          context_manager: {
-            create: jest.fn().mockResolvedValue(mockContextManager),
-          },
-        };
-        return callback(tx as any);
-      });
+      const transactionSpy = jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue(mockManager),
+            },
+            context: {
+              create: jest.fn().mockResolvedValue(mockContext),
+            },
+            context_manager: {
+              create: jest.fn().mockResolvedValue(mockContextManager),
+            },
+          };
+          return callback(tx as any);
+        });
 
       await service.setup(mockSetupDto);
 
@@ -214,17 +230,24 @@ describe('SetupService', () => {
     });
 
     it('deve lançar BadRequestException quando contexto já existe', async () => {
-      jest.spyOn(prismaService.context, 'findFirst').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findFirst')
+        .mockResolvedValue(mockContext as any);
 
-      await expect(service.setup(mockSetupDto)).rejects.toThrow(BadRequestException);
+      await expect(service.setup(mockSetupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando email já existe', async () => {
       jest.spyOn(prismaService.context, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockManager as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockManager as any);
 
-      await expect(service.setup(mockSetupDto)).rejects.toThrow(BadRequestException);
+      await expect(service.setup(mockSetupDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-

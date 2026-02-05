@@ -52,7 +52,8 @@ export class LegalDocumentsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar tipos de documentos legais',
-    description: 'Retorna todos os tipos de documentos legais ativos. Endpoint público.',
+    description:
+      'Retorna todos os tipos de documentos legais ativos. Endpoint público.',
   })
   @ApiResponse({
     status: 200,
@@ -95,7 +96,8 @@ export class LegalDocumentsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Buscar documento por ID',
-    description: 'Retorna um documento legal específico por ID. Endpoint público.',
+    description:
+      'Retorna um documento legal específico por ID. Endpoint público.',
   })
   @ApiParam({
     name: 'id',
@@ -258,7 +260,8 @@ export class LegalDocumentsAdminController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: '[Admin] Listar todos os tipos de documentos',
-    description: 'Retorna todos os tipos de documentos legais (incluindo inativos)',
+    description:
+      'Retorna todos os tipos de documentos legais (incluindo inativos)',
   })
   @ApiResponse({
     status: 200,
@@ -366,7 +369,9 @@ export class LegalDocumentsAdminController {
     status: 400,
     description: 'Não é possível deletar tipo com documentos vinculados',
   })
-  async deleteDocumentType(@Param('id', ParseIntPipe) id: number): Promise<void> {
+  async deleteDocumentType(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<void> {
     return this.legalDocumentsService.deleteDocumentType(id);
   }
 }

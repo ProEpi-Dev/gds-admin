@@ -7,6 +7,8 @@ import AdminRoute from "./AdminRoute";
 import UserRoute from "./UserRoute";
 import LoginPage from "../features/auth/pages/LoginPage";
 import SignupPage from "../features/auth/pages/SignupPage";
+import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
+import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
 import ChangePasswordPage from "../features/auth/pages/ChangePasswordPage";
 import WelcomePage from "../features/app/pages/WelcomePage";
 import CompleteProfilePage from "../features/app/pages/CompleteProfilePage";
@@ -107,6 +109,8 @@ export default function AppRoutes() {
     <Routes>
       {/* Rotas Públicas */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/setup" element={<SetupPage />} />
 

@@ -179,14 +179,19 @@ describe('PrismaExceptionFilter', () => {
 
   describe('Unknown Prisma error', () => {
     it('deve retornar 500 com RFC 9457 format', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError('Unknown error', {
-        code: 'P9999',
-        clientVersion: '4.0.0',
-      });
+      const exception = new Prisma.PrismaClientKnownRequestError(
+        'Unknown error',
+        {
+          code: 'P9999',
+          clientVersion: '4.0.0',
+        },
+      );
 
       filter.catch(exception, mockArgumentsHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith({
         type: '/errors/database',
         title: 'Database Error',

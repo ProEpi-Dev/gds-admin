@@ -18,7 +18,9 @@ import {
 export class ContextsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createContextDto: CreateContextDto): Promise<ContextResponseDto> {
+  async create(
+    createContextDto: CreateContextDto,
+  ): Promise<ContextResponseDto> {
     // Validar location_id se fornecido
     if (createContextDto.locationId !== undefined) {
       const location = await this.prisma.location.findUnique({
@@ -97,13 +99,27 @@ export class ContextsService {
     const baseUrl = '/v1/contexts';
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
-    if (query.locationId !== undefined) queryParams.locationId = query.locationId;
-    if (query.accessType !== undefined) queryParams.accessType = query.accessType;
+    if (query.locationId !== undefined)
+      queryParams.locationId = query.locationId;
+    if (query.accessType !== undefined)
+      queryParams.accessType = query.accessType;
 
     return {
       data: contexts.map((context) => this.mapToResponseDto(context)),
-      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
-      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
     };
   }
 
@@ -234,4 +250,3 @@ export class ContextsService {
     };
   }
 }
-

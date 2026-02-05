@@ -38,7 +38,10 @@ describe('HttpExceptionFilter', () => {
     });
 
     it('deve tratar exceção com response string', () => {
-      const exception = new HttpException('Error message', HttpStatus.NOT_FOUND);
+      const exception = new HttpException(
+        'Error message',
+        HttpStatus.NOT_FOUND,
+      );
 
       filter.catch(exception, mockArgumentsHost);
 
@@ -76,7 +79,9 @@ describe('HttpExceptionFilter', () => {
 
       filter.catch(error, mockArgumentsHost);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(mockResponse.status).toHaveBeenCalledWith(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith({
         error: {
           code: 'Error',
@@ -122,4 +127,3 @@ describe('HttpExceptionFilter', () => {
     });
   });
 });
-

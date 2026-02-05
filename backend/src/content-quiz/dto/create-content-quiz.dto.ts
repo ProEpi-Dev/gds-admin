@@ -60,4 +60,3 @@ export class CreateContentQuizDto {
   @IsOptional()
   active?: boolean;
 }
-

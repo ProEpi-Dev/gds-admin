@@ -25,7 +25,9 @@ describe('AppService', () => {
 
   describe('getHealth', () => {
     it('deve retornar status connected quando banco responde', async () => {
-      jest.spyOn(prismaService, '$queryRaw').mockResolvedValue([{ '?column?': 1 }]);
+      jest
+        .spyOn(prismaService, '$queryRaw')
+        .mockResolvedValue([{ '?column?': 1 }]);
 
       const result = await appService.getHealth();
 
@@ -38,7 +40,9 @@ describe('AppService', () => {
     });
 
     it('deve retornar status error quando banco falha', async () => {
-      jest.spyOn(prismaService, '$queryRaw').mockRejectedValue(new Error('Connection failed'));
+      jest
+        .spyOn(prismaService, '$queryRaw')
+        .mockRejectedValue(new Error('Connection failed'));
 
       const result = await appService.getHealth();
 
@@ -49,7 +53,9 @@ describe('AppService', () => {
     });
 
     it('deve calcular uptime corretamente', async () => {
-      jest.spyOn(prismaService, '$queryRaw').mockResolvedValue([{ '?column?': 1 }]);
+      jest
+        .spyOn(prismaService, '$queryRaw')
+        .mockResolvedValue([{ '?column?': 1 }]);
 
       // Aguardar um pouco para garantir que há diferença de tempo
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -61,4 +67,3 @@ describe('AppService', () => {
     });
   });
 });
-

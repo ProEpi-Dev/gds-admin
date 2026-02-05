@@ -52,7 +52,9 @@ describe('LoggingInterceptor', () => {
 
     it('deve logar requisição com erro', (done) => {
       const error = { status: 500, message: 'Internal Server Error' };
-      mockCallHandler.handle = jest.fn().mockReturnValue(throwError(() => error));
+      mockCallHandler.handle = jest
+        .fn()
+        .mockReturnValue(throwError(() => error));
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
         error: () => {
@@ -79,4 +81,3 @@ describe('LoggingInterceptor', () => {
     });
   });
 });
-

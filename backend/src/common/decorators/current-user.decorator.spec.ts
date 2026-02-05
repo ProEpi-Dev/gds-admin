@@ -17,7 +17,7 @@ describe('CurrentUser Decorator', () => {
     // createParamDecorator retorna uma função que quando aplicada como decorator
     // executa a função interna passada para createParamDecorator
     // A função interna recebe (data, ctx) e retorna request.user
-    
+
     // Para testar o decorator, precisamos executar a função interna diretamente
     // O decorator em si é uma função, mas a lógica está na função passada para createParamDecorator
     // Vamos criar uma função de teste que simula o comportamento
@@ -32,9 +32,8 @@ describe('CurrentUser Decorator', () => {
     expect(result).toBe(mockUser);
     expect(mockSwitchToHttp).toHaveBeenCalled();
     expect(mockGetRequest).toHaveBeenCalled();
-    
+
     // Verificar que o decorator foi criado corretamente
     expect(typeof CurrentUser).toBe('function');
   });
 });
-

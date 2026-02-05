@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { FormsController } from './forms.controller';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
@@ -90,7 +94,10 @@ describe('FormsController', () => {
       const result = await controller.create(createFormDto, mockUser);
 
       expect(result).toEqual(mockForm);
-      expect(formsService.create).toHaveBeenCalledWith(createFormDto, mockUser.userId);
+      expect(formsService.create).toHaveBeenCalledWith(
+        createFormDto,
+        mockUser.userId,
+      );
     });
 
     it('deve usar contexto do usuário logado', async () => {
@@ -103,7 +110,10 @@ describe('FormsController', () => {
 
       await controller.create(createFormDto, mockUser);
 
-      expect(formsService.create).toHaveBeenCalledWith(createFormDto, mockUser.userId);
+      expect(formsService.create).toHaveBeenCalledWith(
+        createFormDto,
+        mockUser.userId,
+      );
     });
   });
 
@@ -126,20 +136,28 @@ describe('FormsController', () => {
         },
       ];
 
-      jest.spyOn(formsService, 'findFormsWithLatestVersions').mockResolvedValue(mockForms);
+      jest
+        .spyOn(formsService, 'findFormsWithLatestVersions')
+        .mockResolvedValue(mockForms);
 
       const result = await controller.findFormsWithLatestVersions(mockUser);
 
       expect(result).toEqual(mockForms);
-      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(mockUser.userId);
+      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
+        mockUser.userId,
+      );
     });
 
     it('deve filtrar apenas formulários do contexto do usuário', async () => {
-      jest.spyOn(formsService, 'findFormsWithLatestVersions').mockResolvedValue([]);
+      jest
+        .spyOn(formsService, 'findFormsWithLatestVersions')
+        .mockResolvedValue([]);
 
       await controller.findFormsWithLatestVersions(mockUser);
 
-      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(mockUser.userId);
+      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
+        mockUser.userId,
+      );
     });
   });
 
@@ -199,7 +217,9 @@ describe('FormsController', () => {
         .spyOn(formsService, 'findOne')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.findOne(999, mockUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(999, mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar ForbiddenException quando não pertence ao contexto', async () => {
@@ -207,7 +227,9 @@ describe('FormsController', () => {
         .spyOn(formsService, 'findOne')
         .mockRejectedValue(new ForbiddenException('Você não tem permissão'));
 
-      await expect(controller.findOne(1, mockUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.findOne(1, mockUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -234,9 +256,9 @@ describe('FormsController', () => {
         .spyOn(formsService, 'update')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.update(999, updateFormDto, mockUser)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.update(999, updateFormDto, mockUser),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar ForbiddenException quando não pertence ao contexto', async () => {
@@ -248,9 +270,9 @@ describe('FormsController', () => {
         .spyOn(formsService, 'update')
         .mockRejectedValue(new ForbiddenException('Você não tem permissão'));
 
-      await expect(controller.update(1, updateFormDto, mockUser)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        controller.update(1, updateFormDto, mockUser),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -268,7 +290,9 @@ describe('FormsController', () => {
         .spyOn(formsService, 'remove')
         .mockRejectedValue(new NotFoundException('Formulário não encontrado'));
 
-      await expect(controller.remove(999, mockUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove(999, mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar ForbiddenException quando não pertence ao contexto', async () => {
@@ -276,16 +300,21 @@ describe('FormsController', () => {
         .spyOn(formsService, 'remove')
         .mockRejectedValue(new ForbiddenException('Você não tem permissão'));
 
-      await expect(controller.remove(1, mockUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.remove(1, mockUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('deve lançar BadRequestException quando possui versões', async () => {
       jest
         .spyOn(formsService, 'remove')
-        .mockRejectedValue(new BadRequestException('Formulário possui versões'));
+        .mockRejectedValue(
+          new BadRequestException('Formulário possui versões'),
+        );
 
-      await expect(controller.remove(1, mockUser)).rejects.toThrow(BadRequestException);
+      await expect(controller.remove(1, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-

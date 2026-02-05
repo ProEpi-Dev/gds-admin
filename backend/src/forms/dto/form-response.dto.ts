@@ -16,10 +16,16 @@ export class FormResponseDto {
   })
   context?: ContextResponseDto | null;
 
-  @ApiProperty({ description: 'Título do formulário', example: 'Formulário de Vigilância' })
+  @ApiProperty({
+    description: 'Título do formulário',
+    example: 'Formulário de Vigilância',
+  })
   title: string;
 
-  @ApiPropertyOptional({ description: 'Referência do formulário', example: 'FORM-001' })
+  @ApiPropertyOptional({
+    description: 'Referência do formulário',
+    example: 'FORM-001',
+  })
   reference: string | null;
 
   @ApiPropertyOptional({
@@ -38,10 +44,16 @@ export class FormResponseDto {
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;
 
-  @ApiProperty({ description: 'Data de criação', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de criação',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de atualização',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: Date;
 
   @ApiPropertyOptional({
@@ -50,4 +62,3 @@ export class FormResponseDto {
   })
   latestVersion?: FormVersionResponseDto | null;
 }
-

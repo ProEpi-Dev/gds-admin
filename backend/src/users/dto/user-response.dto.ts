@@ -19,13 +19,21 @@ export class UserResponseDto {
   @ApiPropertyOptional({ description: 'ID da localização', example: 150 })
   locationId?: number;
 
-  @ApiPropertyOptional({ description: 'Identificador externo', example: '12345678900' })
+  @ApiPropertyOptional({
+    description: 'Identificador externo',
+    example: '12345678900',
+  })
   externalIdentifier?: string;
 
-  @ApiProperty({ description: 'Data de criação', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de criação',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de atualização',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: Date;
 }
-

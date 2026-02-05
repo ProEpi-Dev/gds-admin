@@ -27,10 +27,16 @@ export class FormVersionResponseDto {
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;
 
-  @ApiProperty({ description: 'Data de criação', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de criação',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty({ description: 'Data de atualização', example: '2024-01-01T00:00:00.000Z' })
+  @ApiProperty({
+    description: 'Data de atualização',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: Date;
 
   @ApiPropertyOptional({
@@ -65,4 +71,3 @@ export class FormVersionResponseDto {
   })
   randomizeQuestions?: boolean;
 }
-

@@ -167,7 +167,9 @@ describe('GendersService', () => {
 
       mockPrismaService.gender.create.mockRejectedValue(prismaError);
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
       await expect(service.create(createDto)).rejects.toThrow(
         'Já existe um gênero com esse nome',
       );
@@ -226,7 +228,9 @@ describe('GendersService', () => {
 
       mockPrismaService.gender.update.mockRejectedValue(prismaError);
 
-      await expect(service.update(999, updateDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando nome já existe', async () => {
@@ -242,7 +246,9 @@ describe('GendersService', () => {
 
       mockPrismaService.gender.update.mockRejectedValue(prismaError);
 
-      await expect(service.update(1, updateDto)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateDto)).rejects.toThrow(
+        BadRequestException,
+      );
       await expect(service.update(1, updateDto)).rejects.toThrow(
         'Já existe um gênero com esse nome',
       );

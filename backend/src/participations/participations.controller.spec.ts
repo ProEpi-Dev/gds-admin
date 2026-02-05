@@ -57,7 +57,9 @@ describe('ParticipationsController', () => {
     }).compile();
 
     controller = module.get<ParticipationsController>(ParticipationsController);
-    participationsService = module.get<ParticipationsService>(ParticipationsService);
+    participationsService = module.get<ParticipationsService>(
+      ParticipationsService,
+    );
   });
 
   describe('create', () => {
@@ -69,12 +71,16 @@ describe('ParticipationsController', () => {
         active: true,
       };
 
-      jest.spyOn(participationsService, 'create').mockResolvedValue(mockParticipation);
+      jest
+        .spyOn(participationsService, 'create')
+        .mockResolvedValue(mockParticipation);
 
       const result = await controller.create(createParticipationDto);
 
       expect(result).toEqual(mockParticipation);
-      expect(participationsService.create).toHaveBeenCalledWith(createParticipationDto);
+      expect(participationsService.create).toHaveBeenCalledWith(
+        createParticipationDto,
+      );
     });
 
     it('deve lançar BadRequestException quando user não existe', async () => {
@@ -88,7 +94,9 @@ describe('ParticipationsController', () => {
         .spyOn(participationsService, 'create')
         .mockRejectedValue(new BadRequestException('Usuário não encontrado'));
 
-      await expect(controller.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando context não existe', async () => {
@@ -102,7 +110,9 @@ describe('ParticipationsController', () => {
         .spyOn(participationsService, 'create')
         .mockRejectedValue(new BadRequestException('Contexto não encontrado'));
 
-      await expect(controller.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando endDate < startDate', async () => {
@@ -115,9 +125,15 @@ describe('ParticipationsController', () => {
 
       jest
         .spyOn(participationsService, 'create')
-        .mockRejectedValue(new BadRequestException('Data de término deve ser posterior à data de início'));
+        .mockRejectedValue(
+          new BadRequestException(
+            'Data de término deve ser posterior à data de início',
+          ),
+        );
 
-      await expect(controller.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -128,7 +144,9 @@ describe('ParticipationsController', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(participationsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(participationsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await controller.findAll(query);
 
@@ -144,7 +162,9 @@ describe('ParticipationsController', () => {
         contextId: 1,
       };
 
-      jest.spyOn(participationsService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(participationsService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       await controller.findAll(query);
 
@@ -154,7 +174,9 @@ describe('ParticipationsController', () => {
 
   describe('findOne', () => {
     it('deve retornar participação quando existe', async () => {
-      jest.spyOn(participationsService, 'findOne').mockResolvedValue(mockParticipation);
+      jest
+        .spyOn(participationsService, 'findOne')
+        .mockResolvedValue(mockParticipation);
 
       const result = await controller.findOne(1);
 
@@ -164,7 +186,9 @@ describe('ParticipationsController', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       jest
         .spyOn(participationsService, 'findOne')
-        .mockRejectedValue(new NotFoundException('Participação não encontrada'));
+        .mockRejectedValue(
+          new NotFoundException('Participação não encontrada'),
+        );
 
       await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
     });
@@ -177,7 +201,9 @@ describe('ParticipationsController', () => {
       };
 
       const updatedParticipation = { ...mockParticipation, active: false };
-      jest.spyOn(participationsService, 'update').mockResolvedValue(updatedParticipation);
+      jest
+        .spyOn(participationsService, 'update')
+        .mockResolvedValue(updatedParticipation);
 
       const result = await controller.update(1, updateParticipationDto);
 
@@ -191,9 +217,13 @@ describe('ParticipationsController', () => {
 
       jest
         .spyOn(participationsService, 'update')
-        .mockRejectedValue(new NotFoundException('Participação não encontrada'));
+        .mockRejectedValue(
+          new NotFoundException('Participação não encontrada'),
+        );
 
-      await expect(controller.update(999, updateParticipationDto)).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.update(999, updateParticipationDto),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando endDate < startDate', async () => {
@@ -204,9 +234,15 @@ describe('ParticipationsController', () => {
 
       jest
         .spyOn(participationsService, 'update')
-        .mockRejectedValue(new BadRequestException('Data de término deve ser posterior à data de início'));
+        .mockRejectedValue(
+          new BadRequestException(
+            'Data de término deve ser posterior à data de início',
+          ),
+        );
 
-      await expect(controller.update(1, updateParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.update(1, updateParticipationDto),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -222,7 +258,9 @@ describe('ParticipationsController', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       jest
         .spyOn(participationsService, 'remove')
-        .mockRejectedValue(new NotFoundException('Participação não encontrada'));
+        .mockRejectedValue(
+          new NotFoundException('Participação não encontrada'),
+        );
 
       await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
     });
@@ -230,10 +268,11 @@ describe('ParticipationsController', () => {
     it('deve lançar BadRequestException quando possui reports', async () => {
       jest
         .spyOn(participationsService, 'remove')
-        .mockRejectedValue(new BadRequestException('Participação possui reports'));
+        .mockRejectedValue(
+          new BadRequestException('Participação possui reports'),
+        );
 
       await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
     });
   });
 });
-

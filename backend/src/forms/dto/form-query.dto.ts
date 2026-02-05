@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsEnum, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  IsString,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { form_type_enum } from '@prisma/client';
 
@@ -35,4 +41,3 @@ export class FormQueryDto extends PaginationQueryDto {
   @IsOptional()
   reference?: string;
 }
-

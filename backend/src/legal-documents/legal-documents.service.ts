@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LegalDocumentResponseDto } from './dto/legal-document-response.dto';
 import { LegalDocumentTypeResponseDto } from './dto/legal-document-type-response.dto';
@@ -57,7 +62,9 @@ export class LegalDocumentsService {
     });
 
     if (!document) {
-      throw new NotFoundException(`Documento legal com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Documento legal com ID ${id} não encontrado`,
+      );
     }
 
     return this.mapToResponseDto(document);
@@ -72,7 +79,9 @@ export class LegalDocumentsService {
     });
 
     if (!type) {
-      throw new NotFoundException(`Tipo de documento com código ${typeCode} não encontrado`);
+      throw new NotFoundException(
+        `Tipo de documento com código ${typeCode} não encontrado`,
+      );
     }
 
     const document = await this.prisma.legal_document.findFirst({
@@ -161,7 +170,9 @@ export class LegalDocumentsService {
     const requiredDocs = await this.findRequiredDocuments();
     const requiredIds = requiredDocs.map((doc) => doc.id);
 
-    const missingRequired = requiredIds.filter((id) => !documentIds.includes(id));
+    const missingRequired = requiredIds.filter(
+      (id) => !documentIds.includes(id),
+    );
 
     if (missingRequired.length > 0) {
       const missingDocs = requiredDocs.filter((doc) =>
@@ -220,14 +231,18 @@ export class LegalDocumentsService {
   /**
    * Cria um novo documento legal (admin)
    */
-  async createDocument(dto: CreateLegalDocumentDto): Promise<LegalDocumentResponseDto> {
+  async createDocument(
+    dto: CreateLegalDocumentDto,
+  ): Promise<LegalDocumentResponseDto> {
     // Verificar se o tipo existe
     const type = await this.prisma.legal_document_type.findUnique({
       where: { id: dto.typeId },
     });
 
     if (!type) {
-      throw new NotFoundException(`Tipo de documento com ID ${dto.typeId} não encontrado`);
+      throw new NotFoundException(
+        `Tipo de documento com ID ${dto.typeId} não encontrado`,
+      );
     }
 
     // Verificar se já existe um documento com essa versão e tipo
@@ -273,7 +288,9 @@ export class LegalDocumentsService {
     });
 
     if (!existing) {
-      throw new NotFoundException(`Documento legal com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Documento legal com ID ${id} não encontrado`,
+      );
     }
 
     // Se está atualizando o tipo, verificar se existe
@@ -283,7 +300,9 @@ export class LegalDocumentsService {
       });
 
       if (!type) {
-        throw new NotFoundException(`Tipo de documento com ID ${dto.typeId} não encontrado`);
+        throw new NotFoundException(
+          `Tipo de documento com ID ${dto.typeId} não encontrado`,
+        );
       }
     }
 
@@ -336,7 +355,9 @@ export class LegalDocumentsService {
     });
 
     if (!document) {
-      throw new NotFoundException(`Documento legal com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Documento legal com ID ${id} não encontrado`,
+      );
     }
 
     // Verificar se há aceitações vinculadas
@@ -367,7 +388,9 @@ export class LegalDocumentsService {
     });
 
     if (existing) {
-      throw new ConflictException(`Já existe um tipo de documento com o código ${dto.code}`);
+      throw new ConflictException(
+        `Já existe um tipo de documento com o código ${dto.code}`,
+      );
     }
 
     const type = await this.prisma.legal_document_type.create({
@@ -395,7 +418,9 @@ export class LegalDocumentsService {
     });
 
     if (!existing) {
-      throw new NotFoundException(`Tipo de documento com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Tipo de documento com ID ${id} não encontrado`,
+      );
     }
 
     const type = await this.prisma.legal_document_type.update({
@@ -420,7 +445,9 @@ export class LegalDocumentsService {
     });
 
     if (!type) {
-      throw new NotFoundException(`Tipo de documento com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Tipo de documento com ID ${id} não encontrado`,
+      );
     }
 
     return this.mapTypeToResponseDto(type);
@@ -435,7 +462,9 @@ export class LegalDocumentsService {
     });
 
     if (!type) {
-      throw new NotFoundException(`Tipo de documento com ID ${id} não encontrado`);
+      throw new NotFoundException(
+        `Tipo de documento com ID ${id} não encontrado`,
+      );
     }
 
     // Verificar se há documentos vinculados

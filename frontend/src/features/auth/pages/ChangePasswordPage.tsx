@@ -12,8 +12,10 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useChangePassword } from '../hooks/useAuth';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -47,6 +49,9 @@ export default function ChangePasswordPage() {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -116,32 +121,74 @@ export default function ChangePasswordPage() {
               <TextField
                 {...register('currentPassword')}
                 label={t('auth.currentPassword')}
-                type="password"
+                type={showCurrentPassword ? 'text' : 'password'}
                 fullWidth
                 error={!!errors.currentPassword}
                 helperText={errors.currentPassword?.message}
                 autoComplete="current-password"
                 autoFocus
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showCurrentPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        edge="end"
+                      >
+                        {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
 
               <TextField
                 {...register('newPassword')}
                 label={t('auth.newPassword')}
-                type="password"
+                type={showNewPassword ? 'text' : 'password'}
                 fullWidth
                 error={!!errors.newPassword}
                 helperText={errors.newPassword?.message || t('auth.passwordRequirements')}
                 autoComplete="new-password"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showNewPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        edge="end"
+                      >
+                        {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
 
               <TextField
                 {...register('confirmPassword')}
                 label={t('auth.confirmPassword')}
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 fullWidth
                 error={!!errors.confirmPassword}
                 helperText={errors.confirmPassword?.message}
                 autoComplete="new-password"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        edge="end"
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
 
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>

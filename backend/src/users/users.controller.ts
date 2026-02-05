@@ -43,7 +43,10 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Criar usuário', description: 'Cria um novo usuário no sistema' })
+  @ApiOperation({
+    summary: 'Criar usuário',
+    description: 'Cria um novo usuário no sistema',
+  })
   @ApiResponse({
     status: 201,
     description: 'Usuário criado com sucesso',
@@ -65,7 +68,9 @@ export class UsersController {
     description: 'Lista de usuários',
     type: ListResponseDto<UserResponseDto>,
   })
-  async findAll(@Query() query: UserQueryDto): Promise<ListResponseDto<UserResponseDto>> {
+  async findAll(
+    @Query() query: UserQueryDto,
+  ): Promise<ListResponseDto<UserResponseDto>> {
     return this.usersService.findAll(query);
   }
 
@@ -81,7 +86,9 @@ export class UsersController {
     type: UserResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<UserResponseDto> {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<UserResponseDto> {
     return this.usersService.findOne(id);
   }
 
@@ -114,8 +121,14 @@ export class UsersController {
       'Se o usuário estiver ativo: desativa (soft delete). Se já estiver inativo: tenta exclusão permanente do banco; falha com 400 se houver dependências que impeçam a exclusão.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
-  @ApiResponse({ status: 204, description: 'Usuário removido (desativado ou excluído permanentemente)' })
-  @ApiResponse({ status: 400, description: 'Usuário inativo com vínculos que impedem exclusão permanente' })
+  @ApiResponse({
+    status: 204,
+    description: 'Usuário removido (desativado ou excluído permanentemente)',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Usuário inativo com vínculos que impedem exclusão permanente',
+  })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.usersService.remove(id);
@@ -125,8 +138,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Verificar status do perfil',
-    description:
-      'Retorna o status de completude do perfil do usuário logado',
+    description: 'Retorna o status de completude do perfil do usuário logado',
   })
   @ApiResponse({
     status: 200,
@@ -231,7 +243,8 @@ export class UsersController {
   @Get('me/role')
   @ApiOperation({
     summary: 'Obter papel do usuário',
-    description: 'Retorna informações sobre o papel do usuário logado (manager ou participante) e seus contextos',
+    description:
+      'Retorna informações sobre o papel do usuário logado (manager ou participante) e seus contextos',
   })
   @ApiResponse({
     status: 200,
@@ -242,10 +255,7 @@ export class UsersController {
     status: 401,
     description: 'Usuário não autenticado',
   })
-  async getUserRole(
-    @CurrentUser() user: any,
-  ): Promise<UserRoleResponseDto> {
+  async getUserRole(@CurrentUser() user: any): Promise<UserRoleResponseDto> {
     return this.usersService.getUserRole(user.userId);
   }
 }
-

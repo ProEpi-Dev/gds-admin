@@ -10,7 +10,11 @@ export class AppController {
 
   @Public()
   @Get('health')
-  @ApiOperation({ summary: 'Health check', description: 'Verifica o status da aplicação e conexão com o banco de dados' })
+  @ApiOperation({
+    summary: 'Health check',
+    description:
+      'Verifica o status da aplicação e conexão com o banco de dados',
+  })
   @ApiResponse({
     status: 200,
     description: 'Aplicação está funcionando corretamente',

@@ -115,3 +115,18 @@ export interface TrackExecutionsQueryParams {
   dateFrom?: string;
   dateTo?: string;
 }
+
+/** Item de conformidade de trilha obrigatória (por slug) */
+export interface MandatoryComplianceItem {
+  mandatorySlug: string;
+  label: string;
+  completed: boolean;
+  trackCycleId?: number;
+}
+
+/** Resposta do endpoint de conformidade de trilhas obrigatórias */
+export interface MandatoryComplianceResponse {
+  items: MandatoryComplianceItem[];
+  totalRequired: number;
+  completedCount: number;
+}

@@ -30,7 +30,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await getUserContextId(prismaService, 1);
 
@@ -60,8 +62,12 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await getUserContextId(prismaService, 1);
 
@@ -77,10 +83,7 @@ describe('UserContextHelper', () => {
           start_date: {
             lte: expect.any(Date),
           },
-          OR: [
-            { end_date: null },
-            { end_date: { gte: expect.any(Date) } },
-          ],
+          OR: [{ end_date: null }, { end_date: { gte: expect.any(Date) } }],
         },
         orderBy: {
           created_at: 'desc',
@@ -96,7 +99,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await getUserContextId(prismaService, 1);
 
@@ -106,10 +111,16 @@ describe('UserContextHelper', () => {
     });
 
     it('deve lançar ForbiddenException quando não é manager nem participante', async () => {
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(getUserContextId(prismaService, 1)).rejects.toThrow(ForbiddenException);
+      await expect(getUserContextId(prismaService, 1)).rejects.toThrow(
+        ForbiddenException,
+      );
       await expect(getUserContextId(prismaService, 1)).rejects.toThrow(
         'Usuário não possui contexto associado ou contexto está inativo',
       );
@@ -125,7 +136,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await getUserContextAsManager(prismaService, 1);
 
@@ -145,9 +158,13 @@ describe('UserContextHelper', () => {
     });
 
     it('deve lançar ForbiddenException quando usuário não é manager', async () => {
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(getUserContextAsManager(prismaService, 1)).rejects.toThrow(ForbiddenException);
+      await expect(getUserContextAsManager(prismaService, 1)).rejects.toThrow(
+        ForbiddenException,
+      );
       await expect(getUserContextAsManager(prismaService, 1)).rejects.toThrow(
         'Usuário não é gerenciador de nenhum contexto ativo',
       );
@@ -161,7 +178,9 @@ describe('UserContextHelper', () => {
         created_at: new Date('2024-01-01'),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await getUserContextAsManager(prismaService, 1);
 
@@ -188,7 +207,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await getUserParticipationId(prismaService, 1);
 
@@ -203,10 +224,7 @@ describe('UserContextHelper', () => {
           start_date: {
             lte: expect.any(Date),
           },
-          OR: [
-            { end_date: null },
-            { end_date: { gte: expect.any(Date) } },
-          ],
+          OR: [{ end_date: null }, { end_date: { gte: expect.any(Date) } }],
         },
         orderBy: {
           created_at: 'desc',
@@ -225,7 +243,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await getUserParticipationId(prismaService, 1, 2);
 
@@ -241,10 +261,7 @@ describe('UserContextHelper', () => {
           start_date: {
             lte: expect.any(Date),
           },
-          OR: [
-            { end_date: null },
-            { end_date: { gte: expect.any(Date) } },
-          ],
+          OR: [{ end_date: null }, { end_date: { gte: expect.any(Date) } }],
         },
         orderBy: {
           created_at: 'desc',
@@ -253,18 +270,26 @@ describe('UserContextHelper', () => {
     });
 
     it('deve lançar ForbiddenException quando usuário não é participante', async () => {
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(getUserParticipationId(prismaService, 1)).rejects.toThrow(ForbiddenException);
+      await expect(getUserParticipationId(prismaService, 1)).rejects.toThrow(
+        ForbiddenException,
+      );
       await expect(getUserParticipationId(prismaService, 1)).rejects.toThrow(
         'Usuário não possui participação ativa',
       );
     });
 
     it('deve lançar ForbiddenException com mensagem específica para contexto', async () => {
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(getUserParticipationId(prismaService, 1, 2)).rejects.toThrow(ForbiddenException);
+      await expect(getUserParticipationId(prismaService, 1, 2)).rejects.toThrow(
+        ForbiddenException,
+      );
       await expect(getUserParticipationId(prismaService, 1, 2)).rejects.toThrow(
         'Usuário não possui participação ativa no contexto 2',
       );
@@ -281,7 +306,9 @@ describe('UserContextHelper', () => {
         created_at: new Date('2024-06-01'),
       };
 
-      jest.spyOn(prismaService.participation, 'findFirst').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await getUserParticipationId(prismaService, 1);
 
@@ -305,7 +332,9 @@ describe('UserContextHelper', () => {
         created_at: new Date(),
       };
 
-      jest.spyOn(prismaService.context_manager, 'findFirst').mockResolvedValue(mockContextManager as any);
+      jest
+        .spyOn(prismaService.context_manager, 'findFirst')
+        .mockResolvedValue(mockContextManager as any);
 
       const result = await getUserContext(prismaService, 1);
 

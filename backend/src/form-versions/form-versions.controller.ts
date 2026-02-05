@@ -78,13 +78,20 @@ export class FormVersionsController {
     description: 'Retorna detalhes de uma versão específica de um formulário',
   })
   @ApiParam({ name: 'formId', type: Number, description: 'ID do formulário' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID da versão do formulário' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID da versão do formulário',
+  })
   @ApiResponse({
     status: 200,
     description: 'Detalhes da versão',
     type: FormVersionResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Formulário ou versão não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Formulário ou versão não encontrado',
+  })
   async findOne(
     @Param('formId', ParseIntPipe) formId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -98,14 +105,21 @@ export class FormVersionsController {
     description: 'Atualiza uma versão de formulário existente',
   })
   @ApiParam({ name: 'formId', type: Number, description: 'ID do formulário' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID da versão do formulário' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID da versão do formulário',
+  })
   @ApiResponse({
     status: 200,
     description: 'Versão atualizada com sucesso',
     type: FormVersionResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
-  @ApiResponse({ status: 404, description: 'Formulário ou versão não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Formulário ou versão não encontrado',
+  })
   @ApiResponse({ status: 409, description: 'Versão com este número já existe' })
   async update(
     @Param('formId', ParseIntPipe) formId: number,
@@ -119,13 +133,21 @@ export class FormVersionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar versão do formulário',
-    description: 'Remove uma versão de formulário (soft delete - desativa). Não permite deletar se houver reports associados.',
+    description:
+      'Remove uma versão de formulário (soft delete - desativa). Não permite deletar se houver reports associados.',
   })
   @ApiParam({ name: 'formId', type: Number, description: 'ID do formulário' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID da versão do formulário' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID da versão do formulário',
+  })
   @ApiResponse({ status: 204, description: 'Versão deletada com sucesso' })
   @ApiResponse({ status: 400, description: 'Versão possui reports associados' })
-  @ApiResponse({ status: 404, description: 'Formulário ou versão não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Formulário ou versão não encontrado',
+  })
   async remove(
     @Param('formId', ParseIntPipe) formId: number,
     @Param('id', ParseIntPipe) id: number,
@@ -133,4 +155,3 @@ export class FormVersionsController {
     return this.formVersionsService.remove(formId, id);
   }
 }
-

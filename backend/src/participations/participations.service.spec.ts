@@ -73,9 +73,15 @@ describe('ParticipationsService', () => {
         active: true,
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.participation, 'create').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.participation, 'create')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await service.create(createParticipationDto);
 
@@ -95,9 +101,15 @@ describe('ParticipationsService', () => {
         startDate: '2024-01-01',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.participation, 'create').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.participation, 'create')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.create(createParticipationDto);
 
@@ -113,9 +125,15 @@ describe('ParticipationsService', () => {
         endDate: '2024-01-02',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
-      jest.spyOn(prismaService.participation, 'create').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.participation, 'create')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.create(createParticipationDto);
 
@@ -130,10 +148,16 @@ describe('ParticipationsService', () => {
         endDate: '2024-01-01',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
 
-      await expect(service.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando user não existe', async () => {
@@ -145,7 +169,9 @@ describe('ParticipationsService', () => {
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('deve lançar BadRequestException quando context não existe', async () => {
@@ -155,10 +181,14 @@ describe('ParticipationsService', () => {
         startDate: '2024-01-01',
       };
 
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(createParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -169,7 +199,9 @@ describe('ParticipationsService', () => {
         pageSize: 20,
       };
 
-      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([mockParticipation] as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([mockParticipation] as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(1);
 
       const result = await service.findAll(query);
@@ -188,7 +220,9 @@ describe('ParticipationsService', () => {
         contextId: 1,
       };
 
-      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([] as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([] as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
 
       await service.findAll(query);
@@ -207,7 +241,9 @@ describe('ParticipationsService', () => {
 
   describe('findOne', () => {
     it('deve retornar participação quando existe', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await service.findOne(1);
 
@@ -215,7 +251,9 @@ describe('ParticipationsService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(null);
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
     });
@@ -227,7 +265,9 @@ describe('ParticipationsService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
       jest.spyOn(prismaService.participation, 'update').mockResolvedValue({
         ...mockParticipation,
         active: false,
@@ -244,10 +284,18 @@ describe('ParticipationsService', () => {
         contextId: 2,
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({ id: 2 } as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue({ id: 2 } as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ id: 2 } as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue({ id: 2 } as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -264,8 +312,12 @@ describe('ParticipationsService', () => {
         startDate: '2024-02-01',
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -280,8 +332,12 @@ describe('ParticipationsService', () => {
         endDate: null,
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -296,8 +352,12 @@ describe('ParticipationsService', () => {
         endDate: '2024-12-31',
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -312,8 +372,12 @@ describe('ParticipationsService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -329,8 +393,12 @@ describe('ParticipationsService', () => {
         endDate: '2024-01-02',
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'update')
+        .mockResolvedValue(mockParticipation as any);
 
       await service.update(1, updateParticipationDto);
 
@@ -342,9 +410,13 @@ describe('ParticipationsService', () => {
         active: false,
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(null);
 
-      await expect(service.update(999, updateParticipationDto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(999, updateParticipationDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('deve lançar BadRequestException quando endDate < startDate', async () => {
@@ -353,15 +425,21 @@ describe('ParticipationsService', () => {
         endDate: '2024-01-01',
       };
 
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
 
-      await expect(service.update(1, updateParticipationDto)).rejects.toThrow(BadRequestException);
+      await expect(service.update(1, updateParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('remove', () => {
     it('deve desativar participação', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.participation, 'update').mockResolvedValue({
         ...mockParticipation,
@@ -377,13 +455,17 @@ describe('ParticipationsService', () => {
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(null);
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando possui reports', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(2);
 
       await expect(service.remove(1)).rejects.toThrow(BadRequestException);
@@ -392,7 +474,9 @@ describe('ParticipationsService', () => {
 
   describe('mapToResponseDto', () => {
     it('deve mapear todos os campos corretamente', async () => {
-      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await service.findOne(1);
 
@@ -403,4 +487,3 @@ describe('ParticipationsService', () => {
     });
   });
 });
-

@@ -95,6 +95,55 @@ describe('TrackCyclesService', () => {
       expect(result).toEqual({ id: 1 });
       expect(prisma.track_cycle.create).toHaveBeenCalled();
     });
+
+    it('creates cycle with mandatorySlug when slug is free', async () => {
+      (prisma.track.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.context.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.track_cycle.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      (prisma.track_cycle.create as jest.Mock).mockResolvedValue({
+        id: 1,
+        mandatory_slug: 'formacao-inicial',
+      });
+
+      const result = await service.create({
+        name: 'Cycle',
+        trackId: 1,
+        contextId: 1,
+        startDate: '2025-01-01',
+        endDate: '2025-01-10',
+        mandatorySlug: 'formacao-inicial',
+      } as any);
+
+      expect(prisma.track_cycle.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mandatory_slug: 'formacao-inicial',
+          }),
+        }),
+      );
+      expect(result.mandatory_slug).toBe('formacao-inicial');
+    });
+
+    it('throws Conflict when mandatorySlug is already taken on create', async () => {
+      (prisma.track.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.context.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.track_cycle.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 99 });
+
+      await expect(
+        service.create({
+          name: 'Cycle',
+          trackId: 1,
+          contextId: 1,
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          mandatorySlug: 'formacao-inicial',
+        } as any),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
   });
 
   it('findAll()', async () => {
@@ -125,6 +174,40 @@ describe('TrackCyclesService', () => {
     await expect(service.update(1, {} as any)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('update() with mandatorySlug when slug is free', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      track_id: 1,
+      context_id: 1,
+      name: 'Old',
+    });
+    (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.track_cycle.update as jest.Mock).mockResolvedValue({
+      id: 1,
+      mandatory_slug: 'boas-vidas',
+    });
+
+    await service.update(1, { mandatorySlug: 'boas-vidas' } as any);
+
+    expect(prisma.track_cycle.update).toHaveBeenCalled();
+    const updateCall = (prisma.track_cycle.update as jest.Mock).mock.calls[0][0];
+    expect(updateCall.data.mandatory_slug).toBe('boas-vidas');
+  });
+
+  it('update() throws Conflict when mandatorySlug is already taken', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      track_id: 1,
+      context_id: 1,
+      name: 'Old',
+    });
+    (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue({ id: 2 });
+
+    await expect(
+      service.update(1, { mandatorySlug: 'formacao-inicial' } as any),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('updateStatus() conflicts when another active exists', async () => {
