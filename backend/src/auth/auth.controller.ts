@@ -159,4 +159,5 @@ export class AuthController {
 
     return this.authService.signup(signupDto, ipAddress, userAgent);
   }
+
 }
