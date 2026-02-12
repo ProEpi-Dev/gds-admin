@@ -88,6 +88,7 @@ describe('ContentService', () => {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     });
@@ -218,6 +219,7 @@ describe('ContentService', () => {
               tag: true,
             },
           },
+          content_type: true,
         },
         orderBy: { updated_at: 'desc' },
       });
@@ -249,6 +251,7 @@ describe('ContentService', () => {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     });
@@ -288,6 +291,7 @@ describe('ContentService', () => {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     });
