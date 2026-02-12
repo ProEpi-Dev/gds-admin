@@ -20,10 +20,11 @@ const convertVideoUrlToEmbed = (url: string): string => {
 
   return url;
 };
-import { Box, Button, TextField, Typography, IconButton, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Box, Button, TextField, Typography, IconButton, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
@@ -43,7 +44,6 @@ export default function ContentForm() {
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [openNewContentTypeDialog, setOpenNewContentTypeDialog] = useState(false);
   const [newContentTypeName, setNewContentTypeName] = useState("");
-  const [newContentTypeDescription, setNewContentTypeDescription] = useState("");
   const [newContentTypeColor, setNewContentTypeColor] = useState("");
   
   const editorRef = useRef<HTMLDivElement>(null);
@@ -156,20 +156,38 @@ export default function ContentForm() {
     try {
       const newType = await ContentTypeAdminService.create({
         name: newContentTypeName,
-        description: newContentTypeDescription || undefined,
         color: newContentTypeColor || undefined,
       });
 
       setContentTypes([...contentTypes, newType.data]);
       setForm({ ...form, type_id: newType.data.id });
       setNewContentTypeName("");
-      setNewContentTypeDescription("");
       setNewContentTypeColor("");
       setOpenNewContentTypeDialog(false);
       snackbar.showSuccess("Tipo de conteúdo criado com sucesso!");
     } catch (error) {
       console.error("Erro ao criar tipo de conteúdo:", error);
       snackbar.showError("Erro ao criar tipo de conteúdo");
+    }
+  };
+
+  const handleDeleteContentType = async (typeId: number) => {
+    const confirmed = window.confirm(
+      "Deseja excluir este tipo de conteúdo? Ele será desativado."
+    );
+    if (!confirmed) return;
+
+    try {
+      await ContentTypeAdminService.delete(typeId);
+      setContentTypes((prev) => prev.filter((type) => type.id !== typeId));
+      setForm((prev) => ({
+        ...prev,
+        type_id: prev.type_id === typeId ? null : prev.type_id,
+      }));
+      snackbar.showSuccess("Tipo de conteúdo excluído com sucesso!");
+    } catch (error) {
+      console.error("Erro ao excluir tipo de conteúdo:", error);
+      snackbar.showError("Erro ao excluir tipo de conteúdo");
     }
   };
 
@@ -465,16 +483,6 @@ export default function ContentForm() {
             onChange={(e) => setNewContentTypeName(e.target.value)}
           />
           <TextField
-            label="Descrição"
-            placeholder="Descrição do tipo (opcional)"
-            fullWidth
-            margin="normal"
-            multiline
-            rows={2}
-            value={newContentTypeDescription}
-            onChange={(e) => setNewContentTypeDescription(e.target.value)}
-          />
-          <TextField
             label="Cor (Hex)"
             placeholder="Ex: #FF5733"
             fullWidth
@@ -484,6 +492,50 @@ export default function ContentForm() {
             type="color"
             InputLabelProps={{ shrink: true }}
           />
+          {contentTypes.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Tipos existentes
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {contentTypes.map((type) => (
+                  <Box
+                    key={type.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      p: 1,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Chip
+                        label={type.name}
+                        size="small"
+                        sx={{
+                          backgroundColor: type.color || "#e3f2fd",
+                          color: "#fff",
+                          fontSize: 12,
+                        }}
+                      />
+                    </Box>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteContentType(type.id)}
+                      aria-label={`Excluir tipo ${type.name}`}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenNewContentTypeDialog(false)}>
