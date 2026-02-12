@@ -1,5 +1,5 @@
 import apiClient from "../client";
-import type { ContentType, CreateContentTypeDto, UpdateContentTypeDto } from "../../types/content-type.types";
+import type { CreateContentTypeDto, UpdateContentTypeDto } from "../../types/content-type.types";
 
 export const ContentTypeService = {
   async list() {

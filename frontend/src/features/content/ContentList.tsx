@@ -223,8 +223,8 @@ export default function ContentList() {
       return [
         item.id.toString(),
         item.title.replace(/"/g, '""'),
-        iype.replace(/"/g, '""'),
-        ttem.slug.replace(/"/g, '""'),
+        type.replace(/"/g, '""'),
+        item.slug.replace(/"/g, '""'),
         tags.replace(/"/g, '""'),
       ];
     });
