@@ -9,7 +9,6 @@ describe('ContentTypeController', () => {
   const mockContentType = {
     id: 1,
     name: 'Video',
-    description: 'Video content type',
     color: '#FF0000',
     active: true,
     created_at: new Date('2024-01-01'),
@@ -77,7 +76,6 @@ describe('ContentTypeAdminController', () => {
   const mockContentType = {
     id: 1,
     name: 'Video',
-    description: 'Video content type',
     color: '#FF0000',
     active: true,
     created_at: new Date('2024-01-01'),
@@ -129,7 +127,6 @@ describe('ContentTypeAdminController', () => {
     it('deve criar novo tipo de conteúdo', async () => {
       const createDto = {
         name: 'Video',
-        description: 'Video content type',
         color: '#FF0000',
       };
 

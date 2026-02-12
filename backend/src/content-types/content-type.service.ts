@@ -81,12 +81,20 @@ export class ContentTypeService {
   }
 
   async softDelete(id: number) {
-    return this.prisma.content_type.update({
-      where: { id },
-      data: {
-        active: false,
-        updated_at: new Date(),
-      },
-    });
+    const [, updatedType] = await this.prisma.$transaction([
+      this.prisma.content.updateMany({
+        where: { type_id: id },
+        data: { type_id: null },
+      }),
+      this.prisma.content_type.update({
+        where: { id },
+        data: {
+          active: false,
+          updated_at: new Date(),
+        },
+      }),
+    ]);
+
+    return updatedType;
   }
 }

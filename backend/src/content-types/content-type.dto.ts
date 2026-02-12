@@ -6,10 +6,6 @@ export class CreateContentTypeDto {
 
   @IsOptional()
   @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
   color?: string;
 }
 
@@ -17,10 +13,6 @@ export class UpdateContentTypeDto {
   @IsOptional()
   @IsString()
   name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
 
   @IsOptional()
   @IsString()
@@ -33,7 +25,6 @@ export class UpdateContentTypeDto {
 export class ContentTypeResponseDto {
   id: number;
   name: string;
-  description?: string;
   color?: string;
   active: boolean;
   created_at: Date;

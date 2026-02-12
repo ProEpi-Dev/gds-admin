@@ -11,7 +11,6 @@ describe('ContentTypeService', () => {
   const mockContentType = {
     id: 1,
     name: 'Video',
-    description: 'Video content type',
     color: '#FF0000',
     active: true,
     created_at: new Date('2024-01-01'),
@@ -32,6 +31,10 @@ describe('ContentTypeService', () => {
               update: jest.fn(),
               delete: jest.fn(),
             },
+            content: {
+              updateMany: jest.fn(),
+            },
+            $transaction: jest.fn(),
           },
         },
       ],
@@ -93,7 +96,6 @@ describe('ContentTypeService', () => {
     it('deve criar um novo tipo de conteúdo', async () => {
       const createDto = {
         name: 'Video',
-        description: 'Video content type',
         color: '#FF0000',
       };
 
@@ -112,7 +114,6 @@ describe('ContentTypeService', () => {
     it('deve lançar BadRequestException se nome já existe', async () => {
       const createDto = {
         name: 'Video',
-        description: 'Video content type',
         color: '#FF0000',
       };
 
@@ -136,7 +137,6 @@ describe('ContentTypeService', () => {
     it('deve relançar outro erro que não seja de constraint única', async () => {
       const createDto = {
         name: 'Video',
-        description: 'Video content type',
         color: '#FF0000',
       };
 
@@ -179,7 +179,6 @@ describe('ContentTypeService', () => {
     it('deve atualizar tipo de conteúdo', async () => {
       const updateDto = {
         name: 'Updated Video',
-        description: 'Updated description',
       };
 
       const updated = { ...mockContentType, ...updateDto };
@@ -260,13 +259,25 @@ describe('ContentTypeService', () => {
   describe('softDelete', () => {
     it('deve desativar tipo de conteúdo (soft delete)', async () => {
       const inactive = { ...mockContentType, active: false };
+      const updateManyResult = { count: 2 };
+
+      jest
+        .spyOn(prismaService.content, 'updateMany')
+        .mockResolvedValue(updateManyResult as any);
       jest
         .spyOn(prismaService.content_type, 'update')
         .mockResolvedValue(inactive as any);
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockResolvedValue([updateManyResult, inactive] as any);
 
       const result = await service.softDelete(1);
 
       expect(result).toEqual(inactive);
+      expect(prismaService.content.updateMany).toHaveBeenCalledWith({
+        where: { type_id: 1 },
+        data: { type_id: null },
+      });
       expect(prismaService.content_type.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: {
@@ -274,6 +285,7 @@ describe('ContentTypeService', () => {
           updated_at: expect.any(Date),
         },
       });
+      expect(prismaService.$transaction).toHaveBeenCalledTimes(1);
     });
   });
 });
