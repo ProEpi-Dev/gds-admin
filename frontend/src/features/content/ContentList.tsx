@@ -35,6 +35,11 @@ interface Content {
   slug: string;
   content: string;
   content_tag?: Array<{ id: number; tag: { name: string; color?: string } }>;
+  content_type?: {
+    id: number;
+    name: string;
+    color?: string;
+  } | null;
 }
 
 export default function ContentList() {
@@ -116,6 +121,28 @@ export default function ContentList() {
     { id: "title", label: "Título", minWidth: 200 },
     { id: "slug", label: "Slug", minWidth: 150 },
     {
+      id: "type",
+      label: "Tipo",
+      minWidth: 130,
+      render: (row) =>
+        row.content_type ? (
+          <Chip
+            label={row.content_type.name}
+            size="small"
+            sx={{
+              backgroundColor: row.content_type.color || "#9c27b0",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          />
+        ) : (
+          <Typography variant="caption" color="textSecondary">
+            Sem tipo
+          </Typography>
+        ),
+    },
+    {
       id: "tags",
       label: "Tags",
       minWidth: 200,
@@ -185,17 +212,19 @@ export default function ContentList() {
     if (!contents || contents.length === 0) return;
 
     // Cabeçalhos das colunas
-    const headers = ["ID", "Título", "Slug", "Tags"];
+    const headers = ["ID", "Título", "Slug", "Tipo", "Tags"];
 
     // Linhas de dados
     const rows = contents.map((item) => {
+      const type = item.content_type?.name || "Sem tipo";
       const tags =
         item.content_tag?.map((t) => `#${t.tag.name}`).join(", ") || "";
 
       return [
         item.id.toString(),
         item.title.replace(/"/g, '""'),
-        item.slug.replace(/"/g, '""'),
+        iype.replace(/"/g, '""'),
+        ttem.slug.replace(/"/g, '""'),
         tags.replace(/"/g, '""'),
       ];
     });

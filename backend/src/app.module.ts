@@ -15,6 +15,7 @@ import { FormsModule } from './forms/forms.module';
 import { FormVersionsModule } from './form-versions/form-versions.module';
 import { ReportsModule } from './reports/reports.module';
 import { ContentModule } from './content/content.module';
+import { ContentTypeModule } from './content-types/content-type.module';
 import { TagModule } from './tags/tag.module';
 import { ContentQuizModule } from './content-quiz/content-quiz.module';
 import { QuizSubmissionsModule } from './quiz-submissions/quiz-submissions.module';
@@ -47,6 +48,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     FormVersionsModule,
     ReportsModule,
     ContentModule,
+    ContentTypeModule,
     TagModule,
     ContentQuizModule,
     QuizSubmissionsModule,

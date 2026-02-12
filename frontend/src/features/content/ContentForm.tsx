@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { ContentService } from "../../api/services/content.service";
+import { ContentTypeService, ContentTypeAdminService } from "../../api/services/content-type.service";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import TagSelector from "../../../src/components/common/TagSelector";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -18,23 +20,32 @@ const convertVideoUrlToEmbed = (url: string): string => {
 
   return url;
 };
-import { Box, Button, TextField, Typography, IconButton } from "@mui/material";
+import { Box, Button, TextField, Typography, IconButton, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import AddIcon from "@mui/icons-material/Add";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 import ContentQuizManager from "../content-quiz/components/ContentQuizManager";
 import ContentTrackManager from "./components/ContentTrackManager";
+import type { ContentType } from "../../types/content-type.types";
 
 export default function ContentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const snackbar = useSnackbar();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [slugError, setSlugError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
+  const [openNewContentTypeDialog, setOpenNewContentTypeDialog] = useState(false);
+  const [newContentTypeName, setNewContentTypeName] = useState("");
+  const [newContentTypeDescription, setNewContentTypeDescription] = useState("");
+  const [newContentTypeColor, setNewContentTypeColor] = useState("");
+  
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
 
@@ -46,8 +57,21 @@ export default function ContentForm() {
     slug: "",
     author_id: 1,
     context_id: 1,
+    type_id: null as number | null,
     tags: [] as number[],
   });
+
+  // LOAD CONTENT TYPES ON MOUNT
+  useEffect(() => {
+    ContentTypeService.list()
+      .then((res) => {
+        console.log("Content types loaded:", res.data);
+        setContentTypes(res.data);
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar tipos de conteúdo:", error);
+      });
+  }, []);
 
   // INITIALIZE QUILL EDITOR
   useEffect(() => {
@@ -111,6 +135,7 @@ export default function ContentForm() {
           slug: c.slug,
           author_id: c.author_id,
           context_id: c.context_id,
+          type_id: c.type_id || null,
           tags: c.content_tag?.map((t: any) => t.tag.id) || [],
         });
 
@@ -121,6 +146,32 @@ export default function ContentForm() {
       });
     }
   }, [id]);
+
+  const handleCreateNewContentType = async () => {
+    if (!newContentTypeName.trim()) {
+      snackbar.showError("Nome do tipo de conteúdo é obrigatório");
+      return;
+    }
+
+    try {
+      const newType = await ContentTypeAdminService.create({
+        name: newContentTypeName,
+        description: newContentTypeDescription || undefined,
+        color: newContentTypeColor || undefined,
+      });
+
+      setContentTypes([...contentTypes, newType.data]);
+      setForm({ ...form, type_id: newType.data.id });
+      setNewContentTypeName("");
+      setNewContentTypeDescription("");
+      setNewContentTypeColor("");
+      setOpenNewContentTypeDialog(false);
+      snackbar.showSuccess("Tipo de conteúdo criado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao criar tipo de conteúdo:", error);
+      snackbar.showError("Erro ao criar tipo de conteúdo");
+    }
+  };
 
   function validateSlug(value: string) {
     const isValid = /^[a-zA-Z0-9-]+$/.test(value);
@@ -230,11 +281,11 @@ export default function ContentForm() {
         </Typography>
       </Box>
 
-      {/* TÍTULO E SLUG */}
+      {/* TÍTULO, SLUG E TIPO */}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
           gap: 3,
           mb: 3,
         }}
@@ -258,6 +309,35 @@ export default function ContentForm() {
           error={!!slugError}
           helperText={slugError}
         />
+
+        <Box>
+          <FormControl fullWidth margin="normal" variant="outlined">
+            <InputLabel>Tipo de Conteúdo</InputLabel>
+            <Select
+              value={form.type_id || ""}
+              onChange={(e) => setForm({ ...form, type_id: e.target.value ? Number(e.target.value) : null })}
+              label="Tipo de Conteúdo"
+            >
+              <MenuItem value="">Nenhum</MenuItem>
+              {contentTypes.map((type) => (
+                <MenuItem key={type.id} value={type.id}>
+                  {type.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {user && (
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => setOpenNewContentTypeDialog(true)}
+              sx={{ mt: 1 }}
+            >
+              Novo Tipo
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* RESUMO */}
@@ -358,6 +438,62 @@ export default function ContentForm() {
           {id ? "Salvar" : "Criar"}
         </Button>
       </Box>
+
+      {/* MOBILE PREVIEW DIALOG */}
+      <MobilePreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={form.title || "Sem título"}
+        htmlContent={form.content}
+      />
+
+      {/* NEW CONTENT TYPE DIALOG */}
+      <Dialog
+        open={openNewContentTypeDialog}
+        onClose={() => setOpenNewContentTypeDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Criar Novo Tipo de Conteúdo</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <TextField
+            label="Nome"
+            placeholder="Ex: Vídeo, Artigo, Infográfico..."
+            fullWidth
+            margin="normal"
+            value={newContentTypeName}
+            onChange={(e) => setNewContentTypeName(e.target.value)}
+          />
+          <TextField
+            label="Descrição"
+            placeholder="Descrição do tipo (opcional)"
+            fullWidth
+            margin="normal"
+            multiline
+            rows={2}
+            value={newContentTypeDescription}
+            onChange={(e) => setNewContentTypeDescription(e.target.value)}
+          />
+          <TextField
+            label="Cor (Hex)"
+            placeholder="Ex: #FF5733"
+            fullWidth
+            margin="normal"
+            value={newContentTypeColor}
+            onChange={(e) => setNewContentTypeColor(e.target.value)}
+            type="color"
+            InputLabelProps={{ shrink: true }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenNewContentTypeDialog(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleCreateNewContentType} variant="contained">
+            Criar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* MOBILE PREVIEW DIALOG */}
       <MobilePreviewDialog

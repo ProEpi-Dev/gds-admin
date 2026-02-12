@@ -190,11 +190,13 @@ model content {
   slug         String        @unique(map: "uq_content_slug") @db.VarChar(255)
   author_id    Int
   context_id   Int?
+  type_id      Int?
   created_at   DateTime      @default(now()) @db.Timestamp(6)
   updated_at   DateTime      @default(now()) @db.Timestamp(6)
   published_at DateTime?     @db.Timestamp(6)
   user         user          @relation(fields: [author_id], references: [id], onUpdate: NoAction)
   context      context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  content_type content_type? @relation(fields: [type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   content_tag  content_tag[]
   content_quiz content_quiz[]
   sequence     sequence[]
@@ -202,10 +204,25 @@ model content {
   @@index([active], map: "idx_content_active")
   @@index([author_id], map: "idx_content_author_id")
   @@index([context_id], map: "idx_content_context_id")
+  @@index([type_id], map: "idx_content_type_id")
   @@index([created_at], map: "idx_content_created_at")
   @@index([reference], map: "idx_content_reference")
   @@index([slug], map: "idx_content_slug_idx")
   @@index([title], map: "idx_content_title")
+}
+
+model content_type {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.VarChar(255)
+  color       String?   @db.VarChar(7)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @default(now()) @db.Timestamp(6)
+  active      Boolean   @default(true)
+  content     content[]
+
+  @@index([name], map: "idx_content_type_name")
+  @@index([active], map: "idx_content_type_active")
 }
 
 model content_tag {

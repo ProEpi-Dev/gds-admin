@@ -32,6 +32,7 @@ export class ContentService {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     } else {
@@ -47,6 +48,7 @@ export class ContentService {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     }
@@ -61,6 +63,7 @@ export class ContentService {
             tag: true,
           },
         },
+        content_type: true,
       },
       orderBy: { updated_at: 'desc' },
     });
@@ -75,6 +78,7 @@ export class ContentService {
             tag: true,
           },
         },
+        content_type: true,
       },
     });
   }
@@ -107,6 +111,7 @@ export class ContentService {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     } else {
@@ -122,6 +127,7 @@ export class ContentService {
               tag: true,
             },
           },
+          content_type: true,
         },
       });
     }
