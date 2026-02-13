@@ -223,6 +223,7 @@
     "types": {
       "title": "Tipos de Documentos Legais",
       "newType": "Novo Tipo",
+      "createEditType": "Criar/editar tipo",
       "editType": "Editar Tipo",
       "code": "Código",
       "name": "Nome",

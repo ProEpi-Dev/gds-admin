@@ -149,7 +149,7 @@ export default function LegalDocumentTypesListPage() {
           startIcon={<AddIcon />}
           onClick={() => navigate("/legal-documents/types/new")}
         >
-          {t("legalDocuments.types.newType")}
+          {t("legalDocuments.types.createEditType")}
         </Button>
       </Box>
 
