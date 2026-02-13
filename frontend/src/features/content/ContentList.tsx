@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
+import { ContentTypeService } from "../../api/services/content-type.service";
 import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -17,6 +18,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Stack,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -28,6 +30,8 @@ import {
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
+import FilterChips from "../../components/common/FilterChips";
+import type { ContentType } from "../../types/content-type.types";
 
 interface Content {
   id: number;
@@ -44,6 +48,8 @@ interface Content {
 
 export default function ContentList() {
   const [contents, setContents] = useState<Content[]>([]);
+  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
+  const [contentTypeFilter, setContentTypeFilter] = useState("all");
   const [previewContent, setPreviewContent] = useState<Content | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<number | null>(null);
@@ -65,10 +71,42 @@ export default function ContentList() {
     ContentService.list().then((res) => {
       setContents(res.data);
     });
+    ContentTypeService.list().then((res) => {
+      setContentTypes(res.data);
+    });
     TrackService.list().then((res) => {
       setTracks(res.data);
     });
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [contentTypeFilter]);
+
+  const filteredContents = useMemo(() => {
+    if (contentTypeFilter === "all") return contents;
+    if (contentTypeFilter === "none") {
+      return contents.filter((content) => !content.content_type);
+    }
+    const typeId = Number(contentTypeFilter);
+    return contents.filter((content) => content.content_type?.id === typeId);
+  }, [contents, contentTypeFilter]);
+
+  const activeFilters =
+    contentTypeFilter !== "all"
+      ? [
+          {
+            label: "Tipo",
+            value:
+              contentTypeFilter === "none"
+                ? "Sem tipo"
+                : contentTypes.find(
+                    (type) => type.id === Number(contentTypeFilter)
+                  )?.name ?? "Tipo",
+            onDelete: () => setContentTypeFilter("all"),
+          },
+        ]
+      : [];
 
   const handleDelete = (id: number) => {
     setContentToDelete(id);
@@ -209,13 +247,13 @@ export default function ContentList() {
 
   // Função para exportar CSV
   const handleExportCSV = () => {
-    if (!contents || contents.length === 0) return;
+    if (!filteredContents || filteredContents.length === 0) return;
 
     // Cabeçalhos das colunas
     const headers = ["ID", "Título", "Slug", "Tipo", "Tags"];
 
     // Linhas de dados
-    const rows = contents.map((item) => {
+    const rows = filteredContents.map((item) => {
       const type = item.content_type?.name || "Sem tipo";
       const tags =
         item.content_tag?.map((t) => `#${t.tag.name}`).join(", ") || "";
@@ -287,12 +325,39 @@ export default function ContentList() {
         </Box>
       </Box>
 
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        mb={2}
+        flexWrap="wrap"
+        useFlexGap
+      >
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel>Tipo de Conteúdo</InputLabel>
+          <Select
+            value={contentTypeFilter}
+            label="Tipo de Conteúdo"
+            onChange={(e) => setContentTypeFilter(String(e.target.value))}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="none">Sem tipo</MenuItem>
+            {contentTypes.map((type) => (
+              <MenuItem key={type.id} value={String(type.id)}>
+                {type.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+
+      {activeFilters.length > 0 && <FilterChips filters={activeFilters} />}
+
       <DataTable
         columns={columns}
-        data={contents}
+        data={filteredContents}
         page={page}
         pageSize={pageSize}
-        totalItems={contents.length}
+        totalItems={filteredContents.length}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
         variant="table"

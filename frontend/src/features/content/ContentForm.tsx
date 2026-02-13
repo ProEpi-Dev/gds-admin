@@ -352,7 +352,7 @@ export default function ContentForm() {
               onClick={() => setOpenNewContentTypeDialog(true)}
               sx={{ mt: 1 }}
             >
-              Novo Tipo
+              Editar / criar tipo
             </Button>
           )}
         </Box>
