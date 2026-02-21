@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
-import { ContentTypeService } from "../../api/services/content-type.service";
+import {
+  ContentTypeService,
+  ContentTypeAdminService,
+} from "../../api/services/content-type.service";
 import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "../../hooks/useSnackbar";
@@ -19,6 +22,7 @@ import {
   Select,
   MenuItem,
   Stack,
+  TextField,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -26,6 +30,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   PlaylistAdd as PlaylistAddIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -50,6 +56,14 @@ export default function ContentList() {
   const [contents, setContents] = useState<Content[]>([]);
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [contentTypeFilter, setContentTypeFilter] = useState("all");
+  const [contentTypeDialogOpen, setContentTypeDialogOpen] = useState(false);
+  const [newContentTypeName, setNewContentTypeName] = useState("");
+  const [newContentTypeColor, setNewContentTypeColor] = useState("");
+  const [editingContentTypeId, setEditingContentTypeId] = useState<
+    number | null
+  >(null);
+  const [editingContentTypeName, setEditingContentTypeName] = useState("");
+  const [editingContentTypeColor, setEditingContentTypeColor] = useState("");
   const [previewContent, setPreviewContent] = useState<Content | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<number | null>(null);
@@ -64,16 +78,22 @@ export default function ContentList() {
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
-    null
+    null,
   );
 
+  const refreshContents = async () => {
+    const res = await ContentService.list();
+    setContents(res.data);
+  };
+
+  const refreshContentTypes = async () => {
+    const activeRes = await ContentTypeService.list();
+    setContentTypes(activeRes.data);
+  };
+
   useEffect(() => {
-    ContentService.list().then((res) => {
-      setContents(res.data);
-    });
-    ContentTypeService.list().then((res) => {
-      setContentTypes(res.data);
-    });
+    refreshContents();
+    refreshContentTypes();
     TrackService.list().then((res) => {
       setTracks(res.data);
     });
@@ -100,9 +120,9 @@ export default function ContentList() {
             value:
               contentTypeFilter === "none"
                 ? "Sem tipo"
-                : contentTypes.find(
-                    (type) => type.id === Number(contentTypeFilter)
-                  )?.name ?? "Tipo",
+                : (contentTypes.find(
+                    (type) => type.id === Number(contentTypeFilter),
+                  )?.name ?? "Tipo"),
             onDelete: () => setContentTypeFilter("all"),
           },
         ]
@@ -125,7 +145,7 @@ export default function ContentList() {
       await TrackService.addContentToSection(
         selectedTrackId,
         selectedSectionId,
-        contentToAdd.id
+        contentToAdd.id,
       );
 
       // Mostrar notificação de sucesso
@@ -151,6 +171,84 @@ export default function ContentList() {
       setContents((prev) => prev.filter((c) => c.id !== contentToDelete));
       setDeleteDialogOpen(false);
       setContentToDelete(null);
+    }
+  };
+
+  const handleCreateContentType = async () => {
+    if (!newContentTypeName.trim()) {
+      snackbar.showError("Nome do tipo de conteúdo é obrigatório");
+      return;
+    }
+
+    try {
+      await ContentTypeAdminService.create({
+        name: newContentTypeName.trim(),
+        color: newContentTypeColor || undefined,
+      });
+      setNewContentTypeName("");
+      setNewContentTypeColor("");
+      await refreshContentTypes();
+      await refreshContents();
+      snackbar.showSuccess("Tipo de conteúdo criado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao criar tipo de conteúdo:", error);
+      snackbar.showError("Erro ao criar tipo de conteúdo");
+    }
+  };
+
+  const handleStartEditContentType = (type: ContentType) => {
+    setEditingContentTypeId(type.id);
+    setEditingContentTypeName(type.name);
+    setEditingContentTypeColor(type.color || "");
+  };
+
+  const handleCancelEditContentType = () => {
+    setEditingContentTypeId(null);
+    setEditingContentTypeName("");
+    setEditingContentTypeColor("");
+  };
+
+  const handleSaveEditContentType = async () => {
+    if (!editingContentTypeId) return;
+    if (!editingContentTypeName.trim()) {
+      snackbar.showError("Nome do tipo de conteúdo é obrigatório");
+      return;
+    }
+
+    try {
+      await ContentTypeAdminService.update(editingContentTypeId, {
+        name: editingContentTypeName.trim(),
+        color: editingContentTypeColor || undefined,
+      });
+      await refreshContentTypes();
+      await refreshContents();
+      snackbar.showSuccess("Tipo de conteúdo atualizado com sucesso!");
+      handleCancelEditContentType();
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de conteúdo:", error);
+      snackbar.showError("Erro ao atualizar tipo de conteúdo");
+    }
+  };
+
+  const handleDeleteContentType = async (typeId: number) => {
+    const confirmed = window.confirm(
+      "Deseja excluir este tipo de conteúdo? Ele será desativado.",
+    );
+    if (!confirmed) return;
+
+    try {
+      await ContentTypeAdminService.delete(typeId);
+      await refreshContentTypes();
+      await refreshContents();
+
+      if (contentTypeFilter === String(typeId)) {
+        setContentTypeFilter("all");
+      }
+
+      snackbar.showSuccess("Tipo de conteúdo excluído com sucesso!");
+    } catch (error) {
+      console.error("Erro ao excluir tipo de conteúdo:", error);
+      snackbar.showError("Erro ao excluir tipo de conteúdo");
     }
   };
 
@@ -348,6 +446,13 @@ export default function ContentList() {
             ))}
           </Select>
         </FormControl>
+
+        <Button
+          variant="outlined"
+          onClick={() => setContentTypeDialogOpen(true)}
+        >
+          Gerenciar tipos
+        </Button>
       </Stack>
 
       {activeFilters.length > 0 && <FilterChips filters={activeFilters} />}
@@ -371,6 +476,180 @@ export default function ContentList() {
         title={previewContent?.title || ""}
         htmlContent={previewContent?.content || ""}
       />
+
+      {/* CONTENT TYPE CRUD DIALOG */}
+      <Dialog
+        open={contentTypeDialogOpen}
+        onClose={() => {
+          setContentTypeDialogOpen(false);
+          handleCancelEditContentType();
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Gerenciar Tipos de Conteúdo</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {editingContentTypeId === null && (
+            <>
+              <TextField
+                label="Nome"
+                placeholder="Ex: Vídeo, Artigo, Infográfico..."
+                fullWidth
+                margin="normal"
+                value={newContentTypeName}
+                onChange={(e) => setNewContentTypeName(e.target.value)}
+              />
+              <TextField
+                label="Cor (Hex)"
+                placeholder="Ex: #FF5733"
+                fullWidth
+                margin="normal"
+                value={newContentTypeColor}
+                onChange={(e) => setNewContentTypeColor(e.target.value)}
+                type="color"
+                InputLabelProps={{ shrink: true }}
+              />
+            </>
+          )}
+
+          {contentTypes.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Tipos existentes
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {contentTypes.map((type) => (
+                  <Box
+                    key={type.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      p: 1,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    {editingContentTypeId === type.id ? (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            flex: 1,
+                          }}
+                        >
+                          <TextField
+                            size="small"
+                            label="Nome"
+                            value={editingContentTypeName}
+                            onChange={(e) =>
+                              setEditingContentTypeName(e.target.value)
+                            }
+                            sx={{ flex: 1 }}
+                          />
+                          <TextField
+                            size="small"
+                            label="Cor"
+                            type="color"
+                            value={editingContentTypeColor || "#000000"}
+                            onChange={(e) =>
+                              setEditingContentTypeColor(e.target.value)
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ width: 90 }}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={handleSaveEditContentType}
+                            aria-label={`Salvar tipo ${type.name}`}
+                          >
+                            <CheckIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={handleCancelEditContentType}
+                            aria-label={`Cancelar edição do tipo ${type.name}`}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <Chip
+                            label={type.name}
+                            size="small"
+                            sx={{
+                              backgroundColor: type.color || "#e3f2fd",
+                              color: "#fff",
+                              fontSize: 12,
+                            }}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleStartEditContentType(type)}
+                            aria-label={`Editar tipo ${type.name}`}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteContentType(type.id)}
+                            aria-label={`Excluir tipo ${type.name}`}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setContentTypeDialogOpen(false);
+              handleCancelEditContentType();
+            }}
+          >
+            Fechar
+          </Button>
+          {editingContentTypeId === null && (
+            <Button onClick={handleCreateContentType} variant="contained">
+              Criar
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* CONFIRM DELETE DIALOG */}
       <ConfirmDialog
