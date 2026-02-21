@@ -48,11 +48,13 @@ export default function ContentForm() {
   
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     title: "",
     reference: "",
     content: "",
+    thumbnail_url: null as string | null,
     summary: "",
     slug: "",
     author_id: 1,
@@ -131,6 +133,7 @@ export default function ContentForm() {
           title: c.title,
           reference: c.reference,
           content: c.content,
+          thumbnail_url: c.thumbnail_url || null,
           summary: c.summary,
           slug: c.slug,
           author_id: c.author_id,
@@ -202,6 +205,35 @@ export default function ContentForm() {
     const value = e.target.value;
     setForm({ ...form, slug: value });
     validateSlug(value);
+  }
+
+  function handleThumbnailFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    if (!selectedFile.type.startsWith("image/")) {
+      snackbar.showError("Selecione um arquivo de imagem válido");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        thumbnail_url: typeof reader.result === "string" ? reader.result : null,
+      }));
+    };
+    reader.onerror = () => {
+      snackbar.showError("Erro ao ler a imagem selecionada");
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+
+  function handleRemoveThumbnail() {
+    setForm((prev) => ({ ...prev, thumbnail_url: null }));
+    if (thumbnailInputRef.current) {
+      thumbnailInputRef.current.value = "";
+    }
   }
 
   function handleSubmit() {
@@ -309,7 +341,7 @@ export default function ContentForm() {
         }}
       >
         <TextField
-          label="Título"
+          label="Título *"
           placeholder="Digite o título do conteúdo"
           fullWidth
           margin="normal"
@@ -318,7 +350,7 @@ export default function ContentForm() {
         />
 
         <TextField
-          label="Slug"
+          label="Slug *"
           placeholder="Digite o slug desejado para a página"
           fullWidth
           margin="normal"
@@ -371,10 +403,51 @@ export default function ContentForm() {
         onChange={(e) => setForm({ ...form, summary: e.target.value })}
       />
 
+      {/* THUMBNAIL */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Thumbnail
+        </Typography>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+          <Button component="label" variant="outlined">
+            {form.thumbnail_url ? "Alterar thumbnail" : "Adicionar thumbnail"}
+            <input
+              ref={thumbnailInputRef}
+              hidden
+              accept="image/*"
+              type="file"
+              onChange={handleThumbnailFileChange}
+            />
+          </Button>
+          {form.thumbnail_url && (
+            <Button color="error" variant="text" onClick={handleRemoveThumbnail}>
+              Remover thumbnail
+            </Button>
+          )}
+        </Box>
+
+        {form.thumbnail_url && (
+          <Box
+            component="img"
+            src={form.thumbnail_url}
+            alt="Preview da thumbnail"
+            sx={{
+              mt: 2,
+              width: "100%",
+              maxWidth: 320,
+              borderRadius: 1,
+              border: "1px solid",
+              borderColor: "divider",
+              objectFit: "cover",
+            }}
+          />
+        )}
+      </Box>
+
       {/* CONTEÚDO */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Conteúdo
+          Conteúdo *
         </Typography>
         <Box
           ref={editorRef}

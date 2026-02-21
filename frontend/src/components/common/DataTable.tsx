@@ -89,7 +89,7 @@ export default function DataTable<T extends { id: number }>({
                           position: 'sticky',
                           right: 0,
                           backgroundColor: 'background.paper',
-                          zIndex: 10,
+                          zIndex: 12,
                           boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
                         }),
                       }}
@@ -119,7 +119,7 @@ export default function DataTable<T extends { id: number }>({
                             position: 'sticky',
                             right: 0,
                             backgroundColor: 'background.paper',
-                            zIndex: 10,
+                            zIndex: 2,
                             boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
                           }),
                         }}
