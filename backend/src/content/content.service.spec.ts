@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContentService } from './content.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException } from '@nestjs/common';
 
 describe('ContentService', () => {
   let service: ContentService;
@@ -16,6 +17,7 @@ describe('ContentService', () => {
     author_id: 1,
     context_id: 1,
     active: true,
+    thumbnail: null,
     published_at: new Date('2024-01-01'),
     created_at: new Date('2024-01-01'),
     updated_at: new Date('2024-01-01'),
@@ -363,6 +365,83 @@ describe('ContentService', () => {
         where: { id: 1 },
         data: { active: false },
       });
+    });
+  });
+
+  describe('thumbnail validation', () => {
+    const createDataWithThumbnail = {
+      title: 'Content with Thumbnail',
+      slug: 'content-thumbnail',
+      content: '<p>Content</p>',
+      summary: 'Summary',
+      reference: 'ref-789',
+      author_id: 1,
+      context_id: 1,
+      thumbnail: 'data:image/png;base64,iVBORw0KGgo...',
+    };
+
+    it('deve criar conteúdo com thumbnail', async () => {
+      const contentWithThumbnail = {
+        ...mockContent,
+        ...createDataWithThumbnail,
+      };
+      jest
+        .spyOn(prismaService.content, 'create')
+        .mockResolvedValue(contentWithThumbnail as any);
+
+      const result = await service.create(createDataWithThumbnail);
+
+      expect(result).toEqual(contentWithThumbnail);
+      expect(prismaService.content.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            thumbnail: 'data:image/png;base64,iVBORw0KGgo...',
+          }),
+        }),
+      );
+    });
+
+    it('deve atualizar conteúdo com thumbnail', async () => {
+      const updateData = {
+        thumbnail: 'data:image/jpeg;base64,new...',
+      };
+      const updatedContent = { ...mockContent, ...updateData };
+
+      jest
+        .spyOn(prismaService.content, 'findUnique')
+        .mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'update')
+        .mockResolvedValue(updatedContent as any);
+
+      const result = await service.update(1, updateData);
+
+      expect(result).toEqual(updatedContent);
+      expect(prismaService.content.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            thumbnail: 'data:image/jpeg;base64,new...',
+          }),
+        }),
+      );
+    });
+
+    it('deve permitir thumbnail nulo', async () => {
+      const updateData = {
+        thumbnail: null,
+      };
+      const updatedContent = { ...mockContent, thumbnail: null } as any;
+
+      jest
+        .spyOn(prismaService.content, 'findUnique')
+        .mockResolvedValue(mockContent as any);
+      jest
+        .spyOn(prismaService.content, 'update')
+        .mockResolvedValue(updatedContent as any);
+
+      const result = await service.update(1, updateData);
+
+      expect((result as any).thumbnail).toBeNull();
     });
   });
 });
