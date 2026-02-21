@@ -67,7 +67,9 @@ export default function ContentForm() {
     useState(false);
   const [newContentTypeName, setNewContentTypeName] = useState("");
   const [newContentTypeColor, setNewContentTypeColor] = useState("");
-  const [editingContentTypeId, setEditingContentTypeId] = useState<number | null>(null);
+  const [editingContentTypeId, setEditingContentTypeId] = useState<
+    number | null
+  >(null);
   const [editingContentTypeName, setEditingContentTypeName] = useState("");
   const [editingContentTypeColor, setEditingContentTypeColor] = useState("");
 
@@ -239,10 +241,13 @@ export default function ContentForm() {
     }
 
     try {
-      const updated = await ContentTypeAdminService.update(editingContentTypeId, {
-        name: editingContentTypeName.trim(),
-        color: editingContentTypeColor || undefined,
-      });
+      const updated = await ContentTypeAdminService.update(
+        editingContentTypeId,
+        {
+          name: editingContentTypeName.trim(),
+          color: editingContentTypeColor || undefined,
+        },
+      );
 
       setContentTypes((prev) =>
         prev.map((type) =>
@@ -626,24 +631,28 @@ export default function ContentForm() {
       >
         <DialogTitle>Criar Novo Tipo de Conteúdo</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <TextField
-            label="Nome"
-            placeholder="Ex: Vídeo, Artigo, Infográfico..."
-            fullWidth
-            margin="normal"
-            value={newContentTypeName}
-            onChange={(e) => setNewContentTypeName(e.target.value)}
-          />
-          <TextField
-            label="Cor (Hex)"
-            placeholder="Ex: #FF5733"
-            fullWidth
-            margin="normal"
-            value={newContentTypeColor}
-            onChange={(e) => setNewContentTypeColor(e.target.value)}
-            type="color"
-            InputLabelProps={{ shrink: true }}
-          />
+          {editingContentTypeId === null && (
+            <>
+              <TextField
+                label="Nome"
+                placeholder="Ex: Vídeo, Artigo, Infográfico..."
+                fullWidth
+                margin="normal"
+                value={newContentTypeName}
+                onChange={(e) => setNewContentTypeName(e.target.value)}
+              />
+              <TextField
+                label="Cor (Hex)"
+                placeholder="Ex: #FF5733"
+                fullWidth
+                margin="normal"
+                value={newContentTypeColor}
+                onChange={(e) => setNewContentTypeColor(e.target.value)}
+                type="color"
+                InputLabelProps={{ shrink: true }}
+              />
+            </>
+          )}
           {contentTypes.length > 0 && (
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -770,9 +779,11 @@ export default function ContentForm() {
           <Button onClick={() => setOpenNewContentTypeDialog(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleCreateNewContentType} variant="contained">
-            Criar
-          </Button>
+          {editingContentTypeId === null && (
+            <Button onClick={handleCreateNewContentType} variant="contained">
+              Criar
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
