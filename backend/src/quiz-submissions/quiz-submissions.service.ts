@@ -55,6 +55,18 @@ export class QuizSubmissionsService {
   async create(
     createQuizSubmissionDto: CreateQuizSubmissionDto,
   ): Promise<QuizSubmissionResponseDto> {
+    const { trackProgressId, sequenceId } = createQuizSubmissionDto;
+    let sequenceProgressId: number | null = null;
+
+    if (trackProgressId != null && sequenceId != null) {
+      const sequenceProgress =
+        await this.trackProgressService.getOrCreateSequenceProgress(
+          trackProgressId,
+          sequenceId,
+        );
+      sequenceProgressId = sequenceProgress.id;
+    }
+
     // Validar participação
     const participation = await this.prisma.participation.findUnique({
       where: { id: createQuizSubmissionDto.participationId },
@@ -88,12 +100,18 @@ export class QuizSubmissionsService {
 
     // Verificar limite de tentativas
     if (formVersion.max_attempts !== null) {
+      const countWhere: any = {
+        participation_id: createQuizSubmissionDto.participationId,
+        form_version_id: createQuizSubmissionDto.formVersionId,
+        active: true,
+      };
+
+      if (sequenceProgressId != null) {
+        countWhere.sequence_progress_id = sequenceProgressId;
+      }
+
       const existingSubmissions = await this.prisma.quiz_submission.count({
-        where: {
-          participation_id: createQuizSubmissionDto.participationId,
-          form_version_id: createQuizSubmissionDto.formVersionId,
-          active: true,
-        },
+        where: countWhere,
       });
 
       if (existingSubmissions >= formVersion.max_attempts) {
@@ -108,6 +126,9 @@ export class QuizSubmissionsService {
       where: {
         participation_id: createQuizSubmissionDto.participationId,
         form_version_id: createQuizSubmissionDto.formVersionId,
+        ...(sequenceProgressId != null
+          ? { sequence_progress_id: sequenceProgressId }
+          : {}),
       },
       orderBy: {
         attempt_number: 'desc',
@@ -184,31 +205,17 @@ export class QuizSubmissionsService {
         time_spent_seconds: timeSpentSeconds,
         started_at: startedAt,
         completed_at: completedAt,
+        sequence_progress_id: sequenceProgressId,
         active: createQuizSubmissionDto.active ?? true,
       },
     });
 
     // Se contexto de trilha foi informado, vincular submissão ao sequence_progress
-    const { trackProgressId, sequenceId } = createQuizSubmissionDto;
     if (
       trackProgressId != null &&
       sequenceId != null &&
       createQuizSubmissionDto.completedAt
     ) {
-      // Vincular a submissão ao sequence_progress
-      const sequenceProgress =
-        await this.trackProgressService.getOrCreateSequenceProgress(
-          trackProgressId,
-          sequenceId,
-        );
-
-      await this.prisma.quiz_submission.update({
-        where: { id: quizSubmission.id },
-        data: {
-          sequence_progress_id: sequenceProgress.id,
-        },
-      });
-
       // Só marca como concluído se foi APROVADO
       if (isPassed === true) {
         await this.trackProgressService.completeQuizSequence(

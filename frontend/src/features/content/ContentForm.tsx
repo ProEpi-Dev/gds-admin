@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { ContentService } from "../../api/services/content.service";
-import { ContentTypeService, ContentTypeAdminService } from "../../api/services/content-type.service";
+import {
+  ContentTypeService,
+  ContentTypeAdminService,
+} from "../../api/services/content-type.service";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import TagSelector from "../../../src/components/common/TagSelector";
@@ -20,11 +23,29 @@ const convertVideoUrlToEmbed = (url: string): string => {
 
   return url;
 };
-import { Box, Button, TextField, Typography, IconButton, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from "@mui/material";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import { useSnackbar } from "../../hooks/useSnackbar";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
@@ -42,17 +63,25 @@ export default function ContentForm() {
   const [slugError, setSlugError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
-  const [openNewContentTypeDialog, setOpenNewContentTypeDialog] = useState(false);
+  const [openNewContentTypeDialog, setOpenNewContentTypeDialog] =
+    useState(false);
   const [newContentTypeName, setNewContentTypeName] = useState("");
   const [newContentTypeColor, setNewContentTypeColor] = useState("");
-  
+  const [editingContentTypeId, setEditingContentTypeId] = useState<
+    number | null
+  >(null);
+  const [editingContentTypeName, setEditingContentTypeName] = useState("");
+  const [editingContentTypeColor, setEditingContentTypeColor] = useState("");
+
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     title: "",
     reference: "",
     content: "",
+    thumbnail_url: null as string | null,
     summary: "",
     slug: "",
     author_id: 1,
@@ -104,7 +133,7 @@ export default function ContentForm() {
               // É um embed, insere como HTML
               quillRef.current?.clipboard.dangerouslyPasteHTML(
                 range.index,
-                embedHtml
+                embedHtml,
               );
             } else {
               // Não é uma URL conhecida, insere como link normal
@@ -131,6 +160,7 @@ export default function ContentForm() {
           title: c.title,
           reference: c.reference,
           content: c.content,
+          thumbnail_url: c.thumbnail_url || null,
           summary: c.summary,
           slug: c.slug,
           author_id: c.author_id,
@@ -173,7 +203,7 @@ export default function ContentForm() {
 
   const handleDeleteContentType = async (typeId: number) => {
     const confirmed = window.confirm(
-      "Deseja excluir este tipo de conteúdo? Ele será desativado."
+      "Deseja excluir este tipo de conteúdo? Ele será desativado.",
     );
     if (!confirmed) return;
 
@@ -191,10 +221,51 @@ export default function ContentForm() {
     }
   };
 
+  const handleStartEditContentType = (type: ContentType) => {
+    setEditingContentTypeId(type.id);
+    setEditingContentTypeName(type.name);
+    setEditingContentTypeColor(type.color || "");
+  };
+
+  const handleCancelEditContentType = () => {
+    setEditingContentTypeId(null);
+    setEditingContentTypeName("");
+    setEditingContentTypeColor("");
+  };
+
+  const handleSaveEditContentType = async () => {
+    if (!editingContentTypeId) return;
+    if (!editingContentTypeName.trim()) {
+      snackbar.showError("Nome do tipo de conteúdo é obrigatório");
+      return;
+    }
+
+    try {
+      const updated = await ContentTypeAdminService.update(
+        editingContentTypeId,
+        {
+          name: editingContentTypeName.trim(),
+          color: editingContentTypeColor || undefined,
+        },
+      );
+
+      setContentTypes((prev) =>
+        prev.map((type) =>
+          type.id === editingContentTypeId ? updated.data : type,
+        ),
+      );
+      snackbar.showSuccess("Tipo de conteúdo atualizado com sucesso!");
+      handleCancelEditContentType();
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de conteúdo:", error);
+      snackbar.showError("Erro ao atualizar tipo de conteúdo");
+    }
+  };
+
   function validateSlug(value: string) {
     const isValid = /^[a-zA-Z0-9-]+$/.test(value);
     setSlugError(
-      isValid ? "" : "O slug não pode conter espaços ou caracteres especiais."
+      isValid ? "" : "O slug não pode conter espaços ou caracteres especiais.",
     );
   }
 
@@ -202,6 +273,35 @@ export default function ContentForm() {
     const value = e.target.value;
     setForm({ ...form, slug: value });
     validateSlug(value);
+  }
+
+  function handleThumbnailFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    if (!selectedFile.type.startsWith("image/")) {
+      snackbar.showError("Selecione um arquivo de imagem válido");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        thumbnail_url: typeof reader.result === "string" ? reader.result : null,
+      }));
+    };
+    reader.onerror = () => {
+      snackbar.showError("Erro ao ler a imagem selecionada");
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+
+  function handleRemoveThumbnail() {
+    setForm((prev) => ({ ...prev, thumbnail_url: null }));
+    if (thumbnailInputRef.current) {
+      thumbnailInputRef.current.value = "";
+    }
   }
 
   function handleSubmit() {
@@ -234,7 +334,7 @@ export default function ContentForm() {
             snackbar.showError(
               problemDetails?.detail ||
                 problemDetails?.message ||
-                "Erro ao atualizar conteúdo"
+                "Erro ao atualizar conteúdo",
             );
           }
         });
@@ -270,7 +370,7 @@ export default function ContentForm() {
             snackbar.showError(
               problemDetails?.detail ||
                 problemDetails?.message ||
-                "Erro ao criar conteúdo"
+                "Erro ao criar conteúdo",
             );
           }
         });
@@ -309,7 +409,7 @@ export default function ContentForm() {
         }}
       >
         <TextField
-          label="Título"
+          label="Título *"
           placeholder="Digite o título do conteúdo"
           fullWidth
           margin="normal"
@@ -318,7 +418,7 @@ export default function ContentForm() {
         />
 
         <TextField
-          label="Slug"
+          label="Slug *"
           placeholder="Digite o slug desejado para a página"
           fullWidth
           margin="normal"
@@ -333,7 +433,12 @@ export default function ContentForm() {
             <InputLabel>Tipo de Conteúdo</InputLabel>
             <Select
               value={form.type_id || ""}
-              onChange={(e) => setForm({ ...form, type_id: e.target.value ? Number(e.target.value) : null })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  type_id: e.target.value ? Number(e.target.value) : null,
+                })
+              }
               label="Tipo de Conteúdo"
             >
               <MenuItem value="">Nenhum</MenuItem>
@@ -371,10 +476,62 @@ export default function ContentForm() {
         onChange={(e) => setForm({ ...form, summary: e.target.value })}
       />
 
+      {/* THUMBNAIL */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Thumbnail
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <Button component="label" variant="outlined">
+            {form.thumbnail_url ? "Alterar thumbnail" : "Adicionar thumbnail"}
+            <input
+              ref={thumbnailInputRef}
+              hidden
+              accept="image/*"
+              type="file"
+              onChange={handleThumbnailFileChange}
+            />
+          </Button>
+          {form.thumbnail_url && (
+            <Button
+              color="error"
+              variant="text"
+              onClick={handleRemoveThumbnail}
+            >
+              Remover thumbnail
+            </Button>
+          )}
+        </Box>
+
+        {form.thumbnail_url && (
+          <Box
+            component="img"
+            src={form.thumbnail_url}
+            alt="Preview da thumbnail"
+            sx={{
+              mt: 2,
+              width: "100%",
+              maxWidth: 320,
+              borderRadius: 1,
+              border: "1px solid",
+              borderColor: "divider",
+              objectFit: "cover",
+            }}
+          />
+        )}
+      </Box>
+
       {/* CONTEÚDO */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Conteúdo
+          Conteúdo *
         </Typography>
         <Box
           ref={editorRef}
@@ -474,24 +631,28 @@ export default function ContentForm() {
       >
         <DialogTitle>Criar Novo Tipo de Conteúdo</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <TextField
-            label="Nome"
-            placeholder="Ex: Vídeo, Artigo, Infográfico..."
-            fullWidth
-            margin="normal"
-            value={newContentTypeName}
-            onChange={(e) => setNewContentTypeName(e.target.value)}
-          />
-          <TextField
-            label="Cor (Hex)"
-            placeholder="Ex: #FF5733"
-            fullWidth
-            margin="normal"
-            value={newContentTypeColor}
-            onChange={(e) => setNewContentTypeColor(e.target.value)}
-            type="color"
-            InputLabelProps={{ shrink: true }}
-          />
+          {editingContentTypeId === null && (
+            <>
+              <TextField
+                label="Nome"
+                placeholder="Ex: Vídeo, Artigo, Infográfico..."
+                fullWidth
+                margin="normal"
+                value={newContentTypeName}
+                onChange={(e) => setNewContentTypeName(e.target.value)}
+              />
+              <TextField
+                label="Cor (Hex)"
+                placeholder="Ex: #FF5733"
+                fullWidth
+                margin="normal"
+                value={newContentTypeColor}
+                onChange={(e) => setNewContentTypeColor(e.target.value)}
+                type="color"
+                InputLabelProps={{ shrink: true }}
+              />
+            </>
+          )}
           {contentTypes.length > 0 && (
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -512,25 +673,102 @@ export default function ContentForm() {
                       borderRadius: 1,
                     }}
                   >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Chip
-                        label={type.name}
-                        size="small"
-                        sx={{
-                          backgroundColor: type.color || "#e3f2fd",
-                          color: "#fff",
-                          fontSize: 12,
-                        }}
-                      />
-                    </Box>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteContentType(type.id)}
-                      aria-label={`Excluir tipo ${type.name}`}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {editingContentTypeId === type.id ? (
+                      <>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            flex: 1,
+                          }}
+                        >
+                          <TextField
+                            size="small"
+                            label="Nome"
+                            value={editingContentTypeName}
+                            onChange={(e) =>
+                              setEditingContentTypeName(e.target.value)
+                            }
+                            sx={{ flex: 1 }}
+                          />
+                          <TextField
+                            size="small"
+                            label="Cor"
+                            type="color"
+                            value={editingContentTypeColor || "#000000"}
+                            onChange={(e) =>
+                              setEditingContentTypeColor(e.target.value)
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ width: 90 }}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={handleSaveEditContentType}
+                            aria-label={`Salvar tipo ${type.name}`}
+                          >
+                            <CheckIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={handleCancelEditContentType}
+                            aria-label={`Cancelar edição do tipo ${type.name}`}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <Chip
+                            label={type.name}
+                            size="small"
+                            sx={{
+                              backgroundColor: type.color || "#e3f2fd",
+                              color: "#fff",
+                              fontSize: 12,
+                            }}
+                          />
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleStartEditContentType(type)}
+                            aria-label={`Editar tipo ${type.name}`}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteContentType(type.id)}
+                            aria-label={`Excluir tipo ${type.name}`}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </>
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -541,9 +779,11 @@ export default function ContentForm() {
           <Button onClick={() => setOpenNewContentTypeDialog(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleCreateNewContentType} variant="contained">
-            Criar
-          </Button>
+          {editingContentTypeId === null && (
+            <Button onClick={handleCreateNewContentType} variant="contained">
+              Criar
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

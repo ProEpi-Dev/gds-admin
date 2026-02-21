@@ -27,6 +27,7 @@ describe('ContentTypeService', () => {
             content_type: {
               findMany: jest.fn(),
               findUnique: jest.fn(),
+              findFirst: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
               delete: jest.fn(),
@@ -125,9 +126,7 @@ describe('ContentTypeService', () => {
         },
       );
 
-      jest
-        .spyOn(prismaService.content_type, 'create')
-        .mockRejectedValue(error);
+      jest.spyOn(prismaService.content_type, 'create').mockRejectedValue(error);
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -142,9 +141,7 @@ describe('ContentTypeService', () => {
 
       const error = new Error('Database connection failed');
 
-      jest
-        .spyOn(prismaService.content_type, 'create')
-        .mockRejectedValue(error);
+      jest.spyOn(prismaService.content_type, 'create').mockRejectedValue(error);
 
       await expect(service.create(createDto)).rejects.toThrow(
         'Database connection failed',
@@ -167,7 +164,9 @@ describe('ContentTypeService', () => {
     });
 
     it('deve retornar null se tipo não existe', async () => {
-      jest.spyOn(prismaService.content_type, 'findUnique').mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.content_type, 'findUnique')
+        .mockResolvedValue(null);
 
       const result = await service.findOne(999);
 
@@ -209,9 +208,7 @@ describe('ContentTypeService', () => {
         },
       );
 
-      jest
-        .spyOn(prismaService.content_type, 'update')
-        .mockRejectedValue(error);
+      jest.spyOn(prismaService.content_type, 'update').mockRejectedValue(error);
 
       await expect(service.update(1, updateDto)).rejects.toThrow(
         BadRequestException,

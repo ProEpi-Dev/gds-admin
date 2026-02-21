@@ -102,6 +102,7 @@ describe('QuizSubmissionsService', () => {
 
   const trackProgressServiceMock = {
     completeQuizSequence: jest.fn(),
+    getOrCreateSequenceProgress: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -804,6 +805,189 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue(null);
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('Scoped Attempt Counting (Track Context)', () => {
+    it('deve incluir sequenceProgressId no countWhere när trackProgressId e sequenceId fornecidos', async () => {
+      const createDto: CreateQuizSubmissionDto = {
+        participationId: 1,
+        formVersionId: 1,
+        trackProgressId: 1,
+        sequenceId: 1,
+        quizResponse: { question1: 'a' },
+        startedAt: '2024-01-01T10:00:00Z',
+        completedAt: '2024-01-01T10:02:00Z',
+      };
+
+      const mockSequenceProgress = { id: 10, status: 'not_started' };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(trackProgressServiceMock, 'getOrCreateSequenceProgress')
+        .mockResolvedValue(mockSequenceProgress as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue(mockQuizSubmission as any);
+
+      await service.create(createDto);
+
+      // Verificar que getOrCreateSequenceProgress foi chamado
+      expect(
+        trackProgressServiceMock.getOrCreateSequenceProgress,
+      ).toHaveBeenCalledWith(1, 1);
+
+      // Verificar que count foi chamado com sequence_progress_id
+      expect(prismaService.quiz_submission.count).toHaveBeenCalledWith({
+        where: {
+          participation_id: 1,
+          form_version_id: 1,
+          active: true,
+          sequence_progress_id: 10,
+        },
+      });
+    });
+
+    it('deve NOT incluir sequenceProgressId no countWhere när trackProgressId e sequenceId NOT fornecidos', async () => {
+      const createDto: CreateQuizSubmissionDto = {
+        participationId: 1,
+        formVersionId: 1,
+        quizResponse: { question1: 'a' },
+        startedAt: '2024-01-01T10:00:00Z',
+        completedAt: '2024-01-01T10:02:00Z',
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue(mockQuizSubmission as any);
+
+      await service.create(createDto);
+
+      // Verificar que getOrCreateSequenceProgress NÃO foi chamado
+      expect(
+        trackProgressServiceMock.getOrCreateSequenceProgress,
+      ).not.toHaveBeenCalled();
+
+      // Verificar que count foi chamado SEM sequence_progress_id
+      expect(prismaService.quiz_submission.count).toHaveBeenCalledWith({
+        where: {
+          participation_id: 1,
+          form_version_id: 1,
+          active: true,
+        },
+      });
+    });
+
+    it('deve calcular attempt_number com scope de sequence_progress_id', async () => {
+      const createDto: CreateQuizSubmissionDto = {
+        participationId: 1,
+        formVersionId: 1,
+        trackProgressId: 1,
+        sequenceId: 1,
+        quizResponse: { question1: 'a' },
+        startedAt: '2024-01-01T10:00:00Z',
+        completedAt: '2024-01-01T10:02:00Z',
+      };
+
+      const mockSequenceProgress = { id: 10 };
+      const previousSubmission = { ...mockQuizSubmission, attempt_number: 2 };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(trackProgressServiceMock, 'getOrCreateSequenceProgress')
+        .mockResolvedValue(mockSequenceProgress as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(1);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(previousSubmission as any);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue({ ...mockQuizSubmission, attempt_number: 3 } as any);
+
+      await service.create(createDto);
+
+      // Verificar que findFirst foi chamado com sequence_progress_id scope
+      expect(prismaService.quiz_submission.findFirst).toHaveBeenCalledWith({
+        where: {
+          participation_id: 1,
+          form_version_id: 1,
+          sequence_progress_id: 10,
+        },
+        orderBy: { attempt_number: 'desc' },
+      });
+
+      // Verificar que create foi chamado com attempt_number 3 (previous 2 + 1)
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            attempt_number: 3,
+          }),
+        }),
+      );
+    });
+
+    it('deve respeitar max_attempts com scoped counting', async () => {
+      const createDto: CreateQuizSubmissionDto = {
+        participationId: 1,
+        formVersionId: 1,
+        trackProgressId: 1,
+        sequenceId: 1,
+        quizResponse: { question1: 'a' },
+        startedAt: '2024-01-01T10:00:00Z',
+        completedAt: '2024-01-01T10:02:00Z',
+      };
+
+      const formVersionWith3Attempts = { ...mockFormVersion, max_attempts: 3 };
+      const mockSequenceProgress = { id: 10 };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(formVersionWith3Attempts as any);
+      jest
+        .spyOn(trackProgressServiceMock, 'getOrCreateSequenceProgress')
+        .mockResolvedValue(mockSequenceProgress as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(3); // já atingiu limite
+
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      // Verificar que o erro foi lançado por limite atingido
+      expect(prismaService.quiz_submission.count).toHaveBeenCalledWith({
+        where: {
+          participation_id: 1,
+          form_version_id: 1,
+          active: true,
+          sequence_progress_id: 10,
+        },
+      });
     });
   });
 });
