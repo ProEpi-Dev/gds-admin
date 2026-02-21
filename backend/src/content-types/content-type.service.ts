@@ -21,9 +21,44 @@ export class ContentTypeService {
   }
 
   async create(data: CreateContentTypeDto) {
+    const normalizedName = data.name.trim();
+    if (!normalizedName) {
+      throw new BadRequestException('Nome do tipo de conteúdo é obrigatório');
+    }
+
+    const existingByName = await this.prisma.content_type.findFirst({
+      where: {
+        name: {
+          equals: normalizedName,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (existingByName) {
+      if (!existingByName.active) {
+        return this.prisma.content_type.update({
+          where: { id: existingByName.id },
+          data: {
+            name: normalizedName,
+            color: data.color,
+            active: true,
+            updated_at: new Date(),
+          },
+        });
+      }
+
+      throw new BadRequestException(
+        'Já existe um tipo de conteúdo com esse nome',
+      );
+    }
+
     try {
       return await this.prisma.content_type.create({
-        data,
+        data: {
+          ...data,
+          name: normalizedName,
+        },
       });
     } catch (error) {
       if (
@@ -43,11 +78,35 @@ export class ContentTypeService {
   }
 
   async update(id: number, data: UpdateContentTypeDto) {
+    const normalizedName = data.name?.trim();
+    if (data.name !== undefined && !normalizedName) {
+      throw new BadRequestException('Nome do tipo de conteúdo é obrigatório');
+    }
+
+    if (normalizedName) {
+      const existingByName = await this.prisma.content_type.findFirst({
+        where: {
+          id: { not: id },
+          name: {
+            equals: normalizedName,
+            mode: 'insensitive',
+          },
+        },
+      });
+
+      if (existingByName) {
+        throw new BadRequestException(
+          'Já existe um tipo de conteúdo com esse nome',
+        );
+      }
+    }
+
     try {
       return await this.prisma.content_type.update({
         where: { id },
         data: {
           ...data,
+          ...(normalizedName !== undefined ? { name: normalizedName } : {}),
           updated_at: new Date(),
         },
       });

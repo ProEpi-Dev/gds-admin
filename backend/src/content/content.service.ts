@@ -46,7 +46,8 @@ export class ContentService {
           data: {
             ...contentData,
             active: active ?? true,
-            published_at: (active ?? true) ? (published_at ?? new Date()) : null,
+            published_at:
+              (active ?? true) ? (published_at ?? new Date()) : null,
             content_tag: {
               create: existingTagIds.map((tagId) => ({
                 tag: { connect: { id: tagId } },
