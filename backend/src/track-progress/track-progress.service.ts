@@ -284,9 +284,14 @@ export class TrackProgressService {
     }
 
     // Contar total de sequências ativas
-    const totalSequences = trackProgress.track_cycle.track.section
-      .flatMap((section) => section.sequence)
-      .filter((seq) => seq.active).length;
+    const activeSequenceIds = new Set(
+      trackProgress.track_cycle.track.section
+        .flatMap((section) => section.sequence)
+        .filter((seq) => seq.active)
+        .map((seq) => seq.id),
+    );
+
+    const totalSequences = activeSequenceIds.size;
 
     if (totalSequences === 0) {
       return this.serializeProgressPercentage(trackProgress);
@@ -294,7 +299,9 @@ export class TrackProgressService {
 
     // Contar sequências completadas
     const completedSequences = trackProgress.sequence_progress.filter(
-      (sp) => sp.status === progress_status_enum.completed,
+      (sp) =>
+        sp.status === progress_status_enum.completed &&
+        activeSequenceIds.has(sp.sequence_id),
     ).length;
 
     // Calcular percentual

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTrackDto } from './dto/create-track.dto';
+import { progress_status_enum } from '@prisma/client';
 
 @Injectable()
 export class TrackService {
@@ -136,8 +137,12 @@ export class TrackService {
       where,
       include: {
         section: {
+          where: { active: true },
+          orderBy: { order: 'asc' },
           include: {
             sequence: {
+              where: { active: true },
+              orderBy: { order: 'asc' },
               include: {
                 content: true,
                 form: true,
@@ -154,8 +159,12 @@ export class TrackService {
       where: { id },
       include: {
         section: {
+          where: { active: true },
+          orderBy: { order: 'asc' },
           include: {
             sequence: {
+              where: { active: true },
+              orderBy: { order: 'asc' },
               include: {
                 content: true,
                 form: true,
@@ -231,36 +240,238 @@ export class TrackService {
 
     // Handle sections if provided
     if (sections) {
-      // Delete existing sections and sequences
-      await this.prisma.sequence.deleteMany({
-        where: { section: { track_id: id } },
-      });
-      await this.prisma.section.deleteMany({
+      const existingSections = await this.prisma.section.findMany({
         where: { track_id: id },
+        include: { sequence: true },
       });
 
-      // Create new sections and sequences
+      const existingSectionById = new Map(
+        existingSections.map((section) => [section.id, section]),
+      );
+
+      const existingSequenceById = new Map(
+        existingSections
+          .flatMap((section) => section.sequence)
+          .map((sequence) => [sequence.id, sequence]),
+      );
+
+      const processedSectionIds = new Set<number>();
+      const processedSequenceIds = new Set<number>();
+
       for (const [index, section] of sections.entries()) {
-        const { sequences, ...sectionData } = section;
-        await this.prisma.section.create({
-          data: {
-            track_id: id,
-            ...sectionData,
-            order: section.order ?? index,
-            sequence: sequences
-              ? {
-                  create: sequences.map((seq: any, seqIndex: number) => ({
-                    ...seq,
-                    order: seq.order ?? seqIndex,
-                  })),
-                }
-              : undefined,
-          },
+        let sectionId = section.id;
+
+        if (sectionId && existingSectionById.has(sectionId)) {
+          await this.prisma.section.update({
+            where: { id: sectionId },
+            data: {
+              name: section.name,
+              order: section.order ?? index,
+              active: true,
+            },
+          });
+        } else {
+          const createdSection = await this.prisma.section.create({
+            data: {
+              track_id: id,
+              name: section.name,
+              order: section.order ?? index,
+              active: true,
+            },
+          });
+          sectionId = createdSection.id;
+        }
+
+        processedSectionIds.add(sectionId!);
+
+        const sectionSequences = section.sequences ?? [];
+        for (const [seqIndex, seq] of sectionSequences.entries()) {
+          if (seq.id && existingSequenceById.has(seq.id)) {
+            await this.prisma.sequence.update({
+              where: { id: seq.id },
+              data: {
+                section_id: sectionId,
+                order: seq.order ?? seqIndex,
+                content_id: seq.content_id ?? null,
+                form_id: seq.form_id ?? null,
+                active: true,
+              },
+            });
+            processedSequenceIds.add(seq.id);
+            continue;
+          }
+
+          const createdSequence = await this.prisma.sequence.create({
+            data: {
+              section_id: sectionId,
+              order: seq.order ?? seqIndex,
+              content_id: seq.content_id ?? null,
+              form_id: seq.form_id ?? null,
+              active: true,
+            },
+          });
+          processedSequenceIds.add(createdSequence.id);
+        }
+      }
+
+      const sectionIdsToDeactivate = existingSections
+        .map((section) => section.id)
+        .filter((sectionId) => !processedSectionIds.has(sectionId));
+
+      if (sectionIdsToDeactivate.length > 0) {
+        await this.prisma.section.updateMany({
+          where: { id: { in: sectionIdsToDeactivate } },
+          data: { active: false },
         });
       }
+
+      const sequenceIdsToDeactivate = Array.from(
+        existingSequenceById.keys(),
+      ).filter((sequenceId) => !processedSequenceIds.has(sequenceId));
+
+      if (sequenceIdsToDeactivate.length > 0) {
+        await this.prisma.sequence.updateMany({
+          where: { id: { in: sequenceIdsToDeactivate } },
+          data: { active: false },
+        });
+      }
+
+      await this.syncTrackProgressSequences(id);
     }
 
     return this.get(id);
+  }
+
+  private async syncTrackProgressSequences(trackId: number) {
+    const activeSequences = await this.prisma.sequence.findMany({
+      where: {
+        active: true,
+        section: {
+          track_id: trackId,
+          active: true,
+        },
+      },
+      select: { id: true },
+    });
+
+    const activeSequenceIds = activeSequences.map((sequence) => sequence.id);
+
+    const trackProgresses = await this.prisma.track_progress.findMany({
+      where: {
+        track_cycle: {
+          track_id: trackId,
+          active: true,
+        },
+      },
+      select: {
+        id: true,
+        completed_at: true,
+      },
+    });
+
+    if (!trackProgresses.length) {
+      return;
+    }
+
+    const trackProgressIds = trackProgresses.map((progress) => progress.id);
+
+    const completedCountByProgressId = new Map<number, number>();
+
+    if (activeSequenceIds.length > 0) {
+      const existingPairs = await this.prisma.sequence_progress.findMany({
+        where: {
+          track_progress_id: { in: trackProgressIds },
+          sequence_id: { in: activeSequenceIds },
+        },
+        select: {
+          track_progress_id: true,
+          sequence_id: true,
+        },
+      });
+
+      const pairSet = new Set(
+        existingPairs.map(
+          (pair) => `${pair.track_progress_id}:${pair.sequence_id}`,
+        ),
+      );
+
+      const rowsToCreate: Array<{
+        track_progress_id: number;
+        sequence_id: number;
+        status: progress_status_enum;
+        visits_count: number;
+      }> = [];
+
+      for (const trackProgressId of trackProgressIds) {
+        for (const sequenceId of activeSequenceIds) {
+          const key = `${trackProgressId}:${sequenceId}`;
+          if (!pairSet.has(key)) {
+            rowsToCreate.push({
+              track_progress_id: trackProgressId,
+              sequence_id: sequenceId,
+              status: progress_status_enum.not_started,
+              visits_count: 0,
+            });
+          }
+        }
+      }
+
+      if (rowsToCreate.length > 0) {
+        await this.prisma.sequence_progress.createMany({
+          data: rowsToCreate,
+          skipDuplicates: true,
+        });
+      }
+
+      const completedRows = await this.prisma.sequence_progress.findMany({
+        where: {
+          track_progress_id: { in: trackProgressIds },
+          sequence_id: { in: activeSequenceIds },
+          status: progress_status_enum.completed,
+        },
+        select: {
+          track_progress_id: true,
+        },
+      });
+
+      for (const row of completedRows) {
+        completedCountByProgressId.set(
+          row.track_progress_id,
+          (completedCountByProgressId.get(row.track_progress_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    for (const trackProgress of trackProgresses) {
+      const totalSequences = activeSequenceIds.length;
+      const completedSequences =
+        completedCountByProgressId.get(trackProgress.id) ?? 0;
+
+      const progressPercentage =
+        totalSequences === 0
+          ? 0
+          : Math.round((completedSequences / totalSequences) * 10000) / 100;
+
+      const status =
+        progressPercentage === 100
+          ? progress_status_enum.completed
+          : progressPercentage > 0
+            ? progress_status_enum.in_progress
+            : progress_status_enum.not_started;
+
+      await this.prisma.track_progress.update({
+        where: { id: trackProgress.id },
+        data: {
+          progress_percentage: progressPercentage,
+          status,
+          completed_at:
+            status === progress_status_enum.completed
+              ? (trackProgress.completed_at ?? new Date())
+              : null,
+          updated_at: new Date(),
+        },
+      });
+    }
   }
 
   async delete(id: number) {
