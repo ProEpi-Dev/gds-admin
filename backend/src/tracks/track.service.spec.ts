@@ -17,14 +17,28 @@ describe('TrackService', () => {
       findMany: jest.fn(),
     },
     section: {
+      findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       deleteMany: jest.fn(),
     },
     sequence: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
       delete: jest.fn(),
+    },
+    track_progress: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    sequence_progress: {
+      findMany: jest.fn(),
+      createMany: jest.fn(),
     },
   };
 
@@ -212,6 +226,78 @@ describe('TrackService', () => {
           name: 'Track Atualizada',
           start_date: undefined,
           end_date: undefined,
+        },
+      });
+    });
+
+    it('deve preservar IDs de seções/sequências e não recriar tudo ao atualizar', async () => {
+      prismaMock.track.findUnique.mockResolvedValue(mockTrack);
+      prismaMock.track.update.mockResolvedValue(mockTrack);
+      prismaMock.track.findUnique.mockResolvedValue(mockTrack);
+
+      prismaMock.section.findMany.mockResolvedValue([
+        {
+          id: 10,
+          track_id: 1,
+          name: 'Seção 1',
+          order: 0,
+          active: true,
+          sequence: [
+            {
+              id: 100,
+              section_id: 10,
+              content_id: 1,
+              form_id: null,
+              order: 0,
+              active: true,
+            },
+          ],
+        },
+      ]);
+      prismaMock.sequence.findMany.mockResolvedValue([{ id: 100 }]);
+      prismaMock.track_progress.findMany.mockResolvedValue([]);
+
+      await service.update(
+        1,
+        {
+          name: 'Track Atualizada',
+          sections: [
+            {
+              id: 10,
+              name: 'Seção 1',
+              order: 0,
+              sequences: [
+                {
+                  id: 100,
+                  order: 0,
+                  content_id: 1,
+                  form_id: null,
+                },
+              ],
+            },
+          ],
+        },
+        mockUser,
+      );
+
+      expect(prismaMock.sequence.deleteMany).not.toHaveBeenCalled();
+      expect(prismaMock.section.deleteMany).not.toHaveBeenCalled();
+      expect(prismaMock.section.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: {
+          name: 'Seção 1',
+          order: 0,
+          active: true,
+        },
+      });
+      expect(prismaMock.sequence.update).toHaveBeenCalledWith({
+        where: { id: 100 },
+        data: {
+          section_id: 10,
+          order: 0,
+          content_id: 1,
+          form_id: null,
+          active: true,
         },
       });
     });

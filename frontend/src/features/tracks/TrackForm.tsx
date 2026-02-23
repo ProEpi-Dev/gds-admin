@@ -50,6 +50,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getErrorMessage } from "../../utils/errorHandler";
 
 function SortableSection({
   section,
@@ -745,7 +746,8 @@ export default function TrackForm() {
       navigate("/tracks");
     } catch (error) {
       console.error("Erro ao salvar trilha:", error);
-      snackbar.showError("Erro ao salvar trilha");
+      const errorMessage = getErrorMessage(error, "Erro ao salvar trilha");
+      snackbar.showError(errorMessage);
     }
   };
 
