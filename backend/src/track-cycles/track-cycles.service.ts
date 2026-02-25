@@ -326,7 +326,7 @@ export class TrackCyclesService {
     // Verificar se há progresso associado
     if (cycle.track_progress.length > 0) {
       throw new BadRequestException(
-        `Não é possível deletar o ciclo pois existem ${cycle.track_progress.length} registros de progresso associados. Para prosseguir, primeiro remova ou migre os registros de progresso.`,
+        `Não é possível deletar o ciclo pois existem ${cycle.track_progress.length} registros de progresso associados.`,
       );
     }
 
