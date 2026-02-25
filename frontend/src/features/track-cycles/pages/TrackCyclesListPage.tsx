@@ -23,6 +23,8 @@ import FilterChips from "../../../components/common/FilterChips";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
+import { useSnackbar } from "../../../hooks/useSnackbar";
+import { getErrorMessage } from "../../../utils/errorHandler";
 import { useTrackCycles, useDeleteTrackCycle } from "../hooks/useTrackCycles";
 import {
   TrackCycleStatus,
@@ -50,6 +52,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export default function TrackCyclesListPage() {
   const navigate = useNavigate();
+  const snackbar = useSnackbar();
   const [statusFilter, setStatusFilter] = useState<
     TrackCycleStatus | undefined
   >(undefined);
@@ -83,6 +86,11 @@ export default function TrackCyclesListPage() {
         onSuccess: () => {
           setDeleteDialogOpen(false);
           setCycleToDelete(null);
+        },
+        onError: (err: unknown) => {
+          setDeleteDialogOpen(false);
+          setCycleToDelete(null);
+          snackbar.showError(getErrorMessage(err));
         },
       });
     }
