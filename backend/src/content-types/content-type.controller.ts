@@ -6,10 +6,13 @@ import {
   Delete,
   Param,
   Body,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ContentTypeService } from './content-type.service';
 import { CreateContentTypeDto, UpdateContentTypeDto, ContentTypeResponseDto } from './content-type.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { RequirePermission } from '../authz/decorators/require-permission.decorator';
 
 @ApiTags('Content Types')
 @Controller('content-types')
@@ -43,6 +46,8 @@ export class ContentTypeController {
 
 @ApiTags('Content Types Admin')
 @Controller('admin/content-types')
+@UseGuards(RolesGuard)
+@RequirePermission('content-type:manage')
 export class ContentTypeAdminController {
   constructor(private readonly contentTypeService: ContentTypeService) {}
 

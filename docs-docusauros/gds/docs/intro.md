@@ -27,6 +27,7 @@ O sistema possui duas interfaces principais:
 A aplicação web de administração oferece as seguintes funcionalidades para gestores e administradores:
 
 - **Gestão de Usuários**: Cadastro, perfis e autenticação de cidadãos e profissionais de saúde
+- **Papéis e Permissões (RBAC)**: Controle de acesso por papéis (admin, manager, content_manager, participant) e permissões atômicas; proteção dos endpoints da API
 - **Localizações Geográficas**: Hierarquia geográfica com suporte a polígonos para mapeamento de áreas de risco
 - **Contextos**: Organização de comunidades, instituições e grupos de trabalho (ex: universidades, bairros)
 - **Conteúdo Educacional**: Sistema de artigos e materiais educacionais sobre saúde pública
@@ -79,4 +80,4 @@ Para começar a explorar a documentação, recomendamos:
 
 ---
 
-**Última atualização**: Janeiro 2026
+**Última atualização**: Fevereiro 2026

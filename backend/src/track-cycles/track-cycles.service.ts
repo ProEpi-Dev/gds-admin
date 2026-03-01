@@ -3,8 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateTrackCycleDto } from './dto/create-track-cycle.dto';
 import { UpdateTrackCycleDto } from './dto/update-track-cycle.dto';
 import { UpdateTrackCycleStatusDto } from './dto/update-track-cycle-status.dto';
@@ -13,7 +15,35 @@ import { track_cycle_status_enum } from '@prisma/client';
 
 @Injectable()
 export class TrackCyclesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
+
+  /**
+   * Verifica se o usuário gerencia (manager ou content_manager) o contexto do ciclo.
+   */
+  private async assertCanManageCycle(userId: number, cycleContextId: number): Promise<void> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    const canManage = await this.authz.hasAnyRole(userId, cycleContextId, ['manager', 'content_manager']);
+    if (!canManage) {
+      throw new ForbiddenException('Você não tem permissão para gerenciar este ciclo de trilha');
+    }
+  }
+
+  /**
+   * Verifica se o usuário tem acesso de leitura ao contexto do ciclo.
+   * Aceita manager, content_manager e participant.
+   */
+  private async assertCanReadCycle(userId: number, cycleContextId: number): Promise<void> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    const hasAccess = await this.authz.hasAnyRole(userId, cycleContextId, ['manager', 'content_manager', 'participant']);
+    if (!hasAccess) {
+      throw new ForbiddenException('Você não tem acesso a este ciclo de trilha');
+    }
+  }
 
   async create(createDto: CreateTrackCycleDto) {
     // Validar datas
@@ -91,11 +121,27 @@ export class TrackCyclesService {
     });
   }
 
-  async findAll(query: TrackCycleQueryDto) {
+  async findAll(query: TrackCycleQueryDto, userId: number) {
+    const isAdmin = await this.authz.isAdmin(userId);
     const where: any = {};
 
-    if (query.contextId) {
-      where.context_id = query.contextId;
+    if (isAdmin) {
+      if (query.contextId) where.context_id = query.contextId;
+    } else {
+      let allowedContextIds = await this.authz.getManagedContextIds(userId);
+      if (allowedContextIds.length === 0) {
+        allowedContextIds = await this.authz.getParticipantContextIds(userId);
+      }
+      if (allowedContextIds.length === 0) return [];
+
+      if (query.contextId) {
+        if (!allowedContextIds.includes(query.contextId)) {
+          throw new ForbiddenException('Você não tem acesso a este contexto');
+        }
+        where.context_id = query.contextId;
+      } else {
+        where.context_id = { in: allowedContextIds };
+      }
     }
 
     if (query.trackId) {
@@ -122,7 +168,7 @@ export class TrackCyclesService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, userId: number) {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id },
       include: {
@@ -148,10 +194,12 @@ export class TrackCyclesService {
       throw new NotFoundException(`Ciclo com ID ${id} não encontrado`);
     }
 
+    await this.assertCanReadCycle(userId, cycle.context_id);
+
     return cycle;
   }
 
-  async findActive(contextId?: number, trackId?: number) {
+  async findActive(contextId?: number, trackId?: number, userId?: number) {
     const where: any = {
       status: track_cycle_status_enum.active,
       active: true,
@@ -181,7 +229,7 @@ export class TrackCyclesService {
     });
   }
 
-  async update(id: number, updateDto: UpdateTrackCycleDto) {
+  async update(id: number, updateDto: UpdateTrackCycleDto, userId: number) {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id },
     });
@@ -189,6 +237,8 @@ export class TrackCyclesService {
     if (!cycle) {
       throw new NotFoundException(`Ciclo com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageCycle(userId, cycle.context_id);
 
     // Validar datas se fornecidas
     if (updateDto.startDate || updateDto.endDate) {
@@ -268,7 +318,7 @@ export class TrackCyclesService {
     });
   }
 
-  async updateStatus(id: number, statusDto: UpdateTrackCycleStatusDto) {
+  async updateStatus(id: number, statusDto: UpdateTrackCycleStatusDto, userId: number) {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id },
     });
@@ -276,6 +326,8 @@ export class TrackCyclesService {
     if (!cycle) {
       throw new NotFoundException(`Ciclo com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageCycle(userId, cycle.context_id);
 
     // Validar se pode mudar para 'active'
     if (statusDto.status === track_cycle_status_enum.active) {
@@ -311,7 +363,7 @@ export class TrackCyclesService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id },
       include: {
@@ -322,6 +374,8 @@ export class TrackCyclesService {
     if (!cycle) {
       throw new NotFoundException(`Ciclo com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageCycle(userId, cycle.context_id);
 
     // Verificar se há progresso associado
     if (cycle.track_progress.length > 0) {
@@ -336,7 +390,7 @@ export class TrackCyclesService {
     });
   }
 
-  async getStudentsProgress(cycleId: number) {
+  async getStudentsProgress(cycleId: number, userId: number) {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id: cycleId },
     });
@@ -344,6 +398,8 @@ export class TrackCyclesService {
     if (!cycle) {
       throw new NotFoundException(`Ciclo com ID ${cycleId} não encontrado`);
     }
+
+    await this.assertCanManageCycle(userId, cycle.context_id);
 
     const list = await this.prisma.track_progress.findMany({
       where: {

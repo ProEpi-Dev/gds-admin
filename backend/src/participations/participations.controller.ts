@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,14 +25,22 @@ import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
 import { ParticipationResponseDto } from './dto/participation-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { RoleResponseDto } from '../roles/dto/role-response.dto';
+import { ParticipationRoleBodyDto } from '../roles/dto/participation-role-body.dto';
 
 @ApiTags('Participations')
 @ApiBearerAuth('bearerAuth')
+@UseGuards(RolesGuard)
+@Roles('admin', 'manager', 'content_manager')
 @Controller('participations')
 export class ParticipationsController {
   constructor(private readonly participationsService: ParticipationsService) {}
 
   @Post()
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar participação',
@@ -53,10 +62,11 @@ export class ParticipationsController {
   }
 
   @Get()
+  @Roles('admin', 'manager', 'content_manager', 'participant')
   @ApiOperation({
     summary: 'Listar participações',
     description:
-      'Retorna lista paginada de participações com filtros opcionais',
+      'Admin/manager/content_manager: participações dos contextos. Participant: apenas as próprias participações.',
   })
   @ApiResponse({
     status: 200,
@@ -65,8 +75,9 @@ export class ParticipationsController {
   })
   async findAll(
     @Query() query: ParticipationQueryDto,
+    @CurrentUser() user: any,
   ): Promise<ListResponseDto<ParticipationResponseDto>> {
-    return this.participationsService.findAll(query);
+    return this.participationsService.findAll(query, user.userId);
   }
 
   @Get(':id')
@@ -88,6 +99,7 @@ export class ParticipationsController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Atualizar participação',
     description: 'Atualiza uma participação existente',
@@ -108,6 +120,7 @@ export class ParticipationsController {
   }
 
   @Delete(':id')
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar participação',
@@ -126,5 +139,69 @@ export class ParticipationsController {
   @ApiResponse({ status: 404, description: 'Participação não encontrada' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.participationsService.remove(id);
+  }
+
+  // ── Papéis da participação ──────────────────────────────────────────────
+
+  @Get(':id/roles')
+  @ApiOperation({
+    summary: 'Listar papéis da participação',
+    description: 'Retorna os papéis atribuídos a uma participação.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de papéis da participação',
+    type: [RoleResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Participação não encontrada' })
+  async findRoles(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RoleResponseDto[]> {
+    return this.participationsService.findRoles(id);
+  }
+
+  @Post(':id/roles')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Atribuir papel à participação',
+    description: 'Adiciona um papel a uma participação. Apenas admin.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
+  @ApiResponse({
+    status: 200,
+    description: 'Papéis atualizados da participação',
+    type: [RoleResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Participação ou papel não encontrado' })
+  @ApiResponse({ status: 409, description: 'A participação já possui o papel' })
+  async addRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: ParticipationRoleBodyDto,
+  ): Promise<RoleResponseDto[]> {
+    return this.participationsService.addRole(id, body.roleId);
+  }
+
+  @Delete(':id/roles/:roleId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Remover papel da participação',
+    description: 'Remove um papel de uma participação. Apenas admin.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
+  @ApiParam({ name: 'roleId', type: Number, description: 'ID do papel' })
+  @ApiResponse({
+    status: 200,
+    description: 'Papéis atualizados da participação',
+    type: [RoleResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Participação ou papel não encontrado' })
+  async removeRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('roleId', ParseIntPipe) roleId: number,
+  ): Promise<RoleResponseDto[]> {
+    return this.participationsService.removeRole(id, roleId);
   }
 }

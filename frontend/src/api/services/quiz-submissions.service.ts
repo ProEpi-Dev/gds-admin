@@ -27,6 +27,11 @@ export const quizSubmissionsService = {
     if (query?.isPassed !== undefined) {
       params.append('isPassed', query.isPassed ? 'true' : 'false');
     }
+    if (query?.startDate) params.append('startDate', query.startDate);
+    if (query?.endDate) params.append('endDate', query.endDate);
+    if (query?.contextId != null) {
+      params.append('contextId', query.contextId.toString());
+    }
 
     const response = await apiClient.get(
       `/quiz-submissions?${params.toString()}`,

@@ -15,7 +15,7 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTranslation } from '../../../hooks/useTranslation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../../api/client';
 import { API_ENDPOINTS } from '../../../api/endpoints';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -36,6 +36,8 @@ export default function LoginForm() {
   const snackbar = useSnackbar();
   const [showPassword, setShowPassword] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const {
     register,
     handleSubmit,
@@ -55,6 +57,9 @@ export default function LoginForm() {
         participation: data.participation,
       };
       login(data.token, userWithParticipation, data.participation);
+      // Invalida caches de role/perfil para garantir dados frescos após troca de usuário
+      queryClient.invalidateQueries({ queryKey: ['user-role'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-status'] });
       snackbar.showSuccess('Login realizado com sucesso');
       navigate('/');
     },

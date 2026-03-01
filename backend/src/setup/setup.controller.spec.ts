@@ -34,12 +34,7 @@ describe('SetupController', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-    contextManager: {
-      id: 1,
-      userId: 1,
-      contextId: 1,
-      active: true,
-    },
+    participationId: 1,
   };
 
   beforeEach(async () => {

@@ -12,16 +12,19 @@ interface AdminRouteProps {
 
 export default function AdminRoute({ children }: AdminRouteProps) {
   const { isAuthenticated } = useAuth();
-  const { isManager, isLoading: roleLoading } = useUserRole();
-  const { isComplete, isLoading: profileLoading } = useProfileStatus();
+  const { isAdmin, isManager, isContentManager, isLoading: roleLoading } = useUserRole();
+
+  // Admin não precisa verificar perfil; demais papéis verificam
+  const needsProfileCheck = !isAdmin;
+  const { isComplete, isLoading: profileLoading } = useProfileStatus(needsProfileCheck);
 
   // Se não está autenticado, redireciona para login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Aguarda carregar informações de role e perfil
-  if (roleLoading || profileLoading) {
+  // Aguarda carregar informações de role (e perfil, se necessário)
+  if (roleLoading || (needsProfileCheck && profileLoading)) {
     return (
       <Box
         sx={{
@@ -36,13 +39,13 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  // Se não é manager, redireciona para área do app
-  if (!isManager) {
+  // Se não é admin, manager ou content_manager, redireciona para área do app
+  if (!isAdmin && !isManager && !isContentManager) {
     return <Navigate to="/app/welcome" replace />;
   }
 
-  // Se perfil não está completo, redireciona para completar
-  if (!isComplete) {
+  // Admin tem acesso irrestrito; demais papéis precisam de perfil completo
+  if (!isAdmin && !isComplete) {
     return <Navigate to="/app/complete-profile" replace />;
   }
 

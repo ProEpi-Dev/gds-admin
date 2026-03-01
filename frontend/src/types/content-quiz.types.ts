@@ -43,5 +43,7 @@ export interface ContentQuizQuery extends PaginationQuery {
   contentId?: number;
   formId?: number;
   active?: boolean;
+  /** Contexto atual (para autorização e filtro); enviado na query para o guard. */
+  contextId?: number;
 }
 

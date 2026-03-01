@@ -6,6 +6,7 @@ import {
 } from "../../api/services/content-type.service";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 import TagSelector from "../../../src/components/common/TagSelector";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -59,6 +60,7 @@ export default function ContentForm() {
   const snackbar = useSnackbar();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { currentContext } = useCurrentContext();
 
   const [slugError, setSlugError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -85,7 +87,7 @@ export default function ContentForm() {
     summary: "",
     slug: "",
     author_id: 1,
-    context_id: 1,
+    context_id: currentContext?.id ?? 0,
     type_id: null as number | null,
     tags: [] as number[],
   });
@@ -151,6 +153,13 @@ export default function ContentForm() {
       });
     }
   }, []);
+
+  // Atualiza o context_id quando o contexto selecionado muda (apenas para criação, não edição)
+  useEffect(() => {
+    if (!id && currentContext?.id) {
+      setForm((prev) => ({ ...prev, context_id: currentContext.id }));
+    }
+  }, [currentContext?.id, id]);
 
   useEffect(() => {
     if (id) {

@@ -29,6 +29,7 @@ import {
 import { useReports, useDeleteReport } from '../hooks/useReports';
 import { useForms } from '../../forms/hooks/useForms';
 import { useFormVersions } from '../../forms/hooks/useFormVersions';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import type { FormBuilderDefinition, FormField } from '../../../types/form-builder.types';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
@@ -53,6 +54,7 @@ interface SavedFilters {
 export default function ReportsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
 
   // Função para carregar filtros do localStorage
   const loadFiltersFromStorage = (): SavedFilters | null => {
@@ -104,13 +106,16 @@ export default function ReportsListPage() {
     });
   }, [page, pageSize, activeFilter, reportTypeFilter, formIdFilter, startDate, endDate]);
 
-  // Buscar formulários para o filtro (apenas do tipo signal)
-  const { data: formsData, isLoading: formsLoading } = useForms({
-    page: 1,
-    pageSize: 100,
-    active: true,
-    type: 'signal', // Filtrar apenas formulários do tipo signal
-  });
+  // Buscar formulários para o filtro (do contexto atual; sem filtro de tipo para incluir signal e quiz).
+  const { data: formsData, isLoading: formsLoading } = useForms(
+    {
+      page: 1,
+      pageSize: 100,
+      active: true,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null },
+  );
 
   // Buscar versões do formulário selecionado para obter a definição
   const { data: versionsData } = useFormVersions(formIdFilter || null, { page: 1, pageSize: 50, active: true });
@@ -135,6 +140,7 @@ export default function ReportsListPage() {
     formId: formIdFilter,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    contextId: currentContext?.id,
   });
 
   const deleteMutation = useDeleteReport();

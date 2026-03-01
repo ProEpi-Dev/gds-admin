@@ -2,8 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { TrackProgressService } from '../track-progress/track-progress.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
@@ -47,13 +50,36 @@ interface QuizDefinition {
 
 @Injectable()
 export class QuizSubmissionsService {
+  private readonly logger = new Logger(QuizSubmissionsService.name);
+
   constructor(
     private prisma: PrismaService,
     private trackProgressService: TrackProgressService,
+    private authz: AuthzService,
   ) {}
+
+  /**
+   * Verifica se o usuário pode operar sobre uma submissão.
+   * Admin: sempre pode. Manager/content_manager: deve gerenciar o contexto da participação.
+   * Participante: só pode operar na própria submissão.
+   */
+  private async assertCanManageSubmission(
+    userId: number,
+    submissionOwnerId: number,
+    submissionContextId: number,
+  ): Promise<void> {
+    if (userId === submissionOwnerId) return;
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    const canManage = await this.authz.hasAnyRole(userId, submissionContextId, ['manager', 'content_manager']);
+    if (!canManage) {
+      throw new ForbiddenException('Você não tem permissão para acessar esta submissão');
+    }
+  }
 
   async create(
     createQuizSubmissionDto: CreateQuizSubmissionDto,
+    userId: number,
   ): Promise<QuizSubmissionResponseDto> {
     const { trackProgressId, sequenceId } = createQuizSubmissionDto;
     let sequenceProgressId: number | null = null;
@@ -76,6 +102,16 @@ export class QuizSubmissionsService {
       throw new BadRequestException(
         `Participação com ID ${createQuizSubmissionDto.participationId} não encontrada`,
       );
+    }
+
+    // Validar que o usuário autenticado é dono da participação
+    // ou é manager/admin do contexto
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin && participation.user_id !== userId) {
+      const canManage = await this.authz.hasAnyRole(userId, participation.context_id, ['manager', 'content_manager']);
+      if (!canManage) {
+        throw new ForbiddenException('Você não pode criar uma submissão para a participação de outro usuário');
+      }
     }
 
     // Validar versão do formulário e verificar se é quiz
@@ -240,13 +276,29 @@ export class QuizSubmissionsService {
 
   async findAll(
     query: QuizSubmissionQueryDto,
+    userId: number,
   ): Promise<ListResponseDto<QuizSubmissionResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Construir filtros
-    const where: any = {};
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      query.contextId,
+      'GET /quiz-submissions',
+      { allowParticipantContext: true },
+    );
+
+    // Construir filtros (context_id sempre aplicado via participação)
+    const where: any = {
+      participation: { context_id: filterContextId },
+    };
+
+    // Participant: só pode ver as próprias submissões
+    const managedIds = await this.authz.getManagedContextIds(userId);
+    if (managedIds.length === 0) {
+      where.participation.user_id = userId;
+    }
 
     if (query.active !== undefined) {
       where.active = query.active;
@@ -333,6 +385,7 @@ export class QuizSubmissionsService {
     if (query.isPassed !== undefined) queryParams.isPassed = query.isPassed;
     if (query.startDate !== undefined) queryParams.startDate = query.startDate;
     if (query.endDate !== undefined) queryParams.endDate = query.endDate;
+    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
 
     return {
       data: quizSubmissions.map((qs) => this.mapToResponseDto(qs)),
@@ -353,13 +406,15 @@ export class QuizSubmissionsService {
     };
   }
 
-  async findOne(id: number): Promise<QuizSubmissionResponseDto> {
+  async findOne(id: number, userId: number): Promise<QuizSubmissionResponseDto> {
     const quizSubmission = await this.prisma.quiz_submission.findUnique({
       where: { id },
       include: {
         participation: {
           select: {
             id: true,
+            user_id: true,
+            context_id: true,
             user: {
               select: {
                 id: true,
@@ -391,17 +446,25 @@ export class QuizSubmissionsService {
       );
     }
 
+    await this.assertCanManageSubmission(
+      userId,
+      quizSubmission.participation.user_id,
+      quizSubmission.participation.context_id,
+    );
+
     return this.mapToResponseDto(quizSubmission);
   }
 
   async update(
     id: number,
     updateQuizSubmissionDto: UpdateQuizSubmissionDto,
+    userId: number,
   ): Promise<QuizSubmissionResponseDto> {
     // Verificar se submissão existe
     const existing = await this.prisma.quiz_submission.findUnique({
       where: { id },
       include: {
+        participation: { select: { user_id: true, context_id: true } },
         form_version: {
           include: {
             form: true,
@@ -415,6 +478,12 @@ export class QuizSubmissionsService {
         `Submissão de quiz com ID ${id} não encontrada`,
       );
     }
+
+    await this.assertCanManageSubmission(
+      userId,
+      existing.participation.user_id,
+      existing.participation.context_id,
+    );
 
     // Preparar dados de atualização
     const updateData: any = {};
@@ -522,10 +591,11 @@ export class QuizSubmissionsService {
     return this.mapToResponseDto(quizSubmission);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, userId: number): Promise<void> {
     // Verificar se submissão existe
     const quizSubmission = await this.prisma.quiz_submission.findUnique({
       where: { id },
+      include: { participation: { select: { user_id: true, context_id: true } } },
     });
 
     if (!quizSubmission) {
@@ -533,6 +603,12 @@ export class QuizSubmissionsService {
         `Submissão de quiz com ID ${id} não encontrada`,
       );
     }
+
+    await this.assertCanManageSubmission(
+      userId,
+      quizSubmission.participation.user_id,
+      quizSubmission.participation.context_id,
+    );
 
     // Soft delete
     await this.prisma.quiz_submission.update({

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,9 @@ import {
   ApiParam,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { QuizSubmissionsService } from './quiz-submissions.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
@@ -52,14 +56,18 @@ export class QuizSubmissionsController {
   })
   async create(
     @Body() createQuizSubmissionDto: CreateQuizSubmissionDto,
+    @CurrentUser() user: any,
   ): Promise<QuizSubmissionResponseDto> {
-    return this.quizSubmissionsService.create(createQuizSubmissionDto);
+    return this.quizSubmissionsService.create(createQuizSubmissionDto, user.userId);
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager', 'participant')
   @ApiOperation({
     summary: 'Listar submissões de quiz',
-    description: 'Retorna lista paginada de submissões com filtros opcionais',
+    description:
+      'Admin/manager/content_manager: submissões do contexto. Participant: apenas as próprias submissões.',
   })
   @ApiResponse({
     status: 200,
@@ -68,11 +76,14 @@ export class QuizSubmissionsController {
   })
   async findAll(
     @Query() query: QuizSubmissionQueryDto,
+    @CurrentUser() user: any,
   ): Promise<ListResponseDto<QuizSubmissionResponseDto>> {
-    return this.quizSubmissionsService.findAll(query);
+    return this.quizSubmissionsService.findAll(query, user.userId);
   }
 
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager')
   @ApiOperation({
     summary: 'Obter submissão por ID',
     description: 'Retorna detalhes de uma submissão específica',
@@ -86,11 +97,14 @@ export class QuizSubmissionsController {
   @ApiResponse({ status: 404, description: 'Submissão não encontrada' })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
   ): Promise<QuizSubmissionResponseDto> {
-    return this.quizSubmissionsService.findOne(id);
+    return this.quizSubmissionsService.findOne(id, user.userId);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager')
   @ApiOperation({
     summary: 'Atualizar submissão',
     description:
@@ -107,11 +121,14 @@ export class QuizSubmissionsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateQuizSubmissionDto: UpdateQuizSubmissionDto,
+    @CurrentUser() user: any,
   ): Promise<QuizSubmissionResponseDto> {
-    return this.quizSubmissionsService.update(id, updateQuizSubmissionDto);
+    return this.quizSubmissionsService.update(id, updateQuizSubmissionDto, user.userId);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar submissão',
@@ -120,7 +137,10 @@ export class QuizSubmissionsController {
   @ApiParam({ name: 'id', type: Number, description: 'ID da submissão' })
   @ApiResponse({ status: 204, description: 'Submissão deletada com sucesso' })
   @ApiResponse({ status: 404, description: 'Submissão não encontrada' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.quizSubmissionsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ): Promise<void> {
+    return this.quizSubmissionsService.remove(id, user.userId);
   }
 }

@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContentService } from './content.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException } from '@nestjs/common';
+import { AuthzService } from '../authz/authz.service';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 
 describe('ContentService', () => {
   let service: ContentService;
@@ -46,6 +50,12 @@ describe('ContentService', () => {
             tag: {
               findMany: jest.fn(),
             },
+          },
+        },
+        {
+          provide: AuthzService,
+          useValue: {
+            resolveListContextId: jest.fn().mockResolvedValue(1),
           },
         },
       ],
@@ -201,6 +211,54 @@ describe('ContentService', () => {
         }),
       );
     });
+
+    it('deve lançar BadRequestException CONTENT_THUMBNAIL_TOO_LARGE quando operação falha com erro de thumbnail (code 54000)', async () => {
+      const createData = {
+        title: 'New Content',
+        slug: 'new-content',
+        content: '<p>Content</p>',
+        summary: 'Summary',
+        reference: 'ref-456',
+        author_id: 1,
+        context_id: 1,
+        tags: [1],
+      };
+      jest.spyOn(prismaService.tag, 'findMany').mockRejectedValue(
+        new Error('index row requires "code: "54000""'),
+      );
+
+      await expect(service.create(createData)).rejects.toMatchObject({
+        name: 'BadRequestException',
+        response: {
+          code: 'CONTENT_THUMBNAIL_TOO_LARGE',
+          message: expect.stringContaining('thumbnail'),
+        },
+      });
+    });
+
+    it('deve lançar InternalServerErrorException quando operação falha com erro genérico', async () => {
+      const createData = {
+        title: 'New Content',
+        slug: 'new-content',
+        content: '<p>Content</p>',
+        summary: 'Summary',
+        reference: 'ref-456',
+        author_id: 1,
+        context_id: 1,
+        tags: [1],
+      };
+      jest
+        .spyOn(prismaService.tag, 'findMany')
+        .mockRejectedValue(new Error('Unknown DB error'));
+
+      await expect(service.create(createData)).rejects.toMatchObject({
+        name: 'InternalServerErrorException',
+        response: {
+          code: 'CONTENT_PERSISTENCE_ERROR',
+          message: 'Erro ao salvar conteúdo.',
+        },
+      });
+    });
   });
 
   describe('list', () => {
@@ -210,11 +268,11 @@ describe('ContentService', () => {
         .spyOn(prismaService.content, 'findMany')
         .mockResolvedValue(mockContents as any);
 
-      const result = await service.list();
+      const result = await service.list(1, 1);
 
       expect(result).toEqual(mockContents);
       expect(prismaService.content.findMany).toHaveBeenCalledWith({
-        where: { active: true },
+        where: { active: true, context_id: 1 },
         include: {
           content_tag: {
             include: {
@@ -230,7 +288,7 @@ describe('ContentService', () => {
     it('deve retornar array vazio quando não há conteúdos', async () => {
       jest.spyOn(prismaService.content, 'findMany').mockResolvedValue([]);
 
-      const result = await service.list();
+      const result = await service.list(1, 1);
 
       expect(result).toEqual([]);
     });
@@ -328,6 +386,16 @@ describe('ContentService', () => {
         }),
       );
       expect(result).toEqual(mockContent);
+    });
+
+    it('deve lançar InternalServerErrorException quando update com tags falha', async () => {
+      jest
+        .spyOn(prismaService.tag, 'findMany')
+        .mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.update(1, { title: 'T', tags: [1] }),
+      ).rejects.toThrow(InternalServerErrorException);
     });
 
     it('deve atualizar updated_at', async () => {

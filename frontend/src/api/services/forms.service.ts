@@ -11,6 +11,7 @@ export const formsService = {
     if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
     if (query?.active !== undefined) params.append('active', query.active.toString());
     if (query?.type) params.append('type', query.type);
+    if (query?.contextId != null) params.append('contextId', query.contextId.toString());
 
     const response = await apiClient.get(`${API_ENDPOINTS.FORMS.LIST}?${params.toString()}`);
     return response.data;
@@ -35,8 +36,14 @@ export const formsService = {
     await apiClient.delete(API_ENDPOINTS.FORMS.DELETE(id));
   },
 
-  async findFormsWithLatestVersions(): Promise<FormWithVersion[]> {
-    const response = await apiClient.get(`${API_ENDPOINTS.FORMS.LIST}/with-latest-versions`);
+  async findFormsWithLatestVersions(contextId?: number): Promise<FormWithVersion[]> {
+    const params = new URLSearchParams();
+    if (contextId != null) params.append('contextId', contextId.toString());
+    const qs = params.toString();
+    const url = qs
+      ? `${API_ENDPOINTS.FORMS.LIST}/with-latest-versions?${qs}`
+      : `${API_ENDPOINTS.FORMS.LIST}/with-latest-versions`;
+    const response = await apiClient.get(url);
     return response.data;
   },
 };

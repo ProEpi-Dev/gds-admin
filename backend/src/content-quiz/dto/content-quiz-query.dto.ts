@@ -34,4 +34,13 @@ export class ContentQuizQueryDto extends PaginationQueryDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'ID do contexto (para autorização do content_manager)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  contextId?: number;
 }

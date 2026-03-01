@@ -18,8 +18,10 @@ export const contentQuizService = {
     if (query?.contentId) params.append('contentId', query.contentId.toString());
     if (query?.formId) params.append('formId', query.formId.toString());
     if (query?.active !== undefined) {
-      // Converter para string 'true' ou 'false' que o backend aceita
       params.append('active', query.active ? 'true' : 'false');
+    }
+    if (query?.contextId != null) {
+      params.append('contextId', query.contextId.toString());
     }
 
     const response = await apiClient.get(`/content-quiz?${params.toString()}`);

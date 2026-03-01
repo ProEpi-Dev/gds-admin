@@ -5,7 +5,10 @@ import {
   IsBoolean,
   IsOptional,
   MinLength,
+  IsInt,
+  IsPositive,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -39,4 +42,14 @@ export class CreateUserDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'ID do papel global do usuário (somente admin pode definir)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  roleId?: number;
 }

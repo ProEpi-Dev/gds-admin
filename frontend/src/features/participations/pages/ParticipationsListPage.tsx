@@ -21,6 +21,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Participation } from '../../../types/participation.types';
@@ -28,6 +29,7 @@ import type { Participation } from '../../../types/participation.types';
 export default function ParticipationsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
@@ -38,6 +40,8 @@ export default function ParticipationsListPage() {
     page,
     pageSize,
     active: activeFilter,
+    contextId: currentContext?.id,
+    includeUser: true,
   });
 
   const deleteMutation = useDeleteParticipation();
@@ -60,18 +64,20 @@ export default function ParticipationsListPage() {
 
   const columns: Column<Participation>[] = [
     {
-      id: 'userId',
+      id: 'userName',
       label: t('participations.user'),
-      minWidth: 100,
+      minWidth: 160,
       mobileLabel: t('participations.user'),
-      render: (row) => `#${row.userId}`,
-    },
-    {
-      id: 'contextId',
-      label: t('participations.context'),
-      minWidth: 100,
-      mobileLabel: t('participations.context'),
-      render: (row) => `#${row.contextId}`,
+      render: (row) => (
+        <Box>
+          <Typography variant="body2">{row.userName ?? `#${row.userId}`}</Typography>
+          {row.userEmail && (
+            <Typography variant="caption" color="text.secondary">
+              {row.userEmail}
+            </Typography>
+          )}
+        </Box>
+      ),
     },
     {
       id: 'startDate',
@@ -85,7 +91,8 @@ export default function ParticipationsListPage() {
       label: t('participations.endDate'),
       minWidth: 120,
       mobileLabel: t('participations.endDate'),
-      render: (row) => row.endDate ? format(new Date(row.endDate), 'dd/MM/yyyy', { locale: ptBR }) : '-',
+      render: (row) =>
+        row.endDate ? format(new Date(row.endDate), 'dd/MM/yyyy', { locale: ptBR }) : '-',
     },
     {
       id: 'active',
@@ -146,13 +153,8 @@ export default function ParticipationsListPage() {
       : []),
   ];
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (error) {
-    return <ErrorAlert message={t('participations.errorLoading')} />;
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorAlert message={t('participations.errorLoading')} />;
 
   return (
     <>
@@ -165,7 +167,14 @@ export default function ParticipationsListPage() {
           gap: 2,
         }}
       >
-        <Typography variant="h4">{t('participations.title')}</Typography>
+        <Box>
+          <Typography variant="h4">{t('participations.title')}</Typography>
+          {currentContext && (
+            <Typography variant="body2" color="text.secondary">
+              {currentContext.name}
+            </Typography>
+          )}
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -176,13 +185,7 @@ export default function ParticipationsListPage() {
       </Box>
 
       <Stack spacing={2} sx={{ width: '100%' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 1,
-            flexWrap: 'wrap',
-          }}
-        >
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant={activeFilter === true ? 'contained' : 'outlined'}
             size="small"
@@ -201,9 +204,7 @@ export default function ParticipationsListPage() {
 
         <FilterChips
           filters={filters}
-          onClearAll={() => {
-            setActiveFilter(undefined);
-          }}
+          onClearAll={() => setActiveFilter(undefined)}
         />
 
         <DataTable
@@ -234,4 +235,3 @@ export default function ParticipationsListPage() {
     </>
   );
 }
-

@@ -18,20 +18,43 @@ import {
   getUserContextId,
   getUserContextAsManager,
 } from '../common/helpers/user-context.helper';
+import { AuthzService } from '../authz/authz.service';
 import { ContextResponseDto } from '../contexts/dto/context-response.dto';
 import { FormVersionResponseDto } from '../form-versions/dto/form-version-response.dto';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
 
 @Injectable()
 export class FormsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
 
   async create(
     createFormDto: CreateFormDto,
     userId: number,
   ): Promise<FormResponseDto> {
-    // Obter contexto do usuário logado (apenas gerenciadores)
-    const contextId = await getUserContextAsManager(this.prisma, userId);
+    const isAdmin = await this.authz.isAdmin(userId);
+    let contextId: number;
+
+    if (isAdmin) {
+      if (createFormDto.contextId == null) {
+        throw new BadRequestException(
+          'Admin deve informar o contexto (contextId) em que o formulário será criado',
+        );
+      }
+      const context = await this.prisma.context.findUnique({
+        where: { id: createFormDto.contextId, active: true },
+      });
+      if (!context) {
+        throw new BadRequestException(
+          `Contexto com ID ${createFormDto.contextId} não encontrado ou está inativo`,
+        );
+      }
+      contextId = createFormDto.contextId;
+    } else {
+      contextId = await getUserContextAsManager(this.prisma, userId);
+    }
 
     // Preparar dados
     const data: any = {
@@ -57,16 +80,25 @@ export class FormsService {
 
   async findFormsWithLatestVersions(
     userId: number,
+    contextId?: number,
   ): Promise<FormWithVersionDto[]> {
-    // Obter contexto do usuário logado (manager ou participante)
-    const userContextId = await getUserContextId(this.prisma, userId);
+    let filterContextId: number;
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin && contextId != null) {
+      filterContextId = contextId;
+    } else if (isAdmin) {
+      // Admin sem contextId: listar todos os formulários
+      filterContextId = undefined as any;
+    } else {
+      filterContextId = await getUserContextId(this.prisma, userId);
+    }
+
+    const where: any = { active: true };
+    if (filterContextId != null) where.context_id = filterContextId;
 
     // Buscar formulários ativos com suas últimas versões
     const forms = await this.prisma.form.findMany({
-      where: {
-        context_id: userContextId,
-        active: true,
-      },
+      where,
       include: {
         form_version: {
           where: { active: true },
@@ -103,13 +135,21 @@ export class FormsService {
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Obter contexto do usuário logado (manager ou participante)
-    const userContextId = await getUserContextId(this.prisma, userId);
+    const isAdmin = await this.authz.isAdmin(userId);
+    let contextId: number;
+    if (isAdmin) {
+      if (query.contextId == null) {
+        throw new BadRequestException(
+          'contextId é obrigatório para listar formulários. O backend sempre restringe a um contexto para evitar vazamento de dados.',
+        );
+      }
+      contextId = query.contextId;
+    } else {
+      contextId = await getUserContextId(this.prisma, userId);
+    }
 
-    // Construir filtros
-    const where: any = {
-      context_id: userContextId, // Sempre filtrar pelo contexto do usuário
-    };
+    // Construir filtros (sempre por contexto)
+    const where: any = { context_id: contextId };
 
     if (query.active !== undefined) {
       where.active = query.active;
@@ -151,6 +191,7 @@ export class FormsService {
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.type !== undefined) queryParams.type = query.type;
     if (query.reference !== undefined) queryParams.reference = query.reference;
+    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
 
     return {
       data: forms.map((form) => this.mapToResponseDto(form)),
@@ -188,14 +229,14 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado (manager ou participante)
-    const userContextId = await getUserContextId(this.prisma, userId);
-
-    // Verificar se o formulário pertence ao contexto do usuário
-    if (form.context_id !== userContextId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para visualizar este formulário',
-      );
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      const userContextId = await getUserContextId(this.prisma, userId);
+      if (form.context_id !== userContextId) {
+        throw new ForbiddenException(
+          'Você não tem permissão para visualizar este formulário',
+        );
+      }
     }
 
     return this.mapToResponseDto(form);
@@ -215,14 +256,14 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado (apenas gerenciadores)
-    const userContextId = await getUserContextAsManager(this.prisma, userId);
-
-    // Verificar se o formulário pertence ao contexto do usuário
-    if (existingForm.context_id !== userContextId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para editar este formulário',
-      );
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      const userContextId = await getUserContextAsManager(this.prisma, userId);
+      if (existingForm.context_id !== userContextId) {
+        throw new ForbiddenException(
+          'Você não tem permissão para editar este formulário',
+        );
+      }
     }
 
     // Preparar dados de atualização
@@ -267,14 +308,14 @@ export class FormsService {
       throw new NotFoundException(`Formulário com ID ${id} não encontrado`);
     }
 
-    // Obter contexto do usuário logado (apenas gerenciadores)
-    const userContextId = await getUserContextAsManager(this.prisma, userId);
-
-    // Verificar se o formulário pertence ao contexto do usuário
-    if (form.context_id !== userContextId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para deletar este formulário',
-      );
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      const userContextId = await getUserContextAsManager(this.prisma, userId);
+      if (form.context_id !== userContextId) {
+        throw new ForbiddenException(
+          'Você não tem permissão para deletar este formulário',
+        );
+      }
     }
 
     // Buscar todas as versões associadas

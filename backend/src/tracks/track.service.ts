@@ -2,59 +2,103 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateTrackDto } from './dto/create-track.dto';
 import { progress_status_enum } from '@prisma/client';
 
 @Injectable()
 export class TrackService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
 
   /**
-   * Determina o context_id a ser usado para a trilha
-   * Se não for fornecido, busca os contextos gerenciados pelo usuário
+   * Verifica se o usuário gerencia o contexto via participation_role (manager ou content_manager).
+   */
+  private async userManagesContext(userId: number, contextId: number): Promise<boolean> {
+    const found = await this.prisma.participation_role.findFirst({
+      where: {
+        participation: {
+          user_id: userId,
+          context_id: contextId,
+          active: true,
+        },
+        role: {
+          code: { in: ['manager', 'content_manager'] },
+          active: true,
+        },
+      },
+    });
+    return !!found;
+  }
+
+  /**
+   * Retorna os contextos gerenciados pelo usuário via participation_role.
+   */
+  private async getManagedContextIds(userId: number): Promise<{ context_id: number; context: { id: number; name: string; active: boolean } }[]> {
+    const participations = await this.prisma.participation.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+        participation_role: {
+          some: {
+            role: {
+              code: { in: ['manager', 'content_manager'] },
+              active: true,
+            },
+          },
+        },
+      },
+      include: {
+        context: { select: { id: true, name: true, active: true } },
+      },
+    });
+    return participations.map((p) => ({ context_id: p.context_id, context: p.context }));
+  }
+
+  /**
+   * Determina o context_id a ser usado para a trilha.
+   * Admin pode criar em qualquer contexto (desde que informe context_id e o contexto exista).
+   * Demais usuários precisam gerenciar o contexto (manager/content_manager).
    */
   private async resolveContextId(
     contextId: number | undefined,
     userId: number,
   ): Promise<number> {
-    if (contextId) {
-      // Se foi fornecido, valida se o usuário gerencia esse contexto
-      const isManager = await this.prisma.context_manager.findFirst({
-        where: {
-          user_id: userId,
-          context_id: contextId,
-          active: true,
-        },
-      });
+    const isAdmin = await this.authz.isAdmin(userId);
 
+    if (contextId) {
+      if (isAdmin) {
+        const context = await this.prisma.context.findUnique({
+          where: { id: contextId, active: true },
+        });
+        if (!context) {
+          throw new BadRequestException(
+            `Contexto com ID ${contextId} não encontrado ou está inativo`,
+          );
+        }
+        return contextId;
+      }
+      const isManager = await this.userManagesContext(userId, contextId);
       if (!isManager) {
         throw new BadRequestException(
           'Você não tem permissão para criar trilhas neste contexto',
         );
       }
-
       return contextId;
     }
 
-    // Se não foi fornecido, busca os contextos gerenciados pelo usuário
-    const managedContexts = await this.prisma.context_manager.findMany({
-      where: {
-        user_id: userId,
-        active: true,
-      },
-      include: {
-        context: {
-          select: {
-            id: true,
-            name: true,
-            active: true,
-          },
-        },
-      },
-    });
+    if (isAdmin) {
+      throw new BadRequestException(
+        'Informe o context_id no payload. Selecione um contexto no cabeçalho da aplicação para criar a trilha.',
+      );
+    }
 
+    const managedContexts = await this.getManagedContextIds(userId);
     const activeContexts = managedContexts.filter((mc) => mc.context.active);
 
     if (activeContexts.length === 0) {
@@ -126,11 +170,27 @@ export class TrackService {
     });
   }
 
-  async list(query?: { contextId?: number }) {
+  async list(query: { contextId?: number }, userId: number) {
+    const isAdmin = await this.authz.isAdmin(userId);
     const where: any = { active: true };
 
-    if (query?.contextId) {
-      where.context_id = query.contextId;
+    if (isAdmin) {
+      if (query.contextId) where.context_id = query.contextId;
+    } else {
+      if (query.contextId) {
+        // Não-admin: valida que gerencia o contexto informado
+        const manages = await this.userManagesContext(userId, query.contextId);
+        if (!manages) {
+          throw new ForbiddenException('Você não tem acesso a este contexto');
+        }
+        where.context_id = query.contextId;
+      } else {
+        // Sem contextId: restringe aos contextos gerenciados
+        const managed = await this.getManagedContextIds(userId);
+        const contextIds = managed.map((m) => m.context_id);
+        if (contextIds.length === 0) return [];
+        where.context_id = { in: contextIds };
+      }
     }
 
     return this.prisma.track.findMany({
@@ -154,8 +214,8 @@ export class TrackService {
     });
   }
 
-  async get(id: number) {
-    return this.prisma.track.findUnique({
+  async get(id: number, userId: number) {
+    const track = await this.prisma.track.findUnique({
       where: { id },
       include: {
         section: {
@@ -174,9 +234,33 @@ export class TrackService {
         },
       },
     });
+
+    if (!track) throw new NotFoundException(`Trilha com ID ${id} não encontrada`);
+
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      const manages = await this.userManagesContext(userId, track.context_id);
+      if (!manages) throw new ForbiddenException('Você não tem acesso a esta trilha');
+    }
+
+    return track;
   }
 
-  async removeSequence(trackId: number, sectionId: number, sequenceId: number) {
+  /**
+   * Valida que o usuário gerencia o contexto da trilha. Lança ForbiddenException se não.
+   */
+  private async assertUserManagesTrack(userId: number, trackId: number): Promise<void> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    const track = await this.prisma.track.findUnique({ where: { id: trackId }, select: { context_id: true } });
+    if (!track) throw new NotFoundException(`Trilha com ID ${trackId} não encontrada`);
+    const manages = await this.userManagesContext(userId, track.context_id);
+    if (!manages) throw new ForbiddenException('Você não tem permissão para modificar esta trilha');
+  }
+
+  async removeSequence(trackId: number, sectionId: number, sequenceId: number, userId: number) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     const sequence = await this.prisma.sequence.findUnique({
       where: { id: sequenceId },
     });
@@ -203,11 +287,12 @@ export class TrackService {
       });
     }
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 
   async update(id: number, data: CreateTrackDto, user: any) {
     const { sections, context_id, ...trackData } = data;
+    const userId: number = user.userId;
 
     // Verifica se a trilha existe
     const existingTrack = await this.prisma.track.findUnique({
@@ -218,9 +303,12 @@ export class TrackService {
       throw new NotFoundException('Trilha não encontrada');
     }
 
-    // Se context_id foi fornecido e é diferente do atual, valida permissão
+    // Valida que o usuário gerencia o contexto atual da trilha
+    await this.assertUserManagesTrack(userId, id);
+
+    // Se context_id foi fornecido e é diferente do atual, valida permissão no novo contexto também
     if (context_id && context_id !== existingTrack.context_id) {
-      await this.resolveContextId(context_id, user.id);
+      await this.resolveContextId(context_id, userId);
     }
 
     // Handle empty date strings
@@ -339,7 +427,7 @@ export class TrackService {
       await this.syncTrackProgressSequences(id);
     }
 
-    return this.get(id);
+    return this.get(id, userId);
   }
 
   private async syncTrackProgressSequences(trackId: number) {
@@ -474,7 +562,9 @@ export class TrackService {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number, userId: number) {
+    await this.assertUserManagesTrack(userId, id);
+
     // Soft delete
     return this.prisma.track.update({
       where: { id },
@@ -486,7 +576,10 @@ export class TrackService {
     trackId: number,
     sectionId: number,
     contentId: number,
+    userId: number,
   ) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     // Get the current sequences in the section to determine the order
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
@@ -511,10 +604,12 @@ export class TrackService {
       },
     });
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 
-  async addFormToSection(trackId: number, sectionId: number, formId: number) {
+  async addFormToSection(trackId: number, sectionId: number, formId: number, userId: number) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     // Get the current sequences in the section to determine the order
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
@@ -539,14 +634,17 @@ export class TrackService {
       },
     });
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 
   async removeContentFromSection(
     trackId: number,
     sectionId: number,
     contentId: number,
+    userId: number,
   ) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     // Find the sequence that contains this content in this section
     const sequence = await this.prisma.sequence.findFirst({
       where: {
@@ -578,13 +676,16 @@ export class TrackService {
       });
     }
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 
   async reorderSections(
     trackId: number,
     sections: Array<{ id: number; order: number }>,
+    userId: number,
   ) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     // Update order for each section
     for (const section of sections) {
       await this.prisma.section.update({
@@ -593,14 +694,17 @@ export class TrackService {
       });
     }
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 
   async reorderSequences(
     trackId: number,
     sectionId: number,
     sequences: Array<{ id: number; order: number }>,
+    userId: number,
   ) {
+    await this.assertUserManagesTrack(userId, trackId);
+
     // Update order for each sequence
     for (const sequence of sequences) {
       await this.prisma.sequence.update({
@@ -609,6 +713,6 @@ export class TrackService {
       });
     }
 
-    return this.get(trackId);
+    return this.get(trackId, userId);
   }
 }

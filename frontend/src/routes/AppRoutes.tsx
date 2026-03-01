@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useUserRole } from "../hooks/useUserRole";
 import AppLayout from "../components/layout/AppLayout";
 import AdminRoute from "./AdminRoute";
+import ManagerOrAdminOnlyRoute from "./ManagerOrAdminOnlyRoute";
 import UserRoute from "./UserRoute";
 import LoginPage from "../features/auth/pages/LoginPage";
 import SignupPage from "../features/auth/pages/SignupPage";
@@ -30,10 +31,6 @@ import ParticipationsListPage from "../features/participations/pages/Participati
 import ParticipationCreatePage from "../features/participations/pages/ParticipationCreatePage";
 import ParticipationEditPage from "../features/participations/pages/ParticipationEditPage";
 import ParticipationViewPage from "../features/participations/pages/ParticipationViewPage";
-import UsersListPage from "../features/users/pages/UsersListPage";
-import UserCreatePage from "../features/users/pages/UserCreatePage";
-import UserEditPage from "../features/users/pages/UserEditPage";
-import UserViewPage from "../features/users/pages/UserViewPage";
 import LocationsListPage from "../features/locations/pages/LocationsListPage";
 import LocationCreatePage from "../features/locations/pages/LocationCreatePage";
 import LocationEditPage from "../features/locations/pages/LocationEditPage";
@@ -69,6 +66,8 @@ import TrackCycleFormPage from "../features/track-cycles/pages/TrackCycleFormPag
 import TrackCycleStudentsPage from "../features/track-cycles/pages/TrackCycleStudentsPage";
 import TrackCycleProgressPage from "../features/track-cycles/pages/TrackCycleProgressPage";
 import TrackCycleQuizTakePage from "../features/track-cycles/pages/TrackCycleQuizTakePage";
+import RolesListPage from "../features/roles/pages/RolesListPage";
+import AdminsListPage from "../features/admins/pages/AdminsListPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -86,7 +85,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
-  const { isManager, isLoading } = useUserRole();
+  const { isAdmin, isManager, isContentManager, isLoading } = useUserRole();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -96,8 +95,8 @@ function RootRedirect() {
     return <div>Carregando...</div>;
   }
 
-  // Se é manager, vai para dashboard, senão para área do app
-  if (isManager) {
+  // Admin, manager ou content_manager vão para o dashboard; demais para área do app
+  if (isAdmin || isManager || isContentManager) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -221,7 +220,9 @@ export default function AppRoutes() {
         path="/reports"
         element={
           <AdminRoute>
-            <ReportsListPage />
+            <ManagerOrAdminOnlyRoute>
+              <ReportsListPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -229,7 +230,9 @@ export default function AppRoutes() {
         path="/reports/map"
         element={
           <AdminRoute>
-            <ReportsMapPage />
+            <ManagerOrAdminOnlyRoute>
+              <ReportsMapPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -237,7 +240,9 @@ export default function AppRoutes() {
         path="/reports/new"
         element={
           <AdminRoute>
-            <ReportCreatePage />
+            <ManagerOrAdminOnlyRoute>
+              <ReportCreatePage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -245,7 +250,9 @@ export default function AppRoutes() {
         path="/reports/:id"
         element={
           <AdminRoute>
-            <ReportViewPage />
+            <ManagerOrAdminOnlyRoute>
+              <ReportViewPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -253,7 +260,9 @@ export default function AppRoutes() {
         path="/reports/:id/edit"
         element={
           <AdminRoute>
-            <ReportEditPage />
+            <ManagerOrAdminOnlyRoute>
+              <ReportEditPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -261,7 +270,9 @@ export default function AppRoutes() {
         path="/participations"
         element={
           <AdminRoute>
-            <ParticipationsListPage />
+            <ManagerOrAdminOnlyRoute>
+              <ParticipationsListPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -269,7 +280,9 @@ export default function AppRoutes() {
         path="/participations/new"
         element={
           <AdminRoute>
-            <ParticipationCreatePage />
+            <ManagerOrAdminOnlyRoute>
+              <ParticipationCreatePage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -277,7 +290,9 @@ export default function AppRoutes() {
         path="/participations/:id"
         element={
           <AdminRoute>
-            <ParticipationViewPage />
+            <ManagerOrAdminOnlyRoute>
+              <ParticipationViewPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -285,39 +300,9 @@ export default function AppRoutes() {
         path="/participations/:id/edit"
         element={
           <AdminRoute>
-            <ParticipationEditPage />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/users"
-        element={
-          <AdminRoute>
-            <UsersListPage />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/users/new"
-        element={
-          <AdminRoute>
-            <UserCreatePage />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/users/:id"
-        element={
-          <AdminRoute>
-            <UserViewPage />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/users/:id/edit"
-        element={
-          <AdminRoute>
-            <UserEditPage />
+            <ManagerOrAdminOnlyRoute>
+              <ParticipationEditPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />
@@ -540,6 +525,22 @@ export default function AppRoutes() {
         }
       />
 
+      <Route
+        path="/roles"
+        element={
+          <AdminRoute>
+            <RolesListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admins"
+        element={
+          <AdminRoute>
+            <AdminsListPage />
+          </AdminRoute>
+        }
+      />
       <Route
         path="/legal-documents"
         element={

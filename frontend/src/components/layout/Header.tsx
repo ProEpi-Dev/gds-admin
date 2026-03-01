@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -6,52 +6,102 @@ import {
   Typography,
   IconButton,
   Menu,
-  MenuItem,
   Avatar,
   Box,
   Divider,
+  Chip,
+  MenuItem,
+  Skeleton,
+  Button,
+  Popover,
+  TextField,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  InputAdornment,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
   Lock as LockIcon,
+  Hub as ContextIcon,
+  Check as CheckIcon,
+  ExpandMore as ExpandMoreIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUserRole } from '../../hooks/useUserRole';
+import { useCurrentContext } from '../../contexts/CurrentContextContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
+}
+
+function getRoleLabel(
+  isAdmin: boolean,
+  isManager: boolean,
+  isContentManager: boolean,
+  isParticipant: boolean,
+): string {
+  if (isAdmin) return 'Administrador';
+  if (isManager) return 'Gerente';
+  if (isContentManager) return 'Gerente de Conteúdo';
+  if (isParticipant) return 'Participante';
+  return 'Sem papel';
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
+  const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
+    useUserRole();
+  const { currentContext, setCurrentContext, availableContexts } = useCurrentContext();
 
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
+  const [contextAnchorEl, setContextAnchorEl] = useState<null | HTMLElement>(null);
+  const [contextSearch, setContextSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const profileOpen = Boolean(profileAnchorEl);
+  const contextOpen = Boolean(contextAnchorEl);
+
+  const handleProfileClick = (e: React.MouseEvent<HTMLElement>) =>
+    setProfileAnchorEl(e.currentTarget);
+  const handleProfileClose = () => setProfileAnchorEl(null);
+
+  const handleContextClick = (e: React.MouseEvent<HTMLElement>) => {
+    setContextAnchorEl(e.currentTarget);
+    setContextSearch('');
+    // Foca na busca ao abrir
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
-
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleContextClose = () => {
+    setContextAnchorEl(null);
+    setContextSearch('');
   };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
-    handleClose();
+    handleProfileClose();
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const roleLabel = getRoleLabel(isAdmin, isManager, isContentManager, isParticipant);
+
+  // Filtra contextos pela busca
+  const filteredContexts = contextSearch.trim()
+    ? availableContexts.filter((c) =>
+        c.name.toLowerCase().includes(contextSearch.toLowerCase()),
+      )
+    : availableContexts;
+
+  const canSwitchContext = availableContexts.length > 1;
 
   return (
     <AppBar
@@ -63,51 +113,142 @@ export default function Header({ onMenuClick }: HeaderProps) {
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
     >
-      <Toolbar>
-        <IconButton
-          color="inherit"
-          aria-label="abrir menu"
-          edge="start"
-          onClick={onMenuClick}
-          sx={{ mr: 2 }}
-        >
+      <Toolbar sx={{ gap: 1 }}>
+        <IconButton color="inherit" aria-label="abrir menu" edge="start" onClick={onMenuClick} sx={{ mr: 1 }}>
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+
+        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
           {t('layout.appTitle')}
         </Typography>
-        {user && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              onClick={handleClick}
+
+        {/* Seletor de contexto */}
+        {!roleLoading && currentContext && (
+          canSwitchContext ? (
+            <>
+              <Button
+                onClick={handleContextClick}
+                startIcon={<ContextIcon />}
+                endIcon={<ExpandMoreIcon />}
+                size="small"
+                variant="outlined"
+                sx={{ textTransform: 'none', maxWidth: 280 }}
+              >
+                <Typography noWrap variant="body2" sx={{ maxWidth: 200 }}>
+                  {currentContext.name}
+                </Typography>
+              </Button>
+
+              <Popover
+                open={contextOpen}
+                anchorEl={contextAnchorEl}
+                onClose={handleContextClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{ sx: { width: 300, mt: 0.5 } }}
+              >
+                {/* Campo de busca */}
+                <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                  <TextField
+                    inputRef={searchRef}
+                    size="small"
+                    fullWidth
+                    placeholder="Buscar contexto..."
+                    value={contextSearch}
+                    onChange={(e) => setContextSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+
+                {/* Lista de contextos */}
+                <List
+                  dense
+                  sx={{ maxHeight: 320, overflowY: 'auto', py: 0.5 }}
+                >
+                  {filteredContexts.length === 0 ? (
+                    <Box sx={{ px: 2, py: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Nenhum contexto encontrado
+                      </Typography>
+                    </Box>
+                  ) : (
+                    filteredContexts.map((ctx) => {
+                      const isSelected = currentContext.id === ctx.id;
+                      return (
+                        <ListItemButton
+                          key={ctx.id}
+                          selected={isSelected}
+                          onClick={() => {
+                            setCurrentContext(ctx);
+                            handleContextClose();
+                          }}
+                          sx={{ borderRadius: 1, mx: 0.5 }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 32 }}>
+                            {isSelected ? (
+                              <CheckIcon fontSize="small" color="primary" />
+                            ) : (
+                              <ContextIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                            )}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={ctx.name}
+                            primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                          />
+                        </ListItemButton>
+                      );
+                    })
+                  )}
+                </List>
+              </Popover>
+            </>
+          ) : (
+            // Contexto único: exibe só o chip sem interação
+            <Chip
+              icon={<ContextIcon sx={{ fontSize: '14px !important' }} />}
+              label={currentContext.name}
               size="small"
-              sx={{ ml: 2 }}
-              aria-controls={open ? 'account-menu' : undefined}
+              variant="outlined"
+              sx={{ fontSize: 12 }}
+            />
+          )
+        )}
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* Menu de perfil */}
+        {user && (
+          <Box>
+            <IconButton
+              onClick={handleProfileClick}
+              size="small"
+              aria-controls={profileOpen ? 'account-menu' : undefined}
               aria-haspopup="true"
-              aria-expanded={open ? 'true' : undefined}
+              aria-expanded={profileOpen ? 'true' : undefined}
             >
               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                 {getInitials(user.name)}
               </Avatar>
             </IconButton>
             <Menu
-              anchorEl={anchorEl}
+              anchorEl={profileAnchorEl}
               id="account-menu"
-              open={open}
-              onClose={handleClose}
-              onClick={handleClose}
+              open={profileOpen}
+              onClose={handleProfileClose}
+              onClick={handleProfileClose}
               PaperProps={{
                 elevation: 0,
                 sx: {
+                  minWidth: 240,
                   overflow: 'visible',
                   filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                   mt: 1.5,
-                  '& .MuiAvatar-root': {
-                    width: 32,
-                    height: 32,
-                    ml: -0.5,
-                    mr: 1,
-                  },
                   '&:before': {
                     content: '""',
                     display: 'block',
@@ -125,21 +266,30 @@ export default function Header({ onMenuClick }: HeaderProps) {
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <Box sx={{ px: 2, py: 1.5 }}>
-                <Typography variant="body2" fontWeight="bold" noWrap>
-                  {user.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {user.email}
-                </Typography>
+              <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                  <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', fontSize: 16 }}>
+                    {getInitials(user.name)}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" fontWeight="bold" noWrap>
+                      {user.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                      {user.email}
+                    </Typography>
+                  </Box>
+                </Box>
+                {roleLoading ? (
+                  <Skeleton variant="rounded" width={100} height={22} />
+                ) : (
+                  <Chip label={roleLabel} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                )}
               </Box>
+
               <Divider />
-              <MenuItem
-                onClick={() => {
-                  navigate('/change-password');
-                  handleClose();
-                }}
-              >
+
+              <MenuItem onClick={() => navigate('/change-password')}>
                 <LockIcon sx={{ mr: 1, fontSize: 20 }} />
                 {t('auth.changePassword')}
               </MenuItem>
@@ -154,4 +304,3 @@ export default function Header({ onMenuClick }: HeaderProps) {
     </AppBar>
   );
 }
-

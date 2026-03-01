@@ -19,13 +19,26 @@ import {
 } from '@mui/icons-material';
 import { useQuizSubmissions } from '../hooks/useQuizSubmissions';
 import { useForms } from '../../forms/hooks/useForms';
-import { useParticipations } from '../../participations/hooks/useParticipations';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ErrorAlert from '../../../components/common/ErrorAlert';
+import SelectParticipationSearch from '../../../components/common/SelectParticipationSearch';
 import type { QuizSubmission } from '../../../types/quiz-submission.types';
 
 const STORAGE_KEY = 'quiz-submissions-filters';
+
+const DAYS_DEFAULT_RANGE = 15;
+
+function getDefaultDateRange(): { startDate: string; endDate: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - (DAYS_DEFAULT_RANGE - 1));
+  return {
+    startDate: start.toISOString().split('T')[0],
+    endDate: end.toISOString().split('T')[0],
+  };
+}
 
 interface SavedFilters {
   page: number;
@@ -39,6 +52,7 @@ interface SavedFilters {
 export default function QuizSubmissionsListPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentContext } = useCurrentContext();
 
   // Função para carregar filtros do localStorage
   const loadFiltersFromStorage = (): SavedFilters | null => {
@@ -76,10 +90,13 @@ export default function QuizSubmissionsListPage() {
   const [formId, setFormId] = useState<number | undefined>(
     stateFormId || savedFilters?.formId
   );
+  const defaultRange = getDefaultDateRange();
   const [startDate, setStartDate] = useState<string>(
-    savedFilters?.startDate || ''
+    savedFilters?.startDate?.trim() || defaultRange.startDate
   );
-  const [endDate, setEndDate] = useState<string>(savedFilters?.endDate || '');
+  const [endDate, setEndDate] = useState<string>(
+    savedFilters?.endDate?.trim() || defaultRange.endDate
+  );
 
   // Salvar filtros no localStorage sempre que mudarem
   useEffect(() => {
@@ -94,20 +111,18 @@ export default function QuizSubmissionsListPage() {
     saveFiltersToStorage(filters);
   }, [page, pageSize, participationId, formId, startDate, endDate]);
 
-  // Buscar quizes para o filtro
-  const { data: formsData } = useForms({
-    type: 'quiz',
-    page: 1,
-    pageSize: 100,
-  });
+  // Buscar quizes do contexto atual para o filtro (backend exige contextId)
+  const { data: formsData } = useForms(
+    {
+      type: 'quiz',
+      page: 1,
+      pageSize: 100,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
-  // Buscar participações para o filtro
-  const { data: participationsData } = useParticipations({
-    page: 1,
-    pageSize: 100,
-  });
-
-  // Buscar submissões
+  // Buscar submissões (filtradas pelo contexto selecionado)
   const { data, isLoading, error } = useQuizSubmissions({
     page,
     pageSize,
@@ -116,6 +131,7 @@ export default function QuizSubmissionsListPage() {
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     active: true,
+    contextId: currentContext?.id,
   });
 
   const columns: Column<QuizSubmission>[] = useMemo(
@@ -289,25 +305,18 @@ export default function QuizSubmissionsListPage() {
           </Typography>
           <Stack spacing={2} sx={{ mt: 2 }}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <FormControl sx={{ minWidth: 200 }}>
-                <InputLabel>Participação</InputLabel>
-                <Select
-                  value={participationId || ''}
+              <Box sx={{ minWidth: 280 }}>
+                <SelectParticipationSearch
+                  value={null}
+                  valueId={participationId ?? null}
+                  onChange={(p) => setParticipationId(p?.id ?? undefined)}
+                  contextId={currentContext?.id}
                   label="Participação"
-                  onChange={(e) =>
-                    setParticipationId(
-                      e.target.value ? Number(e.target.value) : undefined
-                    )
-                  }
-                >
-                  <MenuItem value="">Todas</MenuItem>
-                  {participationsData?.data?.map((participation) => (
-                    <MenuItem key={participation.id} value={participation.id}>
-                      ID: {participation.id}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  placeholder="Todas (digite para buscar...)"
+                  noOptionsText="Nenhuma participação encontrada"
+                  size="medium"
+                />
+              </Box>
 
               <FormControl sx={{ minWidth: 200 }}>
                 <InputLabel>Quiz</InputLabel>

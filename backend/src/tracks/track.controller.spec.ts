@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackController } from './track.controller';
 import { TrackService } from './track.service';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('TrackController', () => {
   let controller: TrackController;
@@ -32,7 +33,10 @@ describe('TrackController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<TrackController>(TrackController);
     service = module.get<TrackService>(TrackService);
@@ -63,10 +67,10 @@ describe('TrackController', () => {
 
       jest.spyOn(service, 'list').mockResolvedValue(mockTracks as any);
 
-      const result = await controller.list({});
+      const result = await controller.list({}, { userId: 1 });
 
       expect(result).toEqual(mockTracks);
-      expect(service.list).toHaveBeenCalledWith({});
+      expect(service.list).toHaveBeenCalledWith({}, 1);
     });
   });
 
@@ -74,18 +78,18 @@ describe('TrackController', () => {
     it('deve retornar track por id', async () => {
       jest.spyOn(service, 'get').mockResolvedValue(mockTrack as any);
 
-      const result = await controller.get('1');
+      const result = await controller.get('1', { userId: 1 });
 
       expect(result).toEqual(mockTrack);
-      expect(service.get).toHaveBeenCalledWith(1);
+      expect(service.get).toHaveBeenCalledWith(1, 1);
     });
 
     it('deve converter string id para number', async () => {
       jest.spyOn(service, 'get').mockResolvedValue(mockTrack as any);
 
-      await controller.get('123');
+      await controller.get('123', { userId: 1 });
 
-      expect(service.get).toHaveBeenCalledWith(123);
+      expect(service.get).toHaveBeenCalledWith(123, 1);
     });
   });
 
@@ -125,18 +129,18 @@ describe('TrackController', () => {
     it('deve deletar (soft delete) a track', async () => {
       jest.spyOn(service, 'delete').mockResolvedValue(mockTrack as any);
 
-      const result = await controller.delete('1');
+      const result = await controller.delete('1', { userId: 1 });
 
       expect(result).toEqual(mockTrack);
-      expect(service.delete).toHaveBeenCalledWith(1);
+      expect(service.delete).toHaveBeenCalledWith(1, 1);
     });
 
     it('deve converter string id para number', async () => {
       jest.spyOn(service, 'delete').mockResolvedValue(mockTrack as any);
 
-      await controller.delete('789');
+      await controller.delete('789', { userId: 1 });
 
-      expect(service.delete).toHaveBeenCalledWith(789);
+      expect(service.delete).toHaveBeenCalledWith(789, 1);
     });
   });
 });

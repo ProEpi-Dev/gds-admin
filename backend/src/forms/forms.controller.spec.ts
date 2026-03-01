@@ -12,6 +12,7 @@ import { FormQueryDto } from './dto/form-query.dto';
 import { FormResponseDto } from './dto/form-response.dto';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('FormsController', () => {
   let controller: FormsController;
@@ -75,7 +76,10 @@ describe('FormsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<FormsController>(FormsController);
     formsService = module.get<FormsService>(FormsService);
@@ -145,6 +149,7 @@ describe('FormsController', () => {
       expect(result).toEqual(mockForms);
       expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
         mockUser.userId,
+        undefined,
       );
     });
 
@@ -157,6 +162,7 @@ describe('FormsController', () => {
 
       expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
         mockUser.userId,
+        undefined,
       );
     });
   });

@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useReportsPoints } from '../hooks/useReports';
 import { useForms } from '../../forms/hooks/useForms';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import ReportsMapView from '../components/ReportsMapView';
 import { useTranslation } from '../../../hooks/useTranslation';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
@@ -28,6 +29,7 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 export default function ReportsMapPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
 
   // Estado dos filtros
   const [formId, setFormId] = useState<number | undefined>(undefined);
@@ -45,12 +47,16 @@ export default function ReportsMapPage() {
     endDate: string;
   } | null>(null);
 
-  // Buscar formulários para o filtro
-  const { data: formsData, isLoading: formsLoading } = useForms({
-    page: 1,
-    pageSize: 100,
-    active: true,
-  });
+  // Backend exige contextId; listar formulários do contexto atual para o filtro
+  const { data: formsData, isLoading: formsLoading } = useForms(
+    {
+      page: 1,
+      pageSize: 100,
+      active: true,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
   // Buscar pontos quando searchParams mudar
   const {

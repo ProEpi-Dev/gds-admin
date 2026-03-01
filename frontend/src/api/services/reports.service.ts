@@ -15,6 +15,7 @@ export const reportsService = {
     if (query?.formId) params.append('formId', query.formId.toString());
     if (query?.startDate) params.append('startDate', query.startDate);
     if (query?.endDate) params.append('endDate', query.endDate);
+    if (query?.contextId != null) params.append('contextId', query.contextId.toString());
 
     const response = await apiClient.get(`${API_ENDPOINTS.REPORTS.LIST}?${params.toString()}`);
     return response.data;

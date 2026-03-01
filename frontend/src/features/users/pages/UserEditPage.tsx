@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -14,12 +14,19 @@ import {
   CircularProgress,
   FormControlLabel,
   Switch,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import { useUser, useUpdateUser } from '../hooks/useUsers';
+import { useRoles } from '../../roles/hooks/useRoles';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useTranslation } from '../../../hooks/useTranslation';
+import { useUserRole } from '../../../hooks/useUserRole';
 import type { UpdateUserDto } from '../../../types/user.types';
 
 const formSchema = z.object({
@@ -27,6 +34,7 @@ const formSchema = z.object({
   email: z.string().email('Email inválido').min(1, 'Email é obrigatório').optional(),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').optional().or(z.literal('')),
   active: z.boolean().optional(),
+  roleId: z.number().nullable().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -36,13 +44,16 @@ export default function UserEditPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  const { isAdmin } = useUserRole();
 
   const userId = id ? parseInt(id, 10) : null;
   const { data: user, isLoading, error: queryError } = useUser(userId);
+  const { data: roles } = useRoles();
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     reset,
     watch,
@@ -60,6 +71,7 @@ export default function UserEditPage() {
         email: user.email,
         password: '',
         active: user.active,
+        roleId: user.roleId ?? null,
       });
     }
   }, [user, reset]);
@@ -73,42 +85,26 @@ export default function UserEditPage() {
 
     const updateData: UpdateUserDto = {};
 
-    if (data.name !== undefined) {
-      updateData.name = data.name;
-    }
-
-    if (data.email !== undefined) {
-      updateData.email = data.email;
-    }
-
-    if (data.password && data.password.trim() !== '') {
-      updateData.password = data.password;
-    }
-
-    if (data.active !== undefined) {
-      updateData.active = data.active;
-    }
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.password && data.password.trim() !== '') updateData.password = data.password;
+    if (data.active !== undefined) updateData.active = data.active;
+    if (isAdmin && data.roleId !== undefined) updateData.roleId = data.roleId;
 
     updateMutation.mutate(
       { id: userId, data: updateData },
       {
-        onSuccess: () => {
-          navigate(`/users/${userId}`);
-        },
-        onError: (err: unknown) => {
-          setError(getErrorMessage(err, t('users.errorUpdatingUser')));
-        },
+        onSuccess: () => navigate(`/users/${userId}`),
+        onError: (err: unknown) => setError(getErrorMessage(err, t('users.errorUpdatingUser'))),
       },
     );
   };
 
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (queryError || !user) return <ErrorAlert message={t('users.errorLoadingUser')} />;
 
-  if (queryError || !user) {
-    return <ErrorAlert message={t('users.errorLoadingUser')} />;
-  }
+  // Apenas papéis de escopo global estão disponíveis para atribuição direta ao usuário
+  const globalRoles = roles?.filter((r) => r.scope === 'global') ?? [];
 
   return (
     <Box>
@@ -161,6 +157,42 @@ export default function UserEditPage() {
               label={t('users.status')}
             />
 
+            {/* Papel global — somente admin pode alterar */}
+            {isAdmin && (
+              <>
+                <Divider />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Papel global
+                </Typography>
+                <Controller
+                  name="roleId"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl fullWidth>
+                      <InputLabel>Papel global</InputLabel>
+                      <Select
+                        {...field}
+                        value={field.value ?? ''}
+                        label="Papel global"
+                        onChange={(e) =>
+                          field.onChange(e.target.value === '' ? null : Number(e.target.value))
+                        }
+                      >
+                        <MenuItem value="">
+                          <em>Sem papel global</em>
+                        </MenuItem>
+                        {globalRoles.map((role) => (
+                          <MenuItem key={role.id} value={role.id}>
+                            {role.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+              </>
+            )}
+
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
               <Button
                 type="submit"
@@ -179,4 +211,3 @@ export default function UserEditPage() {
     </Box>
   );
 }
-

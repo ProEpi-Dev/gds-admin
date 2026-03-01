@@ -9,6 +9,7 @@ erDiagram
     USER ||--o{ USER_LEGAL_ACCEPTANCE : "accepts"
     USER }o--|| GENDER : "has"
     USER }o--|| LOCATION : "located_in"
+    USER }o--|| ROLE : "role_id"
     
     USER {
         int id PK
@@ -17,10 +18,17 @@ erDiagram
         string password
         int gender_id FK
         int location_id FK
+        int role_id FK
         string external_identifier
         datetime created_at
         datetime updated_at
         boolean active
+    }
+    
+    ROLE {
+        int id PK
+        string code UK
+        string scope
     }
     
     GENDER {
@@ -88,6 +96,7 @@ Armazena informações dos usuários do sistema.
 | `password` | VARCHAR(255) | Senha criptografada |
 | `gender_id` | INT | Referência ao gênero (FK → gender.id) |
 | `location_id` | INT | Referência à localização (FK → location.id) |
+| `role_id` | INT | Papel global (FK → role.id), opcional; ex.: admin. Ver [Papéis e Permissões (RBAC)](papeis-permissoes-rbac) |
 | `external_identifier` | VARCHAR(100) | Identificador externo (opcional) |
 | `created_at` | TIMESTAMP | Data de criação |
 | `updated_at` | TIMESTAMP | Data de última atualização |
@@ -97,6 +106,7 @@ Armazena informações dos usuários do sistema.
 - `idx_user_email` (email) - UNIQUE
 - `idx_user_gender_id` (gender_id)
 - `idx_user_location_id` (location_id)
+- `idx_user_role_id` (role_id)
 - `idx_user_external_identifier` (external_identifier)
 
 ### GENDER
@@ -182,9 +192,10 @@ Registro de aceitação de documentos legais pelos usuários.
 
 1. **USER → GENDER**: Um usuário tem um gênero (opcional)
 2. **USER → LOCATION**: Um usuário está localizado em uma localização (opcional)
-3. **USER → USER_LEGAL_ACCEPTANCE**: Um usuário pode aceitar múltiplos documentos legais
-4. **LEGAL_DOCUMENT_TYPE → LEGAL_DOCUMENT**: Um tipo pode ter múltiplas versões
-5. **LEGAL_DOCUMENT → USER_LEGAL_ACCEPTANCE**: Um documento pode ser aceito por múltiplos usuários
+3. **USER → ROLE**: Um usuário pode ter um papel global (opcional), ex.: administrador. Papéis por contexto ficam em [participation_role](contextos-participacao#participation_role) e [RBAC](papeis-permissoes-rbac).
+4. **USER → USER_LEGAL_ACCEPTANCE**: Um usuário pode aceitar múltiplos documentos legais
+5. **LEGAL_DOCUMENT_TYPE → LEGAL_DOCUMENT**: Um tipo pode ter múltiplas versões
+6. **LEGAL_DOCUMENT → USER_LEGAL_ACCEPTANCE**: Um documento pode ser aceito por múltiplos usuários
 
 ## Regras de Negócio
 

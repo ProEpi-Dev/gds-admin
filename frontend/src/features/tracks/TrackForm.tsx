@@ -22,7 +22,6 @@ import {
   ListItemSecondaryAction,
   ListItemButton,
   ClickAwayListener,
-  Autocomplete,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -32,7 +31,7 @@ import {
   DragIndicator as DragIndicatorIcon,
 } from "@mui/icons-material";
 import { useSnackbar } from "../../hooks/useSnackbar";
-import { useContexts } from "../contexts/hooks/useContexts";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 import {
   DndContext,
   closestCenter,
@@ -404,7 +403,7 @@ export default function TrackForm() {
 
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
-  const { data: contextsResponse } = useContexts();
+  const { currentContext } = useCurrentContext();
 
   const removeInvalidSequences = (
     sections: typeof form.sections,
@@ -527,17 +526,34 @@ export default function TrackForm() {
     }
   };
 
-  useEffect(() => {
-    contentService.findAll().then((res) => {
-      setContents(res.data);
-    });
-  }, []);
+  // Contexto para carregar conteúdos e quizzes: na edição vem da trilha; na criação vem do cabeçalho
+  const contextIdForData = form.context_id ?? currentContext?.id;
 
   useEffect(() => {
-    formsService.findAll().then((res) => {
-      setForms(res.data.filter((f: any) => f.type === "quiz"));
+    if (contextIdForData == null) {
+      setContents([]);
+      setForms([]);
+      return;
+    }
+    contentService.findAll({ contextId: contextIdForData }).then((res) => {
+      setContents(res.data);
     });
-  }, []);
+  }, [contextIdForData]);
+
+  useEffect(() => {
+    if (contextIdForData == null) return;
+    formsService
+      .findAll({
+        type: "quiz",
+        active: true,
+        page: 1,
+        pageSize: 100,
+        contextId: contextIdForData,
+      })
+      .then((res) => {
+        setForms(res.data);
+      });
+  }, [contextIdForData]);
 
   useEffect(() => {
     if (!contents.length && !forms.length) return;
@@ -547,6 +563,13 @@ export default function TrackForm() {
       sections: removeInvalidSequences(prev.sections, contents, forms),
     }));
   }, [contents, forms]);
+
+  // Na criação, usar sempre o contexto selecionado no cabeçalho da aplicação
+  useEffect(() => {
+    if (!isEdit && currentContext?.id) {
+      setForm((prev) => ({ ...prev, context_id: currentContext.id }));
+    }
+  }, [isEdit, currentContext?.id]);
 
   useEffect(() => {
     if (isEdit && id) {
@@ -719,6 +742,11 @@ export default function TrackForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!isEdit && !form.context_id) {
+      snackbar.showError("Selecione um contexto no cabeçalho da aplicação para criar a trilha.");
+      return;
+    }
+
     if (form.control_period) {
       if (!form.start_date || !form.end_date) {
         snackbar.showError("Informe a data de início e fim");
@@ -767,28 +795,6 @@ export default function TrackForm() {
           <Typography variant="h6" mb={2}>
             Informações Gerais
           </Typography>
-
-          {/* Contexto (Opcional) */}
-          <Autocomplete
-            options={contextsResponse?.data || []}
-            getOptionLabel={(option: any) => option.name || ""}
-            value={
-              contextsResponse?.data?.find(
-                (c: any) => c.id === form.context_id,
-              ) || null
-            }
-            onChange={(_, newValue) => {
-              setForm((prev) => ({
-                ...prev,
-                context_id: newValue?.id || undefined,
-              }));
-            }}
-            renderInput={(params) => (
-              <TextField {...params} label="Contexto (Opcional)" />
-            )}
-            noOptionsText="Nenhum contexto encontrado"
-            sx={{ mb: 2 }}
-          />
 
           <TextField
             fullWidth

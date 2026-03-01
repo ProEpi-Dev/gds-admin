@@ -1,8 +1,11 @@
 import apiClient from "../client";
 
 export const ContentService = {
-  list() {
-    return apiClient.get("/contents");
+  list(contextId?: number) {
+    const params = new URLSearchParams();
+    if (contextId != null) params.append("contextId", String(contextId));
+    const query = params.toString();
+    return apiClient.get(`/contents${query ? `?${query}` : ""}`);
   },
 
   get(id: number) {
@@ -23,10 +26,11 @@ export const ContentService = {
 };
 
 export const contentService = {
-  async findAll(query?: { page?: number; pageSize?: number }) {
+  async findAll(query?: { page?: number; pageSize?: number; contextId?: number }) {
     const params = new URLSearchParams();
     if (query?.page) params.append("page", query.page.toString());
     if (query?.pageSize) params.append("pageSize", query.pageSize.toString());
+    if (query?.contextId != null) params.append("contextId", query.contextId.toString());
 
     const response = await apiClient.get(`/contents?${params.toString()}`);
     return {

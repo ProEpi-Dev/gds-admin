@@ -9,6 +9,7 @@ import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ReportsController', () => {
   let controller: ReportsController;
@@ -66,7 +67,10 @@ describe('ReportsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ReportsController>(ReportsController);
     reportsService = module.get<ReportsService>(ReportsService);
@@ -84,10 +88,10 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'create').mockResolvedValue(mockReport);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, { userId: 1 });
 
       expect(result).toEqual(mockReport);
-      expect(reportsService.create).toHaveBeenCalledWith(createDto);
+      expect(reportsService.create).toHaveBeenCalledWith(createDto, 1);
     });
 
     it('deve lançar BadRequestException quando participation não existe', async () => {
@@ -104,7 +108,7 @@ describe('ReportsController', () => {
           new BadRequestException('Participação não encontrada'),
         );
 
-      await expect(controller.create(createDto)).rejects.toThrow(
+      await expect(controller.create(createDto, { userId: 1 })).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -123,7 +127,7 @@ describe('ReportsController', () => {
           new BadRequestException('Versão do formulário não encontrada'),
         );
 
-      await expect(controller.create(createDto)).rejects.toThrow(
+      await expect(controller.create(createDto, { userId: 1 })).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -135,12 +139,14 @@ describe('ReportsController', () => {
         page: 1,
         pageSize: 20,
       };
+      const user = { userId: 1 };
 
       jest.spyOn(reportsService, 'findAll').mockResolvedValue(mockListResponse);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, user);
 
       expect(result).toEqual(mockListResponse);
+      expect(reportsService.findAll).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve aplicar filtros corretamente', async () => {
@@ -152,12 +158,13 @@ describe('ReportsController', () => {
         formVersionId: 1,
         reportType: 'POSITIVE',
       };
+      const user = { userId: 1 };
 
       jest.spyOn(reportsService, 'findAll').mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll(query, user);
 
-      expect(reportsService.findAll).toHaveBeenCalledWith(query);
+      expect(reportsService.findAll).toHaveBeenCalledWith(query, 1);
     });
   });
 
@@ -167,12 +174,14 @@ describe('ReportsController', () => {
         startDate: '2024-01-01',
         endDate: '2024-01-31',
       };
+      const user = { userId: 1 };
 
       jest.spyOn(reportsService, 'findPoints').mockResolvedValue(mockPoints);
 
-      const result = await controller.findPoints(query);
+      const result = await controller.findPoints(query, user);
 
       expect(result).toEqual(mockPoints);
+      expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
       expect(result[0]).toHaveProperty('latitude');
       expect(result[0]).toHaveProperty('longitude');
     });
@@ -185,9 +194,9 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'findPoints').mockResolvedValue(mockPoints);
 
-      await controller.findPoints(query);
+      await controller.findPoints(query, { userId: 1 });
 
-      expect(reportsService.findPoints).toHaveBeenCalledWith(query);
+      expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar por formId', async () => {
@@ -199,9 +208,9 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'findPoints').mockResolvedValue(mockPoints);
 
-      await controller.findPoints(query);
+      await controller.findPoints(query, { userId: 1 });
 
-      expect(reportsService.findPoints).toHaveBeenCalledWith(query);
+      expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar por formReference', async () => {
@@ -213,9 +222,9 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'findPoints').mockResolvedValue(mockPoints);
 
-      await controller.findPoints(query);
+      await controller.findPoints(query, { userId: 1 });
 
-      expect(reportsService.findPoints).toHaveBeenCalledWith(query);
+      expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar apenas reports ativos', async () => {
@@ -226,9 +235,9 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'findPoints').mockResolvedValue(mockPoints);
 
-      await controller.findPoints(query);
+      await controller.findPoints(query, { userId: 1 });
 
-      expect(reportsService.findPoints).toHaveBeenCalledWith(query);
+      expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
     });
   });
 
@@ -236,7 +245,7 @@ describe('ReportsController', () => {
     it('deve retornar report quando existe', async () => {
       jest.spyOn(reportsService, 'findOne').mockResolvedValue(mockReport);
 
-      const result = await controller.findOne(1);
+      const result = await controller.findOne(1, { userId: 1 });
 
       expect(result).toEqual(mockReport);
     });
@@ -246,7 +255,7 @@ describe('ReportsController', () => {
         .spyOn(reportsService, 'findOne')
         .mockRejectedValue(new NotFoundException('Report não encontrado'));
 
-      await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(1, { userId: 1 })).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -259,7 +268,7 @@ describe('ReportsController', () => {
       const updatedReport = { ...mockReport, reportType: 'NEGATIVE' as const };
       jest.spyOn(reportsService, 'update').mockResolvedValue(updatedReport);
 
-      const result = await controller.update(1, updateDto);
+      const result = await controller.update(1, updateDto, { userId: 1 });
 
       expect(result).toEqual(updatedReport);
     });
@@ -273,7 +282,7 @@ describe('ReportsController', () => {
         .spyOn(reportsService, 'update')
         .mockRejectedValue(new NotFoundException('Report não encontrado'));
 
-      await expect(controller.update(999, updateDto)).rejects.toThrow(
+      await expect(controller.update(999, updateDto, { userId: 1 })).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -291,9 +300,9 @@ describe('ReportsController', () => {
       };
       jest.spyOn(reportsService, 'update').mockResolvedValue(updatedReport);
 
-      await controller.update(1, updateDto);
+      await controller.update(1, updateDto, { userId: 1 });
 
-      expect(reportsService.update).toHaveBeenCalledWith(1, updateDto);
+      expect(reportsService.update).toHaveBeenCalledWith(1, updateDto, 1);
     });
   });
 
@@ -301,9 +310,9 @@ describe('ReportsController', () => {
     it('deve deletar report permanentemente', async () => {
       jest.spyOn(reportsService, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(1);
+      await controller.remove(1, { userId: 1 });
 
-      expect(reportsService.remove).toHaveBeenCalledWith(1);
+      expect(reportsService.remove).toHaveBeenCalledWith(1, 1);
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -311,7 +320,7 @@ describe('ReportsController', () => {
         .spyOn(reportsService, 'remove')
         .mockRejectedValue(new NotFoundException('Report não encontrado'));
 
-      await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove(1, { userId: 1 })).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -1,16 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackCyclesService } from './track-cycles.service';
+import { AuthzService } from '../authz/authz.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { track_cycle_status_enum } from '@prisma/client';
 
 describe('TrackCyclesService', () => {
   let service: TrackCyclesService;
+  let moduleRef: TestingModule;
   let prisma: PrismaService;
+  let authz: { isAdmin: jest.Mock; hasAnyRole: jest.Mock; getManagedContextIds: jest.Mock; getParticipantContextIds: jest.Mock };
 
   const prismaMock = {
     track: {
@@ -37,14 +41,25 @@ describe('TrackCyclesService', () => {
       providers: [
         TrackCyclesService,
         {
+          provide: AuthzService,
+          useValue: {
+            isAdmin: jest.fn().mockResolvedValue(false),
+            hasAnyRole: jest.fn().mockResolvedValue(true),
+            getManagedContextIds: jest.fn().mockResolvedValue([1]),
+            getParticipantContextIds: jest.fn().mockResolvedValue([1]),
+          },
+        },
+        {
           provide: PrismaService,
           useValue: prismaMock,
         },
       ],
     }).compile();
 
+    moduleRef = module;
     service = module.get<TrackCyclesService>(TrackCyclesService);
     prisma = module.get<PrismaService>(PrismaService);
+    authz = module.get(AuthzService) as any;
   });
 
   afterEach(() => {
@@ -76,6 +91,76 @@ describe('TrackCyclesService', () => {
           contextId: 1,
         } as any),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws if context not found', async () => {
+      (prisma.track.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.context.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.create({
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          trackId: 1,
+          contextId: 99,
+        } as any),
+      ).rejects.toThrow('Contexto com ID 99 não encontrado');
+    });
+
+    it('throws ConflictException if cycle with same name exists for track/context', async () => {
+      (prisma.track.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.context.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue({ id: 1 });
+
+      await expect(
+        service.create({
+          name: 'Existing',
+          trackId: 1,
+          contextId: 1,
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.create({
+          name: 'Existing',
+          trackId: 1,
+          contextId: 1,
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+        } as any),
+      ).rejects.toThrow(/Já existe um ciclo com o nome/);
+    });
+
+    it('throws ConflictException if mandatorySlug already taken', async () => {
+      (prisma.track.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.context.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.track_cycle.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 5 })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 5 });
+
+      await expect(
+        service.create({
+          name: 'Cycle',
+          trackId: 1,
+          contextId: 1,
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          mandatorySlug: 'slug-ocupado',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.create({
+          name: 'Cycle',
+          trackId: 1,
+          contextId: 1,
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          mandatorySlug: 'slug-ocupado',
+        } as any),
+      ).rejects.toThrow(/slug obrigatório/);
     });
 
     it('creates cycle successfully', async () => {
@@ -149,15 +234,60 @@ describe('TrackCyclesService', () => {
   it('findAll()', async () => {
     (prisma.track_cycle.findMany as jest.Mock).mockResolvedValue([]);
 
-    const result = await service.findAll({} as any);
+    const result = await service.findAll({} as any, 1);
 
     expect(result).toEqual([]);
+  });
+
+  it('findAll() retorna [] quando não-admin e sem contextos permitidos', async () => {
+    (authz.getManagedContextIds as jest.Mock).mockResolvedValue([]);
+    (authz.getParticipantContextIds as jest.Mock).mockResolvedValue([]);
+
+    const result = await service.findAll({} as any, 1);
+
+    expect(result).toEqual([]);
+    expect(prisma.track_cycle.findMany).not.toHaveBeenCalled();
+  });
+
+  it('findAll() lança ForbiddenException quando não-admin filtra por contexto sem acesso', async () => {
+    (authz.getManagedContextIds as jest.Mock).mockResolvedValue([1]);
+    (authz.getParticipantContextIds as jest.Mock).mockResolvedValue([1]);
+
+    await expect(service.findAll({ contextId: 99 } as any, 1)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('findOne() lança ForbiddenException quando não-admin sem acesso de leitura ao ciclo', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      context_id: 5,
+      track: {},
+      context: {},
+    });
+    (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+    (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+    await expect(service.findOne(1, 1)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('update() lança ForbiddenException quando não-admin sem permissão de gerenciar', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      track_id: 1,
+      context_id: 5,
+      name: 'Old',
+    });
+    (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+    (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+    await expect(service.update(1, {}, 1)).rejects.toThrow(ForbiddenException);
   });
 
   it('findOne() throws if not found', async () => {
     (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(service.findOne(1)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne(1, 1)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('findActive()', async () => {
@@ -171,9 +301,42 @@ describe('TrackCyclesService', () => {
   it('update() throws if not found', async () => {
     (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(service.update(1, {} as any)).rejects.toBeInstanceOf(
+    await expect(service.update(1, {}, 1)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('update() lança BadRequestException quando endDate < startDate', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      track_id: 1,
+      context_id: 1,
+      name: 'Old',
+      start_date: new Date('2025-01-01'),
+      end_date: new Date('2025-01-10'),
+    });
+
+    await expect(
+      service.update(
+        1,
+        { startDate: '2025-01-10', endDate: '2025-01-01' },
+        1,
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('update() lança ConflictException quando novo nome já existe no mesmo track/contexto', async () => {
+    (prisma.track_cycle.findUnique as jest.Mock).mockResolvedValue({
+      id: 1,
+      track_id: 1,
+      context_id: 1,
+      name: 'Old',
+    });
+    (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue({ id: 2 });
+
+    await expect(
+      service.update(1, { name: 'Existing Name' }, 1),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('update() with mandatorySlug when slug is free', async () => {
@@ -189,7 +352,7 @@ describe('TrackCyclesService', () => {
       mandatory_slug: 'boas-vidas',
     });
 
-    await service.update(1, { mandatorySlug: 'boas-vidas' } as any);
+    await service.update(1, { mandatorySlug: 'boas-vidas' }, 1);
 
     expect(prisma.track_cycle.update).toHaveBeenCalled();
     const updateCall = (prisma.track_cycle.update as jest.Mock).mock.calls[0][0];
@@ -206,7 +369,7 @@ describe('TrackCyclesService', () => {
     (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue({ id: 2 });
 
     await expect(
-      service.update(1, { mandatorySlug: 'formacao-inicial' } as any),
+      service.update(1, { mandatorySlug: 'formacao-inicial' }, 1),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -220,7 +383,7 @@ describe('TrackCyclesService', () => {
     (prisma.track_cycle.findFirst as jest.Mock).mockResolvedValue({ id: 2 });
 
     await expect(
-      service.updateStatus(1, { status: track_cycle_status_enum.active }),
+      service.updateStatus(1, { status: track_cycle_status_enum.active }, 1),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -230,7 +393,7 @@ describe('TrackCyclesService', () => {
       track_progress: [{ id: 1 }],
     });
 
-    await expect(service.remove(1)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.remove(1, 1)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('getStudentsProgress()', async () => {
@@ -240,7 +403,7 @@ describe('TrackCyclesService', () => {
       { progress_percentage: 50 },
     ]);
 
-    const result = await service.getStudentsProgress(1);
+    const result = await service.getStudentsProgress(1, 1);
 
     expect(result[0].progress_percentage).toBe(50);
   });

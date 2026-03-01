@@ -78,4 +78,13 @@ export class ReportQueryDto extends PaginationQueryDto {
   @IsDateString()
   @IsOptional()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por contexto (reports cuja participação pertence ao contexto)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  contextId?: number;
 }

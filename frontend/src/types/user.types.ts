@@ -3,6 +3,8 @@ export interface User {
   name: string;
   email: string;
   active: boolean;
+  roleId?: number | null;
+  roleName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -12,6 +14,8 @@ export interface CreateUserDto {
   email: string;
   password: string;
   active?: boolean;
+  /** ID do papel global (ex.: admin). Apenas admin pode definir ao criar. */
+  roleId?: number;
 }
 
 import type { PaginationQuery } from './api.types';
@@ -21,6 +25,7 @@ export interface UpdateUserDto {
   email?: string;
   password?: string;
   active?: boolean;
+  roleId?: number | null;
 }
 
 export interface UserQuery extends PaginationQuery {
@@ -28,12 +33,19 @@ export interface UserQuery extends PaginationQuery {
   search?: string;
 }
 
+export interface ContextInfo {
+  id: number;
+  name: string;
+}
+
 export interface UserRoleResponse {
+  isAdmin: boolean;
   isManager: boolean;
+  isContentManager: boolean;
   isParticipant: boolean;
   contexts: {
-    asManager: number[];
-    asParticipant: number[];
+    asManager: ContextInfo[];
+    asParticipant: ContextInfo[];
   };
 }
 

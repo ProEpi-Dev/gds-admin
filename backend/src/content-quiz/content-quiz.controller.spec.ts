@@ -4,6 +4,7 @@ import { ContentQuizService } from './content-quiz.service';
 import { CreateContentQuizDto } from './dto/create-content-quiz.dto';
 import { UpdateContentQuizDto } from './dto/update-content-quiz.dto';
 import { ContentQuizQueryDto } from './dto/content-quiz-query.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ContentQuizController', () => {
   let controller: ContentQuizController;
@@ -63,7 +64,10 @@ describe('ContentQuizController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContentQuizController>(ContentQuizController);
     service = module.get<ContentQuizService>(ContentQuizService);

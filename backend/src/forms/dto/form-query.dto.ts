@@ -40,4 +40,13 @@ export class FormQueryDto extends PaginationQueryDto {
   @IsString()
   @IsOptional()
   reference?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por contexto (obrigatório para não-admin; admin pode usar para filtrar pelo contexto selecionado no frontend)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  contextId?: number;
 }

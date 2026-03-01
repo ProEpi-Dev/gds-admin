@@ -2,8 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
@@ -18,9 +21,27 @@ import {
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ReportsService.name);
 
-  async create(createReportDto: CreateReportDto): Promise<ReportResponseDto> {
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
+
+  /**
+   * Verifica se o usuário pode operar sobre um report.
+   * Admin: sempre pode. Manager/content_manager: deve gerenciar o contexto da participação.
+   */
+  private async assertCanManageReport(userId: number, reportContextId: number): Promise<void> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    const canManage = await this.authz.hasAnyRole(userId, reportContextId, ['manager', 'content_manager']);
+    if (!canManage) {
+      throw new ForbiddenException('Você não tem permissão para acessar este report');
+    }
+  }
+
+  async create(createReportDto: CreateReportDto, userId: number): Promise<ReportResponseDto> {
     // Validar participação
     const participation = await this.prisma.participation.findUnique({
       where: { id: createReportDto.participationId },
@@ -30,6 +51,16 @@ export class ReportsService {
       throw new BadRequestException(
         `Participação com ID ${createReportDto.participationId} não encontrada`,
       );
+    }
+
+    // Validar que o usuário autenticado é dono da participação
+    // ou é manager/admin do contexto (envio em nome de outro participante)
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin && participation.user_id !== userId) {
+      const canManage = await this.authz.hasAnyRole(userId, participation.context_id, ['manager', 'content_manager']);
+      if (!canManage) {
+        throw new ForbiddenException('Você não pode criar um report para a participação de outro usuário');
+      }
     }
 
     // Validar versão do formulário
@@ -64,13 +95,22 @@ export class ReportsService {
 
   async findAll(
     query: ReportQueryDto,
+    userId: number,
   ): Promise<ListResponseDto<ReportResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Construir filtros
-    const where: any = {};
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      query.contextId,
+      'GET /reports',
+    );
+
+    // Construir filtros (context_id sempre aplicado via participação)
+    const where: any = {
+      participation: { context_id: filterContextId },
+    };
 
     if (query.active !== undefined) {
       where.active = query.active;
@@ -137,6 +177,7 @@ export class ReportsService {
     if (query.formId !== undefined) queryParams.formId = query.formId;
     if (query.startDate !== undefined) queryParams.startDate = query.startDate;
     if (query.endDate !== undefined) queryParams.endDate = query.endDate;
+    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
 
     return {
       data: reports.map((report) => this.mapToResponseDto(report)),
@@ -157,14 +198,17 @@ export class ReportsService {
     };
   }
 
-  async findOne(id: number): Promise<ReportResponseDto> {
+  async findOne(id: number, userId: number): Promise<ReportResponseDto> {
     const report = await this.prisma.report.findUnique({
       where: { id },
+      include: { participation: { select: { context_id: true } } },
     });
 
     if (!report) {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageReport(userId, (report as any).participation.context_id);
 
     return this.mapToResponseDto(report);
   }
@@ -172,15 +216,19 @@ export class ReportsService {
   async update(
     id: number,
     updateReportDto: UpdateReportDto,
+    userId: number,
   ): Promise<ReportResponseDto> {
     // Verificar se report existe
     const existingReport = await this.prisma.report.findUnique({
       where: { id },
+      include: { participation: { select: { context_id: true } } },
     });
 
     if (!existingReport) {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageReport(userId, (existingReport as any).participation.context_id);
 
     // Validar participação se fornecido
     if (updateReportDto.participationId !== undefined) {
@@ -244,15 +292,18 @@ export class ReportsService {
     return this.mapToResponseDto(report);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, userId: number): Promise<void> {
     // Verificar se report existe
     const report = await this.prisma.report.findUnique({
       where: { id },
+      include: { participation: { select: { context_id: true } } },
     });
 
     if (!report) {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
+
+    await this.assertCanManageReport(userId, (report as any).participation.context_id);
 
     // Hard delete - remoção permanente
     await this.prisma.report.delete({
@@ -262,7 +313,15 @@ export class ReportsService {
 
   async findPoints(
     query: ReportsPointsQueryDto,
+    userId: number,
   ): Promise<ReportPointResponseDto[]> {
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      query.contextId,
+      'GET /reports/points',
+      { allowParticipantContext: true },
+    );
+
     // Converter datas para Date objects
     const startDate = new Date(query.startDate);
     startDate.setHours(0, 0, 0, 0);
@@ -276,7 +335,7 @@ export class ReportsService {
     endDate.setSeconds(59);
     endDate.setMilliseconds(999);
 
-    // Buscar reports ativos dentro do período
+    // Buscar reports ativos dentro do período, sempre filtrados pelo contexto
     const whereClause: any = {
       active: true,
       created_at: {
@@ -285,6 +344,7 @@ export class ReportsService {
       },
       participation: {
         active: true,
+        context_id: filterContextId,
       },
       occurrence_location: {
         not: null,

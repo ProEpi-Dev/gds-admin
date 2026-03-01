@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackCyclesController } from './track-cycles.controller';
 import { TrackCyclesService } from './track-cycles.service';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('TrackCyclesController', () => {
   let controller: TrackCyclesController;
@@ -26,7 +27,10 @@ describe('TrackCyclesController', () => {
           useValue: serviceMock,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<TrackCyclesController>(TrackCyclesController);
     service = module.get(TrackCyclesService) as jest.Mocked<TrackCyclesService>;
@@ -54,46 +58,46 @@ describe('TrackCyclesController', () => {
     service.findAll.mockResolvedValue([]);
 
     const query: any = {};
-    const result = await controller.findAll(query);
+    const result = await controller.findAll(query, { userId: 1 });
 
     expect(result).toEqual([]);
-    expect(service.findAll).toHaveBeenCalledWith(query);
+    expect(service.findAll).toHaveBeenCalledWith(query, 1);
   });
 
   it('findActive()', async () => {
     service.findActive.mockResolvedValue([]);
 
-    const result = await controller.findActive(1, 2);
+    const result = await controller.findActive('1', '2', { userId: 1 });
 
     expect(result).toEqual([]);
-    expect(service.findActive).toHaveBeenCalledWith(1, 2);
+    expect(service.findActive).toHaveBeenCalledWith(1, 2, 1);
   });
 
   it('findOne()', async () => {
     service.findOne.mockResolvedValue({ id: 1 } as any);
 
-    const result = await controller.findOne(1);
+    const result = await controller.findOne(1, { userId: 1 });
 
     expect(result).toEqual({ id: 1 });
-    expect(service.findOne).toHaveBeenCalledWith(1);
+    expect(service.findOne).toHaveBeenCalledWith(1, 1);
   });
 
   it('getStudentsProgress()', async () => {
     service.getStudentsProgress.mockResolvedValue([]);
 
-    const result = await controller.getStudentsProgress(1);
+    const result = await controller.getStudentsProgress(1, { userId: 1 });
 
     expect(result).toEqual([]);
-    expect(service.getStudentsProgress).toHaveBeenCalledWith(1);
+    expect(service.getStudentsProgress).toHaveBeenCalledWith(1, 1);
   });
 
   it('update()', async () => {
     service.update.mockResolvedValue({ id: 1 } as any);
 
-    const result = await controller.update(1, { name: 'Novo' } as any);
+    const result = await controller.update(1, { name: 'Novo' } as any, { userId: 1 });
 
     expect(result).toEqual({ id: 1 });
-    expect(service.update).toHaveBeenCalledWith(1, { name: 'Novo' });
+    expect(service.update).toHaveBeenCalledWith(1, { name: 'Novo' }, 1);
   });
 
   it('updateStatus()', async () => {
@@ -101,18 +105,18 @@ describe('TrackCyclesController', () => {
 
     const result = await controller.updateStatus(1, {
       status: 'active',
-    } as any);
+    } as any, { userId: 1 });
 
     expect(result).toEqual({ id: 1 });
-    expect(service.updateStatus).toHaveBeenCalledWith(1, { status: 'active' });
+    expect(service.updateStatus).toHaveBeenCalledWith(1, { status: 'active' }, 1);
   });
 
   it('remove()', async () => {
     service.remove.mockResolvedValue({ id: 1 } as any);
 
-    const result = await controller.remove(1);
+    const result = await controller.remove(1, { userId: 1 });
 
     expect(result).toEqual({ id: 1 });
-    expect(service.remove).toHaveBeenCalledWith(1);
+    expect(service.remove).toHaveBeenCalledWith(1, 1);
   });
 });

@@ -1,7 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { ParticipationsService } from './participations.service';
+
+jest.mock('bcrypt');
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateParticipationDto } from './dto/create-participation.dto';
 import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
@@ -46,8 +54,15 @@ describe('ParticipationsService', () => {
               update: jest.fn(),
               count: jest.fn(),
             },
+            role: {
+              findUnique: jest.fn(),
+            },
+            participation_role: {
+              create: jest.fn(),
+            },
             user: {
               findUnique: jest.fn(),
+              create: jest.fn(),
             },
             context: {
               findUnique: jest.fn(),
@@ -55,6 +70,22 @@ describe('ParticipationsService', () => {
             report: {
               count: jest.fn(),
             },
+            $transaction: jest.fn((cb: (tx: any) => Promise<any>) => {
+              const tx = {
+                participation: { create: jest.fn() },
+                role: { findUnique: jest.fn() },
+                participation_role: { create: jest.fn() },
+              };
+              return cb(tx);
+            }),
+          },
+        },
+        {
+          provide: AuthzService,
+          useValue: {
+            isAdmin: jest.fn().mockResolvedValue(false),
+            resolveListContextId: jest.fn().mockResolvedValue(1),
+            getManagedContextIds: jest.fn().mockResolvedValue([1]),
           },
         },
       ],
@@ -79,9 +110,14 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
-      jest
-        .spyOn(prismaService.participation, 'create')
-        .mockResolvedValue(mockParticipation as any);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: { create: jest.fn().mockResolvedValue(mockParticipation) },
+          role: { findUnique: jest.fn().mockResolvedValue({ id: 1, code: 'participant', scope: 'context' }) },
+          participation_role: { create: jest.fn().mockResolvedValue({}) },
+        };
+        return cb(tx);
+      });
 
       const result = await service.create(createParticipationDto);
 
@@ -107,9 +143,14 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
-      jest
-        .spyOn(prismaService.participation, 'create')
-        .mockResolvedValue(mockParticipation as any);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: { create: jest.fn().mockResolvedValue(mockParticipation) },
+          role: { findUnique: jest.fn().mockResolvedValue({ id: 1, code: 'participant', scope: 'context' }) },
+          participation_role: { create: jest.fn().mockResolvedValue({}) },
+        };
+        return cb(tx);
+      });
 
       await service.create(createParticipationDto);
 
@@ -131,13 +172,18 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
-      jest
-        .spyOn(prismaService.participation, 'create')
-        .mockResolvedValue(mockParticipation as any);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: { create: jest.fn().mockResolvedValue(mockParticipation) },
+          role: { findUnique: jest.fn().mockResolvedValue({ id: 1, code: 'participant', scope: 'context' }) },
+          participation_role: { create: jest.fn().mockResolvedValue({}) },
+        };
+        return cb(tx);
+      });
 
       await service.create(createParticipationDto);
 
-      expect(prismaService.participation.create).toHaveBeenCalled();
+      expect((prismaService as any).$transaction).toHaveBeenCalled();
     });
 
     it('deve lançar BadRequestException quando endDate < startDate', async () => {
@@ -156,6 +202,75 @@ describe('ParticipationsService', () => {
         .mockResolvedValue(mockContext as any);
 
       await expect(service.create(createParticipationDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve criar participação com novo usuário (newUserName, newUserEmail, newUserPassword)', async () => {
+      const createDto: CreateParticipationDto = {
+        contextId: 1,
+        startDate: '2024-01-01',
+        active: true,
+        newUserName: 'Novo User',
+        newUserEmail: 'novo@example.com',
+        newUserPassword: 'senha123',
+      };
+
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
+      jest.spyOn(prismaService.user, 'create').mockResolvedValue({
+        id: 10,
+        name: 'Novo User',
+        email: 'novo@example.com',
+        password: 'hashed',
+        active: true,
+      } as any);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: { create: jest.fn().mockResolvedValue({ ...mockParticipation, id: 1 }) },
+          role: { findUnique: jest.fn().mockResolvedValue({ id: 1, code: 'participant', scope: 'context' }) },
+          participation_role: { create: jest.fn().mockResolvedValue({}) },
+        };
+        return cb(tx);
+      });
+
+      const result = await service.create(createDto);
+
+      expect(result).toHaveProperty('id', 1);
+      expect(prismaService.user.create).toHaveBeenCalledWith({
+        data: {
+          name: 'Novo User',
+          email: 'novo@example.com',
+          password: 'hashed',
+          active: true,
+        },
+      });
+    });
+
+    it('deve lançar ConflictException quando novo usuário tem email já em uso', async () => {
+      const createDto: CreateParticipationDto = {
+        contextId: 1,
+        startDate: '2024-01-01',
+        newUserName: 'Novo',
+        newUserEmail: 'existente@example.com',
+        newUserPassword: 'senha123',
+      };
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({
+        id: 5,
+        email: 'existente@example.com',
+      } as any);
+
+      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('deve lançar BadRequestException quando nem userId nem dados de novo usuário são informados', async () => {
+      const createDto: CreateParticipationDto = {
+        contextId: 1,
+        startDate: '2024-01-01',
+      };
+
+      await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -204,7 +319,7 @@ describe('ParticipationsService', () => {
         .mockResolvedValue([mockParticipation] as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(1);
 
-      const result = await service.findAll(query);
+      const result = await service.findAll(query, 1);
 
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('meta');
@@ -225,7 +340,7 @@ describe('ParticipationsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.participation.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

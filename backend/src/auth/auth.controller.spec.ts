@@ -49,13 +49,14 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'password123',
       };
+      const mockReq = { socket: { remoteAddress: '127.0.0.1' }, headers: {}, ip: undefined } as any;
 
       jest.spyOn(authService, 'login').mockResolvedValue(mockLoginResponse);
 
-      const result = await controller.login(loginDto);
+      const result = await controller.login(loginDto, mockReq);
 
       expect(result).toEqual(mockLoginResponse);
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
+      expect(authService.login).toHaveBeenCalledWith(loginDto, '127.0.0.1');
     });
 
     it('deve lançar UnauthorizedException quando credenciais são inválidas', async () => {
@@ -63,12 +64,13 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'wrongPassword',
       };
+      const mockReq = { socket: { remoteAddress: '192.168.1.1' }, headers: {}, ip: undefined } as any;
 
       jest
         .spyOn(authService, 'login')
         .mockRejectedValue(new UnauthorizedException('Invalid credentials'));
 
-      await expect(controller.login(loginDto)).rejects.toThrow(
+      await expect(controller.login(loginDto, mockReq)).rejects.toThrow(
         UnauthorizedException,
       );
     });

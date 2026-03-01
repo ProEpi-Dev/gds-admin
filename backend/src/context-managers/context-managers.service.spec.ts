@@ -14,7 +14,7 @@ describe('ContextManagersService', () => {
   let service: ContextManagersService;
   let prismaService: PrismaService;
 
-  const mockContextManager = {
+  const mockParticipation = {
     id: 1,
     user_id: 1,
     context_id: 1,
@@ -25,6 +25,7 @@ describe('ContextManagersService', () => {
 
   const mockContext = { id: 1, name: 'Test Context' };
   const mockUser = { id: 1, name: 'Test User' };
+  const mockManagerRole = { id: 1, code: 'manager' };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,19 +34,32 @@ describe('ContextManagersService', () => {
         {
           provide: PrismaService,
           useValue: {
-            context: {
-              findUnique: jest.fn(),
-            },
-            user: {
-              findUnique: jest.fn(),
-            },
-            context_manager: {
+            context: { findUnique: jest.fn() },
+            user: { findUnique: jest.fn() },
+            role: { findUnique: jest.fn() },
+            participation: {
               findFirst: jest.fn(),
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
               count: jest.fn(),
             },
+            participation_role: {
+              findFirst: jest.fn(),
+              create: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            $transaction: jest.fn((cb: (tx: any) => Promise<any>) => {
+              const tx = {
+                participation: {
+                  findFirst: jest.fn(),
+                  create: jest.fn(),
+                  update: jest.fn(),
+                },
+                participation_role: { create: jest.fn() },
+              };
+              return cb(tx);
+            }),
           },
         },
       ],
@@ -66,11 +80,24 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValue(mockUser as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
+        .spyOn(prismaService.role, 'findUnique')
+        .mockResolvedValue(mockManagerRole as any);
+      jest
+        .spyOn(prismaService.participation_role, 'findFirst')
         .mockResolvedValue(null);
       jest
-        .spyOn(prismaService.context_manager, 'create')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (cb: any) => {
+          const tx = {
+            participation: {
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: jest.fn().mockResolvedValue(mockParticipation),
+              update: jest.fn(),
+            },
+            participation_role: { create: jest.fn().mockResolvedValue({}) },
+          };
+          return cb(tx);
+        });
 
       const result = await service.create(1, createDto);
 
@@ -87,11 +114,22 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValue(mockUser as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(null);
+        .spyOn(prismaService.role, 'findUnique')
+        .mockResolvedValue(mockManagerRole as any);
       jest
-        .spyOn(prismaService.context_manager, 'create')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation_role, 'findFirst')
+        .mockResolvedValue(null);
+      jest.spyOn(prismaService, '$transaction').mockImplementation(async (cb: any) => {
+        const tx = {
+          participation: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockResolvedValue(mockParticipation),
+            update: jest.fn(),
+          },
+          participation_role: { create: jest.fn().mockResolvedValue({}) },
+        };
+        return cb(tx);
+      });
 
       await service.create(1, createDto);
 
@@ -132,8 +170,11 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValue(mockUser as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.role, 'findUnique')
+        .mockResolvedValue(mockManagerRole as any);
+      jest
+        .spyOn(prismaService.participation_role, 'findFirst')
+        .mockResolvedValue({ id: 1 } as any);
 
       await expect(service.create(1, createDto)).rejects.toThrow(
         ConflictException,
@@ -149,9 +190,12 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
       jest
-        .spyOn(prismaService.context_manager, 'findMany')
-        .mockResolvedValue([mockContextManager] as any);
-      jest.spyOn(prismaService.context_manager, 'count').mockResolvedValue(1);
+        .spyOn(prismaService.role, 'findUnique')
+        .mockResolvedValue(mockManagerRole as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([mockParticipation] as any);
+      jest.spyOn(prismaService.participation, 'count').mockResolvedValue(1);
 
       const result = await service.findAllByContext(1, query);
 
@@ -176,8 +220,8 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await service.findOne(1, 1);
 
@@ -195,7 +239,7 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
+        .spyOn(prismaService.participation, 'findFirst')
         .mockResolvedValue(null);
 
       await expect(service.findOne(1, 999)).rejects.toThrow(NotFoundException);
@@ -207,10 +251,10 @@ describe('ContextManagersService', () => {
       const updateDto: UpdateContextManagerDto = { active: false };
 
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
-      jest.spyOn(prismaService.context_manager, 'update').mockResolvedValue({
-        ...mockContextManager,
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
+      jest.spyOn(prismaService.participation, 'update').mockResolvedValue({
+        ...mockParticipation,
         active: false,
       } as any);
 
@@ -223,7 +267,7 @@ describe('ContextManagersService', () => {
       const updateDto: UpdateContextManagerDto = { active: false };
 
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
+        .spyOn(prismaService.participation, 'findFirst')
         .mockResolvedValue(null);
 
       await expect(service.update(1, 999, updateDto)).rejects.toThrow(
@@ -233,26 +277,20 @@ describe('ContextManagersService', () => {
   });
 
   describe('remove', () => {
-    it('deve desativar manager', async () => {
+    it('deve remover manager (participation_role)', async () => {
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
-      jest.spyOn(prismaService.context_manager, 'update').mockResolvedValue({
-        ...mockContextManager,
-        active: false,
-      } as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
+      jest.spyOn(prismaService.participation_role, 'deleteMany').mockResolvedValue({ count: 1 });
 
       await service.remove(1, 1);
 
-      expect(prismaService.context_manager.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { active: false },
-      });
+      expect(prismaService.participation_role.deleteMany).toHaveBeenCalled();
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
+        .spyOn(prismaService.participation, 'findFirst')
         .mockResolvedValue(null);
 
       await expect(service.remove(1, 999)).rejects.toThrow(NotFoundException);
@@ -265,8 +303,8 @@ describe('ContextManagersService', () => {
         .spyOn(prismaService.context, 'findUnique')
         .mockResolvedValue(mockContext as any);
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(mockParticipation as any);
 
       const result = await service.findOne(1, 1);
 

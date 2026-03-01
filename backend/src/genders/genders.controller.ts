@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,14 +17,18 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { GendersService } from './genders.service';
 import { GenderResponseDto } from './dto/gender-response.dto';
 import { CreateGenderDto } from './dto/create-gender.dto';
 import { UpdateGenderDto } from './dto/update-gender.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Genders')
+@ApiBearerAuth('bearerAuth')
 @Controller('genders')
 export class GendersController {
   constructor(private readonly gendersService: GendersService) {}
@@ -80,6 +85,8 @@ export class GendersController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar novo gênero',
@@ -99,6 +106,8 @@ export class GendersController {
   }
 
   @Put(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Atualizar gênero',
@@ -130,6 +139,8 @@ export class GendersController {
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar gênero',

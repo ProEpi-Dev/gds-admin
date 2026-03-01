@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,9 +25,13 @@ import { UpdateContextManagerDto } from './dto/update-context-manager.dto';
 import { ContextManagerQueryDto } from './dto/context-manager-query.dto';
 import { ContextManagerResponseDto } from './dto/context-manager-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Context Managers')
 @ApiBearerAuth('bearerAuth')
+@UseGuards(RolesGuard)
+@Roles('admin', 'manager')
 @Controller('contexts/:contextId/managers')
 export class ContextManagersController {
   constructor(

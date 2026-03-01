@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,9 +27,13 @@ import { FormResponseDto } from './dto/form-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Forms')
 @ApiBearerAuth('bearerAuth')
+@UseGuards(RolesGuard)
+@Roles('admin', 'manager', 'content_manager', 'participant')
 @Controller('forms')
 export class FormsController {
   constructor(private readonly formsService: FormsService) {}
@@ -59,7 +64,7 @@ export class FormsController {
   @ApiOperation({
     summary: 'Listar formulários com últimas versões',
     description:
-      'Retorna lista de formulários ativos com suas últimas versões ativas, formatado para uso em dropdowns',
+      'Retorna lista de formulários ativos com suas últimas versões ativas. Admin pode passar contextId opcional para filtrar pelo contexto selecionado no frontend.',
   })
   @ApiResponse({
     status: 200,
@@ -68,8 +73,10 @@ export class FormsController {
   })
   async findFormsWithLatestVersions(
     @CurrentUser() user: any,
+    @Query('contextId') contextId?: string,
   ): Promise<FormWithVersionDto[]> {
-    return this.formsService.findFormsWithLatestVersions(user.userId);
+    const id = contextId ? parseInt(contextId, 10) : undefined;
+    return this.formsService.findFormsWithLatestVersions(user.userId, id);
   }
 
   @Get()

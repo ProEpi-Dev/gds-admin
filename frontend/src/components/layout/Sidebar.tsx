@@ -33,18 +33,27 @@ import {
   ExpandLess,
   ExpandMore,
   Autorenew as AutorenewIcon,
+  AdminPanelSettings as RoleIcon,
+  Security as SecurityIcon,
 } from "@mui/icons-material";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTranslation } from "../../hooks/useTranslation";
+import { useUserRole } from "../../hooks/useUserRole";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 
 const drawerWidth = 240;
+
+/** Papéis que podem ver o item: admin (global), manager, content_manager */
+type MenuRole = "admin" | "manager" | "content_manager";
 
 interface MenuItem {
   path?: string;
   label: string;
   icon: React.ReactNode;
   children?: MenuItem[];
+  /** Quem pode ver este item. Se omitido, todos que acessam o admin veem. */
+  roles?: MenuRole[];
 }
 
 interface SidebarProps {
@@ -57,6 +66,19 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
+  const { isAdmin, isManager, isContentManager } = useUserRole();
+  const { currentContext } = useCurrentContext();
+
+  const canSeeByRole = (roles?: MenuRole[]): boolean => {
+    if (!roles || roles.length === 0) return true;
+    return roles.some(
+      (r) =>
+        (r === "admin" && isAdmin) ||
+        (r === "manager" && isManager) ||
+        (r === "content_manager" && isContentManager)
+    );
+  };
+
   const [expandedMenus, setExpandedMenus] = useState<{
     [key: string]: boolean;
   }>({
@@ -71,105 +93,143 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       location.pathname.startsWith("/admin/track-cycles"),
   });
 
-  const menuItems: MenuItem[] = [
-    { path: "/", label: t("navigation.dashboard"), icon: <DashboardIcon /> },
-    {
-      path: "/form-builder",
-      label: t("forms.formBuilder"),
-      icon: <DescriptionIcon />,
-    },
-    { path: "/users", label: t("navigation.users"), icon: <PeopleIcon /> },
-    {
-      path: "/locations",
-      label: t("navigation.locations"),
-      icon: <LocationIcon />,
-    },
-    {
-      path: "/contexts",
-      label: t("navigation.contexts"),
-      icon: <FolderIcon />,
-    },
-    {
-      path: "/participations",
-      label: t("navigation.participations"),
-      icon: <AssignmentIcon />,
-    },
-    { path: "/forms", label: t("forms.title"), icon: <DescriptionIcon /> },
-    {
-      path: "/reports",
-      label: t("navigation.reports"),
-      icon: <AssessmentIcon />,
-    },
-    {
-      path: "/contents",
-      label: t("navigation.contents"),
-      icon: <LibraryBooksIcon />,
-    },
-    {
-      label: "Quizes",
-      icon: <QuizIcon />,
-      children: [
-        {
-          path: "/quizzes/forms",
-          label: t("quizzes.forms.menuTitle"),
-          icon: <DescriptionIcon />,
-        },
-        {
-          path: "/quizzes",
-          label: t("quizzes.menuTitle"),
-          icon: <QuizIcon />,
-        },
-        {
-          path: "/quiz-submissions",
-          label: t("quizzes.submissions.menuTitle"),
-          icon: <AssignmentIndIcon />,
-        },
-      ],
-    },
-    {
-      label: "Trilhas de Conteúdo",
-      icon: <TrackChangesIcon />,
-      children: [
-        {
-          path: "/tracks",
-          label: "Gerenciar Trilhas",
-          icon: <TrackChangesIcon />,
-        },
-        {
-          path: "/admin/track-cycles",
-          label: "Ciclos de Trilha",
-          icon: <AutorenewIcon />,
-        },
-        {
-          path: "/tracks/executions",
-          label: "Registro de Execução",
-          icon: <AssessmentIcon />,
-        },
-      ],
-    },
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      {
+        path: "/",
+        label: t("navigation.dashboard"),
+        icon: <DashboardIcon />,
+        roles: ["admin", "manager", "content_manager"],
+      },
+      {
+        path: "/form-builder",
+        label: t("forms.formBuilder"),
+        icon: <DescriptionIcon />,
+        roles: ["admin", "manager", "content_manager"],
+      },
+      {
+        path: "/locations",
+        label: t("navigation.locations"),
+        icon: <LocationIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/contexts",
+        label: t("navigation.contexts"),
+        icon: <FolderIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/roles",
+        label: "Papéis",
+        icon: <RoleIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/admins",
+        label: "Administradores",
+        icon: <SecurityIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/participations",
+        label: t("navigation.participations"),
+        icon: <AssignmentIcon />,
+        roles: ["admin", "manager"],
+      },
+      {
+        path: "/forms",
+        label: t("forms.title"),
+        icon: <DescriptionIcon />,
+        roles: ["admin", "manager", "content_manager"],
+      },
+      {
+        path: "/reports",
+        label: t("navigation.reports"),
+        icon: <AssessmentIcon />,
+        roles: ["admin", "manager"],
+      },
+      {
+        path: "/contents",
+        label: t("navigation.contents"),
+        icon: <LibraryBooksIcon />,
+        roles: ["admin", "manager", "content_manager"],
+      },
+      {
+        label: "Quizes",
+        icon: <QuizIcon />,
+        roles: ["admin", "manager", "content_manager"],
+        children: [
+          {
+            path: "/quizzes/forms",
+            label: t("quizzes.forms.menuTitle"),
+            icon: <DescriptionIcon />,
+          },
+          {
+            path: "/quizzes",
+            label: t("quizzes.menuTitle"),
+            icon: <QuizIcon />,
+          },
+          {
+            path: "/quiz-submissions",
+            label: t("quizzes.submissions.menuTitle"),
+            icon: <AssignmentIndIcon />,
+          },
+        ],
+      },
+      {
+        label: "Trilhas de Conteúdo",
+        icon: <TrackChangesIcon />,
+        roles: ["admin", "manager"],
+        children: [
+          {
+            path: "/tracks",
+            label: "Gerenciar Trilhas",
+            icon: <TrackChangesIcon />,
+          },
+          {
+            path: "/admin/track-cycles",
+            label: "Ciclos de Trilha",
+            icon: <AutorenewIcon />,
+          },
+          {
+            path: "/tracks/executions",
+            label: "Registro de Execução",
+            icon: <AssessmentIcon />,
+          },
+        ],
+      },
+      {
+        path: "/legal-documents",
+        label: t("navigation.legalDocuments"),
+        icon: <GavelIcon />,
+        roles: ["admin"],
+      },
+      {
+        label: t("navigation.basicTables"),
+        icon: <TableChartIcon />,
+        roles: ["admin"],
+        children: [
+          {
+            path: "/genders",
+            label: t("navigation.genders"),
+            icon: <PeopleIcon />,
+          },
+          {
+            path: "/legal-documents/types",
+            label: t("navigation.legalDocumentTypes"),
+            icon: <GavelIcon />,
+          },
+        ],
+      },
+    ],
+    [t]
+  );
 
-    {
-      path: "/legal-documents",
-      label: t("navigation.legalDocuments"),
-      icon: <GavelIcon />,
-    },
-    {
-      label: t("navigation.basicTables"),
-      icon: <TableChartIcon />,
-      children: [
-        {
-          path: "/genders",
-          label: t("navigation.genders"),
-          icon: <PeopleIcon />,
-        },
-        {
-          path: "/legal-documents/types",
-          label: t("navigation.legalDocumentTypes"),
-          icon: <GavelIcon />,
-        },
-      ],
-    },
-  ];
+  const visibleMenuItems = useMemo(
+    () => menuItems.filter((item) => canSeeByRole(item.roles)),
+    [menuItems, isAdmin, isManager, isContentManager]
+  );
 
   const handleToggleMenu = (menuKey: string) => {
     setExpandedMenus((prev) => ({
@@ -297,12 +357,24 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               </Typography>
             </Box>
           </Box>
+          <Box sx={{ px: 2, pb: 1.5 }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Contexto atual
+            </Typography>
+            <Typography
+              variant="body2"
+              noWrap
+              title={currentContext?.name ?? "Todos os contextos"}
+            >
+              {currentContext?.name ?? "Todos os contextos"}
+            </Typography>
+          </Box>
           <Divider />
         </>
       )}
 
       <List sx={{ flexGrow: 1 }}>
-        {menuItems.map((item, index) => renderMenuItem(item, index))}
+        {visibleMenuItems.map((item, index) => renderMenuItem(item, index))}
       </List>
 
       {user && (

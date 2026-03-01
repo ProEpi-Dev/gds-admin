@@ -23,6 +23,7 @@ import {
   PlaylistAdd as PlaylistAddIcon,
 } from "@mui/icons-material";
 import { useForms } from "../hooks/useForms";
+import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { TrackService } from "../../../api/services/track.service";
 import DataTable, { type Column } from "../../../components/common/DataTable";
 import FilterChips from "../../../components/common/FilterChips";
@@ -35,6 +36,7 @@ import type { Form } from "../../../types/form.types";
 export default function FormsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
@@ -53,12 +55,16 @@ export default function FormsListPage() {
     null
   );
 
-  const { data, isLoading, error } = useForms({
-    page,
-    pageSize,
-    active: activeFilter,
-    type: typeFilter as "signal" | "quiz" | undefined,
-  });
+  const { data, isLoading, error } = useForms(
+    {
+      page,
+      pageSize,
+      active: activeFilter,
+      type: typeFilter as "signal" | "quiz" | undefined,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
   useEffect(() => {
     TrackService.list().then((res) => {

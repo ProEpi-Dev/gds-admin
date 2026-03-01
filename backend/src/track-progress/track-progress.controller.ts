@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,8 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 import { TrackProgressService } from './track-progress.service';
 import { StartTrackProgressDto } from './dto/start-track-progress.dto';
 import { UpdateSequenceProgressDto } from './dto/update-sequence-progress.dto';
@@ -60,6 +63,8 @@ export class TrackProgressController {
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar progressos',
@@ -138,6 +143,8 @@ export class TrackProgressController {
   }
 
   @Get('executions')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar execuções (conclusões de sequências)',

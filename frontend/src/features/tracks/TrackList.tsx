@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, Button, IconButton } from "@mui/material";
@@ -10,6 +11,9 @@ import {
 import DataTable, { type Column } from "../../components/common/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
+import { useTracks } from "./hooks/useTracks";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 interface Track {
   id: number;
@@ -23,16 +27,14 @@ interface Track {
 }
 
 export default function TrackList() {
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const { currentContext } = useCurrentContext();
+  const queryClient = useQueryClient();
+  const { data: tracksData, isLoading } = useTracks(currentContext?.id);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [trackToDelete, setTrackToDelete] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    TrackService.list().then((res) => {
-      setTracks(res.data);
-    });
-  }, []);
+  const tracks: Track[] = Array.isArray(tracksData) ? tracksData : [];
 
   const handleDelete = (id: number) => {
     setTrackToDelete(id);
@@ -42,7 +44,7 @@ export default function TrackList() {
   const confirmDelete = async () => {
     if (trackToDelete) {
       await TrackService.delete(trackToDelete);
-      setTracks((prev) => prev.filter((t) => t.id !== trackToDelete));
+      await queryClient.invalidateQueries({ queryKey: ["tracks", currentContext?.id] });
       setDeleteDialogOpen(false);
       setTrackToDelete(null);
     }
@@ -95,6 +97,8 @@ export default function TrackList() {
       ),
     },
   ];
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <Box>

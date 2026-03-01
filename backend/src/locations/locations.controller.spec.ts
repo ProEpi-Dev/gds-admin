@@ -7,6 +7,7 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { LocationQueryDto } from './dto/location-query.dto';
 import { LocationResponseDto } from './dto/location-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('LocationsController', () => {
   let controller: LocationsController;
@@ -55,7 +56,10 @@ describe('LocationsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<LocationsController>(LocationsController);
     locationsService = module.get<LocationsService>(LocationsService);

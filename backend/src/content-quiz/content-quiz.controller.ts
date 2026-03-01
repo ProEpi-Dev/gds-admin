@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,9 +25,13 @@ import { UpdateContentQuizDto } from './dto/update-content-quiz.dto';
 import { ContentQuizQueryDto } from './dto/content-quiz-query.dto';
 import { ContentQuizResponseDto } from './dto/content-quiz-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { RequirePermission } from '../authz/decorators/require-permission.decorator';
 
 @ApiTags('Content-Quiz')
 @ApiBearerAuth('bearerAuth')
+@UseGuards(RolesGuard)
+@RequirePermission('content:write')
 @Controller('content-quiz')
 export class ContentQuizController {
   constructor(private readonly contentQuizService: ContentQuizService) {}

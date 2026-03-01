@@ -72,4 +72,13 @@ export class QuizSubmissionQueryDto extends PaginationQueryDto {
   @IsDateString()
   @IsOptional()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por contexto (submissões cuja participação pertence ao contexto)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  contextId?: number;
 }

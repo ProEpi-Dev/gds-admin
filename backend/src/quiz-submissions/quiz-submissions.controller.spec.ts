@@ -4,6 +4,7 @@ import { QuizSubmissionsService } from './quiz-submissions.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('QuizSubmissionsController', () => {
   let controller: QuizSubmissionsController;
@@ -58,7 +59,10 @@ describe('QuizSubmissionsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<QuizSubmissionsController>(
       QuizSubmissionsController,
@@ -81,9 +85,9 @@ describe('QuizSubmissionsController', () => {
         .spyOn(service, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, { userId: 1 });
 
-      expect(service.create).toHaveBeenCalledWith(createDto);
+      expect(service.create).toHaveBeenCalledWith(createDto, 1);
       expect(result).toEqual(mockQuizSubmission);
     });
   });
@@ -94,12 +98,13 @@ describe('QuizSubmissionsController', () => {
         page: 1,
         pageSize: 20,
       };
+      const user = { userId: 1 };
 
       jest.spyOn(service, 'findAll').mockResolvedValue(mockListResponse as any);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, user);
 
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, 1);
       expect(result).toEqual(mockListResponse);
     });
 
@@ -111,12 +116,13 @@ describe('QuizSubmissionsController', () => {
         formVersionId: 1,
         isPassed: true,
       };
+      const user = { userId: 1 };
 
       jest.spyOn(service, 'findAll').mockResolvedValue(mockListResponse as any);
 
-      await controller.findAll(query);
+      await controller.findAll(query, user);
 
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, 1);
     });
   });
 
@@ -126,9 +132,9 @@ describe('QuizSubmissionsController', () => {
         .spyOn(service, 'findOne')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await controller.findOne(1);
+      const result = await controller.findOne(1, { userId: 1 });
 
-      expect(service.findOne).toHaveBeenCalledWith(1);
+      expect(service.findOne).toHaveBeenCalledWith(1, 1);
       expect(result).toEqual(mockQuizSubmission);
     });
   });
@@ -143,9 +149,9 @@ describe('QuizSubmissionsController', () => {
         .spyOn(service, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await controller.update(1, updateDto);
+      const result = await controller.update(1, updateDto, { userId: 1 });
 
-      expect(service.update).toHaveBeenCalledWith(1, updateDto);
+      expect(service.update).toHaveBeenCalledWith(1, updateDto, 1);
       expect(result).toEqual(mockQuizSubmission);
     });
   });
@@ -154,9 +160,9 @@ describe('QuizSubmissionsController', () => {
     it('deve deletar submissão e retornar 204', async () => {
       jest.spyOn(service, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(1);
+      await controller.remove(1, { userId: 1 });
 
-      expect(service.remove).toHaveBeenCalledWith(1);
+      expect(service.remove).toHaveBeenCalledWith(1, 1);
     });
   });
 });

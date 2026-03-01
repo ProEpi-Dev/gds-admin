@@ -5,7 +5,11 @@ import {
   IsBoolean,
   IsOptional,
   MinLength,
+  IsInt,
+  IsPositive,
+  ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateUserDto {
   @ApiPropertyOptional({
@@ -41,4 +45,16 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'ID do papel global do usuário (somente admin pode definir). Envie null para remover o papel.',
+    example: 1,
+    nullable: true,
+  })
+  @ValidateIf((_, v) => v != null)
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  roleId?: number | null;
 }

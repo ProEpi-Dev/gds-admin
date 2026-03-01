@@ -37,12 +37,39 @@ describe('SetupService', () => {
     active: true,
   };
 
-  const mockContextManager = {
-    id: 1,
-    user_id: 1,
-    context_id: 1,
-    active: true,
-  };
+  const mockParticipation = { id: 1, user_id: 1, context_id: 1, active: true };
+  const mockAdminRole = { id: 1, code: 'admin' };
+  const mockManagerRole = { id: 2, code: 'manager' };
+
+  function createTxMock(overrides: Record<string, any> = {}) {
+    return {
+      user: {
+        create: jest.fn().mockResolvedValue(mockManager),
+        update: jest.fn().mockResolvedValue({ ...mockManager, role_id: 1 }),
+        ...overrides.user,
+      },
+      context: {
+        create: jest.fn().mockResolvedValue(mockContext),
+        ...overrides.context,
+      },
+      role: {
+        findUnique: jest.fn().mockImplementation((arg: any) => {
+          if (arg?.where?.code === 'admin') return Promise.resolve(mockAdminRole);
+          if (arg?.where?.code === 'manager') return Promise.resolve(mockManagerRole);
+          return Promise.resolve(null);
+        }),
+        ...overrides.role,
+      },
+      participation: {
+        create: jest.fn().mockResolvedValue(mockParticipation),
+        ...overrides.participation,
+      },
+      participation_role: {
+        create: jest.fn().mockResolvedValue({}),
+        ...overrides.participation_role,
+      },
+    };
+  }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -68,6 +95,27 @@ describe('SetupService', () => {
   });
 
   describe('setup', () => {
+    it('deve lançar BadRequestException quando papel manager não existe (migrações RBAC não executadas)', async () => {
+      jest.spyOn(prismaService.context, 'findFirst').mockResolvedValue(null);
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+
+      const txWithoutManagerRole = createTxMock({
+        role: {
+          findUnique: jest.fn().mockImplementation((arg: any) => {
+            if (arg?.where?.code === 'admin') return Promise.resolve(mockAdminRole);
+            return Promise.resolve(null);
+          }),
+        },
+      });
+
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => callback(txWithoutManagerRole as any));
+
+      await expect(service.setup(mockSetupDto)).rejects.toThrow(BadRequestException);
+    });
+
     it('deve criar contexto padrão', async () => {
       jest.spyOn(prismaService.context, 'findFirst').mockResolvedValue(null);
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
@@ -75,20 +123,7 @@ describe('SetupService', () => {
 
       jest
         .spyOn(prismaService, '$transaction')
-        .mockImplementation(async (callback) => {
-          const tx = {
-            user: {
-              create: jest.fn().mockResolvedValue(mockManager),
-            },
-            context: {
-              create: jest.fn().mockResolvedValue(mockContext),
-            },
-            context_manager: {
-              create: jest.fn().mockResolvedValue(mockContextManager),
-            },
-          };
-          return callback(tx as any);
-        });
+        .mockImplementation(async (callback) => callback(createTxMock() as any));
 
       const result = await service.setup(mockSetupDto);
 
@@ -98,7 +133,7 @@ describe('SetupService', () => {
       );
       expect(result).toHaveProperty('context');
       expect(result).toHaveProperty('manager');
-      expect(result).toHaveProperty('contextManager');
+      expect(result).toHaveProperty('participationId');
     });
 
     it('deve criar manager padrão', async () => {
@@ -108,22 +143,14 @@ describe('SetupService', () => {
 
       const txUser = {
         create: jest.fn().mockResolvedValue(mockManager),
+        update: jest.fn().mockResolvedValue({ ...mockManager, role_id: 1 }),
       };
 
       jest
         .spyOn(prismaService, '$transaction')
-        .mockImplementation(async (callback) => {
-          const tx = {
-            user: txUser,
-            context: {
-              create: jest.fn().mockResolvedValue(mockContext),
-            },
-            context_manager: {
-              create: jest.fn().mockResolvedValue(mockContextManager),
-            },
-          };
-          return callback(tx as any);
-        });
+        .mockImplementation(async (callback) =>
+          callback(createTxMock({ user: txUser }) as any),
+        );
 
       await service.setup(mockSetupDto);
 
@@ -137,39 +164,37 @@ describe('SetupService', () => {
       });
     });
 
-    it('deve criar relação context_manager', async () => {
+    it('deve criar participation e participation_role (manager)', async () => {
       jest.spyOn(prismaService.context, 'findFirst').mockResolvedValue(null);
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
 
-      const txContextManager = {
-        create: jest.fn().mockResolvedValue(mockContextManager),
-      };
+      const txParticipation = { create: jest.fn().mockResolvedValue(mockParticipation) };
+      const txParticipationRole = { create: jest.fn().mockResolvedValue({}) };
 
       jest
         .spyOn(prismaService, '$transaction')
-        .mockImplementation(async (callback) => {
-          const tx = {
-            user: {
-              create: jest.fn().mockResolvedValue(mockManager),
-            },
-            context: {
-              create: jest.fn().mockResolvedValue(mockContext),
-            },
-            context_manager: txContextManager,
-          };
-          return callback(tx as any);
-        });
+        .mockImplementation(async (callback) =>
+          callback(
+            createTxMock({
+              participation: txParticipation,
+              participation_role: txParticipationRole,
+            }) as any,
+          ),
+        );
 
       await service.setup(mockSetupDto);
 
-      expect(txContextManager.create).toHaveBeenCalledWith({
+      expect(txParticipation.create).toHaveBeenCalledWith({
         data: {
           user_id: mockManager.id,
           context_id: mockContext.id,
+          start_date: expect.any(Date),
+          end_date: null,
           active: true,
         },
       });
+      expect(txParticipationRole.create).toHaveBeenCalled();
     });
 
     it('deve hash senha do manager', async () => {
@@ -179,20 +204,7 @@ describe('SetupService', () => {
 
       jest
         .spyOn(prismaService, '$transaction')
-        .mockImplementation(async (callback) => {
-          const tx = {
-            user: {
-              create: jest.fn().mockResolvedValue(mockManager),
-            },
-            context: {
-              create: jest.fn().mockResolvedValue(mockContext),
-            },
-            context_manager: {
-              create: jest.fn().mockResolvedValue(mockContextManager),
-            },
-          };
-          return callback(tx as any);
-        });
+        .mockImplementation(async (callback) => callback(createTxMock() as any));
 
       await service.setup(mockSetupDto);
 
@@ -209,20 +221,7 @@ describe('SetupService', () => {
 
       const transactionSpy = jest
         .spyOn(prismaService, '$transaction')
-        .mockImplementation(async (callback) => {
-          const tx = {
-            user: {
-              create: jest.fn().mockResolvedValue(mockManager),
-            },
-            context: {
-              create: jest.fn().mockResolvedValue(mockContext),
-            },
-            context_manager: {
-              create: jest.fn().mockResolvedValue(mockContextManager),
-            },
-          };
-          return callback(tx as any);
-        });
+        .mockImplementation(async (callback) => callback(createTxMock() as any));
 
       await service.setup(mockSetupDto);
 

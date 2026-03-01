@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,9 @@ import { CreateTrackCycleDto } from './dto/create-track-cycle.dto';
 import { UpdateTrackCycleDto } from './dto/update-track-cycle.dto';
 import { UpdateTrackCycleStatusDto } from './dto/update-track-cycle-status.dto';
 import { TrackCycleQueryDto } from './dto/track-cycle-query.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Track Cycles')
 @Controller('track-cycles')
@@ -33,6 +37,8 @@ export class TrackCyclesController {
   constructor(private readonly trackCyclesService: TrackCyclesService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar novo ciclo de trilha',
@@ -56,21 +62,25 @@ export class TrackCyclesController {
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager', 'participant')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar ciclos de trilhas',
     description:
-      'Lista ciclos com filtros opcionais por contexto, trilha e status',
+      'Lista ciclos. Admin/manager/content_manager: por contexto. Participant: ciclos dos contextos em que participa.',
   })
   @ApiResponse({
     status: 200,
     description: 'Lista de ciclos',
   })
-  async findAll(@Query() query: TrackCycleQueryDto) {
-    return this.trackCyclesService.findAll(query);
+  async findAll(@Query() query: TrackCycleQueryDto, @CurrentUser() user: any) {
+    return this.trackCyclesService.findAll(query, user.userId);
   }
 
   @Get('active')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager', 'participant')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar ciclos ativos',
@@ -94,13 +104,18 @@ export class TrackCyclesController {
     description: 'Lista de ciclos ativos',
   })
   async findActive(
-    @Query('contextId', ParseIntPipe) contextId?: number,
-    @Query('trackId', ParseIntPipe) trackId?: number,
+    @Query('contextId') contextId?: string,
+    @Query('trackId') trackId?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.trackCyclesService.findActive(contextId, trackId);
+    const ctxId = contextId ? parseInt(contextId, 10) : undefined;
+    const trkId = trackId ? parseInt(trackId, 10) : undefined;
+    return this.trackCyclesService.findActive(ctxId, trkId, user?.userId);
   }
 
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'content_manager', 'participant')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Buscar ciclo por ID',
@@ -120,11 +135,13 @@ export class TrackCyclesController {
     status: 404,
     description: 'Ciclo não encontrado',
   })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.trackCyclesService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.trackCyclesService.findOne(id, user.userId);
   }
 
   @Get(':id/students')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Listar progresso de alunos no ciclo',
@@ -144,11 +161,13 @@ export class TrackCyclesController {
     status: 404,
     description: 'Ciclo não encontrado',
   })
-  async getStudentsProgress(@Param('id', ParseIntPipe) id: number) {
-    return this.trackCyclesService.getStudentsProgress(id);
+  async getStudentsProgress(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.trackCyclesService.getStudentsProgress(id, user.userId);
   }
 
   @Put(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Atualizar ciclo',
@@ -171,11 +190,14 @@ export class TrackCyclesController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateTrackCycleDto,
+    @CurrentUser() user: any,
   ) {
-    return this.trackCyclesService.update(id, updateDto);
+    return this.trackCyclesService.update(id, updateDto, user.userId);
   }
 
   @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Alterar status do ciclo',
@@ -202,11 +224,14 @@ export class TrackCyclesController {
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() statusDto: UpdateTrackCycleStatusDto,
+    @CurrentUser() user: any,
   ) {
-    return this.trackCyclesService.updateStatus(id, statusDto);
+    return this.trackCyclesService.updateStatus(id, statusDto, user.userId);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Deletar ciclo permanentemente',
@@ -233,7 +258,7 @@ export class TrackCyclesController {
     status: 404,
     description: 'Ciclo não encontrado',
   })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.trackCyclesService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.trackCyclesService.remove(id, user.userId);
   }
 }

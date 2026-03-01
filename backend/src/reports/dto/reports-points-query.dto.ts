@@ -4,6 +4,15 @@ import { IsInt, IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class ReportsPointsQueryDto {
   @ApiPropertyOptional({
+    description: 'ID do contexto (obrigatório para admin; não-admin usa contexto gerenciado)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  contextId?: number;
+
+  @ApiPropertyOptional({
     description:
       'ID do formulário (opcional - se não fornecido, retorna todos os formulários do contexto)',
     example: 1,

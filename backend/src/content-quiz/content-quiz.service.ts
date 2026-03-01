@@ -103,6 +103,10 @@ export class ContentQuizService {
       where.form_id = query.formId;
     }
 
+    if (query.contextId !== undefined) {
+      where.content = { context_id: query.contextId };
+    }
+
     // Buscar associações e total
     const [contentQuizzes, totalItems] = await Promise.all([
       this.prisma.content_quiz.findMany({
@@ -137,6 +141,7 @@ export class ContentQuizService {
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.contentId !== undefined) queryParams.contentId = query.contentId;
     if (query.formId !== undefined) queryParams.formId = query.formId;
+    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
 
     return {
       data: contentQuizzes.map((cq) => this.mapToResponseDto(cq)),

@@ -12,6 +12,7 @@ import {
   ParseIntPipe,
   Req,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -42,10 +45,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar usuário',
-    description: 'Cria um novo usuário no sistema',
+    description:
+      'Cria um novo usuário. Admin pode definir papel global; manager não pode.',
   })
   @ApiResponse({
     status: 201,
@@ -54,14 +60,20 @@ export class UsersController {
   })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 409, description: 'Email já está em uso' })
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    return this.usersService.create(createUserDto);
+  async create(
+    @CurrentUser() currentUser: { userId: number },
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto, currentUser.userId);
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'participant')
   @ApiOperation({
     summary: 'Listar usuários',
-    description: 'Retorna lista paginada de usuários com filtros opcionais',
+    description:
+      'Admin: todos. Manager: usuários dos contextos que gerencia. Participant: apenas o próprio usuário quando search=seu email.',
   })
   @ApiResponse({
     status: 200,
@@ -69,15 +81,38 @@ export class UsersController {
     type: ListResponseDto<UserResponseDto>,
   })
   async findAll(
+    @CurrentUser() currentUser: { userId: number },
     @Query() query: UserQueryDto,
   ): Promise<ListResponseDto<UserResponseDto>> {
-    return this.usersService.findAll(query);
+    return this.usersService.findAll(query, currentUser.userId);
+  }
+
+  @Get('admins')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Listar administradores',
+    description:
+      'Retorna apenas usuários com papel de administrador. Exclusivo para superadmin.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de administradores',
+    type: ListResponseDto<UserResponseDto>,
+  })
+  async findAdmins(
+    @Query() query: UserQueryDto,
+  ): Promise<ListResponseDto<UserResponseDto>> {
+    return this.usersService.findAdmins(query);
   }
 
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Obter usuário por ID',
-    description: 'Retorna detalhes de um usuário específico',
+    description:
+      'Admin: qualquer usuário. Manager: apenas se o usuário participa de algum contexto que ele gerencia.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
   @ApiResponse({
@@ -87,15 +122,19 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
   async findOne(
+    @CurrentUser() currentUser: { userId: number },
     @Param('id', ParseIntPipe) id: number,
   ): Promise<UserResponseDto> {
-    return this.usersService.findOne(id);
+    return this.usersService.findOne(id, currentUser.userId);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Atualizar usuário',
-    description: 'Atualiza um usuário existente',
+    description:
+      'Admin: qualquer usuário e pode alterar papel global. Manager: apenas usuários que participam dos seus contextos; não pode alterar papel global.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
   @ApiResponse({
@@ -107,18 +146,21 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
   @ApiResponse({ status: 409, description: 'Email já está em uso' })
   async update(
+    @CurrentUser() currentUser: { userId: number },
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
-    return this.usersService.update(id, updateUserDto);
+    return this.usersService.update(id, updateUserDto, currentUser.userId);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar usuário',
     description:
-      'Se o usuário estiver ativo: desativa (soft delete). Se já estiver inativo: tenta exclusão permanente do banco; falha com 400 se houver dependências que impeçam a exclusão.',
+      'Admin: qualquer usuário. Manager: apenas usuários que participam dos seus contextos. Ativo: desativa; inativo: exclusão permanente se não houver dependências.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
   @ApiResponse({
@@ -130,8 +172,11 @@ export class UsersController {
     description: 'Usuário inativo com vínculos que impedem exclusão permanente',
   })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.usersService.remove(id);
+  async remove(
+    @CurrentUser() currentUser: { userId: number },
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<void> {
+    return this.usersService.remove(id, currentUser.userId);
   }
 
   @Get('me/profile-status')

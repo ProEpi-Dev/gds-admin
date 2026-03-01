@@ -9,6 +9,13 @@ import type {
 import type { ListResponse } from "../../types/api.types";
 
 export const contextsService = {
+  /** Lista contextos públicos para signup (não requer autenticação). */
+  async findPublicForSignup(): Promise<ListResponse<Context>> {
+    const response = await apiClient.get(API_ENDPOINTS.CONTEXTS.PUBLIC_LIST);
+    return response.data;
+  },
+
+  /** Lista contextos com paginação (requer autenticação admin). */
   async findAll(query?: ContextQuery): Promise<ListResponse<Context>> {
     const params = new URLSearchParams();
     if (query?.page) params.append("page", query.page.toString());
@@ -20,7 +27,7 @@ export const contextsService = {
     if (query?.accessType) params.append("accessType", query.accessType);
 
     const response = await apiClient.get(
-      `${API_ENDPOINTS.CONTEXTS.LIST}?${params.toString()}`
+      `${API_ENDPOINTS.CONTEXTS.LIST_ADMIN}?${params.toString()}`
     );
     return response.data;
   },

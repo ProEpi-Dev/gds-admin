@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TrackProgressService } from './track-progress.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { progress_status_enum } from '@prisma/client';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 
 describe('TrackProgressService', () => {
   let service: TrackProgressService;
@@ -20,6 +24,7 @@ describe('TrackProgressService', () => {
     sequence_progress: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      createMany: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
     },
@@ -78,6 +83,61 @@ describe('TrackProgressService', () => {
     });
   });
 
+  it('startTrackProgress – cria sequence_progress quando track tem sequências', async () => {
+    prismaMock.participation.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+    });
+
+    prismaMock.track_cycle.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+      track: {
+        section: [
+          {
+            id: 1,
+            sequence: [
+              { id: 10, section_id: 1 },
+              { id: 11, section_id: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    prismaMock.track_progress.findUnique.mockResolvedValue(null);
+    prismaMock.track_progress.create.mockResolvedValue({
+      id: 1,
+      progress_percentage: 0,
+      participation_id: 1,
+      track_cycle_id: 1,
+    });
+    prismaMock.sequence_progress.createMany.mockResolvedValue({ count: 2 });
+
+    const result = await service.startTrackProgress({
+      participationId: 1,
+      trackCycleId: 1,
+    } as any);
+
+    expect(result.id).toBe(1);
+    expect(prismaMock.sequence_progress.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          track_progress_id: 1,
+          sequence_id: 10,
+          status: progress_status_enum.not_started,
+          visits_count: 0,
+        },
+        {
+          track_progress_id: 1,
+          sequence_id: 11,
+          status: progress_status_enum.not_started,
+          visits_count: 0,
+        },
+      ],
+    });
+  });
+
   it('startTrackProgress – participação não encontrada', async () => {
     prismaMock.participation.findUnique.mockResolvedValue(null);
 
@@ -87,6 +147,26 @@ describe('TrackProgressService', () => {
         trackCycleId: 1,
       } as any),
     ).rejects.toThrow();
+  });
+
+  it('startTrackProgress – participação não pertence ao contexto do ciclo', async () => {
+    prismaMock.participation.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 1,
+    });
+
+    prismaMock.track_cycle.findUnique.mockResolvedValue({
+      id: 1,
+      context_id: 2,
+      track: { section: [] },
+    });
+
+    await expect(
+      service.startTrackProgress({
+        participationId: 1,
+        trackCycleId: 1,
+      } as any),
+    ).rejects.toThrow('A participação não pertence ao contexto do ciclo');
   });
 
   it('startTrackProgress – track cycle não encontrado', async () => {
@@ -223,6 +303,33 @@ describe('TrackProgressService', () => {
     ).rejects.toThrow();
   });
 
+  it('updateSequenceProgress – sequência não encontrada', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      track_cycle_id: 1,
+    });
+    prismaMock.sequence.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.updateSequenceProgress(1, 999, {} as any),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('updateSequenceProgress – sequência inativa', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      track_cycle_id: 1,
+    });
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      active: false,
+    });
+
+    await expect(
+      service.updateSequenceProgress(1, 1, {} as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('updateSequenceProgress – sucesso', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,
@@ -261,6 +368,43 @@ describe('TrackProgressService', () => {
 
     const result = await service.canAccessSequence(1, 1, 1);
     expect(result.canAccess).toBe(false);
+  });
+
+  it('canAccessSequence – sequência não encontrada', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({ id: 1 });
+    prismaMock.sequence.findUnique.mockResolvedValue(null);
+
+    const result = await service.canAccessSequence(1, 1, 999);
+    expect(result.canAccess).toBe(false);
+    expect(result.reason).toBe('Sequência não encontrada');
+  });
+
+  it('canAccessSequence – atividade anterior não concluída', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      sequence_progress: [],
+      track_cycle: { track: { section: [] } },
+    });
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 2,
+      section_id: 1,
+      order: 2,
+      section: { track: {} },
+    });
+    prismaMock.sequence.findFirst.mockResolvedValue({
+      id: 1,
+      section_id: 1,
+      order: 1,
+      active: true,
+    });
+    prismaMock.sequence_progress.findUnique.mockResolvedValue({
+      id: 1,
+      status: progress_status_enum.in_progress,
+    });
+
+    const result = await service.canAccessSequence(1, 1, 2);
+    expect(result.canAccess).toBe(false);
+    expect(result.reason).toMatch(/completar a atividade anterior/);
   });
 
   it('findAll', async () => {
@@ -328,6 +472,47 @@ describe('TrackProgressService', () => {
     const result = await service.recalculateTrackProgress(1);
     expect(prismaMock.track_progress.update).toHaveBeenCalled();
     expect(result.progress_percentage).toBeCloseTo(33.33);
+  });
+
+  it('recalculateTrackProgress – 100% completo define status completed e completed_at', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      status: progress_status_enum.in_progress,
+      completed_at: null,
+      sequence_progress: [
+        { sequence_id: 1, status: progress_status_enum.completed },
+        { sequence_id: 2, status: progress_status_enum.completed },
+      ],
+      track_cycle: {
+        track: {
+          section: [
+            {
+              sequence: [
+                { id: 1, active: true },
+                { id: 2, active: true },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    prismaMock.track_progress.update.mockResolvedValue({
+      id: 1,
+      progress_percentage: 100,
+      status: progress_status_enum.completed,
+      completed_at: new Date(),
+    });
+
+    const result = await service.recalculateTrackProgress(1);
+    expect(prismaMock.track_progress.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({
+        status: progress_status_enum.completed,
+        progress_percentage: 100,
+      }),
+    });
+    expect(result.progress_percentage).toBe(100);
   });
 
   it('completeContentSequence – erro se for quiz', async () => {

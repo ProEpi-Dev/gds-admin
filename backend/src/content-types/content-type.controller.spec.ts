@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContentTypeController, ContentTypeAdminController } from './content-type.controller';
 import { ContentTypeService } from './content-type.service';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ContentTypeController', () => {
   let controller: ContentTypeController;
@@ -27,7 +28,10 @@ describe('ContentTypeController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContentTypeController>(ContentTypeController);
     service = module.get<ContentTypeService>(ContentTypeService);
@@ -96,7 +100,10 @@ describe('ContentTypeAdminController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContentTypeAdminController>(ContentTypeAdminController);
     service = module.get<ContentTypeService>(ContentTypeService);

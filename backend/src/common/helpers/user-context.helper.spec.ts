@@ -12,9 +12,6 @@ describe('UserContextHelper', () => {
 
   beforeEach(() => {
     prismaService = {
-      context_manager: {
-        findFirst: jest.fn(),
-      },
       participation: {
         findFirst: jest.fn(),
       },
@@ -23,97 +20,53 @@ describe('UserContextHelper', () => {
 
   describe('getUserContextId', () => {
     it('deve retornar context_id quando usuário é manager', async () => {
-      const mockContextManager = {
-        context_id: 1,
-        user_id: 1,
-        active: true,
-        created_at: new Date(),
-      };
-
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 1 } as any);
 
       const result = await getUserContextId(prismaService, 1);
 
       expect(result).toBe(1);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalledWith({
-        where: {
-          user_id: 1,
-          active: true,
-          context: {
+      expect(prismaService.participation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_id: 1,
             active: true,
-          },
-        },
-        orderBy: {
-          created_at: 'asc',
-        },
-      });
+            context: { active: true },
+            participation_role: { some: expect.any(Object) },
+          }),
+          select: { context_id: true },
+          orderBy: { created_at: 'asc' },
+        }),
+      );
     });
 
     it('deve retornar context_id quando usuário é participante (não é manager)', async () => {
-      const mockParticipation = {
-        id: 1,
-        context_id: 2,
-        user_id: 1,
-        active: true,
-        start_date: new Date('2024-01-01'),
-        end_date: null,
-        created_at: new Date(),
-      };
+      const mockParticipation = { context_id: 2 };
 
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(null);
-      jest
         .spyOn(prismaService.participation, 'findFirst')
-        .mockResolvedValue(mockParticipation as any);
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockParticipation as any);
 
       const result = await getUserContextId(prismaService, 1);
 
       expect(result).toBe(2);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalled();
-      expect(prismaService.participation.findFirst).toHaveBeenCalledWith({
-        where: {
-          user_id: 1,
-          active: true,
-          context: {
-            active: true,
-          },
-          start_date: {
-            lte: expect.any(Date),
-          },
-          OR: [{ end_date: null }, { end_date: { gte: expect.any(Date) } }],
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-      });
+      expect(prismaService.participation.findFirst).toHaveBeenCalledTimes(2);
     });
 
     it('deve priorizar manager quando usuário tem ambos os papéis', async () => {
-      const mockContextManager = {
-        context_id: 1,
-        user_id: 1,
-        active: true,
-        created_at: new Date(),
-      };
-
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 1 } as any);
 
       const result = await getUserContextId(prismaService, 1);
 
       expect(result).toBe(1);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalled();
-      expect(prismaService.participation.findFirst).not.toHaveBeenCalled();
+      expect(prismaService.participation.findFirst).toHaveBeenCalledTimes(1);
     });
 
     it('deve lançar ForbiddenException quando não é manager nem participante', async () => {
-      jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(null);
       jest
         .spyOn(prismaService.participation, 'findFirst')
         .mockResolvedValue(null);
@@ -129,37 +82,30 @@ describe('UserContextHelper', () => {
 
   describe('getUserContextAsManager', () => {
     it('deve retornar context_id quando usuário é manager', async () => {
-      const mockContextManager = {
-        context_id: 1,
-        user_id: 1,
-        active: true,
-        created_at: new Date(),
-      };
-
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 1 } as any);
 
       const result = await getUserContextAsManager(prismaService, 1);
 
       expect(result).toBe(1);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalledWith({
-        where: {
-          user_id: 1,
-          active: true,
-          context: {
+      expect(prismaService.participation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_id: 1,
             active: true,
-          },
-        },
-        orderBy: {
-          created_at: 'asc',
-        },
-      });
+            context: { active: true },
+            participation_role: { some: expect.any(Object) },
+          }),
+          select: { context_id: true },
+          orderBy: { created_at: 'asc' },
+        }),
+      );
     });
 
     it('deve lançar ForbiddenException quando usuário não é manager', async () => {
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
+        .spyOn(prismaService.participation, 'findFirst')
         .mockResolvedValue(null);
 
       await expect(getUserContextAsManager(prismaService, 1)).rejects.toThrow(
@@ -171,25 +117,16 @@ describe('UserContextHelper', () => {
     });
 
     it('deve retornar primeiro contexto criado', async () => {
-      const mockContextManager = {
-        context_id: 2,
-        user_id: 1,
-        active: true,
-        created_at: new Date('2024-01-01'),
-      };
-
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 2 } as any);
 
       const result = await getUserContextAsManager(prismaService, 1);
 
       expect(result).toBe(2);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalledWith(
+      expect(prismaService.participation.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          orderBy: {
-            created_at: 'asc',
-          },
+          orderBy: { created_at: 'asc' },
         }),
       );
     });
@@ -325,21 +262,14 @@ describe('UserContextHelper', () => {
 
   describe('getUserContext (deprecated)', () => {
     it('deve usar getUserContextId internamente', async () => {
-      const mockContextManager = {
-        context_id: 1,
-        user_id: 1,
-        active: true,
-        created_at: new Date(),
-      };
-
       jest
-        .spyOn(prismaService.context_manager, 'findFirst')
-        .mockResolvedValue(mockContextManager as any);
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 1 } as any);
 
       const result = await getUserContext(prismaService, 1);
 
       expect(result).toBe(1);
-      expect(prismaService.context_manager.findFirst).toHaveBeenCalled();
+      expect(prismaService.participation.findFirst).toHaveBeenCalled();
     });
   });
 });
