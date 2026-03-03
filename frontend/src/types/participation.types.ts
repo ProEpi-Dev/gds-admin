@@ -16,11 +16,20 @@ export interface Participation {
 }
 
 export interface CreateParticipationDto {
-  userId: number;
+  /** ID de usuário existente. Se não informado, os campos newUser* são obrigatórios. */
+  userId?: number;
+  /** Nome do novo usuário (criação inline) */
+  newUserName?: string;
+  /** E-mail do novo usuário (criação inline) */
+  newUserEmail?: string;
+  /** Senha do novo usuário (criação inline) */
+  newUserPassword?: string;
   contextId: number;
   startDate: string;
   endDate?: string;
   active?: boolean;
+  /** ID do papel a atribuir. Se omitido, usa "participant" como padrão. */
+  roleId?: number;
 }
 
 export interface UpdateParticipationDto {

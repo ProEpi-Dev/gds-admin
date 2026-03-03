@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { FormsController } from './forms.controller';
 import { FormsService } from './forms.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthzModule } from '../authz/authz.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthzModule],
   controllers: [FormsController],
   providers: [FormsService],
   exports: [FormsService],

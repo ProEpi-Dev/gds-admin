@@ -28,6 +28,7 @@ import {
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
 } from '@mui/icons-material';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { useContentQuizzes, useCreateContentQuiz, useUpdateContentQuiz, useDeleteContentQuiz } from '../hooks/useContentQuiz';
 import { useForms } from '../../forms/hooks/useForms';
 import { useSnackbar } from '../../../hooks/useSnackbar';
@@ -39,6 +40,7 @@ interface ContentQuizManagerProps {
 
 export default function ContentQuizManager({ contentId }: ContentQuizManagerProps) {
   const snackbar = useSnackbar();
+  const { currentContext } = useCurrentContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<ContentQuiz | null>(null);
   const [formData, setFormData] = useState<CreateContentQuizDto | UpdateContentQuizDto>({
@@ -49,20 +51,25 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
     weight: 1.0,
   });
 
-  // Buscar quizes associados ao conteúdo
+  // Buscar quizes associados ao conteúdo (contextId para autorização do content_manager)
   const { data: contentQuizzesData, isLoading } = useContentQuizzes({
     contentId,
     page: 1,
     pageSize: 100,
+    contextId: currentContext?.id,
   });
 
-  // Buscar todos os quizes disponíveis
-  const { data: formsData } = useForms({
-    type: 'quiz',
-    active: true,
-    page: 1,
-    pageSize: 100,
-  });
+  // Buscar quizes do contexto atual (para o dropdown "Associar Quiz")
+  const { data: formsData } = useForms(
+    {
+      type: 'quiz',
+      active: true,
+      page: 1,
+      pageSize: 100,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
   const createMutation = useCreateContentQuiz();
   const updateMutation = useUpdateContentQuiz();

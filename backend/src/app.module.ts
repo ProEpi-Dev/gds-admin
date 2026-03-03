@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -25,6 +26,8 @@ import { TrackProgressModule } from './track-progress/track-progress.module';
 import { LegalDocumentsModule } from './legal-documents/legal-documents.module';
 import { GendersModule } from './genders/genders.module';
 import { MailModule } from './mail/mail.module';
+import { AuthzModule } from './authz/authz.module';
+import { RolesModule } from './roles/roles.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -36,7 +39,28 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  colorize: true,
+                  singleLine: true,
+                  translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+                  ignore: 'pid,hostname',
+                  minimumLevel: 'trace', // exibir todos os níveis (trace, debug, info, warn, error) localmente
+                },
+              }
+            : undefined,
+        redact: ['req.headers.authorization'],
+        autoLogging: false,
+      },
+    }),
     PrismaModule,
+    AuthzModule,
     AuthModule,
     SetupModule,
     UsersModule,
@@ -58,6 +82,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     LegalDocumentsModule,
     GendersModule,
     MailModule,
+    RolesModule,
   ],
   controllers: [AppController],
   providers: [

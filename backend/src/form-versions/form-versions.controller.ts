@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,9 +25,13 @@ import { UpdateFormVersionDto } from './dto/update-form-version.dto';
 import { FormVersionQueryDto } from './dto/form-version-query.dto';
 import { FormVersionResponseDto } from './dto/form-version-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Form Versions')
 @ApiBearerAuth('bearerAuth')
+@UseGuards(RolesGuard)
+@Roles('admin', 'manager', 'content_manager')
 @Controller('forms/:formId/versions')
 export class FormVersionsController {
   constructor(private readonly formVersionsService: FormVersionsService) {}

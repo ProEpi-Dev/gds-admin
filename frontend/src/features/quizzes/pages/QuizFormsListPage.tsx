@@ -23,6 +23,7 @@ import {
   PlaylistAdd as PlaylistAddIcon,
 } from "@mui/icons-material";
 import { useForms } from "../../forms/hooks/useForms";
+import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { TrackService } from "../../../api/services/track.service";
 import DataTable, { type Column } from "../../../components/common/DataTable";
 import FilterChips from "../../../components/common/FilterChips";
@@ -35,6 +36,7 @@ import type { Form } from "../../../types/form.types";
 export default function QuizFormsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(
@@ -50,13 +52,17 @@ export default function QuizFormsListPage() {
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null);
   const [addingToTrack, setAddingToTrack] = useState(false);
 
-  // Sempre filtrar apenas formulários do tipo quiz
-  const { data, isLoading, error } = useForms({
-    page,
-    pageSize,
-    active: activeFilter,
-    type: "quiz", // Filtro fixo para quiz
-  });
+  // Backend exige contextId; listar apenas quizzes do contexto selecionado
+  const { data, isLoading, error } = useForms(
+    {
+      page,
+      pageSize,
+      active: activeFilter,
+      type: "quiz",
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
   // Load tracks when opening the dialog
   useEffect(() => {
@@ -208,7 +214,7 @@ export default function QuizFormsListPage() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate("/form-builder?type=quiz")}
+          onClick={() => navigate("/forms/new?type=quiz")}
         >
           {t("quizzes.forms.newQuizForm")}
         </Button>

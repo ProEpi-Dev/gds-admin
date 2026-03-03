@@ -24,6 +24,16 @@ export const usersService = {
     return response.data;
   },
 
+  async findAdmins(query?: UserQuery): Promise<ListResponse<User>> {
+    const params = new URLSearchParams();
+    if (query?.page) params.append('page', query.page.toString());
+    if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
+    if (query?.active !== undefined) params.append('active', query.active.toString());
+    if (query?.search) params.append('search', query.search);
+    const response = await apiClient.get(`${API_ENDPOINTS.USERS.ADMINS}?${params.toString()}`);
+    return response.data;
+  },
+
   async findOne(id: number): Promise<User> {
     const response = await apiClient.get(API_ENDPOINTS.USERS.DETAIL(id));
     return response.data;

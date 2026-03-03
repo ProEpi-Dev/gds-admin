@@ -25,6 +25,7 @@ import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { getErrorMessage } from "../../../utils/errorHandler";
+import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { useTrackCycles, useDeleteTrackCycle } from "../hooks/useTrackCycles";
 import {
   TrackCycleStatus,
@@ -53,6 +54,7 @@ const DEFAULT_PAGE_SIZE = 10;
 export default function TrackCyclesListPage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
+  const { currentContext } = useCurrentContext();
   const [statusFilter, setStatusFilter] = useState<
     TrackCycleStatus | undefined
   >(undefined);
@@ -69,6 +71,7 @@ export default function TrackCyclesListPage() {
     isLoading,
     error,
   } = useTrackCycles({
+    contextId: currentContext?.id,
     status: statusFilter,
     active: activeFilter,
   });

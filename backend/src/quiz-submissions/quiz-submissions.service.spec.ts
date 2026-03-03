@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { QuizSubmissionsService } from './quiz-submissions.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
@@ -128,6 +129,15 @@ describe('QuizSubmissionsService', () => {
           provide: TrackProgressService,
           useValue: trackProgressServiceMock,
         },
+        {
+          provide: AuthzService,
+          useValue: {
+            isAdmin: jest.fn().mockResolvedValue(false),
+            hasAnyRole: jest.fn().mockResolvedValue(true),
+            resolveListContextId: jest.fn().mockResolvedValue(1),
+            getManagedContextIds: jest.fn().mockResolvedValue([1]),
+          },
+        },
       ],
     }).compile();
 
@@ -161,7 +171,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 1);
 
       expect(result).toHaveProperty('id', 1);
       expect(result).toHaveProperty('score', 100);
@@ -174,10 +184,10 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         'Participação com ID 1 não encontrada',
       );
     });
@@ -190,7 +200,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -206,10 +216,10 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(nonQuizFormVersion as any);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         'não é do tipo quiz',
       );
     });
@@ -223,10 +233,10 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue(mockFormVersion as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(3); // Já atingiu o limite
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         'Limite de tentativas',
       );
     });
@@ -246,7 +256,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -272,7 +282,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -306,10 +316,10 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'findFirst')
         .mockResolvedValue(null);
 
-      await expect(service.create(createDtoWithLongTime)).rejects.toThrow(
+      await expect(service.create(createDtoWithLongTime, 1)).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.create(createDtoWithLongTime)).rejects.toThrow(
+      await expect(service.create(createDtoWithLongTime, 1)).rejects.toThrow(
         'Tempo limite',
       );
     });
@@ -329,7 +339,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 1);
 
       expect(result.score).toBeDefined();
       expect(result.percentage).toBeDefined();
@@ -356,7 +366,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -387,7 +397,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.quiz_submission.create).toHaveBeenCalled();
     });
@@ -415,7 +425,7 @@ describe('QuizSubmissionsService', () => {
         is_passed: null,
       } as any);
 
-      const result = await service.create(createDtoIncomplete);
+      const result = await service.create(createDtoIncomplete, 1);
 
       expect(result.score).toBeNull();
       expect(result.percentage).toBeNull();
@@ -442,7 +452,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDtoWithoutTime);
+      await service.create(createDtoWithoutTime, 1);
 
       expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -466,7 +476,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([mockQuizSubmission] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(1);
 
-      const result = await service.findAll(query);
+      const result = await service.findAll(query, 1);
 
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('meta');
@@ -486,7 +496,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -509,7 +519,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -532,7 +542,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -555,7 +565,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -577,7 +587,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -601,7 +611,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue([] as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -622,7 +632,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'findUnique')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await service.findOne(1);
+      const result = await service.findOne(1, 1);
 
       expect(result).toHaveProperty('id', 1);
       expect(prismaService.quiz_submission.findUnique).toHaveBeenCalledWith({
@@ -636,8 +646,8 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
-      await expect(service.findOne(999)).rejects.toThrow(
+      await expect(service.findOne(999, 1)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, 1)).rejects.toThrow(
         'Submissão de quiz com ID 999 não encontrada',
       );
     });
@@ -659,7 +669,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      const result = await service.update(1, updateDto);
+      const result = await service.update(1, updateDto, 1);
 
       expect(result).toHaveProperty('id', 1);
       expect(prismaService.quiz_submission.update).toHaveBeenCalled();
@@ -670,7 +680,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.update(999, updateDto)).rejects.toThrow(
+      await expect(service.update(999, updateDto, 1)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -687,7 +697,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.update(1, updateDto);
+      await service.update(1, updateDto, 1);
 
       expect(prismaService.quiz_submission.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -716,7 +726,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.update(1, updateDtoWithCompleted);
+      await service.update(1, updateDtoWithCompleted, 1);
 
       expect(prismaService.quiz_submission.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -743,7 +753,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.update(1, updateDtoWithTime);
+      await service.update(1, updateDtoWithTime, 1);
 
       expect(prismaService.quiz_submission.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -769,7 +779,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'update')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.update(1, updateDtoWithActive);
+      await service.update(1, updateDtoWithActive, 1);
 
       expect(prismaService.quiz_submission.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -791,7 +801,7 @@ describe('QuizSubmissionsService', () => {
         active: false,
       } as any);
 
-      await service.remove(1);
+      await service.remove(1, 1);
 
       expect(prismaService.quiz_submission.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -804,7 +814,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(service.remove(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -839,7 +849,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       // Verificar que getOrCreateSequenceProgress foi chamado
       expect(
@@ -880,7 +890,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue(mockQuizSubmission as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       // Verificar que getOrCreateSequenceProgress NÃO foi chamado
       expect(
@@ -928,7 +938,7 @@ describe('QuizSubmissionsService', () => {
         .spyOn(prismaService.quiz_submission, 'create')
         .mockResolvedValue({ ...mockQuizSubmission, attempt_number: 3 } as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       // Verificar que findFirst foi chamado com sequence_progress_id scope
       expect(prismaService.quiz_submission.findFirst).toHaveBeenCalledWith({
@@ -975,7 +985,7 @@ describe('QuizSubmissionsService', () => {
         .mockResolvedValue(mockSequenceProgress as any);
       jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(3); // já atingiu limite
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
 

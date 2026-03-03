@@ -7,6 +7,7 @@ import { UpdateFormVersionDto } from './dto/update-form-version.dto';
 import { FormVersionQueryDto } from './dto/form-version-query.dto';
 import { FormVersionResponseDto } from './dto/form-version-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('FormVersionsController', () => {
   let controller: FormVersionsController;
@@ -54,7 +55,10 @@ describe('FormVersionsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<FormVersionsController>(FormVersionsController);
     formVersionsService = module.get<FormVersionsService>(FormVersionsService);

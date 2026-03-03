@@ -30,7 +30,7 @@ import {
   useCreateTrackCycle,
   useUpdateTrackCycle,
 } from "../hooks/useTrackCycles";
-import { useContexts } from "../../contexts/hooks/useContexts";
+import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { useTracks } from "../../tracks/hooks/useTracks";
 import { TrackCycleStatus } from "../../../types/track-cycle.types";
 import { getErrorMessage } from "../../../utils/errorHandler";
@@ -74,13 +74,12 @@ export default function TrackCycleFormPage() {
   const isEditing = !!id;
   const [error, setError] = useState<string | null>(null);
 
+  const { currentContext } = useCurrentContext();
   const {
     data: cycle,
     isLoading: isLoadingCycle,
     error: cycleError,
   } = useTrackCycle(id ? parseInt(id) : null);
-  const { data: contextsResponse, isLoading: isLoadingContexts } =
-    useContexts();
   const createMutation = useCreateTrackCycle();
   const updateMutation = useUpdateTrackCycle();
 
@@ -107,7 +106,16 @@ export default function TrackCycleFormPage() {
   });
 
   const contextId = watch("contextId");
-  const { data: tracksData, isLoading: isLoadingTracks } = useTracks(contextId);
+  const { data: tracksData, isLoading: isLoadingTracks } = useTracks(
+    contextId && contextId > 0 ? contextId : undefined
+  );
+
+  // Na criação, usar o contexto selecionado no cabeçalho da aplicação
+  useEffect(() => {
+    if (!isEditing && currentContext?.id) {
+      setValue("contextId", currentContext.id);
+    }
+  }, [isEditing, currentContext?.id, setValue]);
 
   // Debug: verificar dados das trilhas
   useEffect(() => {
@@ -182,7 +190,7 @@ export default function TrackCycleFormPage() {
     }
   };
 
-  if (isLoadingCycle || isLoadingContexts) return <LoadingSpinner />;
+  if (isLoadingCycle) return <LoadingSpinner />;
   if (cycleError)
     return (
       <ErrorAlert
@@ -194,8 +202,7 @@ export default function TrackCycleFormPage() {
       />
     );
 
-  const contexts = contextsResponse?.data || [];
-  const tracks = tracksData || []; // tracksData já é o array, não precisa acessar .data
+  const tracks = tracksData || [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -220,35 +227,6 @@ export default function TrackCycleFormPage() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Stack spacing={3}>
-            {/* Contexto */}
-            <Controller
-              name="contextId"
-              control={control}
-              render={({ field }) => (
-                <Autocomplete
-                  {...field}
-                  options={contexts}
-                  getOptionLabel={(option: any) => option.name || ""}
-                  value={
-                    contexts.find((c: any) => c.id === field.value) || null
-                  }
-                  onChange={(_, newValue) => {
-                    field.onChange(newValue?.id || 0);
-                  }}
-                  disabled={isEditing}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Contexto *"
-                      error={!!errors.contextId}
-                      helperText={errors.contextId?.message}
-                    />
-                  )}
-                  noOptionsText="Nenhum contexto encontrado"
-                />
-              )}
-            />
-
             {/* Trilha */}
             <Controller
               name="trackId"
@@ -271,7 +249,9 @@ export default function TrackCycleFormPage() {
                       error={!!errors.trackId}
                       helperText={
                         errors.trackId?.message ||
-                        (!contextId ? "Selecione um contexto primeiro" : "")
+                        (!contextId && !isEditing
+                          ? "Selecione um contexto no cabeçalho da aplicação"
+                          : "")
                       }
                       InputProps={{
                         ...params.InputProps,
@@ -288,7 +268,7 @@ export default function TrackCycleFormPage() {
                   )}
                   noOptionsText={
                     !contextId
-                      ? "Selecione um contexto primeiro"
+                      ? "Selecione um contexto no cabeçalho da aplicação"
                       : isLoadingTracks
                         ? "Carregando trilhas..."
                         : "Nenhuma trilha encontrada neste contexto"

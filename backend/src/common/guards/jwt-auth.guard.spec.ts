@@ -13,7 +13,8 @@ describe('JwtAuthGuard', () => {
       getAllAndOverride: jest.fn(),
     } as any;
 
-    guard = new JwtAuthGuard(reflector);
+    const logger = { warn: jest.fn() } as any;
+    guard = new JwtAuthGuard(reflector, logger);
 
     mockExecutionContext = {
       getHandler: jest.fn(),

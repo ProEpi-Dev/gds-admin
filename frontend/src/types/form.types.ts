@@ -24,6 +24,8 @@ export interface CreateFormDto {
   reference?: string;
   description?: string;
   active?: boolean;
+  /** Obrigatório para admin. Para manager/content_manager o backend usa o contexto da participação. */
+  contextId?: number;
 }
 
 export interface UpdateFormDto {
@@ -37,5 +39,7 @@ export interface UpdateFormDto {
 export interface FormQuery extends PaginationQuery {
   active?: boolean;
   type?: FormType;
+  /** Contexto para filtrar (admin: opcional; não-admin: implícito). */
+  contextId?: number;
 }
 

@@ -10,6 +10,8 @@ interface SelectFormVersionProps {
   helperText?: string;
   required?: boolean;
   label?: string;
+  /** Filtra por contexto; quando informado, só lista formulários desse contexto */
+  contextId?: number | null;
 }
 
 export default function SelectFormVersion({
@@ -19,10 +21,11 @@ export default function SelectFormVersion({
   helperText,
   required = false,
   label = 'Versão do Formulário',
+  contextId,
 }: SelectFormVersionProps) {
   const { data: formsWithVersions, isLoading } = useQuery({
-    queryKey: ['forms-with-versions'],
-    queryFn: () => formsService.findFormsWithLatestVersions(),
+    queryKey: ['forms-with-versions', contextId ?? 'all'],
+    queryFn: () => formsService.findFormsWithLatestVersions(contextId ?? undefined),
   });
 
   if (isLoading) {

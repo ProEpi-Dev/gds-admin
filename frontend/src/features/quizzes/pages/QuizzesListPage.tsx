@@ -18,6 +18,7 @@ import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
 import { useForms } from '../../forms/hooks/useForms';
 import { useQuizSubmissions } from '../hooks/useQuizSubmissions';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 
 interface QuizWithContent {
@@ -30,27 +31,31 @@ interface QuizWithContent {
 export default function QuizzesListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentContext } = useCurrentContext();
   const participation = user?.participation || null;
 
-  // Buscar todos os quizes (sem filtro de contexto para pegar todos os quizes associados)
-  // Nota: O backend filtra por contexto, então pode não retornar todos os quizes
-  // Por isso vamos usar os dados do form que vêm no content-quiz
-  const { data: formsData, isLoading: formsLoading } = useForms({
-    type: 'quiz',
-    active: true,
-    page: 1,
-    pageSize: 100,
-  });
+  // Backend exige contextId: listar apenas quizzes do contexto atual
+  const { data: formsData, isLoading: formsLoading } = useForms(
+    {
+      type: 'quiz',
+      active: true,
+      page: 1,
+      pageSize: 100,
+      contextId: currentContext?.id,
+    },
+    { enabled: currentContext?.id != null }
+  );
 
-  // Buscar todas as associações conteúdo-quiz
+  // Buscar todas as associações conteúdo-quiz (contextId para autorização do content_manager)
   const { data: contentQuizzesData, isLoading: contentQuizzesLoading } =
     useContentQuizzes({
       page: 1,
       pageSize: 100,
       active: true,
+      contextId: currentContext?.id,
     });
 
-  // Buscar submissões do usuário atual
+  // Buscar submissões do usuário atual (só do contexto selecionado)
   const { data: submissionsData, isLoading: submissionsLoading } =
     useQuizSubmissions(
       participation
@@ -58,6 +63,7 @@ export default function QuizzesListPage() {
             participationId: participation.id,
             page: 1,
             pageSize: 100,
+            contextId: currentContext?.id,
           }
         : undefined
     );

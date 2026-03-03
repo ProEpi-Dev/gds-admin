@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formsService } from '../../../api/services/forms.service';
 import type { CreateFormDto, UpdateFormDto, FormQuery } from '../../../types/form.types';
 
-export function useForms(query?: FormQuery) {
+export function useForms(query?: FormQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['forms', query],
     queryFn: () => formsService.findAll(query),
+    ...options,
   });
 }
 

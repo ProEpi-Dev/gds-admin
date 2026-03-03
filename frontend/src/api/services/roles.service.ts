@@ -1,0 +1,38 @@
+import apiClient from "../client";
+import { API_ENDPOINTS } from "../endpoints";
+import type { Role } from "../../types/role.types";
+
+export const rolesService = {
+  async findAll(): Promise<Role[]> {
+    const response = await apiClient.get(API_ENDPOINTS.ROLES.LIST);
+    return response.data;
+  },
+
+  async findParticipationRoles(participationId: number): Promise<Role[]> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.PARTICIPATIONS.ROLES(participationId)
+    );
+    return response.data;
+  },
+
+  async addParticipationRole(
+    participationId: number,
+    roleId: number
+  ): Promise<Role[]> {
+    const response = await apiClient.post(
+      API_ENDPOINTS.PARTICIPATIONS.ROLES(participationId),
+      { roleId }
+    );
+    return response.data;
+  },
+
+  async removeParticipationRole(
+    participationId: number,
+    roleId: number
+  ): Promise<Role[]> {
+    const response = await apiClient.delete(
+      API_ENDPOINTS.PARTICIPATIONS.REMOVE_ROLE(participationId, roleId)
+    );
+    return response.data;
+  },
+};

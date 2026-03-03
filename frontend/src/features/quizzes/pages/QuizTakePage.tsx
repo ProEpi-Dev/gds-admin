@@ -20,6 +20,7 @@ import { useForm } from '../../forms/hooks/useForms';
 import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
 import { useQuizSubmissions, useCreateQuizSubmission } from '../hooks/useQuizSubmissions';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { contentService } from '../../../api/services/content.service';
 import { useQuery } from '@tanstack/react-query';
 import QuizRenderer from '../../../components/quiz/QuizRenderer';
@@ -34,6 +35,7 @@ export default function QuizTakePage() {
   const navigate = useNavigate();
   const snackbar = useSnackbar();
   const { user } = useAuth();
+  const { currentContext } = useCurrentContext();
   const participation = user?.participation || null;
   const [activeTab, setActiveTab] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
@@ -51,12 +53,13 @@ export default function QuizTakePage() {
     enabled: !!contentIdNum,
   });
 
-  // Buscar associação conteúdo-quiz
+  // Buscar associação conteúdo-quiz (contextId para autorização do content_manager)
   useContentQuizzes({
     contentId: contentIdNum ?? undefined,
     formId: quizIdNum ?? undefined,
     page: 1,
     pageSize: 1,
+    contextId: currentContext?.id,
   });
 
   // Buscar versão do quiz
@@ -73,7 +76,7 @@ export default function QuizTakePage() {
     randomizeQuestions: formVersion?.randomizeQuestions ?? false,
   };
 
-  // Buscar submissões anteriores
+  // Buscar submissões anteriores (do contexto atual)
   const { data: submissionsData } = useQuizSubmissions(
     participation && formVersion
       ? {
@@ -81,6 +84,7 @@ export default function QuizTakePage() {
           formVersionId: formVersion.id,
           page: 1,
           pageSize: 100,
+          contextId: currentContext?.id,
         }
       : undefined
   );

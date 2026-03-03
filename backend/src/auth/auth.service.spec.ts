@@ -14,7 +14,19 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
+import { getLoggerToken } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
+
+const mockPinoLogger = {
+  setContext: jest.fn(),
+  log: jest.fn(),
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  trace: jest.fn(),
+  verbose: jest.fn(),
+};
 
 jest.mock('bcrypt');
 
@@ -120,6 +132,10 @@ describe('AuthService', () => {
               key === 'FRONTEND_URL' ? 'http://localhost:5173' : undefined,
             ),
           },
+        },
+        {
+          provide: getLoggerToken(AuthService.name),
+          useValue: mockPinoLogger,
         },
       ],
     }).compile();
@@ -432,6 +448,7 @@ describe('AuthService', () => {
         .mockResolvedValue(mockTermsOfUse as any);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
 
+      const mockParticipantRole = { id: 1, code: 'participant' };
       jest
         .spyOn(prismaService, '$transaction')
         .mockImplementation(async (callback: any) => {
@@ -441,6 +458,12 @@ describe('AuthService', () => {
             },
             participation: {
               create: jest.fn().mockResolvedValue(mockNewParticipation),
+            },
+            role: {
+              findUnique: jest.fn().mockResolvedValue(mockParticipantRole),
+            },
+            participation_role: {
+              create: jest.fn().mockResolvedValue({}),
             },
             user_legal_acceptance: {
               create: jest.fn().mockResolvedValue({}),

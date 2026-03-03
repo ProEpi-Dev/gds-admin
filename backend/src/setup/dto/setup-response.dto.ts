@@ -28,20 +28,6 @@ export class ContextResponseDto {
   active: boolean;
 }
 
-export class ContextManagerResponseDto {
-  @ApiProperty({ description: 'ID do manager', example: 1 })
-  id: number;
-
-  @ApiProperty({ description: 'ID do usuário', example: 1 })
-  userId: number;
-
-  @ApiProperty({ description: 'ID do contexto', example: 1 })
-  contextId: number;
-
-  @ApiProperty({ description: 'Status ativo', example: true })
-  active: boolean;
-}
-
 export class SetupResponseDto {
   @ApiProperty({
     description: 'Mensagem de sucesso',
@@ -62,8 +48,8 @@ export class SetupResponseDto {
   manager: UserResponseDto;
 
   @ApiProperty({
-    description: 'Relação context manager criada',
-    type: ContextManagerResponseDto,
+    description: 'ID da participation criada para o manager no contexto',
+    example: 1,
   })
-  contextManager: ContextManagerResponseDto;
+  participationId: number;
 }

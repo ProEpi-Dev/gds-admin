@@ -1,10 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsEnum } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsEnum, Max, Min } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { context_access_type } from '@prisma/client';
 
 export class ContextQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description: 'Tamanho da página (máx. 500 para contextos)',
+    minimum: 1,
+    maximum: 500,
+    default: 20,
+    example: 20,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  @IsOptional()
+  override pageSize?: number = 20;
   @ApiPropertyOptional({
     description: 'Filtrar por status ativo',
     example: true,

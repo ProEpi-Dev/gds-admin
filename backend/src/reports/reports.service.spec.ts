@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ReportsService } from './reports.service';
+import { AuthzService } from '../authz/authz.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
@@ -9,6 +14,7 @@ import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
 
 describe('ReportsService', () => {
   let service: ReportsService;
+  let moduleRef: TestingModule;
   let prismaService: PrismaService;
 
   const mockReport = {
@@ -21,6 +27,12 @@ describe('ReportsService', () => {
     active: true,
     created_at: new Date(),
     updated_at: new Date(),
+  };
+
+  /** Report como retornado por findUnique com include: { participation: { select: { context_id } } } */
+  const mockReportWithParticipation = {
+    ...mockReport,
+    participation: { context_id: 1 },
   };
 
   const mockParticipation = {
@@ -58,9 +70,18 @@ describe('ReportsService', () => {
             },
           },
         },
+        {
+          provide: AuthzService,
+          useValue: {
+            isAdmin: jest.fn().mockResolvedValue(false),
+            hasAnyRole: jest.fn().mockResolvedValue(true),
+            resolveListContextId: jest.fn().mockResolvedValue(1),
+          },
+        },
       ],
     }).compile();
 
+    moduleRef = module;
     service = module.get<ReportsService>(ReportsService);
     prismaService = module.get<PrismaService>(PrismaService);
   });
@@ -85,7 +106,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.report, 'create')
         .mockResolvedValue(mockReport as any);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 1);
 
       expect(result).toHaveProperty('id', 1);
     });
@@ -108,7 +129,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.report, 'create')
         .mockResolvedValue(mockReport as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.participation.findUnique).toHaveBeenCalled();
       expect(prismaService.form_version.findUnique).toHaveBeenCalled();
@@ -133,7 +154,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.report, 'create')
         .mockResolvedValue(mockReport as any);
 
-      await service.create(createDto);
+      await service.create(createDto, 1);
 
       expect(prismaService.report.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -154,8 +175,31 @@ describe('ReportsService', () => {
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
+      );
+    });
+
+    it('deve lançar ForbiddenException quando não-admin cria report para participação de outro e não gerencia contexto', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'POSITIVE',
+        formResponse: {},
+      };
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        user_id: 2,
+      } as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+
+      await expect(service.create(createDto, 1)).rejects.toThrow(
+        ForbiddenException,
       );
     });
 
@@ -174,7 +218,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -192,7 +236,7 @@ describe('ReportsService', () => {
         .mockResolvedValue([mockReport] as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(1);
 
-      const result = await service.findAll(query);
+      const result = await service.findAll(query, 1);
 
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('meta');
@@ -211,7 +255,7 @@ describe('ReportsService', () => {
       jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
 
-      await service.findAll(query);
+      await service.findAll(query, 1);
 
       expect(prismaService.report.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -248,7 +292,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.report, 'findMany')
         .mockResolvedValue(reportsWithLocation as any);
 
-      const result = await service.findPoints(query);
+      const result = await service.findPoints(query, 1);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveProperty('latitude', -23.5505);
@@ -263,7 +307,7 @@ describe('ReportsService', () => {
 
       jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
 
-      await service.findPoints(query);
+      await service.findPoints(query, 1);
 
       expect(prismaService.report.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -286,7 +330,7 @@ describe('ReportsService', () => {
 
       jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
 
-      await service.findPoints(query);
+      await service.findPoints(query, 1);
 
       expect(prismaService.report.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -308,7 +352,7 @@ describe('ReportsService', () => {
 
       jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
 
-      await service.findPoints(query);
+      await service.findPoints(query, 1);
 
       expect(prismaService.report.findMany).toHaveBeenCalled();
     });
@@ -321,7 +365,7 @@ describe('ReportsService', () => {
 
       jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
 
-      await service.findPoints(query);
+      await service.findPoints(query, 1);
 
       expect(prismaService.report.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -337,9 +381,9 @@ describe('ReportsService', () => {
     it('deve retornar report quando existe', async () => {
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
 
-      const result = await service.findOne(1);
+      const result = await service.findOne(1, 1);
 
       expect(result).toHaveProperty('id', 1);
     });
@@ -347,7 +391,7 @@ describe('ReportsService', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -359,13 +403,13 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest.spyOn(prismaService.report, 'update').mockResolvedValue({
         ...mockReport,
         report_type: 'NEGATIVE',
       } as any);
 
-      const result = await service.update(1, updateDto);
+      const result = await service.update(1, updateDto, 1);
 
       expect(result).toHaveProperty('reportType', 'NEGATIVE');
     });
@@ -377,12 +421,12 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.report, 'update')
         .mockResolvedValue(mockReport as any);
 
-      await service.update(1, updateDto);
+      await service.update(1, updateDto, 1);
 
       expect(prismaService.report.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -397,12 +441,12 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.report, 'update')
         .mockResolvedValue(mockReport as any);
 
-      await service.update(1, updateDto);
+      await service.update(1, updateDto, 1);
 
       expect(prismaService.report.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -418,7 +462,7 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue({ id: 2 } as any);
@@ -429,7 +473,7 @@ describe('ReportsService', () => {
         .spyOn(prismaService.report, 'update')
         .mockResolvedValue(mockReport as any);
 
-      await service.update(1, updateDto);
+      await service.update(1, updateDto, 1);
 
       expect(prismaService.participation.findUnique).toHaveBeenCalledWith({
         where: { id: 2 },
@@ -446,7 +490,7 @@ describe('ReportsService', () => {
 
       jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(999, updateDto)).rejects.toThrow(
+      await expect(service.update(999, updateDto, 1)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -458,12 +502,12 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.update(1, updateDto)).rejects.toThrow(
+      await expect(service.update(1, updateDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -475,12 +519,12 @@ describe('ReportsService', () => {
 
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.update(1, updateDto)).rejects.toThrow(
+      await expect(service.update(1, updateDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -490,12 +534,12 @@ describe('ReportsService', () => {
     it('deve deletar report permanentemente', async () => {
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
       jest
         .spyOn(prismaService.report, 'delete')
         .mockResolvedValue(mockReport as any);
 
-      await service.remove(1);
+      await service.remove(1, 1);
 
       expect(prismaService.report.delete).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -505,7 +549,7 @@ describe('ReportsService', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(service.remove(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -513,9 +557,9 @@ describe('ReportsService', () => {
     it('deve mapear todos os campos corretamente', async () => {
       jest
         .spyOn(prismaService.report, 'findUnique')
-        .mockResolvedValue(mockReport as any);
+        .mockResolvedValue(mockReportWithParticipation as any);
 
-      const result = await service.findOne(1);
+      const result = await service.findOne(1, 1);
 
       expect(result).toHaveProperty('id', 1);
       expect(result).toHaveProperty('participationId', 1);

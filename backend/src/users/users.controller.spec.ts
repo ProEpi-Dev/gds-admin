@@ -9,6 +9,9 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
+
+const mockCurrentUser = { userId: 1 };
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -59,7 +62,10 @@ describe('UsersController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
     usersService = module.get<UsersService>(UsersService);
@@ -76,10 +82,10 @@ describe('UsersController', () => {
 
       jest.spyOn(usersService, 'create').mockResolvedValue(mockUser);
 
-      const result = await controller.create(createUserDto);
+      const result = await controller.create(mockCurrentUser, createUserDto);
 
       expect(result).toEqual(mockUser);
-      expect(usersService.create).toHaveBeenCalledWith(createUserDto);
+      expect(usersService.create).toHaveBeenCalledWith(createUserDto, 1);
     });
 
     it('deve lançar ConflictException quando email já existe', async () => {
@@ -93,7 +99,7 @@ describe('UsersController', () => {
         .spyOn(usersService, 'create')
         .mockRejectedValue(new ConflictException('Email já está em uso'));
 
-      await expect(controller.create(createUserDto)).rejects.toThrow(
+      await expect(controller.create(mockCurrentUser, createUserDto)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -108,10 +114,10 @@ describe('UsersController', () => {
 
       jest.spyOn(usersService, 'findAll').mockResolvedValue(mockListResponse);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(mockCurrentUser, query);
 
       expect(result).toEqual(mockListResponse);
-      expect(usersService.findAll).toHaveBeenCalledWith(query);
+      expect(usersService.findAll).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar por active quando fornecido', async () => {
@@ -123,9 +129,9 @@ describe('UsersController', () => {
 
       jest.spyOn(usersService, 'findAll').mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll(mockCurrentUser, query);
 
-      expect(usersService.findAll).toHaveBeenCalledWith(query);
+      expect(usersService.findAll).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar por search quando fornecido', async () => {
@@ -137,9 +143,9 @@ describe('UsersController', () => {
 
       jest.spyOn(usersService, 'findAll').mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll(mockCurrentUser, query);
 
-      expect(usersService.findAll).toHaveBeenCalledWith(query);
+      expect(usersService.findAll).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve retornar apenas ativos por padrão', async () => {
@@ -150,9 +156,9 @@ describe('UsersController', () => {
 
       jest.spyOn(usersService, 'findAll').mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll(mockCurrentUser, query);
 
-      expect(usersService.findAll).toHaveBeenCalledWith(query);
+      expect(usersService.findAll).toHaveBeenCalledWith(query, 1);
     });
   });
 
@@ -160,10 +166,10 @@ describe('UsersController', () => {
     it('deve retornar usuário quando existe', async () => {
       jest.spyOn(usersService, 'findOne').mockResolvedValue(mockUser);
 
-      const result = await controller.findOne(1);
+      const result = await controller.findOne(mockCurrentUser, 1);
 
       expect(result).toEqual(mockUser);
-      expect(usersService.findOne).toHaveBeenCalledWith(1);
+      expect(usersService.findOne).toHaveBeenCalledWith(1, 1);
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -171,7 +177,7 @@ describe('UsersController', () => {
         .spyOn(usersService, 'findOne')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne(mockCurrentUser, 999)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -184,10 +190,10 @@ describe('UsersController', () => {
       const updatedUser = { ...mockUser, name: 'Updated Name' };
       jest.spyOn(usersService, 'update').mockResolvedValue(updatedUser);
 
-      const result = await controller.update(1, updateUserDto);
+      const result = await controller.update(mockCurrentUser, 1, updateUserDto);
 
       expect(result).toEqual(updatedUser);
-      expect(usersService.update).toHaveBeenCalledWith(1, updateUserDto);
+      expect(usersService.update).toHaveBeenCalledWith(1, updateUserDto, 1);
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -199,7 +205,7 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.update(999, updateUserDto)).rejects.toThrow(
+      await expect(controller.update(mockCurrentUser, 999, updateUserDto)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -213,7 +219,7 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new ConflictException('Email já está em uso'));
 
-      await expect(controller.update(1, updateUserDto)).rejects.toThrow(
+      await expect(controller.update(mockCurrentUser, 1, updateUserDto)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -223,9 +229,9 @@ describe('UsersController', () => {
     it('deve desativar usuário (soft delete)', async () => {
       jest.spyOn(usersService, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(1);
+      await controller.remove(mockCurrentUser, 1);
 
-      expect(usersService.remove).toHaveBeenCalledWith(1);
+      expect(usersService.remove).toHaveBeenCalledWith(1, 1);
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -233,7 +239,7 @@ describe('UsersController', () => {
         .spyOn(usersService, 'remove')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove(mockCurrentUser, 999)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -389,10 +395,12 @@ describe('UsersController', () => {
     it('deve retornar papel do usuário como manager', async () => {
       const mockUser = { userId: 1 };
       const mockUserRole = {
+        isAdmin: false,
         isManager: true,
+        isContentManager: false,
         isParticipant: false,
         contexts: {
-          asManager: [1],
+          asManager: [{ id: 1, name: 'Context 1' }],
           asParticipant: [],
         },
       };
@@ -408,11 +416,13 @@ describe('UsersController', () => {
     it('deve retornar papel do usuário como participant', async () => {
       const mockUser = { userId: 1 };
       const mockUserRole = {
+        isAdmin: false,
         isManager: false,
+        isContentManager: false,
         isParticipant: true,
         contexts: {
           asManager: [],
-          asParticipant: [2],
+          asParticipant: [{ id: 2, name: 'Context 2' }],
         },
       };
 
@@ -427,11 +437,13 @@ describe('UsersController', () => {
     it('deve retornar papel do usuário como ambos', async () => {
       const mockUser = { userId: 1 };
       const mockUserRole = {
+        isAdmin: false,
         isManager: true,
+        isContentManager: false,
         isParticipant: true,
         contexts: {
-          asManager: [1],
-          asParticipant: [2],
+          asManager: [{ id: 1, name: 'Context 1' }],
+          asParticipant: [{ id: 2, name: 'Context 2' }],
         },
       };
 

@@ -22,6 +22,7 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorAlert from "../../components/common/ErrorAlert";
 import SelectParticipationSearch from "../../components/common/SelectParticipationSearch";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 import { useTrackExecutions } from "../track-progress/hooks/useTrackProgress";
 import { useTrackCycles } from "../track-cycles/hooks/useTrackCycles";
 import { useParticipation } from "../participations/hooks/useParticipations";
@@ -37,6 +38,7 @@ import { ptBR } from "date-fns/locale";
 const DEFAULT_PAGE_SIZE = 20;
 
 export default function TrackExecutionRegistry() {
+  const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [trackCycleId, setTrackCycleId] = useState<number | undefined>(
@@ -79,7 +81,10 @@ export default function TrackExecutionRegistry() {
     isLoading,
     error,
   } = useTrackExecutions(queryParams);
-  const { data: cycles = [] } = useTrackCycles({ active: true });
+  const { data: cycles = [] } = useTrackCycles({
+    contextId: currentContext?.id,
+    active: true,
+  });
   const { data: participationDetail } = useParticipation(
     participationId ?? null,
   );

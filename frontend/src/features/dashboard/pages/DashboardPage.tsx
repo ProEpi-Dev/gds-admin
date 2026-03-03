@@ -9,7 +9,6 @@ import {
   CircularProgress,
 } from "@mui/material";
 import {
-  People as PeopleIcon,
   LocationOn as LocationIcon,
   Folder as FolderIcon,
   Assignment as AssignmentIcon,
@@ -21,7 +20,6 @@ import {
   ArrowForward as ArrowForwardIcon,
 } from "@mui/icons-material";
 import { useQuery } from "@tanstack/react-query";
-import { usersService } from "../../../api/services/users.service";
 import { locationsService } from "../../../api/services/locations.service";
 import { contextsService } from "../../../api/services/contexts.service";
 import { participationsService } from "../../../api/services/participations.service";
@@ -30,6 +28,8 @@ import { reportsService } from "../../../api/services/reports.service";
 import { contentService } from "../../../api/services/content.service";
 import { TrackService } from "../../../api/services/track.service";
 import { useTranslation } from "../../../hooks/useTranslation";
+import { useUserRole } from "../../../hooks/useUserRole";
+import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 
 interface StatCardProps {
   title: string;
@@ -121,27 +121,33 @@ function StatCard({
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isAdmin, isManager } = useUserRole();
+  const { currentContext } = useCurrentContext();
 
-  // Buscar contagens de cada módulo
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ["users", { page: 1, pageSize: 1 }],
-    queryFn: () => usersService.findAll({ page: 1, pageSize: 1 }),
-  });
-
+  // Contagens: Localizações e Contextos só para admin
   const { data: locationsData, isLoading: locationsLoading } = useQuery({
     queryKey: ["locations", { page: 1, pageSize: 1 }],
     queryFn: () => locationsService.findAll({ page: 1, pageSize: 1 }),
+    enabled: isAdmin,
   });
 
   const { data: contextsData, isLoading: contextsLoading } = useQuery({
     queryKey: ["contexts", { page: 1, pageSize: 1 }],
     queryFn: () => contextsService.findAll({ page: 1, pageSize: 1 }),
+    enabled: isAdmin,
   });
 
+  const canSeeParticipationsAndReports = isAdmin || isManager;
   const { data: participationsData, isLoading: participationsLoading } =
     useQuery({
-      queryKey: ["participations", { page: 1, pageSize: 1 }],
-      queryFn: () => participationsService.findAll({ page: 1, pageSize: 1 }),
+      queryKey: ["participations", { page: 1, pageSize: 1, contextId: currentContext?.id }],
+      queryFn: () =>
+        participationsService.findAll({
+          page: 1,
+          pageSize: 1,
+          contextId: currentContext?.id,
+        }),
+      enabled: canSeeParticipationsAndReports,
     });
 
   const { data: formsData, isLoading: formsLoading } = useQuery({
@@ -152,6 +158,7 @@ export default function DashboardPage() {
   const { data: reportsData, isLoading: reportsLoading } = useQuery({
     queryKey: ["reports", { page: 1, pageSize: 1 }],
     queryFn: () => reportsService.findAll({ page: 1, pageSize: 1 }),
+    enabled: canSeeParticipationsAndReports,
   });
 
   const { data: contentsData, isLoading: contentsLoading } = useQuery({
@@ -177,42 +184,50 @@ export default function DashboardPage() {
     onClick: () => void;
     onViewAll: () => void;
   }> = [
-    {
-      title: t("navigation.users"),
-      count: usersData?.meta.totalItems,
-      icon: <PeopleIcon />,
-      color: "primary",
-      loading: usersLoading,
-      onClick: () => navigate("/users"),
-      onViewAll: () => navigate("/users"),
-    },
-    {
-      title: t("navigation.locations"),
-      count: locationsData?.meta.totalItems,
-      icon: <LocationIcon />,
-      color: "secondary",
-      loading: locationsLoading,
-      onClick: () => navigate("/locations"),
-      onViewAll: () => navigate("/locations"),
-    },
-    {
-      title: t("navigation.contexts"),
-      count: contextsData?.meta.totalItems,
-      icon: <FolderIcon />,
-      color: "info",
-      loading: contextsLoading,
-      onClick: () => navigate("/contexts"),
-      onViewAll: () => navigate("/contexts"),
-    },
-    {
-      title: t("navigation.participations"),
-      count: participationsData?.meta.totalItems,
-      icon: <AssignmentIcon />,
-      color: "success",
-      loading: participationsLoading,
-      onClick: () => navigate("/participations"),
-      onViewAll: () => navigate("/participations"),
-    },
+    ...(isAdmin
+      ? [
+          {
+            title: t("navigation.locations"),
+            count: locationsData?.meta.totalItems,
+            icon: <LocationIcon />,
+            color: "secondary" as const,
+            loading: locationsLoading,
+            onClick: () => navigate("/locations"),
+            onViewAll: () => navigate("/locations"),
+          },
+          {
+            title: t("navigation.contexts"),
+            count: contextsData?.meta.totalItems,
+            icon: <FolderIcon />,
+            color: "info" as const,
+            loading: contextsLoading,
+            onClick: () => navigate("/contexts"),
+            onViewAll: () => navigate("/contexts"),
+          },
+        ]
+      : []),
+    ...(isAdmin || isManager
+      ? [
+          {
+            title: t("navigation.participations"),
+            count: participationsData?.meta.totalItems,
+            icon: <AssignmentIcon />,
+            color: "success" as const,
+            loading: participationsLoading,
+            onClick: () => navigate("/participations"),
+            onViewAll: () => navigate("/participations"),
+          },
+          {
+            title: t("navigation.reports"),
+            count: reportsData?.meta.totalItems,
+            icon: <AssessmentIcon />,
+            color: "error" as const,
+            loading: reportsLoading,
+            onClick: () => navigate("/reports"),
+            onViewAll: () => navigate("/reports"),
+          },
+        ]
+      : []),
     {
       title: t("forms.title"),
       count: formsData?.meta.totalItems,
@@ -221,15 +236,6 @@ export default function DashboardPage() {
       loading: formsLoading,
       onClick: () => navigate("/forms"),
       onViewAll: () => navigate("/forms"),
-    },
-    {
-      title: t("navigation.reports"),
-      count: reportsData?.meta.totalItems,
-      icon: <AssessmentIcon />,
-      color: "error",
-      loading: reportsLoading,
-      onClick: () => navigate("/reports"),
-      onViewAll: () => navigate("/reports"),
     },
     {
       title: t("navigation.contents"),
@@ -252,22 +258,34 @@ export default function DashboardPage() {
   ];
 
   const quickActions = [
-    { label: t("users.newUser"), path: "/users/new", icon: <PeopleIcon /> },
-    {
-      label: t("locations.newLocation"),
-      path: "/locations/new",
-      icon: <LocationIcon />,
-    },
-    {
-      label: t("contexts.newContext"),
-      path: "/contexts/new",
-      icon: <FolderIcon />,
-    },
-    {
-      label: t("participations.newParticipation"),
-      path: "/participations/new",
-      icon: <AssignmentIcon />,
-    },
+    ...(isAdmin
+      ? [
+          {
+            label: t("locations.newLocation"),
+            path: "/locations/new",
+            icon: <LocationIcon />,
+          },
+          {
+            label: t("contexts.newContext"),
+            path: "/contexts/new",
+            icon: <FolderIcon />,
+          },
+        ]
+      : []),
+    ...(isAdmin || isManager
+      ? [
+          {
+            label: t("participations.newParticipation"),
+            path: "/participations/new",
+            icon: <AssignmentIcon />,
+          },
+          {
+            label: t("reports.newReport"),
+            path: "/reports/new",
+            icon: <AssessmentIcon />,
+          },
+        ]
+      : []),
     {
       label: t("forms.newForm"),
       path: "/forms/new",
@@ -282,11 +300,6 @@ export default function DashboardPage() {
       label: t("contents.newContent"),
       path: "/contents/new",
       icon: <LibraryBooksIcon />,
-    },
-    {
-      label: t("reports.newReport"),
-      path: "/reports/new",
-      icon: <AssessmentIcon />,
     },
   ];
 

@@ -123,6 +123,31 @@ export class ContextsService {
     };
   }
 
+  /** Lista contextos públicos e ativos para uso no signup (sem autenticação). */
+  async findPublicForSignup(): Promise<ListResponseDto<ContextResponseDto>> {
+    const contexts = await this.prisma.context.findMany({
+      where: { access_type: 'PUBLIC', active: true },
+      orderBy: { name: 'asc' },
+    });
+    const totalItems = contexts.length;
+    const pageSize = Math.max(totalItems, 1);
+    return {
+      data: contexts.map((context) => this.mapToResponseDto(context)),
+      meta: createPaginationMeta({
+        page: 1,
+        pageSize,
+        totalItems,
+        baseUrl: '/v1/contexts/public',
+      }),
+      links: createPaginationLinks({
+        page: 1,
+        pageSize,
+        totalItems,
+        baseUrl: '/v1/contexts/public',
+      }),
+    };
+  }
+
   async findOne(id: number): Promise<ContextResponseDto> {
     const context = await this.prisma.context.findUnique({
       where: { id },

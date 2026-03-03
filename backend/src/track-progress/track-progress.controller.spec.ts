@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackProgressController } from './track-progress.controller';
 import { TrackProgressService } from './track-progress.service';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('TrackProgressController', () => {
   let controller: TrackProgressController;
@@ -31,7 +32,10 @@ describe('TrackProgressController', () => {
           useValue: mockService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get(TrackProgressController);
     service = module.get(TrackProgressService);

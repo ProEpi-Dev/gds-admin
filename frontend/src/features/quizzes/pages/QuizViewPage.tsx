@@ -16,28 +16,31 @@ import {
 import { useForm } from '../../forms/hooks/useForms';
 import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
 import { useQuizSubmissions } from '../hooks/useQuizSubmissions';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 
 export default function QuizViewPage() {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
+  const { currentContext } = useCurrentContext();
 
   const quizIdNum = quizId ? parseInt(quizId, 10) : null;
 
   // Buscar quiz
   const { data: quiz, isLoading, error } = useForm(quizIdNum);
 
-  // Buscar associações conteúdo-quiz
+  // Buscar associações conteúdo-quiz (contextId para autorização do content_manager)
   const { data: contentQuizzesData, isLoading: contentQuizzesLoading } =
     useContentQuizzes({
       formId: quizIdNum ?? undefined,
       page: 1,
       pageSize: 100,
       active: true,
+      contextId: currentContext?.id,
     });
 
-  // Buscar total de submissões para estatísticas
+  // Buscar total de submissões para estatísticas (do contexto atual)
   const { data: submissionsData } = useQuizSubmissions(
     quiz?.latestVersion
       ? {
@@ -45,6 +48,7 @@ export default function QuizViewPage() {
           page: 1,
           pageSize: 100,
           active: true,
+          contextId: currentContext?.id,
         }
       : undefined
   );

@@ -7,6 +7,7 @@ import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
 import { ParticipationResponseDto } from './dto/participation-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ParticipationsController', () => {
   let controller: ParticipationsController;
@@ -54,7 +55,10 @@ describe('ParticipationsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ParticipationsController>(ParticipationsController);
     participationsService = module.get<ParticipationsService>(
@@ -143,14 +147,16 @@ describe('ParticipationsController', () => {
         page: 1,
         pageSize: 20,
       };
+      const user = { userId: 1 };
 
       jest
         .spyOn(participationsService, 'findAll')
         .mockResolvedValue(mockListResponse);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, user);
 
       expect(result).toEqual(mockListResponse);
+      expect(participationsService.findAll).toHaveBeenCalledWith(query, 1);
     });
 
     it('deve filtrar por active, userId e contextId', async () => {
@@ -161,14 +167,15 @@ describe('ParticipationsController', () => {
         userId: 1,
         contextId: 1,
       };
+      const user = { userId: 1 };
 
       jest
         .spyOn(participationsService, 'findAll')
         .mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll(query, user);
 
-      expect(participationsService.findAll).toHaveBeenCalledWith(query);
+      expect(participationsService.findAll).toHaveBeenCalledWith(query, 1);
     });
   });
 

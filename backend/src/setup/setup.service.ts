@@ -61,19 +61,45 @@ export class SetupService {
         },
       });
 
-      // Criar relação context_manager
-      const contextManager = await tx.context_manager.create({
+      // RBAC: buscar papéis necessários
+      const [adminRole, managerRole] = await Promise.all([
+        tx.role.findUnique({ where: { code: 'admin' } }),
+        tx.role.findUnique({ where: { code: 'manager' } }),
+      ]);
+      if (!managerRole) {
+        throw new BadRequestException(
+          'Papel "manager" não encontrado. Execute as migrações RBAC antes de realizar o setup.',
+        );
+      }
+
+      // Atribuir papel global admin ao primeiro usuário
+      if (adminRole) {
+        await tx.user.update({
+          where: { id: manager.id },
+          data: { role_id: adminRole.id },
+        });
+      }
+
+      const participation = await tx.participation.create({
         data: {
           user_id: manager.id,
           context_id: context.id,
+          start_date: new Date(),
+          end_date: null,
           active: true,
+        },
+      });
+      await tx.participation_role.create({
+        data: {
+          participation_id: participation.id,
+          role_id: managerRole.id,
         },
       });
 
       return {
         manager,
         context,
-        contextManager,
+        participationId: participation.id,
       };
     });
 
@@ -94,12 +120,7 @@ export class SetupService {
         createdAt: result.manager.created_at,
         updatedAt: result.manager.updated_at,
       },
-      contextManager: {
-        id: result.contextManager.id,
-        userId: result.contextManager.user_id,
-        contextId: result.contextManager.context_id,
-        active: result.contextManager.active,
-      },
+      participationId: result.participationId,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -36,8 +36,8 @@ import type { Form } from "../../types/form.types";
 export default function TrackView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [track, setTrack] = useState<any>(null);
   const location = useLocation();
+  const [rawTrack, setRawTrack] = useState<any>(null);
   const [contents, setContents] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
   const formatDate = (date?: string) => {
@@ -63,39 +63,38 @@ export default function TrackView() {
   const [previewQuizOpen, setPreviewQuizOpen] = useState(false);
   const [quizToPreview, setQuizToPreview] = useState<Form | null>(null);
 
+  // Carregar trilha primeiro
   useEffect(() => {
-    contentService.findAll().then((res) => {
-      setContents(res.data);
-    });
+    if (!id) return;
+    TrackService.get(Number(id)).then((res) => setRawTrack(res.data));
+  }, [id, location.key]);
 
-    formsService.findAll().then((res) => {
-      setForms(res.data.filter((f: any) => f.type === "quiz"));
-    });
-  }, []);
-
+  // Carregar conteúdos e quizzes do contexto da trilha (para filtrar sequências)
+  const trackContextId = rawTrack?.context_id;
   useEffect(() => {
-    if (!id || contents.length === 0) return;
+    if (trackContextId == null) return;
+    contentService.findAll({ contextId: trackContextId }).then((res) => setContents(res.data));
+    formsService
+      .findAll({ type: "quiz", active: true, page: 1, pageSize: 100, contextId: trackContextId })
+      .then((res) => setForms(res.data));
+  }, [trackContextId]);
 
-    TrackService.get(Number(id)).then((res) => {
-      const normalized = {
-        ...res.data,
-        section: res.data.section.map((section: any) => ({
-          ...section,
-          sequence: section.sequence.filter((seq: any) => {
-            if (seq.content_id) {
-              return contents.some((c) => c.id === seq.content_id);
-            }
-            if (seq.form_id) {
-              return forms.some((f) => f.id === seq.form_id);
-            }
-            return false;
-          }),
-        })),
-      };
-
-      setTrack(normalized);
-    });
-  }, [id, contents, forms, location.key]);
+  // Trilha exibida: sequências filtradas (ocultar conteúdos/quizzes removidos)
+  const track = useMemo(() => {
+    if (!rawTrack) return null;
+    if (contents.length === 0 && forms.length === 0) return rawTrack;
+    return {
+      ...rawTrack,
+      section: rawTrack.section?.map((section: any) => ({
+        ...section,
+        sequence: section.sequence?.filter((seq: any) => {
+          if (seq.content_id) return contents.some((c) => c.id === seq.content_id);
+          if (seq.form_id) return forms.some((f) => f.id === seq.form_id);
+          return false;
+        }),
+      })),
+    };
+  }, [rawTrack, contents, forms]);
 
   if (!track) {
     return (

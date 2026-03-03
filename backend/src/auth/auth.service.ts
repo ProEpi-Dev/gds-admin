@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,12 +30,20 @@ export class AuthService {
     private legalDocumentsService: LegalDocumentsService,
     private mailService: MailService,
     private configService: ConfigService,
+    @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
   ) {}
 
-  async login(loginDto: LoginDto): Promise<LoginResponseDto> {
+  async login(
+    loginDto: LoginDto,
+    clientIp?: string,
+  ): Promise<LoginResponseDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
 
     if (!user) {
+      this.logger.warn(
+        { event: 'LOGIN_FAILED', email: loginDto.email, ip: clientIp ?? 'n/a' },
+        'Credenciais inválidas',
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -320,6 +329,19 @@ export class AuthService {
           active: true,
         },
       });
+
+      // Atribuir papel "participant" à participação (RBAC)
+      const participantRole = await tx.role.findUnique({
+        where: { code: 'participant' },
+      });
+      if (participantRole) {
+        await tx.participation_role.create({
+          data: {
+            participation_id: participation.id,
+            role_id: participantRole.id,
+          },
+        });
+      }
 
       // Criar aceites de documentos legais
       const acceptances = await Promise.all(

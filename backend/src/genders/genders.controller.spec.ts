@@ -5,6 +5,7 @@ import { GendersService } from './genders.service';
 import { CreateGenderDto } from './dto/create-gender.dto';
 import { UpdateGenderDto } from './dto/update-gender.dto';
 import { GenderResponseDto } from './dto/gender-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('GendersController', () => {
   let controller: GendersController;
@@ -33,7 +34,10 @@ describe('GendersController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<GendersController>(GendersController);
     gendersService = module.get<GendersService>(GendersService);

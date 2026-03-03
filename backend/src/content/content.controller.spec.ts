@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContentController } from './content.controller';
 import { ContentService } from './content.service';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ContentController', () => {
   let controller: ContentController;
@@ -37,7 +38,10 @@ describe('ContentController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContentController>(ContentController);
     service = module.get<ContentService>(ContentService);
@@ -72,11 +76,12 @@ describe('ContentController', () => {
     it('deve retornar lista de conteúdos', async () => {
       const mockContents = [mockContent];
       jest.spyOn(service, 'list').mockResolvedValue(mockContents as any);
+      const user = { userId: 1 };
 
-      const result = await controller.list();
+      const result = await controller.list(undefined, user);
 
       expect(result).toEqual(mockContents);
-      expect(service.list).toHaveBeenCalled();
+      expect(service.list).toHaveBeenCalledWith(undefined, 1);
     });
   });
 

@@ -15,157 +15,181 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 
+/**
+ * Serviço de gerentes de contexto.
+ * Armazenamento migrado de context_manager para participation + participation_role (role: manager).
+ * O "id" exposto na API corresponde ao participation.id.
+ */
 @Injectable()
 export class ContextManagersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     contextId: number,
     createContextManagerDto: CreateContextManagerDto,
   ): Promise<ContextManagerResponseDto> {
-    // Validar contexto
     const context = await this.prisma.context.findUnique({
       where: { id: contextId },
     });
-
     if (!context) {
-      throw new NotFoundException(
-        `Contexto com ID ${contextId} não encontrado`,
-      );
+      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
     }
 
-    // Validar usuário
     const user = await this.prisma.user.findUnique({
       where: { id: createContextManagerDto.userId },
     });
-
     if (!user) {
       throw new BadRequestException(
         `Usuário com ID ${createContextManagerDto.userId} não encontrado`,
       );
     }
 
-    // Verificar se já existe manager para este contexto e usuário
-    const existingManager = await this.prisma.context_manager.findFirst({
+    const managerRole = await this.prisma.role.findUnique({
+      where: { code: 'manager' },
+    });
+    if (!managerRole) {
+      throw new BadRequestException(
+        'Papel "manager" não encontrado. Execute as migrações RBAC.',
+      );
+    }
+
+    const existingRole = await this.prisma.participation_role.findFirst({
       where: {
-        context_id: contextId,
-        user_id: createContextManagerDto.userId,
+        participation: {
+          user_id: createContextManagerDto.userId,
+          context_id: contextId,
+        },
+        role_id: managerRole.id,
       },
     });
-
-    if (existingManager) {
+    if (existingRole) {
       throw new ConflictException(
         `Usuário ${createContextManagerDto.userId} já é manager do contexto ${contextId}`,
       );
     }
 
-    // Criar context manager
-    const contextManager = await this.prisma.context_manager.create({
-      data: {
-        context_id: contextId,
-        user_id: createContextManagerDto.userId,
-        active: createContextManagerDto.active ?? true,
-      },
+    const participation = await this.prisma.$transaction(async (tx) => {
+      let p = await tx.participation.findFirst({
+        where: {
+          user_id: createContextManagerDto.userId,
+          context_id: contextId,
+        },
+      });
+      if (!p) {
+        p = await tx.participation.create({
+          data: {
+            user_id: createContextManagerDto.userId,
+            context_id: contextId,
+            start_date: new Date(),
+            end_date: null,
+            active: createContextManagerDto.active ?? true,
+          },
+        });
+      } else if (
+        createContextManagerDto.active !== undefined &&
+        p.active !== createContextManagerDto.active
+      ) {
+        p = await tx.participation.update({
+          where: { id: p.id },
+          data: { active: createContextManagerDto.active },
+        });
+      }
+      await tx.participation_role.create({
+        data: {
+          participation_id: p.id,
+          role_id: managerRole.id,
+        },
+      });
+      return p;
     });
 
-    return this.mapToResponseDto(contextManager);
+    return this.mapToResponseDto(participation, true);
   }
 
   async findAllByContext(
     contextId: number,
     query: ContextManagerQueryDto,
   ): Promise<ListResponseDto<ContextManagerResponseDto>> {
-    // Validar contexto
     const context = await this.prisma.context.findUnique({
       where: { id: contextId },
     });
-
     if (!context) {
-      throw new NotFoundException(
-        `Contexto com ID ${contextId} não encontrado`,
-      );
+      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
     }
 
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Construir filtros
-    const where: any = {
+    const managerRole = await this.prisma.role.findUnique({
+      where: { code: 'manager' },
+    });
+
+    const baseWhere: any = {
       context_id: contextId,
+      participation_role: {
+        some: {
+          role_id: managerRole?.id ?? -1,
+        },
+      },
     };
 
     if (query.active !== undefined) {
-      where.active = query.active;
+      baseWhere.active = query.active;
     } else {
-      // Por padrão, mostrar apenas managers ativos
-      where.active = true;
+      baseWhere.active = true;
     }
 
-    // Buscar managers e total
-    const [managers, totalItems] = await Promise.all([
-      this.prisma.context_manager.findMany({
-        where,
+    const [participations, totalItems] = await Promise.all([
+      this.prisma.participation.findMany({
+        where: baseWhere,
         skip,
         take: pageSize,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.context_manager.count({ where }),
+      this.prisma.participation.count({ where: baseWhere }),
     ]);
 
-    // Criar resposta paginada
     const baseUrl = `/v1/contexts/${contextId}/managers`;
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
 
     return {
-      data: managers.map((manager) => this.mapToResponseDto(manager)),
-      meta: createPaginationMeta({
-        page,
-        pageSize,
-        totalItems,
-        baseUrl,
-        queryParams,
-      }),
-      links: createPaginationLinks({
-        page,
-        pageSize,
-        totalItems,
-        baseUrl,
-        queryParams,
-      }),
+      data: participations.map((p) => this.mapToResponseDto(p, true)),
+      meta: createPaginationMeta({ page, pageSize, totalItems, baseUrl, queryParams }),
+      links: createPaginationLinks({ page, pageSize, totalItems, baseUrl, queryParams }),
     };
   }
 
-  async findOne(
-    contextId: number,
-    id: number,
-  ): Promise<ContextManagerResponseDto> {
-    // Validar contexto
+  async findOne(contextId: number, id: number): Promise<ContextManagerResponseDto> {
     const context = await this.prisma.context.findUnique({
       where: { id: contextId },
     });
-
     if (!context) {
-      throw new NotFoundException(
-        `Contexto com ID ${contextId} não encontrado`,
-      );
+      throw new NotFoundException(`Contexto com ID ${contextId} não encontrado`);
     }
 
-    const contextManager = await this.prisma.context_manager.findFirst({
+    const managerRole = await this.prisma.role.findUnique({
+      where: { code: 'manager' },
+    });
+
+    const participation = await this.prisma.participation.findFirst({
       where: {
         id,
         context_id: contextId,
+        participation_role: {
+          some: { role_id: managerRole?.id ?? -1 },
+        },
       },
     });
 
-    if (!contextManager) {
+    if (!participation) {
       throw new NotFoundException(
-        `Context manager com ID ${id} não encontrado no contexto ${contextId}`,
+        `Manager com ID ${id} não encontrado no contexto ${contextId}`,
       );
     }
 
-    return this.mapToResponseDto(contextManager);
+    return this.mapToResponseDto(participation, true);
   }
 
   async update(
@@ -173,66 +197,74 @@ export class ContextManagersService {
     id: number,
     updateContextManagerDto: UpdateContextManagerDto,
   ): Promise<ContextManagerResponseDto> {
-    // Verificar se context manager existe e pertence ao contexto
-    const existingManager = await this.prisma.context_manager.findFirst({
+    const managerRole = await this.prisma.role.findUnique({
+      where: { code: 'manager' },
+    });
+
+    const participation = await this.prisma.participation.findFirst({
       where: {
         id,
         context_id: contextId,
+        participation_role: {
+          some: { role_id: managerRole?.id ?? -1 },
+        },
       },
     });
 
-    if (!existingManager) {
+    if (!participation) {
       throw new NotFoundException(
-        `Context manager com ID ${id} não encontrado no contexto ${contextId}`,
+        `Manager com ID ${id} não encontrado no contexto ${contextId}`,
       );
     }
 
-    // Preparar dados de atualização
-    const updateData: any = {};
-
     if (updateContextManagerDto.active !== undefined) {
-      updateData.active = updateContextManagerDto.active;
+      await this.prisma.participation.update({
+        where: { id },
+        data: { active: updateContextManagerDto.active },
+      });
+      participation.active = updateContextManagerDto.active;
     }
 
-    // Atualizar context manager
-    const contextManager = await this.prisma.context_manager.update({
-      where: { id },
-      data: updateData,
-    });
-
-    return this.mapToResponseDto(contextManager);
+    return this.mapToResponseDto(participation, updateContextManagerDto.active ?? participation.active);
   }
 
   async remove(contextId: number, id: number): Promise<void> {
-    // Verificar se context manager existe e pertence ao contexto
-    const contextManager = await this.prisma.context_manager.findFirst({
+    const managerRole = await this.prisma.role.findUnique({
+      where: { code: 'manager' },
+    });
+
+    const participation = await this.prisma.participation.findFirst({
       where: {
         id,
         context_id: contextId,
+        participation_role: {
+          some: { role_id: managerRole?.id ?? -1 },
+        },
       },
     });
 
-    if (!contextManager) {
+    if (!participation) {
       throw new NotFoundException(
-        `Context manager com ID ${id} não encontrado no contexto ${contextId}`,
+        `Manager com ID ${id} não encontrado no contexto ${contextId}`,
       );
     }
 
-    // Soft delete - apenas desativar
-    await this.prisma.context_manager.update({
-      where: { id },
-      data: { active: false },
+    await this.prisma.participation_role.deleteMany({
+      where: {
+        participation_id: id,
+        role_id: managerRole?.id,
+      },
     });
   }
 
-  private mapToResponseDto(contextManager: any): ContextManagerResponseDto {
+  private mapToResponseDto(participation: any, active: boolean): ContextManagerResponseDto {
     return {
-      id: contextManager.id,
-      userId: contextManager.user_id,
-      contextId: contextManager.context_id,
-      active: contextManager.active,
-      createdAt: contextManager.created_at,
-      updatedAt: contextManager.updated_at,
+      id: participation.id,
+      userId: participation.user_id,
+      contextId: participation.context_id,
+      active,
+      createdAt: participation.created_at,
+      updatedAt: participation.updated_at,
     };
   }
 }

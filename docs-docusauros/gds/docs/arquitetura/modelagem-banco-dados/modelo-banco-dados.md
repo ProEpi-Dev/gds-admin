@@ -8,7 +8,8 @@ O diagrama completo abaixo é extenso. Para uma visão mais detalhada de cada pa
 
 - [Usuários e Autenticação](usuarios-autenticacao) - Usuários, gêneros e documentos legais
 - [Localização](localizacao) - Hierarquia geográfica e polígonos
-- [Contextos e Participação](contextos-participacao) - Contextos, gerentes e participações
+- [Contextos e Participação](contextos-participacao) - Contextos e participações (papéis por contexto)
+- [Papéis e Permissões (RBAC)](papeis-permissoes-rbac) - Controle de acesso: roles, permissions, participation_role
 - [Conteúdo e Tags](conteudo-tags) - Artigos, materiais educacionais e sistema de tags
 - [Formulários e Relatórios](formularios-relatorios) - Formulários, versões, relatórios e quizzes
 - [Trilhas de Aprendizado](trilhas-aprendizado) - Trilhas, seções e sequências
@@ -20,14 +21,13 @@ O diagrama completo abaixo é extenso. Para uma visão mais detalhada de cada pa
 ```mermaid
 erDiagram
     USER ||--o{ CONTENT : "author"
-    USER ||--o{ CONTEXT_MANAGER : "manages"
     USER ||--o{ PARTICIPATION : "participates"
+    USER }o--|| ROLE : "role_id"
     USER ||--o{ USER_LEGAL_ACCEPTANCE : "accepts"
     USER }o--|| GENDER : "has"
     USER }o--|| LOCATION : "located_in"
     
     CONTEXT ||--o{ CONTENT : "contains"
-    CONTEXT ||--o{ CONTEXT_MANAGER : "has"
     CONTEXT ||--o{ FORM : "has"
     CONTEXT ||--o{ PARTICIPATION : "has"
     CONTEXT ||--o{ TRACK : "has"
@@ -45,6 +45,8 @@ erDiagram
     FORM_VERSION ||--o{ REPORT : "used_in"
     FORM_VERSION ||--o{ QUIZ_SUBMISSION : "submitted"
     
+    PARTICIPATION ||--o{ PARTICIPATION_ROLE : "has"
+    ROLE ||--o{ PARTICIPATION_ROLE : "assigned"
     PARTICIPATION ||--o{ REPORT : "generates"
     PARTICIPATION ||--o{ QUIZ_SUBMISSION : "submits"
     
@@ -70,11 +72,40 @@ erDiagram
         string password
         int gender_id FK
         int location_id FK
+        int role_id FK
         string external_identifier
         datetime created_at
         datetime updated_at
         boolean active
     }
+    
+    ROLE {
+        int id PK
+        string code UK
+        string name
+        string scope
+        boolean active
+    }
+    
+    PERMISSION {
+        int id PK
+        string code UK
+        string name
+        boolean active
+    }
+    
+    ROLE_PERMISSION {
+        int role_id PK,FK
+        int permission_id PK,FK
+    }
+    
+    PARTICIPATION_ROLE {
+        int participation_id PK,FK
+        int role_id PK,FK
+    }
+    
+    ROLE ||--o{ ROLE_PERMISSION : "has"
+    PERMISSION ||--o{ ROLE_PERMISSION : "granted_by"
     
     GENDER {
         int id PK
@@ -103,15 +134,6 @@ erDiagram
         string description
         string type
         enum access_type
-        datetime created_at
-        datetime updated_at
-        boolean active
-    }
-    
-    CONTEXT_MANAGER {
-        int id PK
-        int user_id FK
-        int context_id FK
         datetime created_at
         datetime updated_at
         boolean active
@@ -317,8 +339,8 @@ erDiagram
 ### Contextos e Participação
 
 - **CONTEXT**: Contextos de trabalho/comunidade vinculados a localizações
-- **CONTEXT_MANAGER**: Gerentes de contexto (relação N:N entre USER e CONTEXT)
-- **PARTICIPATION**: Participação de usuários em contextos com período de vigência
+- **PARTICIPATION**: Participação de usuários em contextos com período de vigência (uma por user+contexto)
+- **PARTICIPATION_ROLE**: Papéis do usuário no contexto (manager, content_manager, participant). Ver [Papéis e Permissões (RBAC)](papeis-permissoes-rbac)
 
 ### Conteúdo
 
@@ -345,6 +367,13 @@ erDiagram
 - **LEGAL_DOCUMENT_TYPE**: Tipos de documentos legais (tabela básica)
 - **LEGAL_DOCUMENT**: Versões de documentos legais
 
+### Papéis e Permissões (RBAC)
+
+- **ROLE**: Papéis do sistema (admin, manager, content_manager, participant)
+- **PERMISSION**: Permissões atômicas (content:read, content-type:manage, etc.)
+- **ROLE_PERMISSION**: Associação papel–permissão
+- **USER.role_id**: Papel global opcional (ex.: admin). Detalhes em [Papéis e Permissões (RBAC)](papeis-permissoes-rbac)
+
 ## Enums
 
 - **context_access_type**: `PUBLIC`, `PRIVATE`
@@ -355,7 +384,7 @@ erDiagram
 ## Relacionamentos Principais
 
 1. **Hierarquia de Localizações**: `LOCATION` → `LOCATION` (auto-relacionamento)
-2. **Usuário → Contexto**: Via `PARTICIPATION` e `CONTEXT_MANAGER`
+2. **Usuário → Contexto**: Via `PARTICIPATION` e `PARTICIPATION_ROLE` (papéis por contexto); papel global em `USER.role_id`
 3. **Formulários → Relatórios**: Via `FORM_VERSION` → `REPORT`
 4. **Trilhas**: `TRACK` → `SECTION` → `SEQUENCE` → (`CONTENT` ou `FORM`)
 5. **Conteúdo → Quiz**: Via `CONTENT_QUIZ` (N:N)

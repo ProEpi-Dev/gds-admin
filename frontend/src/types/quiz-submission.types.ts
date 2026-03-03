@@ -74,5 +74,7 @@ export interface QuizSubmissionQuery extends PaginationQuery {
   isPassed?: boolean;
   startDate?: string;
   endDate?: string;
+  /** Filtrar por contexto (submissões do contexto selecionado) */
+  contextId?: number;
 }
 

@@ -23,11 +23,7 @@ export default function SelectPublicContext({
 }: SelectPublicContextProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['public-contexts'],
-    queryFn: () => contextsService.findAll({ 
-      accessType: 'PUBLIC', 
-      active: true, 
-      pageSize: 100 
-    }),
+    queryFn: () => contextsService.findPublicForSignup(),
   });
 
   if (isLoading) {

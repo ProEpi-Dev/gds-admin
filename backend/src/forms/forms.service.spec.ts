@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { FormsService } from './forms.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
 import { FormQueryDto } from './dto/form-query.dto';
@@ -56,6 +57,12 @@ describe('FormsService', () => {
             report: {
               count: jest.fn(),
             },
+          },
+        },
+        {
+          provide: AuthzService,
+          useValue: {
+            isAdmin: jest.fn().mockResolvedValue(false),
           },
         },
       ],

@@ -21,6 +21,7 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
+import { AuthzService } from '../authz/authz.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -28,10 +29,15 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private legalDocumentsService: LegalDocumentsService,
+    private authz: AuthzService,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    // Verificar se email já existe
+  async create(
+    createUserDto: CreateUserDto,
+    currentUserId: number,
+  ): Promise<UserResponseDto> {
+    const isAdmin = await this.authz.isAdmin(currentUserId);
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: createUserDto.email },
     });
@@ -42,58 +48,175 @@ export class UsersService {
       );
     }
 
-    // Hash da senha
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    // Criar usuário
-    const user = await this.prisma.user.create({
-      data: {
-        name: createUserDto.name,
-        email: createUserDto.email,
-        password: hashedPassword,
-        active: createUserDto.active ?? true,
-      },
-    });
+    const createData: any = {
+      name: createUserDto.name,
+      email: createUserDto.email,
+      password: hashedPassword,
+      active: createUserDto.active ?? true,
+    };
 
-    return this.mapToResponseDto(user);
+    // Apenas admin pode atribuir papel global ao criar usuário
+    if (isAdmin && createUserDto.roleId) {
+      createData.role_id = createUserDto.roleId;
+    }
+
+    const user = await this.prisma.user.create({ data: createData });
+
+    return this.findOne(user.id, currentUserId);
   }
 
-  async findAll(
+  /**
+   * Lista apenas usuários com papel de administrador. Apenas para uso da tela de Administradores (admin only).
+   */
+  async findAdmins(
     query: UserQueryDto,
   ): Promise<ListResponseDto<UserResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    // Construir filtros
+    const adminRole = await this.prisma.role.findUnique({
+      where: { code: 'admin' },
+    });
+    if (!adminRole) {
+      return {
+        data: [],
+        meta: createPaginationMeta({
+          page: 1,
+          pageSize,
+          totalItems: 0,
+          baseUrl: '/v1/users/admins',
+          queryParams: {},
+        }),
+        links: createPaginationLinks({
+          page: 1,
+          pageSize,
+          totalItems: 0,
+          baseUrl: '/v1/users/admins',
+          queryParams: {},
+        }),
+      };
+    }
+
+    const where: any = { role_id: adminRole.id };
+    if (query.active !== undefined) where.active = query.active;
+    if (query.search?.trim()) {
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: query.search.trim(), mode: 'insensitive' } },
+            { email: { contains: query.search.trim(), mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+
+    const [users, totalItems] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { name: 'asc' },
+        include: { role: { select: { id: true, name: true } } },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    const baseUrl = '/v1/users/admins';
+    const queryParams: Record<string, any> = {};
+    if (query.active !== undefined) queryParams.active = query.active;
+    if (query.search) queryParams.search = query.search;
+
+    return {
+      data: users.map((u) => this.mapToResponseDto(u)),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+    };
+  }
+
+  async findAll(
+    query: UserQueryDto,
+    currentUserId: number,
+  ): Promise<ListResponseDto<UserResponseDto>> {
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const skip = (page - 1) * pageSize;
+
     const where: any = {};
 
     if (query.active !== undefined) {
       where.active = query.active;
     } else {
-      // Por padrão, mostrar apenas usuários ativos
       where.active = true;
     }
 
     if (query.search) {
-      // Usar Prisma.sql para busca case insensitive
       where.OR = [
-        {
-          name: {
-            contains: query.search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          email: {
-            contains: query.search,
-            mode: 'insensitive',
-          },
-        },
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
-    // Buscar usuários e total
+    // Admin: todos. Manager: usuários dos contextos que gerencia. Participant: apenas o próprio quando search=seu email.
+    const isAdmin = await this.authz.isAdmin(currentUserId);
+    if (!isAdmin) {
+      const managedContextIds = await this.authz.getManagedContextIds(
+        currentUserId,
+      );
+      if (managedContextIds.length === 0) {
+        // Participante: só pode buscar os próprios dados, quando search = seu email
+        const currentUser = await this.prisma.user.findUnique({
+          where: { id: currentUserId },
+          select: { email: true },
+        });
+        const searchTrim = query.search?.trim();
+        const emailMatch =
+          currentUser?.email &&
+          searchTrim &&
+          currentUser.email.toLowerCase() === searchTrim.toLowerCase();
+        if (!emailMatch) {
+          return {
+            data: [],
+            meta: createPaginationMeta({
+              page: 1,
+              pageSize,
+              totalItems: 0,
+              baseUrl: '/v1/users',
+              queryParams: query.search ? { search: query.search } : {},
+            }),
+            links: createPaginationLinks({
+              page: 1,
+              pageSize,
+              totalItems: 0,
+              baseUrl: '/v1/users',
+              queryParams: query.search ? { search: query.search } : {},
+            }),
+          };
+        }
+        where.id = currentUserId;
+        // search já preenchido acima pode ser aplicado; como estamos filtrando por id, ignoramos search no where
+        delete where.OR;
+      } else {
+        where.participation = {
+          some: { context_id: { in: managedContextIds }, active: true },
+        };
+      }
+    }
+
     const [users, totalItems] = await Promise.all([
       this.prisma.user.findMany({
         where,
@@ -129,13 +252,32 @@ export class UsersService {
     };
   }
 
-  async findOne(id: number): Promise<UserResponseDto> {
+  async findOne(id: number, currentUserId: number): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: { role: { select: { id: true, name: true } } },
     });
 
     if (!user) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    const isAdmin = await this.authz.isAdmin(currentUserId);
+    if (!isAdmin) {
+      const managedContextIds =
+        await this.authz.getManagedContextIds(currentUserId);
+      const hasAccess =
+        managedContextIds.length > 0 &&
+        (await this.prisma.participation.count({
+          where: {
+            user_id: id,
+            context_id: { in: managedContextIds },
+            active: true,
+          },
+        })) > 0;
+      if (!hasAccess) {
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      }
     }
 
     return this.mapToResponseDto(user);
@@ -144,8 +286,8 @@ export class UsersService {
   async update(
     id: number,
     updateUserDto: UpdateUserDto,
+    currentUserId: number,
   ): Promise<UserResponseDto> {
-    // Verificar se usuário existe
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -154,12 +296,28 @@ export class UsersService {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
     }
 
-    // Verificar se email já está em uso por outro usuário
+    const isAdmin = await this.authz.isAdmin(currentUserId);
+    if (!isAdmin) {
+      const managedContextIds =
+        await this.authz.getManagedContextIds(currentUserId);
+      const hasAccess =
+        managedContextIds.length > 0 &&
+        (await this.prisma.participation.count({
+          where: {
+            user_id: id,
+            context_id: { in: managedContextIds },
+            active: true,
+          },
+        })) > 0;
+      if (!hasAccess) {
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      }
+    }
+
     if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
       const emailInUse = await this.prisma.user.findUnique({
         where: { email: updateUserDto.email },
       });
-
       if (emailInUse) {
         throw new ConflictException(
           `Email ${updateUserDto.email} já está em uso`,
@@ -167,41 +325,74 @@ export class UsersService {
       }
     }
 
-    // Preparar dados de atualização
     const updateData: any = {};
-
-    if (updateUserDto.name !== undefined) {
-      updateData.name = updateUserDto.name;
-    }
-
-    if (updateUserDto.email !== undefined) {
+    if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
+    if (updateUserDto.email !== undefined)
       updateData.email = updateUserDto.email;
-    }
-
     if (updateUserDto.password !== undefined) {
       updateData.password = await bcrypt.hash(updateUserDto.password, 10);
     }
-
-    if (updateUserDto.active !== undefined) {
+    if (updateUserDto.active !== undefined)
       updateData.active = updateUserDto.active;
+    // Apenas admin pode alterar papel global
+    if (isAdmin && updateUserDto.roleId !== undefined) {
+      const newRoleId = updateUserDto.roleId ?? null;
+      if (newRoleId === null && id === currentUserId) {
+        throw new BadRequestException(
+          'Você não pode remover sua própria administração.',
+        );
+      }
+      if (newRoleId === null) {
+        const adminRole = await this.prisma.role.findUnique({
+          where: { code: 'admin' },
+        });
+        if (adminRole) {
+          const adminCount = await this.prisma.user.count({
+            where: { role_id: adminRole.id, active: true },
+          });
+          if (adminCount <= 1) {
+            throw new BadRequestException(
+              'Não é possível remover o último administrador do sistema.',
+            );
+          }
+        }
+      }
+      updateData.role_id = newRoleId;
     }
 
-    // Atualizar usuário
-    const user = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id },
       data: updateData,
     });
 
-    return this.mapToResponseDto(user);
+    return this.findOne(id, currentUserId);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, currentUserId: number): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
 
     if (!user) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    const isAdmin = await this.authz.isAdmin(currentUserId);
+    if (!isAdmin) {
+      const managedContextIds =
+        await this.authz.getManagedContextIds(currentUserId);
+      const hasAccess =
+        managedContextIds.length > 0 &&
+        (await this.prisma.participation.count({
+          where: {
+            user_id: id,
+            context_id: { in: managedContextIds },
+            active: true,
+          },
+        })) > 0;
+      if (!hasAccess) {
+        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      }
     }
 
     if (user.active) {
@@ -443,48 +634,95 @@ export class UsersService {
   }
 
   async getUserRole(userId: number): Promise<UserRoleResponseDto> {
-    // Buscar todos os context_managers ativos do usuário
-    const contextManagers = await this.prisma.context_manager.findMany({
+    const today = new Date();
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: { select: { code: true } } },
+    });
+    const isAdmin = user?.role?.code === 'admin';
+
+    // Contextos como manager: participation_role (manager ou content_manager)
+    // Gerente: apenas role "manager". Gerente de conteúdo: apenas role "content_manager".
+    const asManagerByRole = await this.prisma.participation.findMany({
       where: {
         user_id: userId,
         active: true,
-        context: {
-          active: true,
+        context: { active: true },
+        participation_role: {
+          some: {
+            role: {
+              code: { in: ['manager', 'content_manager'] },
+              active: true,
+            },
+          },
         },
       },
       select: {
         context_id: true,
+        participation_role: {
+          select: { role: { select: { code: true } } },
+        },
       },
     });
+    const asManagerIds = Array.from(
+      new Set(
+        asManagerByRole
+          .filter((p) =>
+            p.participation_role.some((pr) => pr.role.code === 'manager'),
+          )
+          .map((p) => p.context_id),
+      ),
+    );
+    const asContentManagerIds = new Set(
+      asManagerByRole
+        .filter((p) =>
+          p.participation_role.some((pr) => pr.role.code === 'content_manager'),
+        )
+        .map((p) => p.context_id),
+    );
 
-    // Buscar todas as participations ativas do usuário
-    const today = new Date();
     const participations = await this.prisma.participation.findMany({
       where: {
         user_id: userId,
         active: true,
-        context: {
-          active: true,
-        },
-        start_date: {
-          lte: today,
-        },
+        context: { active: true },
+        start_date: { lte: today },
         OR: [{ end_date: null }, { end_date: { gte: today } }],
       },
-      select: {
-        context_id: true,
-      },
+      select: { context_id: true },
     });
+    const asParticipantIds = participations.map((p) => p.context_id);
 
-    const asManager = contextManagers.map((cm) => cm.context_id);
-    const asParticipant = participations.map((p) => p.context_id);
+    const asManagerOrContentManagerIds = Array.from(
+      new Set([...asManagerIds, ...asContentManagerIds]),
+    );
+    const allContextIds = [
+      ...new Set([...asManagerOrContentManagerIds, ...asParticipantIds]),
+    ];
+    const contextList =
+      allContextIds.length > 0
+        ? await this.prisma.context.findMany({
+            where: { id: { in: allContextIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const contextByName = new Map(
+      contextList.map((c) => [c.id, { id: c.id, name: c.name }]),
+    );
 
     return {
-      isManager: asManager.length > 0,
-      isParticipant: asParticipant.length > 0,
+      isAdmin: !!isAdmin,
+      isManager: asManagerIds.length > 0,
+      isContentManager: asContentManagerIds.size > 0,
+      isParticipant: asParticipantIds.length > 0,
       contexts: {
-        asManager,
-        asParticipant,
+        asManager: asManagerOrContentManagerIds
+          .map((id) => contextByName.get(id))
+          .filter(Boolean) as { id: number; name: string }[],
+        asParticipant: asParticipantIds
+          .map((id) => contextByName.get(id))
+          .filter(Boolean) as { id: number; name: string }[],
       },
     };
   }
@@ -498,6 +736,8 @@ export class UsersService {
       genderId: user.gender_id,
       locationId: user.location_id,
       externalIdentifier: user.external_identifier,
+      roleId: user.role_id ?? null,
+      roleName: user.role?.name ?? null,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };

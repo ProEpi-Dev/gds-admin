@@ -11,6 +11,7 @@ import { CreateLegalDocumentTypeDto } from './dto/create-legal-document-type.dto
 import { UpdateLegalDocumentTypeDto } from './dto/update-legal-document-type.dto';
 import { LegalDocumentResponseDto } from './dto/legal-document-response.dto';
 import { LegalDocumentTypeResponseDto } from './dto/legal-document-type-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('LegalDocumentsController', () => {
   let publicController: LegalDocumentsController;
@@ -66,7 +67,10 @@ describe('LegalDocumentsController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     publicController = module.get<LegalDocumentsController>(
       LegalDocumentsController,

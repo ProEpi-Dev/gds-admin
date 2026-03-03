@@ -25,6 +25,12 @@ export class UserResponseDto {
   })
   externalIdentifier?: string;
 
+  @ApiPropertyOptional({ description: 'ID do papel global', example: 1 })
+  roleId?: number | null;
+
+  @ApiPropertyOptional({ description: 'Nome do papel global', example: 'Administrador' })
+  roleName?: string | null;
+
   @ApiProperty({
     description: 'Data de criação',
     example: '2024-01-01T00:00:00.000Z',

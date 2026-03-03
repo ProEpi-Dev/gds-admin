@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TagController } from './tag.controller';
 import { TagService } from './tag.service';
 import { CreateTagDto, UpdateTagDto } from './tag.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('TagController', () => {
   let controller: TagController;
@@ -32,7 +33,10 @@ describe('TagController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<TagController>(TagController);
     service = module.get<TagService>(TagService);

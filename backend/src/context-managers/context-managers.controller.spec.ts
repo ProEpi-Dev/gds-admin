@@ -11,6 +11,7 @@ import { UpdateContextManagerDto } from './dto/update-context-manager.dto';
 import { ContextManagerQueryDto } from './dto/context-manager-query.dto';
 import { ContextManagerResponseDto } from './dto/context-manager-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ContextManagersController', () => {
   let controller: ContextManagersController;
@@ -56,7 +57,10 @@ describe('ContextManagersController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContextManagersController>(
       ContextManagersController,

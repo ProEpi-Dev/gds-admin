@@ -52,4 +52,6 @@ export interface ReportQuery extends PaginationQuery {
   formId?: number;
   startDate?: string;
   endDate?: string;
+  /** Filtrar por contexto (reports cuja participação pertence ao contexto selecionado) */
+  contextId?: number;
 }

@@ -7,6 +7,7 @@ import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('ContextsController', () => {
   let controller: ContextsController;
@@ -49,13 +50,17 @@ describe('ContextsController', () => {
           useValue: {
             create: jest.fn(),
             findAll: jest.fn(),
+            findPublicForSignup: jest.fn(),
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .compile();
 
     controller = module.get<ContextsController>(ContextsController);
     contextsService = module.get<ContextsService>(ContextsService);
@@ -98,36 +103,24 @@ describe('ContextsController', () => {
 
   describe('findAll', () => {
     it('deve retornar lista paginada', async () => {
-      const query: ContextQueryDto = {
-        page: 1,
-        pageSize: 20,
-      };
-
       jest
-        .spyOn(contextsService, 'findAll')
+        .spyOn(contextsService, 'findPublicForSignup')
         .mockResolvedValue(mockListResponse);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll();
 
       expect(result).toEqual(mockListResponse);
+      expect(contextsService.findPublicForSignup).toHaveBeenCalled();
     });
 
-    it('deve filtrar por active, locationId e accessType', async () => {
-      const query: ContextQueryDto = {
-        page: 1,
-        pageSize: 20,
-        active: false,
-        locationId: 1,
-        accessType: 'PUBLIC',
-      };
-
+    it('deve chamar findPublicForSignup (lista pública para login)', async () => {
       jest
-        .spyOn(contextsService, 'findAll')
+        .spyOn(contextsService, 'findPublicForSignup')
         .mockResolvedValue(mockListResponse);
 
-      await controller.findAll(query);
+      await controller.findAll();
 
-      expect(contextsService.findAll).toHaveBeenCalledWith(query);
+      expect(contextsService.findPublicForSignup).toHaveBeenCalledWith();
     });
   });
 

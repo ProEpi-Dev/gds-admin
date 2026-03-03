@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   // Users
   USERS: {
     LIST: "/users",
+    ADMINS: "/users/admins",
     DETAIL: (id: number) => `/users/${id}`,
     CREATE: "/users",
     UPDATE: (id: number) => `/users/${id}`,
@@ -44,6 +45,8 @@ export const API_ENDPOINTS = {
   // Contexts
   CONTEXTS: {
     LIST: "/contexts",
+    LIST_ADMIN: "/contexts/admin",
+    PUBLIC_LIST: "/contexts/public",
     DETAIL: (id: number) => `/contexts/${id}`,
     CREATE: "/contexts",
     UPDATE: (id: number) => `/contexts/${id}`,
@@ -69,6 +72,14 @@ export const API_ENDPOINTS = {
     CREATE: "/participations",
     UPDATE: (id: number) => `/participations/${id}`,
     DELETE: (id: number) => `/participations/${id}`,
+    ROLES: (id: number) => `/participations/${id}/roles`,
+    REMOVE_ROLE: (id: number, roleId: number) =>
+      `/participations/${id}/roles/${roleId}`,
+  },
+
+  // Roles
+  ROLES: {
+    LIST: "/roles",
   },
 
   // Forms

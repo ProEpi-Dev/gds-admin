@@ -2,13 +2,18 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  Logger,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import { CreateParticipationDto } from './dto/create-participation.dto';
 import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
 import { ParticipationResponseDto } from './dto/participation-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { RoleResponseDto } from '../roles/dto/role-response.dto';
 import {
   createPaginationMeta,
   createPaginationLinks,
@@ -16,19 +21,58 @@ import {
 
 @Injectable()
 export class ParticipationsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ParticipationsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
 
   async create(
     createParticipationDto: CreateParticipationDto,
   ): Promise<ParticipationResponseDto> {
-    // Validar usuário
-    const user = await this.prisma.user.findUnique({
-      where: { id: createParticipationDto.userId },
-    });
+    // ── Resolver userId: existente ou criar novo ────────────────────────
+    let userId: number;
 
-    if (!user) {
+    if (createParticipationDto.userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: createParticipationDto.userId },
+      });
+      if (!user) {
+        throw new BadRequestException(
+          `Usuário com ID ${createParticipationDto.userId} não encontrado`,
+        );
+      }
+      userId = user.id;
+    } else if (
+      createParticipationDto.newUserName &&
+      createParticipationDto.newUserEmail &&
+      createParticipationDto.newUserPassword
+    ) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: createParticipationDto.newUserEmail },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `E-mail ${createParticipationDto.newUserEmail} já está em uso`,
+        );
+      }
+      const hashedPassword = await bcrypt.hash(
+        createParticipationDto.newUserPassword,
+        10,
+      );
+      const newUser = await this.prisma.user.create({
+        data: {
+          name: createParticipationDto.newUserName,
+          email: createParticipationDto.newUserEmail,
+          password: hashedPassword,
+          active: true,
+        },
+      });
+      userId = newUser.id;
+    } else {
       throw new BadRequestException(
-        `Usuário com ID ${createParticipationDto.userId} não encontrado`,
+        'Informe userId ou os campos newUserName, newUserEmail e newUserPassword para criar um novo usuário.',
       );
     }
 
@@ -36,7 +80,6 @@ export class ParticipationsService {
     const context = await this.prisma.context.findUnique({
       where: { id: createParticipationDto.contextId },
     });
-
     if (!context) {
       throw new BadRequestException(
         `Contexto com ID ${createParticipationDto.contextId} não encontrado`,
@@ -46,10 +89,8 @@ export class ParticipationsService {
     // Validar datas
     const startDate = new Date(createParticipationDto.startDate);
     let endDate: Date | null = null;
-
     if (createParticipationDto.endDate) {
       endDate = new Date(createParticipationDto.endDate);
-
       if (endDate < startDate) {
         throw new BadRequestException(
           'Data de término deve ser posterior à data de início',
@@ -57,33 +98,79 @@ export class ParticipationsService {
       }
     }
 
-    // Preparar dados
     const data: any = {
-      user_id: createParticipationDto.userId,
+      user_id: userId,
       context_id: createParticipationDto.contextId,
       start_date: startDate,
       active: createParticipationDto.active ?? true,
     };
+    if (endDate) data.end_date = endDate;
 
-    if (endDate) {
-      data.end_date = endDate;
-    }
+    // Criar participação e atribuir papel
+    const participation = await this.prisma.$transaction(async (tx) => {
+      const p = await tx.participation.create({ data });
 
-    // Criar participação
-    const participation = await this.prisma.participation.create({ data });
+      let roleId: number | undefined = createParticipationDto.roleId;
+
+      if (roleId) {
+        // Valida que o papel existe e é de escopo de contexto (nunca atribuir admin/superadmin via participação)
+        const role = await tx.role.findUnique({ where: { id: roleId } });
+        if (!role) {
+          throw new BadRequestException(`Papel com ID ${roleId} não encontrado`);
+        }
+        if (role.scope === 'global') {
+          throw new BadRequestException(
+            'Papel de escopo global (ex.: Administrador) não pode ser atribuído por participação. Use a tela de Administradores.',
+          );
+        }
+      } else {
+        // Fallback: papel "participant" padrão
+        const participantRole = await tx.role.findUnique({ where: { code: 'participant' } });
+        roleId = participantRole?.id;
+      }
+
+      if (roleId) {
+        await tx.participation_role.create({
+          data: { participation_id: p.id, role_id: roleId },
+        });
+      }
+
+      return p;
+    });
 
     return this.mapToResponseDto(participation);
   }
 
   async findAll(
     query: ParticipationQueryDto,
+    userId: number,
   ): Promise<ListResponseDto<ParticipationResponseDto>> {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
+    const isAdmin = await this.authz.isAdmin(userId);
+    let filterContextId: number;
+
+    if (isAdmin) {
+      // Admin: usa o contextId enviado pelo frontend (contexto atualmente selecionado)
+      if (query.contextId == null) {
+        throw new BadRequestException(
+          'contextId é obrigatório. Selecione um contexto no cabeçalho da aplicação.',
+        );
+      }
+      filterContextId = query.contextId;
+    } else {
+      filterContextId = await this.authz.resolveListContextId(
+        userId,
+        query.contextId,
+        'GET /participations',
+        { allowParticipantContext: true },
+      );
+    }
+
     // Construir filtros
-    const where: any = {};
+    const where: any = { context_id: filterContextId };
 
     if (query.active !== undefined) {
       where.active = query.active;
@@ -92,12 +179,19 @@ export class ParticipationsService {
       where.active = true;
     }
 
-    if (query.userId !== undefined) {
-      where.user_id = query.userId;
-    }
-
-    if (query.contextId !== undefined) {
-      where.context_id = query.contextId;
+    if (isAdmin) {
+      // Admin vê todas as participações do contexto; pode filtrar por userId se quiser
+      if (query.userId !== undefined) {
+        where.user_id = query.userId;
+      }
+    } else {
+      // Participant só pode ver as próprias participações
+      const managedIds = await this.authz.getManagedContextIds(userId);
+      if (managedIds.length === 0) {
+        where.user_id = userId;
+      } else if (query.userId !== undefined) {
+        where.user_id = query.userId;
+      }
     }
 
     const searchTerm = query.search?.trim();
@@ -295,6 +389,105 @@ export class ParticipationsService {
       where: { id },
       data: { active: false },
     });
+  }
+
+  async findRoles(participationId: number): Promise<RoleResponseDto[]> {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id: participationId },
+    });
+    if (!participation) {
+      throw new NotFoundException(
+        `Participação com ID ${participationId} não encontrada`,
+      );
+    }
+
+    const records = await this.prisma.participation_role.findMany({
+      where: { participation_id: participationId },
+      include: { role: true },
+    });
+
+    return records.map((pr) => ({
+      id: pr.role.id,
+      code: pr.role.code,
+      name: pr.role.name,
+      description: pr.role.description ?? null,
+      scope: pr.role.scope ?? null,
+      active: pr.role.active,
+    }));
+  }
+
+  async addRole(
+    participationId: number,
+    roleId: number,
+  ): Promise<RoleResponseDto[]> {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id: participationId },
+    });
+    if (!participation) {
+      throw new NotFoundException(
+        `Participação com ID ${participationId} não encontrada`,
+      );
+    }
+
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) {
+      throw new BadRequestException(`Papel com ID ${roleId} não encontrado`);
+    }
+    if (role.scope === 'global') {
+      throw new BadRequestException(
+        'Papel de escopo global (ex.: Administrador) não pode ser atribuído por participação.',
+      );
+    }
+
+    const existing = await this.prisma.participation_role.findUnique({
+      where: {
+        participation_id_role_id: {
+          participation_id: participationId,
+          role_id: roleId,
+        },
+      },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `A participação já possui o papel "${role.name}"`,
+      );
+    }
+
+    await this.prisma.participation_role.create({
+      data: { participation_id: participationId, role_id: roleId },
+    });
+
+    return this.findRoles(participationId);
+  }
+
+  async removeRole(
+    participationId: number,
+    roleId: number,
+  ): Promise<RoleResponseDto[]> {
+    const existing = await this.prisma.participation_role.findUnique({
+      where: {
+        participation_id_role_id: {
+          participation_id: participationId,
+          role_id: roleId,
+        },
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        `A participação não possui o papel com ID ${roleId}`,
+      );
+    }
+
+    await this.prisma.participation_role.delete({
+      where: {
+        participation_id_role_id: {
+          participation_id: participationId,
+          role_id: roleId,
+        },
+      },
+    });
+
+    return this.findRoles(participationId);
   }
 
   private mapToResponseDto(

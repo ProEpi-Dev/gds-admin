@@ -11,6 +11,8 @@ interface SelectUserProps {
   required?: boolean;
   label?: string;
   activeOnly?: boolean;
+  /** IDs de usuários a excluir da lista (ex.: já administradores) */
+  excludeIds?: number[];
 }
 
 export default function SelectUser({
@@ -21,24 +23,29 @@ export default function SelectUser({
   required = false,
   label = 'Usuário',
   activeOnly = true,
+  excludeIds,
 }: SelectUserProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['users', { active: activeOnly ? true : undefined, pageSize: 100 }],
     queryFn: () => usersService.findAll({ active: activeOnly ? true : undefined, pageSize: 100 }),
   });
 
+  const options = (data?.data || []).filter(
+    (user) => !excludeIds?.includes(user.id),
+  );
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  const selectedUser = data?.data.find((user) => user.id === value);
+  const selectedUser = options.find((user) => user.id === value) ?? data?.data.find((user) => user.id === value);
 
   return (
     <>
       <Autocomplete
         value={selectedUser || null}
         onChange={(_, newValue) => onChange(newValue?.id || null)}
-        options={data?.data || []}
+        options={options}
         getOptionLabel={(option) => `${option.name} (${option.email})`}
         loading={isLoading}
         renderInput={(params) => (

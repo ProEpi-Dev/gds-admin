@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,8 @@ import { UpdateLegalDocumentDto } from './dto/update-legal-document.dto';
 import { CreateLegalDocumentTypeDto } from './dto/create-legal-document-type.dto';
 import { UpdateLegalDocumentTypeDto } from './dto/update-legal-document-type.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Legal Documents')
 @Controller('legal-documents')
@@ -125,6 +128,8 @@ export class LegalDocumentsController {
 @ApiTags('Legal Documents Admin')
 @Controller('admin/legal-documents')
 @ApiBearerAuth()
+@UseGuards(RolesGuard)
+@Roles('admin')
 export class LegalDocumentsAdminController {
   constructor(private readonly legalDocumentsService: LegalDocumentsService) {}
 

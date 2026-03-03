@@ -11,7 +11,9 @@ export function useUserRole() {
   });
 
   return {
+    isAdmin: data?.isAdmin ?? false,
     isManager: data?.isManager ?? false,
+    isContentManager: data?.isContentManager ?? false,
     isParticipant: data?.isParticipant ?? false,
     contexts: data?.contexts ?? { asManager: [], asParticipant: [] },
     isLoading,

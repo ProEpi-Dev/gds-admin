@@ -18,6 +18,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useCreateForm } from '../hooks/useForms';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import type { CreateFormDto } from '../../../types/form.types';
 
@@ -33,6 +34,7 @@ type FormData = z.infer<typeof formSchema>;
 
 export default function FormCreatePage() {
   const navigate = useNavigate();
+  const { currentContext } = useCurrentContext();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -57,6 +59,7 @@ export default function FormCreatePage() {
       reference: data.reference,
       description: data.description,
       active: data.active,
+      ...(currentContext?.id != null && { contextId: currentContext.id }),
     };
 
     createMutation.mutate(formData, {

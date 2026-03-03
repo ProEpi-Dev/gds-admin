@@ -20,7 +20,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useCreateReport } from '../hooks/useReports';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useTranslation } from '../../../hooks/useTranslation';
-import SelectParticipation from '../../../components/common/SelectParticipation';
+import { useCurrentContext } from '../../../contexts/CurrentContextContext';
+import SelectParticipationSearch from '../../../components/common/SelectParticipationSearch';
 import SelectFormVersion from '../../../components/common/SelectFormVersion';
 import FormRenderer from '../../../components/form-renderer/FormRenderer';
 import LocationPicker from '../../../components/common/LocationPicker';
@@ -39,6 +40,7 @@ type FormData = z.infer<typeof formSchema>;
 export default function ReportCreatePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { currentContext } = useCurrentContext();
   const [error, setError] = useState<string | null>(null);
   const [formResponse, setFormResponse] = useState<Record<string, any>>({});
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -60,10 +62,11 @@ export default function ReportCreatePage() {
   const participationId = watch('participationId');
   const formVersionId = watch('formVersionId');
 
-  // Buscar definição do formulário quando uma versão é selecionada
+  // Buscar definição do formulário quando uma versão é selecionada (filtrado pelo contexto atual)
   const { data: formsWithVersions } = useQuery({
-    queryKey: ['forms-with-versions'],
-    queryFn: () => formsService.findFormsWithLatestVersions(),
+    queryKey: ['forms-with-versions', currentContext?.id],
+    queryFn: () => formsService.findFormsWithLatestVersions(currentContext?.id),
+    enabled: currentContext?.id != null,
   });
 
   const selectedFormVersion = formsWithVersions?.find(
@@ -130,9 +133,15 @@ export default function ReportCreatePage() {
           )}
 
           <Stack spacing={3}>
-            <SelectParticipation
-              value={participationId}
-              onChange={(id) => setValue('participationId', id || 0)}
+            <SelectParticipationSearch
+              value={null}
+              valueId={participationId || null}
+              onChange={(p) => setValue('participationId', p?.id ?? 0)}
+              contextId={currentContext?.id}
+              label="Participação"
+              placeholder="Digite para buscar..."
+              noOptionsText="Nenhuma participação encontrada"
+              size="medium"
               required
               error={!!errors.participationId}
               helperText={errors.participationId?.message}
@@ -141,6 +150,7 @@ export default function ReportCreatePage() {
             <SelectFormVersion
               value={formVersionId}
               onChange={(id) => setValue('formVersionId', id || 0)}
+              contextId={currentContext?.id}
               required
               error={!!errors.formVersionId}
               helperText={errors.formVersionId?.message}

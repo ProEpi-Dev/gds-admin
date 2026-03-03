@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
-  IsNumber,
+  IsInt,
   IsBoolean,
   IsOptional,
   IsEnum,
@@ -49,4 +49,13 @@ export class CreateFormDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'ID do contexto. Obrigatório para admin (sem participação como manager). Para manager/content_manager é inferido automaticamente.',
+    example: 1,
+  })
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  contextId?: number;
 }

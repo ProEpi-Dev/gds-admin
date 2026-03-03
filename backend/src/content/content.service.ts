@@ -2,12 +2,19 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 
 @Injectable()
 export class ContentService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ContentService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private authz: AuthzService,
+  ) {}
 
   private mapContentPersistenceError(error: unknown): never {
     if (error instanceof Error) {
@@ -85,9 +92,15 @@ export class ContentService {
     }
   }
 
-  async list() {
+  async list(contextId: number | undefined, userId: number) {
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      contextId,
+      'GET /contents',
+    );
+
     return this.prisma.content.findMany({
-      where: { active: true },
+      where: { active: true, context_id: filterContextId },
       include: {
         content_tag: {
           include: {

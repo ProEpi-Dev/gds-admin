@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,8 @@ import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 
 @ApiTags('Contexts')
 @ApiBearerAuth('bearerAuth')
@@ -33,6 +36,8 @@ export class ContextsController {
   constructor(private readonly contextsService: ContextsService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Criar contexto',
@@ -53,28 +58,62 @@ export class ContextsController {
     return this.contextsService.create(createContextDto);
   }
 
-  @Get()
+  @Get('public')
   @Public()
   @ApiOperation({
-    summary: 'Listar contextos',
+    summary: 'Listar contextos públicos (signup)',
     description:
-      'Retorna lista paginada de contextos com filtros opcionais. Endpoint público para permitir signup.',
+      'Retorna contextos públicos e ativos para seleção no cadastro. Não requer autenticação.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de contextos públicos',
+    type: ListResponseDto<ContextResponseDto>,
+  })
+  async findPublicForSignup(): Promise<ListResponseDto<ContextResponseDto>> {
+    return this.contextsService.findPublicForSignup();
+  }
+
+  @Get('admin')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Listar contextos (admin)',
+    description: 'Retorna lista paginada de contextos. Apenas admin.',
   })
   @ApiResponse({
     status: 200,
     description: 'Lista de contextos',
     type: ListResponseDto<ContextResponseDto>,
   })
-  async findAll(
+  async findAllAdmin(
     @Query() query: ContextQueryDto,
   ): Promise<ListResponseDto<ContextResponseDto>> {
     return this.contextsService.findAll(query);
   }
 
+  @Get()
+  @Public()
+  @ApiOperation({
+    summary: 'Listar contextos (login/seleção)',
+    description:
+      'Retorna contextos públicos e ativos para seleção no login ou cadastro. Não requer autenticação.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de contextos',
+    type: ListResponseDto<ContextResponseDto>,
+  })
+  async findAll(): Promise<ListResponseDto<ContextResponseDto>> {
+    return this.contextsService.findPublicForSignup();
+  }
+
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @ApiOperation({
     summary: 'Obter contexto por ID',
-    description: 'Retorna detalhes de um contexto específico',
+    description: 'Retorna detalhes de um contexto específico. Apenas admin.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do contexto' })
   @ApiResponse({
@@ -90,6 +129,8 @@ export class ContextsController {
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @ApiOperation({
     summary: 'Atualizar contexto',
     description: 'Atualiza um contexto existente',
@@ -110,6 +151,8 @@ export class ContextsController {
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar contexto',

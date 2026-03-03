@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
@@ -19,6 +20,8 @@ import {
   ApiParam,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { RolesGuard } from '../authz/guards/roles.guard';
+import { Roles } from '../authz/decorators/roles.decorator';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
@@ -51,11 +54,14 @@ export class ReportsController {
   })
   async create(
     @Body() createReportDto: CreateReportDto,
+    @CurrentUser() user: any,
   ): Promise<ReportResponseDto> {
-    return this.reportsService.create(createReportDto);
+    return this.reportsService.create(createReportDto, user.userId);
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Listar reports',
     description: 'Retorna lista paginada de reports com filtros opcionais',
@@ -67,11 +73,14 @@ export class ReportsController {
   })
   async findAll(
     @Query() query: ReportQueryDto,
+    @CurrentUser() user: any,
   ): Promise<ListResponseDto<ReportResponseDto>> {
-    return this.reportsService.findAll(query);
+    return this.reportsService.findAll(query, user.userId);
   }
 
   @Get('points')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'participant')
   @ApiOperation({
     summary: 'Obter pontos de reports para mapa',
     description:
@@ -84,11 +93,14 @@ export class ReportsController {
   })
   async findPoints(
     @Query() query: ReportsPointsQueryDto,
+    @CurrentUser() user: any,
   ): Promise<ReportPointResponseDto[]> {
-    return this.reportsService.findPoints(query);
+    return this.reportsService.findPoints(query, user.userId);
   }
 
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Obter report por ID',
     description: 'Retorna detalhes de um report específico',
@@ -102,11 +114,14 @@ export class ReportsController {
   @ApiResponse({ status: 404, description: 'Report não encontrado' })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
   ): Promise<ReportResponseDto> {
-    return this.reportsService.findOne(id);
+    return this.reportsService.findOne(id, user.userId);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @ApiOperation({
     summary: 'Atualizar report',
     description: 'Atualiza um report existente',
@@ -122,11 +137,14 @@ export class ReportsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateReportDto: UpdateReportDto,
+    @CurrentUser() user: any,
   ): Promise<ReportResponseDto> {
-    return this.reportsService.update(id, updateReportDto);
+    return this.reportsService.update(id, updateReportDto, user.userId);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar report',
@@ -136,7 +154,10 @@ export class ReportsController {
   @ApiParam({ name: 'id', type: Number, description: 'ID do report' })
   @ApiResponse({ status: 204, description: 'Report deletado com sucesso' })
   @ApiResponse({ status: 404, description: 'Report não encontrado' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.reportsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ): Promise<void> {
+    return this.reportsService.remove(id, user.userId);
   }
 }

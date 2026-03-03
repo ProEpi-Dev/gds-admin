@@ -46,8 +46,16 @@ export class AuthController {
     status: 401,
     description: 'Credenciais inválidas',
   })
-  async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+  ): Promise<LoginResponseDto> {
+    const clientIp =
+      (req as any).ip ??
+      req.socket?.remoteAddress ??
+      req.headers?.['x-forwarded-for']?.toString() ??
+      undefined;
+    return this.authService.login(loginDto, clientIp);
   }
 
   @Patch('change-password')

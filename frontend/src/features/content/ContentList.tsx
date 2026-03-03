@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ContentService } from "../../api/services/content.service";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 import {
   ContentTypeService,
   ContentTypeAdminService,
@@ -53,6 +54,7 @@ interface Content {
 }
 
 export default function ContentList() {
+  const { currentContext } = useCurrentContext();
   const [contents, setContents] = useState<Content[]>([]);
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [contentTypeFilter, setContentTypeFilter] = useState("all");
@@ -82,8 +84,8 @@ export default function ContentList() {
   );
 
   const refreshContents = async () => {
-    const res = await ContentService.list();
-    setContents(res.data);
+    const res = await ContentService.list(currentContext?.id);
+    setContents(res.data ?? []);
   };
 
   const refreshContentTypes = async () => {
@@ -92,12 +94,19 @@ export default function ContentList() {
   };
 
   useEffect(() => {
-    refreshContents();
     refreshContentTypes();
     TrackService.list().then((res) => {
       setTracks(res.data);
     });
   }, []);
+
+  useEffect(() => {
+    if (currentContext?.id == null) {
+      setContents([]);
+      return;
+    }
+    refreshContents();
+  }, [currentContext?.id]);
 
   useEffect(() => {
     setPage(1);
