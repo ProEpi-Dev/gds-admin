@@ -174,9 +174,10 @@ export default function UserEditPage() {
                         {...field}
                         value={field.value ?? ''}
                         label="Papel global"
-                        onChange={(e) =>
-                          field.onChange(e.target.value === '' ? null : Number(e.target.value))
-                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          field.onChange(String(v) === '' || v == null ? null : Number(v));
+                        }}
                       >
                         <MenuItem value="">
                           <em>Sem papel global</em>
