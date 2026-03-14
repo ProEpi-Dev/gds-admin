@@ -24,6 +24,7 @@ import FormVersionViewPage from "../features/forms/pages/FormVersionViewPage";
 import FormVersionEditPage from "../features/forms/pages/FormVersionEditPage";
 import ReportsListPage from "../features/reports/pages/ReportsListPage";
 import ReportsMapPage from "../features/reports/pages/ReportsMapPage";
+import ReportStreaksPage from "../features/reports/pages/ReportStreaksPage";
 import ReportCreatePage from "../features/reports/pages/ReportCreatePage";
 import ReportEditPage from "../features/reports/pages/ReportEditPage";
 import ReportViewPage from "../features/reports/pages/ReportViewPage";
@@ -235,6 +236,18 @@ export default function AppRoutes() {
             </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
+      />
+      <Route
+        path="/reports/days"
+        element={
+          <AdminRoute>
+            <ReportStreaksPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/reports/streaks"
+        element={<Navigate to="/reports/days" replace />}
       />
       <Route
         path="/reports/new"

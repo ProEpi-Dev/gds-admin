@@ -16,6 +16,7 @@ describe('ReportsService', () => {
   let service: ReportsService;
   let moduleRef: TestingModule;
   let prismaService: PrismaService;
+  let prismaMock: any;
 
   const mockReport = {
     id: 1,
@@ -39,6 +40,7 @@ describe('ReportsService', () => {
     id: 1,
     user_id: 1,
     context_id: 1,
+    active: true,
   };
 
   const mockFormVersion = {
@@ -48,27 +50,44 @@ describe('ReportsService', () => {
   };
 
   beforeEach(async () => {
+    prismaMock = {
+      report: {
+        findUnique: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      participation: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+      },
+      form_version: {
+        findUnique: jest.fn(),
+      },
+      participation_report_day: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      participation_report_streak: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+      },
+    };
+
+    prismaMock.$transaction = jest.fn(async (callback: any) =>
+      callback(prismaMock),
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReportsService,
         {
           provide: PrismaService,
-          useValue: {
-            report: {
-              findUnique: jest.fn(),
-              findMany: jest.fn(),
-              create: jest.fn(),
-              update: jest.fn(),
-              delete: jest.fn(),
-              count: jest.fn(),
-            },
-            participation: {
-              findUnique: jest.fn(),
-            },
-            form_version: {
-              findUnique: jest.fn(),
-            },
-          },
+          useValue: prismaMock,
         },
         {
           provide: AuthzService,
@@ -161,6 +180,74 @@ describe('ReportsService', () => {
           occurrence_location: createDto.occurrenceLocation,
         }),
       });
+    });
+
+    it('deve atualizar agregados de dias e ofensiva ao criar report', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'POSITIVE',
+        formResponse: {},
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        created_at: new Date('2026-03-14T10:30:00.000Z'),
+      } as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([
+          { report_type: 'POSITIVE' },
+          { report_type: 'NEGATIVE' },
+          { report_type: 'POSITIVE' },
+        ] as any);
+      jest
+        .spyOn(prismaService.participation_report_day, 'findMany')
+        .mockResolvedValue([
+          { report_date: new Date('2026-03-10T00:00:00.000Z') },
+          { report_date: new Date('2026-03-11T00:00:00.000Z') },
+          { report_date: new Date('2026-03-13T00:00:00.000Z') },
+          { report_date: new Date('2026-03-14T00:00:00.000Z') },
+        ] as any);
+
+      await service.create(createDto, 1);
+
+      expect(
+        prismaService.participation_report_day.upsert,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            report_count: 3,
+            positive_count: 2,
+            negative_count: 1,
+          }),
+          update: expect.objectContaining({
+            report_count: 3,
+            positive_count: 2,
+            negative_count: 1,
+          }),
+        }),
+      );
+
+      const streakUpsertCall = (
+        prismaService.participation_report_streak.upsert as jest.Mock
+      ).mock.calls[0][0];
+
+      expect(streakUpsertCall.update.current_streak).toBe(2);
+      expect(streakUpsertCall.update.longest_streak).toBe(2);
+      expect(streakUpsertCall.update.reported_days_count).toBe(4);
+      expect(streakUpsertCall.update.last_reported_date).toEqual(
+        new Date('2026-03-14T00:00:00.000Z'),
+      );
+      expect(streakUpsertCall.update.current_streak_start_date).toEqual(
+        new Date('2026-03-13T00:00:00.000Z'),
+      );
     });
 
     it('deve lançar BadRequestException quando participation não existe', async () => {
@@ -264,6 +351,33 @@ describe('ReportsService', () => {
             participation_id: 1,
             form_version_id: 1,
             report_type: 'POSITIVE',
+          }),
+        }),
+      );
+    });
+
+    it('deve aplicar filtro por formulário e período', async () => {
+      const query: ReportQueryDto = {
+        page: 1,
+        pageSize: 20,
+        formId: 2,
+        startDate: '2026-03-01',
+        endDate: '2026-03-31',
+      };
+
+      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
+
+      await service.findAll(query, 1);
+
+      expect(prismaService.report.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            form_version: { form_id: 2 },
+            created_at: expect.objectContaining({
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
           }),
         }),
       );
@@ -377,6 +491,200 @@ describe('ReportsService', () => {
     });
   });
 
+  describe('findContextReportStreaks', () => {
+    it('deve retornar lista paginada de ofensivas do contexto', async () => {
+      const query = {
+        page: 1,
+        pageSize: 20,
+      };
+
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([
+        {
+          ...mockParticipation,
+          user: {
+            name: 'Maria',
+            email: 'maria@example.com',
+          },
+          participation_report_streak: {
+            current_streak: 4,
+            longest_streak: 9,
+            reported_days_count: 11,
+            last_reported_date: new Date('2026-03-14T00:00:00.000Z'),
+            current_streak_start_date: new Date('2026-03-11T00:00:00.000Z'),
+          },
+        },
+      ] as any);
+      jest.spyOn(prismaService.participation, 'count').mockResolvedValue(1);
+
+      const result = await service.findContextReportStreaks(1, query as any, 1);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({
+        participationId: 1,
+        userName: 'Maria',
+        currentStreak: 4,
+        longestStreak: 9,
+        reportedDaysCount: 11,
+      });
+    });
+
+    it('deve aplicar filtros de active e search', async () => {
+      const query = {
+        page: 1,
+        pageSize: 20,
+        active: false,
+        search: 'maria',
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([] as any);
+      jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
+
+      await service.findContextReportStreaks(1, query as any, 1);
+
+      expect(prismaService.participation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            context_id: 1,
+            active: false,
+            user: expect.objectContaining({
+              OR: expect.any(Array),
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findParticipationReportStreak', () => {
+    it('deve retornar ofensiva e dias reportados para a própria participação', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        user: {
+          name: 'Maria',
+          email: 'maria@example.com',
+        },
+        participation_report_streak: {
+          current_streak: 3,
+          longest_streak: 7,
+          reported_days_count: 12,
+          last_reported_date: new Date('2026-03-14T00:00:00.000Z'),
+          current_streak_start_date: new Date('2026-03-12T00:00:00.000Z'),
+        },
+      } as any);
+      jest
+        .spyOn(prismaService.participation_report_day, 'findMany')
+        .mockResolvedValue([
+          {
+            report_date: new Date('2026-03-12T00:00:00.000Z'),
+            report_count: 1,
+            positive_count: 1,
+            negative_count: 0,
+          },
+          {
+            report_date: new Date('2026-03-13T00:00:00.000Z'),
+            report_count: 2,
+            positive_count: 1,
+            negative_count: 1,
+          },
+        ] as any);
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      const result = await service.findParticipationReportStreak(
+        1,
+        1,
+        {
+          startDate: '2026-03-01',
+          endDate: '2026-03-31',
+        },
+        1,
+      );
+
+      expect(result).toMatchObject({
+        participationId: 1,
+        currentStreak: 3,
+        longestStreak: 7,
+        reportedDaysInRangeCount: 2,
+      });
+      expect(result.reportedDays).toEqual([
+        {
+          date: '2026-03-12',
+          reportCount: 1,
+          positiveCount: 1,
+          negativeCount: 0,
+        },
+        {
+          date: '2026-03-13',
+          reportCount: 2,
+          positiveCount: 1,
+          negativeCount: 1,
+        },
+      ]);
+    });
+
+    it('deve lançar ForbiddenException quando participant tenta acessar ofensiva de outro usuário', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        user_id: 2,
+        user: {
+          name: 'Maria',
+          email: 'maria@example.com',
+        },
+        participation_report_streak: null,
+      } as any);
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.findParticipationReportStreak(1, 1, {}, 1),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deve lançar BadRequestException quando período é inválido', async () => {
+      await expect(
+        service.findParticipationReportStreak(
+          1,
+          1,
+          {
+            startDate: '2026-03-31',
+            endDate: '2026-03-01',
+          },
+          1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve lançar NotFoundException quando participação não existe', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.findParticipationReportStreak(1, 999, {}, 1),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('deve lançar BadRequestException quando participação é de outro contexto', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        context_id: 2,
+        user: {
+          name: 'Maria',
+          email: 'maria@example.com',
+        },
+        participation_report_streak: null,
+      } as any);
+
+      await expect(
+        service.findParticipationReportStreak(1, 1, {}, 1),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('findOne', () => {
     it('deve retornar report quando existe', async () => {
       jest
@@ -392,6 +700,17 @@ describe('ReportsService', () => {
       jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue(null);
 
       await expect(service.findOne(999, 1)).rejects.toThrow(NotFoundException);
+    });
+
+    it('deve lançar ForbiddenException quando usuário não pode gerenciar o contexto', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+      jest
+        .spyOn(prismaService.report, 'findUnique')
+        .mockResolvedValue(mockReportWithParticipation as any);
+
+      await expect(service.findOne(1, 1)).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -451,6 +770,26 @@ describe('ReportsService', () => {
       expect(prismaService.report.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { occurrence_location: updateDto.occurrenceLocation },
+      });
+    });
+
+    it('deve atualizar active quando fornecido', async () => {
+      const updateDto: UpdateReportDto = {
+        active: false,
+      };
+
+      jest
+        .spyOn(prismaService.report, 'findUnique')
+        .mockResolvedValue(mockReportWithParticipation as any);
+      jest
+        .spyOn(prismaService.report, 'update')
+        .mockResolvedValue({ ...mockReport, active: false } as any);
+
+      await service.update(1, updateDto, 1);
+
+      expect(prismaService.report.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { active: false },
       });
     });
 

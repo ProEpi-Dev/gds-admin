@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { Prisma, report_type_enum } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthzService } from '../authz/authz.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -13,11 +14,17 @@ import { ReportQueryDto } from './dto/report-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
 import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
+import { ReportStreakQueryDto } from './dto/report-streak-query.dto';
+import { ReportStreakSummaryResponseDto } from './dto/report-streak-summary-response.dto';
+import { ParticipationReportStreakQueryDto } from './dto/participation-report-streak-query.dto';
+import { ParticipationReportStreakResponseDto } from './dto/participation-report-streak-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+
+type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
 
 @Injectable()
 export class ReportsService {
@@ -32,16 +39,247 @@ export class ReportsService {
    * Verifica se o usuário pode operar sobre um report.
    * Admin: sempre pode. Manager/content_manager: deve gerenciar o contexto da participação.
    */
-  private async assertCanManageReport(userId: number, reportContextId: number): Promise<void> {
+  private async assertCanManageReport(
+    userId: number,
+    reportContextId: number,
+  ): Promise<void> {
     const isAdmin = await this.authz.isAdmin(userId);
     if (isAdmin) return;
-    const canManage = await this.authz.hasAnyRole(userId, reportContextId, ['manager', 'content_manager']);
+    const canManage = await this.authz.hasAnyRole(userId, reportContextId, [
+      'manager',
+      'content_manager',
+    ]);
     if (!canManage) {
-      throw new ForbiddenException('Você não tem permissão para acessar este report');
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar este report',
+      );
     }
   }
 
-  async create(createReportDto: CreateReportDto, userId: number): Promise<ReportResponseDto> {
+  private normalizeDateOnly(value: Date): Date {
+    const normalized = new Date(value);
+    normalized.setUTCHours(0, 0, 0, 0);
+    return normalized;
+  }
+
+  private parseDateOnly(value: string): Date {
+    return new Date(`${value}T00:00:00.000Z`);
+  }
+
+  private formatDateOnly(value?: Date | null): string | null {
+    return value ? value.toISOString().split('T')[0] : null;
+  }
+
+  private getTimestampDayRange(value: Date): { start: Date; end: Date } {
+    const start = new Date(value);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(value);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  private calculateStreakMetrics(reportDays: Array<{ report_date: Date }>): {
+    currentStreak: number;
+    longestStreak: number;
+    reportedDaysCount: number;
+    lastReportedDate: Date | null;
+    currentStreakStartDate: Date | null;
+  } {
+    if (reportDays.length === 0) {
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        reportedDaysCount: 0,
+        lastReportedDate: null,
+        currentStreakStartDate: null,
+      };
+    }
+
+    const dates = reportDays.map((item) =>
+      this.normalizeDateOnly(item.report_date),
+    );
+    const dayInMs = 24 * 60 * 60 * 1000;
+
+    let longestStreak = 1;
+    let runningStreak = 1;
+
+    for (let index = 1; index < dates.length; index += 1) {
+      const diffInDays = Math.round(
+        (dates[index].getTime() - dates[index - 1].getTime()) / dayInMs,
+      );
+
+      if (diffInDays === 1) {
+        runningStreak += 1;
+      } else {
+        runningStreak = 1;
+      }
+
+      if (runningStreak > longestStreak) {
+        longestStreak = runningStreak;
+      }
+    }
+
+    let currentStreak = 1;
+
+    for (let index = dates.length - 1; index > 0; index -= 1) {
+      const diffInDays = Math.round(
+        (dates[index].getTime() - dates[index - 1].getTime()) / dayInMs,
+      );
+
+      if (diffInDays !== 1) {
+        break;
+      }
+
+      currentStreak += 1;
+    }
+
+    return {
+      currentStreak,
+      longestStreak,
+      reportedDaysCount: dates.length,
+      lastReportedDate: dates[dates.length - 1],
+      currentStreakStartDate: dates[dates.length - currentStreak],
+    };
+  }
+
+  private async refreshParticipationReportDay(
+    prisma: ReportMetricsClient,
+    participationId: number,
+    reportDate: Date,
+  ): Promise<void> {
+    const normalizedDate = this.normalizeDateOnly(reportDate);
+    const { start, end } = this.getTimestampDayRange(reportDate);
+
+    const reports = await prisma.report.findMany({
+      where: {
+        participation_id: participationId,
+        active: true,
+        created_at: {
+          gte: start,
+          lte: end,
+        },
+      },
+      select: {
+        report_type: true,
+      },
+    });
+
+    if (reports.length === 0) {
+      await prisma.participation_report_day.deleteMany({
+        where: {
+          participation_id: participationId,
+          report_date: normalizedDate,
+        },
+      });
+      return;
+    }
+
+    const positiveCount = reports.filter(
+      (report) => report.report_type === report_type_enum.POSITIVE,
+    ).length;
+
+    await prisma.participation_report_day.upsert({
+      where: {
+        participation_id_report_date: {
+          participation_id: participationId,
+          report_date: normalizedDate,
+        },
+      },
+      create: {
+        participation_id: participationId,
+        report_date: normalizedDate,
+        report_count: reports.length,
+        positive_count: positiveCount,
+        negative_count: reports.length - positiveCount,
+      },
+      update: {
+        report_count: reports.length,
+        positive_count: positiveCount,
+        negative_count: reports.length - positiveCount,
+      },
+    });
+  }
+
+  private async refreshParticipationReportStreak(
+    prisma: ReportMetricsClient,
+    participationId: number,
+  ): Promise<void> {
+    const reportDays = await prisma.participation_report_day.findMany({
+      where: {
+        participation_id: participationId,
+      },
+      select: {
+        report_date: true,
+      },
+      orderBy: {
+        report_date: 'asc',
+      },
+    });
+
+    const metrics = this.calculateStreakMetrics(reportDays);
+
+    await prisma.participation_report_streak.upsert({
+      where: {
+        participation_id: participationId,
+      },
+      create: {
+        participation_id: participationId,
+        current_streak: metrics.currentStreak,
+        longest_streak: metrics.longestStreak,
+        reported_days_count: metrics.reportedDaysCount,
+        last_reported_date: metrics.lastReportedDate,
+        current_streak_start_date: metrics.currentStreakStartDate,
+      },
+      update: {
+        current_streak: metrics.currentStreak,
+        longest_streak: metrics.longestStreak,
+        reported_days_count: metrics.reportedDaysCount,
+        last_reported_date: metrics.lastReportedDate,
+        current_streak_start_date: metrics.currentStreakStartDate,
+      },
+    });
+  }
+
+  private async refreshParticipationReportMetrics(
+    prisma: ReportMetricsClient,
+    participationId: number,
+    reportDate: Date,
+  ): Promise<void> {
+    await this.refreshParticipationReportDay(
+      prisma,
+      participationId,
+      reportDate,
+    );
+    await this.refreshParticipationReportStreak(prisma, participationId);
+  }
+
+  private mapToReportStreakSummaryDto(
+    participation: any,
+  ): ReportStreakSummaryResponseDto {
+    const streak = participation.participation_report_streak;
+
+    return {
+      participationId: participation.id,
+      userId: participation.user_id,
+      userName: participation.user?.name ?? '',
+      userEmail: participation.user?.email ?? '',
+      active: participation.active,
+      currentStreak: streak?.current_streak ?? 0,
+      longestStreak: streak?.longest_streak ?? 0,
+      reportedDaysCount: streak?.reported_days_count ?? 0,
+      lastReportedDate: this.formatDateOnly(streak?.last_reported_date),
+      currentStreakStartDate: this.formatDateOnly(
+        streak?.current_streak_start_date,
+      ),
+    };
+  }
+
+  async create(
+    createReportDto: CreateReportDto,
+    userId: number,
+  ): Promise<ReportResponseDto> {
     // Validar participação
     const participation = await this.prisma.participation.findUnique({
       where: { id: createReportDto.participationId },
@@ -57,9 +295,15 @@ export class ReportsService {
     // ou é manager/admin do contexto (envio em nome de outro participante)
     const isAdmin = await this.authz.isAdmin(userId);
     if (!isAdmin && participation.user_id !== userId) {
-      const canManage = await this.authz.hasAnyRole(userId, participation.context_id, ['manager', 'content_manager']);
+      const canManage = await this.authz.hasAnyRole(
+        userId,
+        participation.context_id,
+        ['manager', 'content_manager'],
+      );
       if (!canManage) {
-        throw new ForbiddenException('Você não pode criar um report para a participação de outro usuário');
+        throw new ForbiddenException(
+          'Você não pode criar um report para a participação de outro usuário',
+        );
       }
     }
 
@@ -87,8 +331,17 @@ export class ReportsService {
       data.occurrence_location = createReportDto.occurrenceLocation;
     }
 
-    // Criar report
-    const report = await this.prisma.report.create({ data });
+    const report = await this.prisma.$transaction(async (tx) => {
+      const createdReport = await tx.report.create({ data });
+
+      await this.refreshParticipationReportMetrics(
+        tx,
+        createdReport.participation_id,
+        createdReport.created_at,
+      );
+
+      return createdReport;
+    });
 
     return this.mapToResponseDto(report);
   }
@@ -208,7 +461,10 @@ export class ReportsService {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
 
-    await this.assertCanManageReport(userId, (report as any).participation.context_id);
+    await this.assertCanManageReport(
+      userId,
+      (report as any).participation.context_id,
+    );
 
     return this.mapToResponseDto(report);
   }
@@ -228,7 +484,10 @@ export class ReportsService {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
 
-    await this.assertCanManageReport(userId, (existingReport as any).participation.context_id);
+    await this.assertCanManageReport(
+      userId,
+      (existingReport as any).participation.context_id,
+    );
 
     // Validar participação se fornecido
     if (updateReportDto.participationId !== undefined) {
@@ -303,7 +562,10 @@ export class ReportsService {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
 
-    await this.assertCanManageReport(userId, (report as any).participation.context_id);
+    await this.assertCanManageReport(
+      userId,
+      (report as any).participation.context_id,
+    );
 
     // Hard delete - remoção permanente
     await this.prisma.report.delete({
@@ -407,6 +669,191 @@ export class ReportsService {
     }
 
     return points;
+  }
+
+  async findContextReportStreaks(
+    contextId: number,
+    query: ReportStreakQueryDto,
+    userId: number,
+  ): Promise<ListResponseDto<ReportStreakSummaryResponseDto>> {
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const skip = (page - 1) * pageSize;
+
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      contextId,
+      'GET /contexts/:contextId/report-streaks',
+    );
+
+    const where: any = {
+      context_id: filterContextId,
+    };
+
+    if (query.active !== undefined) {
+      where.active = query.active;
+    } else {
+      where.active = true;
+    }
+
+    const searchTerm = query.search?.trim();
+    if (searchTerm) {
+      where.user = {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [participations, totalItems] = await Promise.all([
+      this.prisma.participation.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { created_at: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          participation_report_streak: true,
+        },
+      }),
+      this.prisma.participation.count({ where }),
+    ]);
+
+    const baseUrl = `/v1/contexts/${filterContextId}/report-streaks`;
+    const queryParams: Record<string, any> = {};
+    if (query.active !== undefined) queryParams.active = query.active;
+    if (query.search) queryParams.search = query.search;
+
+    return {
+      data: participations.map((participation) =>
+        this.mapToReportStreakSummaryDto(participation),
+      ),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+    };
+  }
+
+  async findParticipationReportStreak(
+    contextId: number,
+    participationId: number,
+    query: ParticipationReportStreakQueryDto,
+    userId: number,
+  ): Promise<ParticipationReportStreakResponseDto> {
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      contextId,
+      'GET /contexts/:contextId/report-streaks/:participationId',
+      { allowParticipantContext: true },
+    );
+
+    if (query.startDate && query.endDate) {
+      const startDate = this.parseDateOnly(query.startDate);
+      const endDate = this.parseDateOnly(query.endDate);
+
+      if (startDate > endDate) {
+        throw new BadRequestException(
+          'A data inicial deve ser anterior ou igual à data final',
+        );
+      }
+    }
+
+    const participation = await this.prisma.participation.findUnique({
+      where: { id: participationId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        participation_report_streak: true,
+      },
+    });
+
+    if (!participation) {
+      throw new NotFoundException(
+        `Participação com ID ${participationId} não encontrada`,
+      );
+    }
+
+    if (participation.context_id !== filterContextId) {
+      throw new BadRequestException(
+        'A participação não pertence ao contexto informado',
+      );
+    }
+
+    const isAdmin = await this.authz.isAdmin(userId);
+    const canManage =
+      isAdmin ||
+      (await this.authz.hasAnyRole(userId, filterContextId, [
+        'manager',
+        'content_manager',
+      ]));
+
+    if (!canManage && participation.user_id !== userId) {
+      throw new ForbiddenException(
+        'Você só pode visualizar a própria ofensiva de reports',
+      );
+    }
+
+    const dayWhere: any = {
+      participation_id: participationId,
+    };
+
+    if (query.startDate || query.endDate) {
+      dayWhere.report_date = {};
+
+      if (query.startDate) {
+        dayWhere.report_date.gte = this.parseDateOnly(query.startDate);
+      }
+
+      if (query.endDate) {
+        dayWhere.report_date.lte = this.parseDateOnly(query.endDate);
+      }
+    }
+
+    const reportedDays = await this.prisma.participation_report_day.findMany({
+      where: dayWhere,
+      orderBy: {
+        report_date: 'asc',
+      },
+    });
+
+    const summary = this.mapToReportStreakSummaryDto(participation);
+
+    return {
+      ...summary,
+      periodStartDate:
+        query.startDate ?? this.formatDateOnly(reportedDays[0]?.report_date),
+      periodEndDate:
+        query.endDate ??
+        this.formatDateOnly(reportedDays[reportedDays.length - 1]?.report_date),
+      reportedDaysInRangeCount: reportedDays.length,
+      reportedDays: reportedDays.map((day) => ({
+        date: this.formatDateOnly(day.report_date)!,
+        reportCount: day.report_count,
+        positiveCount: day.positive_count,
+        negativeCount: day.negative_count,
+      })),
+    };
   }
 
   private mapToResponseDto(report: any): ReportResponseDto {

@@ -47,6 +47,9 @@ export const API_ENDPOINTS = {
     LIST: "/contexts",
     LIST_ADMIN: "/contexts/admin",
     PUBLIC_LIST: "/contexts/public",
+    REPORT_STREAKS: (id: number) => `/contexts/${id}/report-streaks`,
+    PARTICIPATION_REPORT_STREAK: (id: number, participationId: number) =>
+      `/contexts/${id}/report-streaks/${participationId}`,
     DETAIL: (id: number) => `/contexts/${id}`,
     CREATE: "/contexts",
     UPDATE: (id: number) => `/contexts/${id}`,

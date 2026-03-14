@@ -20,6 +20,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ContextsService } from './contexts.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateContextDto } from './dto/create-context.dto';
 import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
@@ -28,6 +29,10 @@ import { ListResponseDto } from '../common/dto/list-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { RolesGuard } from '../authz/guards/roles.guard';
 import { Roles } from '../authz/decorators/roles.decorator';
+import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
+import { ReportStreakSummaryResponseDto } from '../reports/dto/report-streak-summary-response.dto';
+import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-report-streak-query.dto';
+import { ParticipationReportStreakResponseDto } from '../reports/dto/participation-report-streak-response.dto';
 
 @ApiTags('Contexts')
 @ApiBearerAuth('bearerAuth')
@@ -106,6 +111,65 @@ export class ContextsController {
   })
   async findAll(): Promise<ListResponseDto<ContextResponseDto>> {
     return this.contextsService.findPublicForSignup();
+  }
+
+  @Get(':contextId/report-streaks')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
+  @ApiOperation({
+    summary: 'Listar ofensivas de reports do contexto',
+    description:
+      'Retorna a ofensiva atual, maior ofensiva e total de dias reportados para as participações do contexto.',
+  })
+  @ApiParam({ name: 'contextId', type: Number, description: 'ID do contexto' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada das ofensivas de reports do contexto',
+    type: ListResponseDto<ReportStreakSummaryResponseDto>,
+  })
+  async findReportStreaks(
+    @Param('contextId', ParseIntPipe) contextId: number,
+    @Query() query: ReportStreakQueryDto,
+    @CurrentUser() user: any,
+  ): Promise<ListResponseDto<ReportStreakSummaryResponseDto>> {
+    return this.contextsService.findReportStreaks(
+      contextId,
+      query,
+      user.userId,
+    );
+  }
+
+  @Get(':contextId/report-streaks/:participationId')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'participant')
+  @ApiOperation({
+    summary: 'Obter ofensiva e calendário de reports da participação',
+    description:
+      'Retorna a ofensiva da participação e os dias em que houve report, com filtro opcional por período.',
+  })
+  @ApiParam({ name: 'contextId', type: Number, description: 'ID do contexto' })
+  @ApiParam({
+    name: 'participationId',
+    type: Number,
+    description: 'ID da participação do usuário',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Detalhes da ofensiva de reports da participação',
+    type: ParticipationReportStreakResponseDto,
+  })
+  async findParticipationReportStreak(
+    @Param('contextId', ParseIntPipe) contextId: number,
+    @Param('participationId', ParseIntPipe) participationId: number,
+    @Query() query: ParticipationReportStreakQueryDto,
+    @CurrentUser() user: any,
+  ): Promise<ParticipationReportStreakResponseDto> {
+    return this.contextsService.findParticipationReportStreak(
+      contextId,
+      participationId,
+      query,
+      user.userId,
+    );
   }
 
   @Get(':id')
