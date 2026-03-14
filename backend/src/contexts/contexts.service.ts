@@ -4,11 +4,16 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReportsService } from '../reports/reports.service';
 import { CreateContextDto } from './dto/create-context.dto';
 import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
+import { ReportStreakSummaryResponseDto } from '../reports/dto/report-streak-summary-response.dto';
+import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-report-streak-query.dto';
+import { ParticipationReportStreakResponseDto } from '../reports/dto/participation-report-streak-response.dto';
 import {
   createPaginationMeta,
   createPaginationLinks,
@@ -16,7 +21,10 @@ import {
 
 @Injectable()
 export class ContextsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private reportsService: ReportsService,
+  ) {}
 
   async create(
     createContextDto: CreateContextDto,
@@ -158,6 +166,32 @@ export class ContextsService {
     }
 
     return this.mapToResponseDto(context);
+  }
+
+  async findReportStreaks(
+    contextId: number,
+    query: ReportStreakQueryDto,
+    userId: number,
+  ): Promise<ListResponseDto<ReportStreakSummaryResponseDto>> {
+    return this.reportsService.findContextReportStreaks(
+      contextId,
+      query,
+      userId,
+    );
+  }
+
+  async findParticipationReportStreak(
+    contextId: number,
+    participationId: number,
+    query: ParticipationReportStreakQueryDto,
+    userId: number,
+  ): Promise<ParticipationReportStreakResponseDto> {
+    return this.reportsService.findParticipationReportStreak(
+      contextId,
+      participationId,
+      query,
+      userId,
+    );
   }
 
   async update(

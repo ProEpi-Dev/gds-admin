@@ -22,6 +22,7 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   Assessment as AssessmentIcon,
+  LocalFireDepartment as LocalFireDepartmentIcon,
   LibraryBooks as LibraryBooksIcon,
   Quiz as QuizIcon,
   AssignmentInd as AssignmentIndIcon,
@@ -75,7 +76,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       (r) =>
         (r === "admin" && isAdmin) ||
         (r === "manager" && isManager) ||
-        (r === "content_manager" && isContentManager)
+        (r === "content_manager" && isContentManager),
     );
   };
 
@@ -148,6 +149,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         label: t("navigation.reports"),
         icon: <AssessmentIcon />,
         roles: ["admin", "manager"],
+      },
+      {
+        path: "/reports/days",
+        label: t("navigation.reportStreaks"),
+        icon: <LocalFireDepartmentIcon />,
+        roles: ["admin"],
       },
       {
         path: "/contents",
@@ -223,12 +230,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         ],
       },
     ],
-    [t]
+    [t],
   );
 
   const visibleMenuItems = useMemo(
     () => menuItems.filter((item) => canSeeByRole(item.roles)),
-    [menuItems, isAdmin, isManager, isContentManager]
+    [menuItems, isAdmin, isManager, isContentManager],
   );
 
   const handleToggleMenu = (menuKey: string) => {
@@ -358,7 +365,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             </Box>
           </Box>
           <Box sx={{ px: 2, pb: 1.5 }}>
-            <Typography variant="caption" color="text.secondary" display="block">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
               Contexto atual
             </Typography>
             <Typography

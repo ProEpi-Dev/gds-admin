@@ -2,13 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ContextsService } from './contexts.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReportsService } from '../reports/reports.service';
 import { CreateContextDto } from './dto/create-context.dto';
 import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
+import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
+import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-report-streak-query.dto';
 
 describe('ContextsService', () => {
   let service: ContextsService;
   let prismaService: PrismaService;
+  let reportsService: ReportsService;
 
   const mockContext = {
     id: 1,
@@ -47,11 +51,19 @@ describe('ContextsService', () => {
             },
           },
         },
+        {
+          provide: ReportsService,
+          useValue: {
+            findContextReportStreaks: jest.fn(),
+            findParticipationReportStreak: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<ContextsService>(ContextsService);
     prismaService = module.get<PrismaService>(PrismaService);
+    reportsService = module.get<ReportsService>(ReportsService);
   });
 
   describe('create', () => {
@@ -340,6 +352,77 @@ describe('ContextsService', () => {
 
       await expect(service.update(1, updateContextDto)).rejects.toThrow(
         BadRequestException,
+      );
+    });
+  });
+
+  describe('findReportStreaks', () => {
+    it('deve delegar para ReportsService', async () => {
+      const query: ReportStreakQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+      const expected = {
+        data: [],
+        meta: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+        links: { first: '', last: '', prev: null, next: null },
+      } as any;
+
+      jest
+        .spyOn(reportsService, 'findContextReportStreaks')
+        .mockResolvedValue(expected);
+
+      const result = await service.findReportStreaks(1, query, 10);
+
+      expect(result).toEqual(expected);
+      expect(reportsService.findContextReportStreaks).toHaveBeenCalledWith(
+        1,
+        query,
+        10,
+      );
+    });
+  });
+
+  describe('findParticipationReportStreak', () => {
+    it('deve delegar para ReportsService', async () => {
+      const query: ParticipationReportStreakQueryDto = {
+        startDate: '2026-03-01',
+        endDate: '2026-03-31',
+      };
+      const expected = {
+        participationId: 1,
+        userId: 2,
+        userName: 'Maria',
+        userEmail: 'maria@example.com',
+        active: true,
+        currentStreak: 3,
+        longestStreak: 5,
+        reportedDaysCount: 7,
+        lastReportedDate: '2026-03-14',
+        currentStreakStartDate: '2026-03-12',
+        periodStartDate: '2026-03-01',
+        periodEndDate: '2026-03-31',
+        reportedDaysInRangeCount: 3,
+        reportedDays: [],
+      };
+
+      jest
+        .spyOn(reportsService, 'findParticipationReportStreak')
+        .mockResolvedValue(expected as any);
+
+      const result = await service.findParticipationReportStreak(
+        1,
+        1,
+        query,
+        10,
+      );
+
+      expect(result).toEqual(expected);
+      expect(reportsService.findParticipationReportStreak).toHaveBeenCalledWith(
+        1,
+        1,
+        query,
+        10,
       );
     });
   });

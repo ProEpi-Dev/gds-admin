@@ -8,6 +8,8 @@ import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { RolesGuard } from '../authz/guards/roles.guard';
+import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
+import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-report-streak-query.dto';
 
 describe('ContextsController', () => {
   let controller: ContextsController;
@@ -51,6 +53,8 @@ describe('ContextsController', () => {
             create: jest.fn(),
             findAll: jest.fn(),
             findPublicForSignup: jest.fn(),
+            findReportStreaks: jest.fn(),
+            findParticipationReportStreak: jest.fn(),
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
@@ -139,6 +143,86 @@ describe('ContextsController', () => {
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
       await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findReportStreaks', () => {
+    it('deve retornar lista paginada de ofensivas', async () => {
+      const query: ReportStreakQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+      const user = { userId: 10 };
+      const expected = {
+        data: [],
+        meta: {
+          page: 1,
+          pageSize: 20,
+          totalItems: 0,
+          totalPages: 0,
+        },
+        links: {
+          first: '',
+          last: '',
+          prev: null,
+          next: null,
+        },
+      };
+
+      jest
+        .spyOn(contextsService, 'findReportStreaks')
+        .mockResolvedValue(expected as any);
+
+      const result = await controller.findReportStreaks(1, query, user);
+
+      expect(result).toEqual(expected);
+      expect(contextsService.findReportStreaks).toHaveBeenCalledWith(
+        1,
+        query,
+        10,
+      );
+    });
+  });
+
+  describe('findParticipationReportStreak', () => {
+    it('deve retornar detalhes da ofensiva da participação', async () => {
+      const query: ParticipationReportStreakQueryDto = {
+        startDate: '2026-03-01',
+        endDate: '2026-03-31',
+      };
+      const user = { userId: 10 };
+      const expected = {
+        participationId: 1,
+        userId: 2,
+        userName: 'Maria',
+        userEmail: 'maria@example.com',
+        active: true,
+        currentStreak: 3,
+        longestStreak: 5,
+        reportedDaysCount: 7,
+        lastReportedDate: '2026-03-14',
+        currentStreakStartDate: '2026-03-12',
+        periodStartDate: '2026-03-01',
+        periodEndDate: '2026-03-31',
+        reportedDaysInRangeCount: 3,
+        reportedDays: [],
+      };
+
+      jest
+        .spyOn(contextsService, 'findParticipationReportStreak')
+        .mockResolvedValue(expected as any);
+
+      const result = await controller.findParticipationReportStreak(
+        1,
+        1,
+        query,
+        user,
+      );
+
+      expect(result).toEqual(expected);
+      expect(
+        contextsService.findParticipationReportStreak,
+      ).toHaveBeenCalledWith(1, 1, query, 10);
     });
   });
 

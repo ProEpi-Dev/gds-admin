@@ -1,23 +1,40 @@
-import apiClient from '../client';
-import { API_ENDPOINTS } from '../endpoints';
-import type { CreateReportDto, UpdateReportDto, ReportQuery, Report, ReportPoint, ReportsPointsQuery } from '../../types/report.types';
-import type { ListResponse } from '../../types/api.types';
+import apiClient from "../client";
+import { API_ENDPOINTS } from "../endpoints";
+import type {
+  CreateReportDto,
+  UpdateReportDto,
+  ReportQuery,
+  Report,
+  ReportPoint,
+  ReportsPointsQuery,
+  ReportStreakQuery,
+  ReportStreakSummary,
+  ParticipationReportStreak,
+  ParticipationReportStreakQuery,
+} from "../../types/report.types";
+import type { ListResponse } from "../../types/api.types";
 
 export const reportsService = {
   async findAll(query?: ReportQuery): Promise<ListResponse<Report>> {
     const params = new URLSearchParams();
-    if (query?.page) params.append('page', query.page.toString());
-    if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
-    if (query?.active !== undefined) params.append('active', query.active.toString());
-    if (query?.participationId) params.append('participationId', query.participationId.toString());
-    if (query?.formVersionId) params.append('formVersionId', query.formVersionId.toString());
-    if (query?.reportType) params.append('reportType', query.reportType);
-    if (query?.formId) params.append('formId', query.formId.toString());
-    if (query?.startDate) params.append('startDate', query.startDate);
-    if (query?.endDate) params.append('endDate', query.endDate);
-    if (query?.contextId != null) params.append('contextId', query.contextId.toString());
+    if (query?.page) params.append("page", query.page.toString());
+    if (query?.pageSize) params.append("pageSize", query.pageSize.toString());
+    if (query?.active !== undefined)
+      params.append("active", query.active.toString());
+    if (query?.participationId)
+      params.append("participationId", query.participationId.toString());
+    if (query?.formVersionId)
+      params.append("formVersionId", query.formVersionId.toString());
+    if (query?.reportType) params.append("reportType", query.reportType);
+    if (query?.formId) params.append("formId", query.formId.toString());
+    if (query?.startDate) params.append("startDate", query.startDate);
+    if (query?.endDate) params.append("endDate", query.endDate);
+    if (query?.contextId != null)
+      params.append("contextId", query.contextId.toString());
 
-    const response = await apiClient.get(`${API_ENDPOINTS.REPORTS.LIST}?${params.toString()}`);
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.REPORTS.LIST}?${params.toString()}`,
+    );
     return response.data;
   },
 
@@ -32,7 +49,10 @@ export const reportsService = {
   },
 
   async update(id: number, data: UpdateReportDto): Promise<Report> {
-    const response = await apiClient.patch(API_ENDPOINTS.REPORTS.UPDATE(id), data);
+    const response = await apiClient.patch(
+      API_ENDPOINTS.REPORTS.UPDATE(id),
+      data,
+    );
     return response.data;
   },
 
@@ -43,13 +63,55 @@ export const reportsService = {
   async findPoints(query: ReportsPointsQuery): Promise<ReportPoint[]> {
     const params = new URLSearchParams();
     if (query.formId !== undefined) {
-      params.append('formId', query.formId.toString());
+      params.append("formId", query.formId.toString());
     }
-    params.append('startDate', query.startDate);
-    params.append('endDate', query.endDate);
+    params.append("startDate", query.startDate);
+    params.append("endDate", query.endDate);
 
-    const response = await apiClient.get(`${API_ENDPOINTS.REPORTS.POINTS}?${params.toString()}`);
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.REPORTS.POINTS}?${params.toString()}`,
+    );
+    return response.data;
+  },
+
+  async findContextReportStreaks(
+    contextId: number,
+    query?: ReportStreakQuery,
+  ): Promise<ListResponse<ReportStreakSummary>> {
+    const params = new URLSearchParams();
+    if (query?.page) params.append("page", query.page.toString());
+    if (query?.pageSize) params.append("pageSize", query.pageSize.toString());
+    if (query?.active !== undefined)
+      params.append("active", query.active.toString());
+    if (query?.search) params.append("search", query.search);
+
+    const queryString = params.toString();
+    const url = queryString
+      ? `${API_ENDPOINTS.CONTEXTS.REPORT_STREAKS(contextId)}?${queryString}`
+      : API_ENDPOINTS.CONTEXTS.REPORT_STREAKS(contextId);
+
+    const response = await apiClient.get(url);
+    return response.data;
+  },
+
+  async findParticipationReportStreak(
+    contextId: number,
+    participationId: number,
+    query?: ParticipationReportStreakQuery,
+  ): Promise<ParticipationReportStreak> {
+    const params = new URLSearchParams();
+    if (query?.startDate) params.append("startDate", query.startDate);
+    if (query?.endDate) params.append("endDate", query.endDate);
+
+    const queryString = params.toString();
+    const url = queryString
+      ? `${API_ENDPOINTS.CONTEXTS.PARTICIPATION_REPORT_STREAK(contextId, participationId)}?${queryString}`
+      : API_ENDPOINTS.CONTEXTS.PARTICIPATION_REPORT_STREAK(
+          contextId,
+          participationId,
+        );
+
+    const response = await apiClient.get(url);
     return response.data;
   },
 };
-
