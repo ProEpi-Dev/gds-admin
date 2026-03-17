@@ -175,8 +175,12 @@ export class TrackCyclesService {
         track: {
           include: {
             section: {
+              where: { active: true },
+              orderBy: { order: 'asc' },
               include: {
                 sequence: {
+                  where: { active: true },
+                  orderBy: { order: 'asc' },
                   include: {
                     content: true,
                     form: true,

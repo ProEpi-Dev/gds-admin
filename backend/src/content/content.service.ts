@@ -97,6 +97,7 @@ export class ContentService {
       userId,
       contextId,
       'GET /contents',
+      { allowParticipantContext: true },
     );
 
     return this.prisma.content.findMany({
