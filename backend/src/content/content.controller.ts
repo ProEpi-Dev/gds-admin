@@ -32,8 +32,8 @@ export class ContentController {
 
   @Get()
   @UseGuards(RolesGuard)
-  @Roles('admin', 'manager', 'content_manager')
-  @ApiOperation({ summary: 'Listar conteúdos do contexto atual' })
+  @Roles('admin', 'manager', 'content_manager', 'participant')
+  @ApiOperation({ summary: 'Listar conteúdos do contexto (admin/manager/content_manager/participant)' })
   list(
     @Query('contextId') contextId: string | undefined,
     @CurrentUser() user: any,
