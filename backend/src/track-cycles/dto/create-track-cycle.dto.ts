@@ -59,7 +59,7 @@ export class CreateTrackCycleDto {
     maxLength: 80,
     required: false,
   })
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsOptional()
   @ValidateIf((o) => o.mandatorySlug != null && o.mandatorySlug !== '')
   @IsString()
@@ -68,7 +68,7 @@ export class CreateTrackCycleDto {
     message:
       'mandatorySlug deve conter apenas letras minúsculas, números e hífens (ex.: formacao-inicial)',
   })
-  mandatorySlug?: string;
+  mandatorySlug?: string | null;
 
   @ApiProperty({
     description: 'Status do ciclo',
