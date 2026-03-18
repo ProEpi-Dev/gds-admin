@@ -130,11 +130,11 @@ export class UsersController {
 
   @Patch(':id')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'participant')
   @ApiOperation({
     summary: 'Atualizar usuário',
     description:
-      'Admin: qualquer usuário e pode alterar papel global. Manager: apenas usuários que participam dos seus contextos; não pode alterar papel global.',
+      'Admin: qualquer usuário e pode alterar papel global. Manager: apenas usuários que participam dos seus contextos; não pode alterar papel global. Participant: apenas o próprio perfil (name, email, password).',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
   @ApiResponse({
