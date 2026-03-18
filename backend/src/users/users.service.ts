@@ -297,20 +297,26 @@ export class UsersService {
     }
 
     const isAdmin = await this.authz.isAdmin(currentUserId);
+    const isSelf = id === currentUserId;
     if (!isAdmin) {
-      const managedContextIds =
-        await this.authz.getManagedContextIds(currentUserId);
-      const hasAccess =
-        managedContextIds.length > 0 &&
-        (await this.prisma.participation.count({
-          where: {
-            user_id: id,
-            context_id: { in: managedContextIds },
-            active: true,
-          },
-        })) > 0;
-      if (!hasAccess) {
-        throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+      if (isSelf) {
+        delete updateUserDto.active;
+        delete updateUserDto.roleId;
+      } else {
+        const managedContextIds =
+          await this.authz.getManagedContextIds(currentUserId);
+        const hasAccess =
+          managedContextIds.length > 0 &&
+          (await this.prisma.participation.count({
+            where: {
+              user_id: id,
+              context_id: { in: managedContextIds },
+              active: true,
+            },
+          })) > 0;
+        if (!hasAccess) {
+          throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+        }
       }
     }
 
