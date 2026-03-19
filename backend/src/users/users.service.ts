@@ -23,6 +23,7 @@ import {
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import { AuthzService } from '../authz/authz.service';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 
 @Injectable()
 export class UsersService {
@@ -48,7 +49,10 @@ export class UsersService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      BCRYPT_ROUNDS,
+    );
 
     const createData: any = {
       name: createUserDto.name,
@@ -339,7 +343,10 @@ export class UsersService {
     if (updateUserDto.email !== undefined)
       updateData.email = updateUserDto.email;
     if (updateUserDto.password !== undefined) {
-      updateData.password = await bcrypt.hash(updateUserDto.password, 10);
+      updateData.password = await bcrypt.hash(
+        updateUserDto.password,
+        BCRYPT_ROUNDS,
+      );
     }
     if (updateUserDto.active !== undefined)
       updateData.active = updateUserDto.active;

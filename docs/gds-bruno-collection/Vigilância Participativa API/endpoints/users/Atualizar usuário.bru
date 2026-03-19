@@ -1,0 +1,17 @@
+meta {
+  name: Atualizar usuário
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/users/14
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Zoca Alternado"
+  }
+}

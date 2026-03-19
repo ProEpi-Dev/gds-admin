@@ -19,6 +19,7 @@ import { SignupResponseDto } from './dto/signup-response.dto';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { BCRYPT_ROUNDS } from './constants/password.constants';
 
 @Injectable()
 export class AuthService {
@@ -196,10 +197,24 @@ export class AuthService {
       );
     }
 
-    // Validar senha usando bcrypt
+    // Validar senha usando bcrypt (compatível com hashes migrados do legado)
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return null;
+    }
+
+    // Re-hashear com cost 11 se o hash atual tiver cost diferente (ex.: migrados com cost menor)
+    try {
+      const rounds = bcrypt.getRounds(user.password);
+      if (rounds !== BCRYPT_ROUNDS) {
+        const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { password: newHash },
+        });
+      }
+    } catch {
+      // getRounds pode falhar em hashes malformados; ignora e segue com o login
     }
 
     return user;
@@ -247,10 +262,10 @@ export class AuthService {
       );
     }
 
-    // Hash da nova senha
+    // Hash da nova senha (cost 11 para consistência com legado/migração)
     const hashedNewPassword = await bcrypt.hash(
       changePasswordDto.newPassword,
-      10,
+      BCRYPT_ROUNDS,
     );
 
     // Atualizar senha
@@ -307,8 +322,11 @@ export class AuthService {
 
     // 5. Criar usuário, participation e aceites em transação
     const result = await this.prisma.$transaction(async (tx) => {
-      // Hash da senha
-      const hashedPassword = await bcrypt.hash(signupDto.password, 10);
+      // Hash da senha (cost 11 para consistência com legado/migração)
+      const hashedPassword = await bcrypt.hash(
+        signupDto.password,
+        BCRYPT_ROUNDS,
+      );
 
       // Criar usuário
       const user = await tx.user.create({
@@ -444,7 +462,7 @@ export class AuthService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.prisma.user.update({
       where: { id: user.id },
       data: {

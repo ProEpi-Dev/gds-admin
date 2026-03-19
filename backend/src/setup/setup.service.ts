@@ -4,6 +4,7 @@ import { SetupDto } from './dto/setup.dto';
 import { SetupResponseDto } from './dto/setup-response.dto';
 import { context_access_type } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 
 @Injectable()
 export class SetupService {
@@ -38,7 +39,10 @@ export class SetupService {
     // Criar contexto padrão e manager em uma transação
     const result = await this.prisma.$transaction(async (tx) => {
       // Hash da senha do manager
-      const hashedPassword = await bcrypt.hash(setupDto.managerPassword, 10);
+      const hashedPassword = await bcrypt.hash(
+        setupDto.managerPassword,
+        BCRYPT_ROUNDS,
+      );
 
       // Criar usuário manager padrão
       const manager = await tx.user.create({

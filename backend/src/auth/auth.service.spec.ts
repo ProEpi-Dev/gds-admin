@@ -16,6 +16,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import { getLoggerToken } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from './constants/password.constants';
 
 const mockPinoLogger = {
   setContext: jest.fn(),
@@ -218,6 +219,31 @@ describe('AuthService', () => {
         service.validateUser('test@example.com', 'password'),
       ).rejects.toThrow(UnauthorizedException);
     });
+
+    it('deve re-hashear senha no login quando cost do hash for diferente de BCRYPT_ROUNDS (migração)', async () => {
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.getRounds as jest.Mock).mockReturnValue(10);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('newHashCost11');
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue({
+        ...mockUser,
+        password: 'newHashCost11',
+      } as any);
+
+      const result = await service.validateUser(
+        'test@example.com',
+        'password123',
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(bcrypt.hash).toHaveBeenCalledWith('password123', BCRYPT_ROUNDS);
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: { password: 'newHashCost11' },
+      });
+    });
   });
 
   describe('login', () => {
@@ -338,7 +364,7 @@ describe('AuthService', () => {
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(bcrypt.hash).toHaveBeenCalledWith(
         changePasswordDto.newPassword,
-        10,
+        BCRYPT_ROUNDS,
       );
     });
 
@@ -628,7 +654,7 @@ describe('AuthService', () => {
           active: true,
         },
       });
-      expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', BCRYPT_ROUNDS);
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: userWithToken.id },
         data: {
