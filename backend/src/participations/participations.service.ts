@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthzService } from '../authz/authz.service';
 import { CreateParticipationDto } from './dto/create-participation.dto';
@@ -59,7 +60,7 @@ export class ParticipationsService {
       }
       const hashedPassword = await bcrypt.hash(
         createParticipationDto.newUserPassword,
-        10,
+        BCRYPT_ROUNDS,
       );
       const newUser = await this.prisma.user.create({
         data: {

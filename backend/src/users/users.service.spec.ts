@@ -14,6 +14,7 @@ import { UserQueryDto } from './dto/user-query.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 
 jest.mock('bcrypt');
 
@@ -127,7 +128,10 @@ describe('UsersService', () => {
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { email: createUserDto.email },
       });
-      expect(bcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith(
+        createUserDto.password,
+        BCRYPT_ROUNDS,
+      );
       expect(prismaService.user.create).toHaveBeenCalledWith({
         data: {
           name: createUserDto.name,
@@ -560,7 +564,7 @@ describe('UsersService', () => {
 
       await service.update(1, updateUserDto, 1);
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('newPassword123', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith('newPassword123', BCRYPT_ROUNDS);
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { password: 'newHashedPassword' },

@@ -4,6 +4,7 @@ import { SetupService } from './setup.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SetupDto } from './dto/setup.dto';
 import * as bcrypt from 'bcrypt';
+import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 
 jest.mock('bcrypt');
 
@@ -210,7 +211,7 @@ describe('SetupService', () => {
 
       expect(bcrypt.hash).toHaveBeenCalledWith(
         mockSetupDto.managerPassword,
-        10,
+        BCRYPT_ROUNDS,
       );
     });
 
