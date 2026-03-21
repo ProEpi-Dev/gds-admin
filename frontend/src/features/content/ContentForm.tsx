@@ -181,7 +181,7 @@ export default function ContentForm() {
 
   useEffect(() => {
     if (id) {
-      ContentService.get(Number(id)).then((res) => {
+      ContentService.get(Number(id), currentContext?.id).then((res) => {
         const c = res.data;
         setForm({
           title: c.title,
@@ -202,7 +202,7 @@ export default function ContentForm() {
         }
       });
     }
-  }, [id]);
+  }, [id, currentContext?.id]);
 
   const handleCreateNewContentType = async () => {
     if (!newContentTypeName.trim()) {
@@ -348,7 +348,7 @@ export default function ContentForm() {
 
     if (id) {
       // Edição
-      ContentService.update(Number(id), form)
+      ContentService.update(Number(id), form, currentContext?.id)
         .then(() => {
           snackbar.showSuccess("Conteúdo atualizado com sucesso!");
           navigate("/contents");
@@ -384,7 +384,7 @@ export default function ContentForm() {
         reference: form.reference || `ref-${Date.now()}`, // se reference vazio, cria um único
       };
 
-      ContentService.create(newContent)
+      ContentService.create(newContent, currentContext?.id)
         .then(() => {
           snackbar.showSuccess("Conteúdo criado com sucesso!");
           navigate("/contents");

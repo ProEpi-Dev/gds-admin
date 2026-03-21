@@ -230,7 +230,7 @@ export default function ContentList() {
 
     const id = contentToDelete;
     try {
-      await ContentService.delete(id);
+      await ContentService.delete(id, currentContext?.id);
       await refreshContents();
       setDeleteDialogOpen(false);
       setContentToDelete(null);
@@ -247,7 +247,7 @@ export default function ContentList() {
     if (contentToReactivate == null) return;
     const id = contentToReactivate;
     try {
-      await ContentService.reactivate(id);
+      await ContentService.reactivate(id, currentContext?.id);
       await refreshContents();
       setReactivateDialogOpen(false);
       setContentToReactivate(null);
@@ -265,7 +265,7 @@ export default function ContentList() {
     const id = contentToPermanentDelete;
     setPermanentDeleteLoading(true);
     try {
-      await ContentService.permanentDelete(id);
+      await ContentService.permanentDelete(id, currentContext?.id);
       setContents((prev) => prev.filter((c) => c.id !== id));
       setPermanentDeleteDialogOpen(false);
       setContentToPermanentDelete(null);

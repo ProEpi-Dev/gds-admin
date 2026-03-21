@@ -64,6 +64,8 @@ export class RolesGuard implements CanActivate {
       );
       if (!hasIt) {
         const roleSummary = await this.authz.getUserRoleSummary(userId);
+        const diagnostico_permissoes =
+          await this.authz.getPermissionDiagnosticsForLog(userId, ctxLabel);
         this.logger.warn(
           {
             event: 'ACCESS_DENIED',
@@ -74,6 +76,7 @@ export class RolesGuard implements CanActivate {
             papel_atual: roleSummary,
             contextId: ctxLabel ?? 'none',
             permissao_necessaria: requiredPermission,
+            diagnostico_permissoes,
             ip,
           },
           'Acesso negado: permissão insuficiente',

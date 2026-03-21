@@ -72,6 +72,107 @@ export class AuthzService {
   }
 
   /**
+   * Diagnóstico para logs quando falha checagem de permissão (uma consulta às participações).
+   * Explica diferença entre "permissões no contexto da requisição" vs "em algum contexto".
+   */
+  async getPermissionDiagnosticsForLog(
+    userId: number,
+    requestContextId: number | null,
+  ): Promise<{
+    contexto_usado_na_checagem: number | 'nenhum';
+    permissoes_nesse_contexto: string[];
+    permissoes_por_contexto: Array<{ context_id: number; permissoes: string[] }>;
+    todas_perm_distintas_em_participacoes: string[];
+    nota?: string;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: { select: { code: true } } },
+    });
+    if (user?.role?.code === 'admin') {
+      return {
+        contexto_usado_na_checagem: requestContextId ?? 'nenhum',
+        permissoes_nesse_contexto: [],
+        permissoes_por_contexto: [],
+        todas_perm_distintas_em_participacoes: [],
+        nota: 'Usuário é admin global; falha de permissão é inesperada.',
+      };
+    }
+
+    const participations = await this.prisma.participation.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+        context: { active: true },
+      },
+      select: {
+        context_id: true,
+        participation_role: {
+          select: {
+            role: {
+              select: {
+                role_permission: {
+                  select: {
+                    permission: { select: { code: true, active: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const byContext = new Map<number, Set<string>>();
+    const allCodes = new Set<string>();
+
+    for (const p of participations) {
+      let set = byContext.get(p.context_id);
+      if (!set) {
+        set = new Set();
+        byContext.set(p.context_id, set);
+      }
+      for (const pr of p.participation_role) {
+        for (const rp of pr.role.role_permission) {
+          if (rp.permission.active) {
+            set.add(rp.permission.code);
+            allCodes.add(rp.permission.code);
+          }
+        }
+      }
+    }
+
+    const permissoes_nesse_contexto =
+      requestContextId != null
+        ? [...(byContext.get(requestContextId) ?? new Set())].sort()
+        : [];
+
+    const permissoes_por_contexto = [...byContext.entries()]
+      .map(([context_id, codes]) => ({
+        context_id,
+        permissoes: [...codes].sort(),
+      }))
+      .sort((a, b) => a.context_id - b.context_id);
+
+    let nota: string | undefined;
+    if (requestContextId == null) {
+      nota =
+        'Nenhum contextId na requisição (query/body/params). Para papéis de contexto, a API precisa do contexto para avaliar role_permission.';
+    } else if (permissoes_nesse_contexto.length === 0 && allCodes.size > 0) {
+      nota =
+        'Há permissões em outros contextos, mas não neste contexto ou sem participação ativa aqui.';
+    }
+
+    return {
+      contexto_usado_na_checagem: requestContextId ?? 'nenhum',
+      permissoes_nesse_contexto,
+      permissoes_por_contexto,
+      todas_perm_distintas_em_participacoes: [...allCodes].sort(),
+      ...(nota ? { nota } : {}),
+    };
+  }
+
+  /**
    * Verifica se o usuário tem pelo menos um dos papéis.
    * - contextId definido: verifica naquele contexto específico.
    * - contextId null: verifica em QUALQUER contexto ativo (útil para guards sem contextId na URL).

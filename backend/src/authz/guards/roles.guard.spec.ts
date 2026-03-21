@@ -53,6 +53,12 @@ describe('RolesGuard', () => {
             hasPermission: jest.fn(),
             hasAnyRole: jest.fn(),
             getUserRoleSummary: jest.fn().mockResolvedValue('participant'),
+            getPermissionDiagnosticsForLog: jest.fn().mockResolvedValue({
+              contexto_usado_na_checagem: 'nenhum',
+              permissoes_nesse_contexto: [],
+              permissoes_por_contexto: [],
+              todas_perm_distintas_em_participacoes: [],
+            }),
           },
         },
         {
@@ -150,6 +156,10 @@ describe('RolesGuard', () => {
         'Permissão necessária: content:delete',
       );
       expect(authz.getUserRoleSummary).toHaveBeenCalledWith(1);
+      expect(authz.getPermissionDiagnosticsForLog).toHaveBeenCalledWith(
+        1,
+        null,
+      );
     });
 
     it('deve permitir quando requiredRoles e hasAnyRole retorna true', async () => {
