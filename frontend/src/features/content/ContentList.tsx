@@ -59,6 +59,116 @@ interface Content {
     name: string;
     color?: string;
   } | null;
+  /** Sequências da trilha que referenciam este conteúdo (vem do GET /contents). */
+  sequence?: Array<{
+    id: number;
+    section?: { track?: { id: number; name: string; active: boolean } };
+  }>;
+  /** Associações conteúdo–quiz ativas (vem do GET /contents). */
+  content_quiz?: Array<{
+    id: number;
+    form_id?: number;
+    formId?: number;
+    display_order?: number;
+    displayOrder?: number;
+    active?: boolean;
+    form?: { id: number; title: string; active?: boolean } | null;
+  }>;
+}
+
+type TrackChip = { id: number; name: string; active: boolean };
+
+/** Quizzes associados ao conteúdo, na ordem de exibição configurada. */
+function linkedQuizzesForRow(content: Content) {
+  const raw =
+    content.content_quiz ??
+    (content as { content_quizzes?: NonNullable<Content["content_quiz"]> })
+      .content_quizzes;
+  return [...(raw ?? [])]
+    .filter((cq) => cq.active !== false)
+    .map((cq) => {
+      const formId = cq.form_id ?? cq.formId ?? cq.form?.id ?? 0;
+      const order = cq.display_order ?? cq.displayOrder ?? 0;
+      return {
+        id: cq.id,
+        order,
+        title: (cq.form?.title ?? "").trim() || `Quiz #${formId}`,
+        formActive: cq.form?.active !== false,
+      };
+    })
+    .sort((a, b) => a.order - b.order)
+    .map(({ id, title, formActive }) => ({ id, title, formActive }));
+}
+
+/** Extrai trilhas a partir do include `sequence` do GET /contents (quando presente). */
+function tracksFromContentSequences(content: Content): TrackChip[] {
+  const map = new Map<number, TrackChip>();
+  const raw = content.sequence ?? (content as { sequences?: typeof content.sequence }).sequences;
+  for (const seq of raw ?? []) {
+    const section = seq.section as
+      | { track?: { id: number; name: string; active?: boolean } }
+      | undefined;
+    const t = section?.track;
+    if (t) {
+      map.set(t.id, {
+        id: t.id,
+        name: t.name,
+        active: t.active !== false,
+      });
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR"),
+  );
+}
+
+/**
+ * Fallback: mesma lógica do ContentTrackManager — varre a lista de trilhas do contexto
+ * (útil se a API ainda não trouxer `sequence` no conteúdo ou payload diferir).
+ */
+function tracksFromTrackListForContent(
+  contentId: number,
+  tracksList: Array<{
+    id: number;
+    name: string;
+    active?: boolean;
+    section?: Array<{
+      sequence?: Array<{ content_id?: number }>;
+    }>;
+  }>,
+): TrackChip[] {
+  const map = new Map<number, TrackChip>();
+  for (const track of tracksList) {
+    for (const section of track.section ?? []) {
+      for (const seq of section.sequence ?? []) {
+        if (seq.content_id === contentId) {
+          map.set(track.id, {
+            id: track.id,
+            name: track.name,
+            active: track.active !== false,
+          });
+          break;
+        }
+      }
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR"),
+  );
+}
+
+function distinctTracksForContentRow(
+  content: Content,
+  tracksList: Array<{
+    id: number;
+    name: string;
+    active?: boolean;
+    section?: Array<{ sequence?: Array<{ content_id?: number }> }>;
+  }>,
+): TrackChip[] {
+  const fromApi = tracksFromContentSequences(content);
+  if (fromApi.length > 0) return fromApi;
+  return tracksFromTrackListForContent(content.id, tracksList);
 }
 
 export default function ContentList() {
@@ -118,10 +228,17 @@ export default function ContentList() {
 
   useEffect(() => {
     refreshContentTypes();
-    TrackService.list().then((res) => {
-      setTracks(res.data);
-    });
   }, []);
+
+  useEffect(() => {
+    if (currentContext?.id == null) {
+      setTracks([]);
+      return;
+    }
+    TrackService.list({ contextId: currentContext.id }).then((res) => {
+      setTracks(res.data ?? []);
+    });
+  }, [currentContext?.id]);
 
   useEffect(() => {
     if (currentContext?.id == null) {
@@ -211,9 +328,16 @@ export default function ContentList() {
       // Mostrar notificação de sucesso
       snackbar.showSuccess("Conteúdo adicionado à trilha com sucesso!");
 
-      // Refresh tracks data
-      const res = await TrackService.list();
-      setTracks(res.data);
+      const [contentsRes, tracksRes] = await Promise.all([
+        ContentService.list(currentContext?.id, showInactive),
+        TrackService.list(
+          currentContext?.id != null
+            ? { contextId: currentContext.id }
+            : undefined,
+        ),
+      ]);
+      setContents(contentsRes.data ?? []);
+      setTracks(tracksRes.data ?? []);
 
       setAddToTrackDialogOpen(false);
       setContentToAdd(null);
@@ -377,47 +501,60 @@ export default function ContentList() {
     },
     { id: "slug", label: "Slug", minWidth: 150 },
     {
-      id: "type",
-      label: "Tipo",
-      minWidth: 130,
-      render: (row) =>
-        row.content_type ? (
-          <Chip
-            label={row.content_type.name}
-            size="small"
-            sx={{
-              backgroundColor: row.content_type.color || "#9c27b0",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          />
-        ) : (
-          <Typography variant="caption" color="textSecondary">
-            Sem tipo
-          </Typography>
-        ),
+      id: "quizzes",
+      label: "Quizes",
+      minWidth: 200,
+      render: (row) => {
+        const qs = linkedQuizzesForRow(row);
+        return (
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {qs.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                —
+              </Typography>
+            ) : (
+              qs.map((q) => (
+                <Chip
+                  key={q.id}
+                  label={q.title}
+                  size="small"
+                  variant={q.formActive ? "filled" : "outlined"}
+                  color={q.formActive ? "primary" : "default"}
+                  sx={{ fontSize: 12 }}
+                />
+              ))
+            )}
+          </Box>
+        );
+      },
     },
     {
-      id: "tags",
-      label: "Tags",
+      id: "tracks",
+      label: "Trilhas",
       minWidth: 200,
-      render: (row) => (
-        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-          {row.content_tag?.map((t) => (
-            <Chip
-              key={t.id}
-              label={`#${t.tag.name}`}
-              size="small"
-              sx={{
-                backgroundColor: t.tag.color || "#e3f2fd",
-                color: "#fff",
-                fontSize: 12,
-              }}
-            />
-          ))}
-        </Box>
-      ),
+      render: (row) => {
+        const rowTracks = distinctTracksForContentRow(row, tracks);
+        return (
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {rowTracks.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                —
+              </Typography>
+            ) : (
+              rowTracks.map((t) => (
+                <Chip
+                  key={t.id}
+                  label={t.name}
+                  size="small"
+                  variant={t.active ? "filled" : "outlined"}
+                  color={t.active ? "secondary" : "default"}
+                  sx={{ fontSize: 12 }}
+                />
+              ))
+            )}
+          </Box>
+        );
+      },
     },
     {
       id: "actions",
@@ -500,13 +637,16 @@ export default function ContentList() {
     if (!filteredContents || filteredContents.length === 0) return;
 
     // Cabeçalhos das colunas
-    const headers = ["ID", "Título", "Situação", "Slug", "Tipo", "Tags"];
+    const headers = ["ID", "Título", "Situação", "Slug", "Quizes", "Trilhas"];
 
     // Linhas de dados
     const rows = filteredContents.map((item) => {
-      const type = item.content_type?.name || "Sem tipo";
-      const tags =
-        item.content_tag?.map((t) => `#${t.tag.name}`).join(", ") || "";
+      const quizes = linkedQuizzesForRow(item)
+        .map((q) => q.title)
+        .join(", ");
+      const trilhas = distinctTracksForContentRow(item, tracks)
+        .map((t) => t.name)
+        .join(", ");
       const situacao = item.active === false ? "Inativo" : "Ativo";
 
       return [
@@ -514,8 +654,8 @@ export default function ContentList() {
         item.title.replace(/"/g, '""'),
         situacao,
         item.slug.replace(/"/g, '""'),
-        type.replace(/"/g, '""'),
-        tags.replace(/"/g, '""'),
+        quizes.replace(/"/g, '""'),
+        trilhas.replace(/"/g, '""'),
       ];
     });
 

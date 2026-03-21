@@ -21,6 +21,7 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   PlaylistAdd as PlaylistAddIcon,
+  Article as ArticleIcon,
 } from "@mui/icons-material";
 import { useForms } from "../../forms/hooks/useForms";
 import { useCurrentContext } from "../../../contexts/CurrentContextContext";
@@ -152,7 +153,7 @@ export default function QuizFormsListPage() {
             onClick={() => navigate(`/forms/${row.id}`)}
             title={t("common.view")}
           >
-            <VisibilityIcon fontSize="small" />
+            <ArticleIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
