@@ -9,9 +9,15 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Button,
 } from "@mui/material";
-import { AdminPanelSettings as RoleIcon } from "@mui/icons-material";
+import {
+  AdminPanelSettings as RoleIcon,
+  VpnKey as VpnKeyIcon,
+} from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { useRoles } from "../hooks/useRoles";
+import { useUserRole } from "../../../hooks/useUserRole";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 
@@ -34,6 +40,8 @@ const ROLE_COLOR: Record<string, "warning" | "info" | "success" | "default"> =
   };
 
 export default function RolesListPage() {
+  const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const { data: roles, isLoading, error } = useRoles();
 
   if (isLoading) return <LoadingSpinner />;
@@ -41,9 +49,29 @@ export default function RolesListPage() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
-        <RoleIcon color="primary" sx={{ fontSize: 32 }} />
-        <Typography variant="h4">Papéis</Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          flexWrap: "wrap",
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <RoleIcon color="primary" sx={{ fontSize: 32 }} />
+          <Typography variant="h4">Papéis</Typography>
+        </Box>
+        {isAdmin && (
+          <Button
+            variant="outlined"
+            startIcon={<VpnKeyIcon />}
+            onClick={() => navigate("/roles/permissions")}
+          >
+            Permissões dos papéis
+          </Button>
+        )}
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>

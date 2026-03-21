@@ -68,6 +68,8 @@ import TrackCycleStudentsPage from "../features/track-cycles/pages/TrackCycleStu
 import TrackCycleProgressPage from "../features/track-cycles/pages/TrackCycleProgressPage";
 import TrackCycleQuizTakePage from "../features/track-cycles/pages/TrackCycleQuizTakePage";
 import RolesListPage from "../features/roles/pages/RolesListPage";
+import RolePermissionsPage from "../features/roles/pages/RolePermissionsPage";
+import AdminOnlyRoute from "./AdminOnlyRoute";
 import AdminsListPage from "../features/admins/pages/AdminsListPage";
 
 interface ProtectedRouteProps {
@@ -543,6 +545,16 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <RolesListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/roles/permissions"
+        element={
+          <AdminRoute>
+            <AdminOnlyRoute>
+              <RolePermissionsPage />
+            </AdminOnlyRoute>
           </AdminRoute>
         }
       />
