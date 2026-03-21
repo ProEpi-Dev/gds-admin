@@ -26,6 +26,36 @@ export class ContentService {
       },
     },
     content_type: true,
+    /** Sequências que apontam para este conteúdo (para listar trilhas associadas). */
+    sequence: {
+      include: {
+        section: {
+          include: {
+            track: {
+              select: {
+                id: true,
+                name: true,
+                active: true,
+              },
+            },
+          },
+        },
+      },
+    },
+    /** Associações conteúdo–quiz (para listagem admin). */
+    content_quiz: {
+      where: { active: true },
+      orderBy: { display_order: 'asc' },
+      include: {
+        form: {
+          select: {
+            id: true,
+            title: true,
+            active: true,
+          },
+        },
+      },
+    },
   } as const;
 
   private async assertCanManageContent(

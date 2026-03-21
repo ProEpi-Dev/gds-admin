@@ -110,10 +110,15 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
   };
 
   const handleSubmit = () => {
+    const ctx = currentContext?.id;
     if (editingQuiz) {
       // Atualizar
       updateMutation.mutate(
-        { id: editingQuiz.id, data: formData as UpdateContentQuizDto },
+        {
+          id: editingQuiz.id,
+          data: formData as UpdateContentQuizDto,
+          contextId: ctx,
+        },
         {
           onSuccess: () => {
             snackbar.showSuccess('Quiz atualizado com sucesso');
@@ -132,28 +137,34 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
         return;
       }
 
-      createMutation.mutate(createData, {
-        onSuccess: () => {
-          snackbar.showSuccess('Quiz associado com sucesso');
-          handleCloseDialog();
-        },
-        onError: (error: any) => {
-          snackbar.showError(error?.response?.data?.message || 'Erro ao associar quiz');
-        },
-      });
+      createMutation.mutate(
+        { data: createData, contextId: ctx },
+        {
+          onSuccess: () => {
+            snackbar.showSuccess('Quiz associado com sucesso');
+            handleCloseDialog();
+          },
+          onError: (error: any) => {
+            snackbar.showError(error?.response?.data?.message || 'Erro ao associar quiz');
+          },
+        }
+      );
     }
   };
 
   const handleDelete = (id: number) => {
     if (window.confirm('Tem certeza que deseja remover esta associação?')) {
-      deleteMutation.mutate(id, {
-        onSuccess: () => {
-          snackbar.showSuccess('Associação removida com sucesso');
-        },
-        onError: (error: any) => {
-          snackbar.showError(error?.response?.data?.message || 'Erro ao remover associação');
-        },
-      });
+      deleteMutation.mutate(
+        { id, contextId: currentContext?.id },
+        {
+          onSuccess: () => {
+            snackbar.showSuccess('Associação removida com sucesso');
+          },
+          onError: (error: any) => {
+            snackbar.showError(error?.response?.data?.message || 'Erro ao remover associação');
+          },
+        }
+      );
     }
   };
 
@@ -175,14 +186,17 @@ export default function ContentQuizManager({ contentId }: ContentQuizManagerProp
     const newOrder = targetQuiz.displayOrder;
     const oldOrder = quiz.displayOrder;
 
+    const ctx = currentContext?.id;
     await Promise.all([
       updateMutation.mutateAsync({
         id: quiz.id,
         data: { displayOrder: newOrder },
+        contextId: ctx,
       }),
       updateMutation.mutateAsync({
         id: targetQuiz.id,
         data: { displayOrder: oldOrder },
+        contextId: ctx,
       }),
     ]);
 

@@ -13,10 +13,10 @@ export function useContentQuizzes(query?: ContentQuizQuery) {
   });
 }
 
-export function useContentQuiz(id: number | null) {
+export function useContentQuiz(id: number | null, contextId?: number) {
   return useQuery({
-    queryKey: ['content-quiz', id],
-    queryFn: () => (id ? contentQuizService.findOne(id) : null),
+    queryKey: ['content-quiz', id, contextId],
+    queryFn: () => (id ? contentQuizService.findOne(id, contextId) : null),
     enabled: !!id,
   });
 }
@@ -25,8 +25,10 @@ export function useCreateContentQuiz() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateContentQuizDto) =>
-      contentQuizService.create(data),
+    mutationFn: (vars: {
+      data: CreateContentQuizDto;
+      contextId?: number;
+    }) => contentQuizService.create(vars.data, vars.contextId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['content-quiz'] });
     },
@@ -37,8 +39,11 @@ export function useUpdateContentQuiz() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateContentQuizDto }) =>
-      contentQuizService.update(id, data),
+    mutationFn: (vars: {
+      id: number;
+      data: UpdateContentQuizDto;
+      contextId?: number;
+    }) => contentQuizService.update(vars.id, vars.data, vars.contextId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['content-quiz'] });
       queryClient.invalidateQueries({ queryKey: ['content-quiz', variables.id] });
@@ -50,7 +55,8 @@ export function useDeleteContentQuiz() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => contentQuizService.remove(id),
+    mutationFn: (vars: { id: number; contextId?: number }) =>
+      contentQuizService.remove(vars.id, vars.contextId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['content-quiz'] });
     },

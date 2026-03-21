@@ -7,6 +7,10 @@ import type {
 } from '../../types/content-quiz.types';
 import type { ListResponse } from '../../types/api.types';
 
+function contextParams(contextId?: number) {
+  return contextId != null ? { contextId } : undefined;
+}
+
 export const contentQuizService = {
   async findAll(query?: ContentQuizQuery): Promise<ListResponse<ContentQuiz>> {
     const params = new URLSearchParams();
@@ -28,26 +32,38 @@ export const contentQuizService = {
     return response.data;
   },
 
-  async findOne(id: number): Promise<ContentQuiz> {
-    const response = await apiClient.get(`/content-quiz/${id}`);
+  async findOne(id: number, contextId?: number): Promise<ContentQuiz> {
+    const response = await apiClient.get(`/content-quiz/${id}`, {
+      params: contextParams(contextId),
+    });
     return response.data;
   },
 
-  async create(data: CreateContentQuizDto): Promise<ContentQuiz> {
-    const response = await apiClient.post('/content-quiz', data);
+  async create(
+    data: CreateContentQuizDto,
+    contextId?: number,
+  ): Promise<ContentQuiz> {
+    const response = await apiClient.post('/content-quiz', data, {
+      params: contextParams(contextId),
+    });
     return response.data;
   },
 
   async update(
     id: number,
     data: UpdateContentQuizDto,
+    contextId?: number,
   ): Promise<ContentQuiz> {
-    const response = await apiClient.patch(`/content-quiz/${id}`, data);
+    const response = await apiClient.patch(`/content-quiz/${id}`, data, {
+      params: contextParams(contextId),
+    });
     return response.data;
   },
 
-  async remove(id: number): Promise<void> {
-    await apiClient.delete(`/content-quiz/${id}`);
+  async remove(id: number, contextId?: number): Promise<void> {
+    await apiClient.delete(`/content-quiz/${id}`, {
+      params: contextParams(contextId),
+    });
   },
 };
 

@@ -295,6 +295,34 @@ describe('ContentService', () => {
             },
           },
           content_type: true,
+          sequence: {
+            include: {
+              section: {
+                include: {
+                  track: {
+                    select: {
+                      id: true,
+                      name: true,
+                      active: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          content_quiz: {
+            where: { active: true },
+            orderBy: { display_order: 'asc' },
+            include: {
+              form: {
+                select: {
+                  id: true,
+                  title: true,
+                  active: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { updated_at: 'desc' },
       });
@@ -356,6 +384,34 @@ describe('ContentService', () => {
             },
           },
           content_type: true,
+          sequence: {
+            include: {
+              section: {
+                include: {
+                  track: {
+                    select: {
+                      id: true,
+                      name: true,
+                      active: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          content_quiz: {
+            where: { active: true },
+            orderBy: { display_order: 'asc' },
+            include: {
+              form: {
+                select: {
+                  id: true,
+                  title: true,
+                  active: true,
+                },
+              },
+            },
+          },
         },
       });
     });

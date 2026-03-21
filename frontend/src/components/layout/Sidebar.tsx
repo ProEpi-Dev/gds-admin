@@ -104,12 +104,6 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         roles: ["admin", "manager", "content_manager"],
       },
       {
-        path: "/form-builder",
-        label: t("forms.formBuilder"),
-        icon: <DescriptionIcon />,
-        roles: ["admin", "manager", "content_manager"],
-      },
-      {
         path: "/locations",
         label: t("navigation.locations"),
         icon: <LocationIcon />,
