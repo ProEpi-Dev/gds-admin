@@ -1,5 +1,10 @@
 import apiClient from "../client";
 
+/** Query usada pelo RolesGuard para avaliar permissões de contexto (ex.: content:write). */
+function contextParams(contextId?: number) {
+  return contextId != null ? { contextId } : undefined;
+}
+
 export const ContentService = {
   list(contextId?: number, includeInactive?: boolean) {
     const params = new URLSearchParams();
@@ -9,28 +14,34 @@ export const ContentService = {
     return apiClient.get(`/contents${query ? `?${query}` : ""}`);
   },
 
-  get(id: number) {
-    return apiClient.get(`/contents/${id}`);
+  get(id: number, contextId?: number) {
+    return apiClient.get(`/contents/${id}`, { params: contextParams(contextId) });
   },
 
-  create(data: any) {
-    return apiClient.post("/contents", data);
+  create(data: any, contextId?: number) {
+    return apiClient.post("/contents", data, { params: contextParams(contextId) });
   },
 
-  update(id: number, data: any) {
-    return apiClient.put(`/contents/${id}`, data);
+  update(id: number, data: any, contextId?: number) {
+    return apiClient.put(`/contents/${id}`, data, {
+      params: contextParams(contextId),
+    });
   },
 
-  delete(id: number) {
-    return apiClient.delete(`/contents/${id}`);
+  delete(id: number, contextId?: number) {
+    return apiClient.delete(`/contents/${id}`, { params: contextParams(contextId) });
   },
 
-  reactivate(id: number) {
-    return apiClient.post(`/contents/${id}/reactivate`);
+  reactivate(id: number, contextId?: number) {
+    return apiClient.post(`/contents/${id}/reactivate`, null, {
+      params: contextParams(contextId),
+    });
   },
 
-  permanentDelete(id: number) {
-    return apiClient.delete(`/contents/${id}/permanent`);
+  permanentDelete(id: number, contextId?: number) {
+    return apiClient.delete(`/contents/${id}/permanent`, {
+      params: contextParams(contextId),
+    });
   },
 };
 
