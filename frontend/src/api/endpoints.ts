@@ -83,6 +83,11 @@ export const API_ENDPOINTS = {
   // Roles
   ROLES: {
     LIST: "/roles",
+    PERMISSIONS: (roleId: number) => `/roles/${roleId}/permissions`,
+  },
+
+  PERMISSIONS: {
+    LIST: "/permissions",
   },
 
   // Forms

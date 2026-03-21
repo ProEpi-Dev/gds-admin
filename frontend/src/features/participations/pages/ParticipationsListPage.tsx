@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -7,12 +7,15 @@ import {
   Chip,
   IconButton,
   Stack,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useParticipations, useDeleteParticipation } from '../hooks/useParticipations';
 import DataTable, { type Column } from '../../../components/common/DataTable';
@@ -33,8 +36,21 @@ export default function ParticipationsListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [participationToDelete, setParticipationToDelete] = useState<Participation | null>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const { data, isLoading, error } = useParticipations({
     page,
@@ -42,6 +58,7 @@ export default function ParticipationsListPage() {
     active: activeFilter,
     contextId: currentContext?.id,
     includeUser: true,
+    search: debouncedSearch || undefined,
   });
 
   const deleteMutation = useDeleteParticipation();
@@ -151,6 +168,18 @@ export default function ParticipationsListPage() {
           },
         ]
       : []),
+    ...(debouncedSearch
+      ? [
+          {
+            label: t('participations.searchFilter'),
+            value: debouncedSearch,
+            onDelete: () => {
+              setSearchInput('');
+              setDebouncedSearch('');
+            },
+          },
+        ]
+      : []),
   ];
 
   if (isLoading) return <LoadingSpinner />;
@@ -185,26 +214,54 @@ export default function ParticipationsListPage() {
       </Box>
 
       <Stack spacing={2} sx={{ width: '100%' }}>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            variant={activeFilter === true ? 'contained' : 'outlined'}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
+          <TextField
             size="small"
-            onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
-          >
-            {t('participations.active')}
-          </Button>
-          <Button
-            variant={activeFilter === false ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setActiveFilter(activeFilter === false ? undefined : false)}
-          >
-            {t('participations.inactive')}
-          </Button>
+            label={t('participations.searchLabel')}
+            placeholder={t('participations.searchPlaceholder')}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            sx={{ minWidth: 260, flex: { sm: '1 1 280px' }, maxWidth: { sm: 440 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant={activeFilter === true ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
+            >
+              {t('participations.active')}
+            </Button>
+            <Button
+              variant={activeFilter === false ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => setActiveFilter(activeFilter === false ? undefined : false)}
+            >
+              {t('participations.inactive')}
+            </Button>
+          </Box>
         </Box>
 
         <FilterChips
           filters={filters}
-          onClearAll={() => setActiveFilter(undefined)}
+          onClearAll={() => {
+            setActiveFilter(undefined);
+            setSearchInput('');
+            setDebouncedSearch('');
+          }}
         />
 
         <DataTable

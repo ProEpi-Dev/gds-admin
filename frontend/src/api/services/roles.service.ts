@@ -1,10 +1,34 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../endpoints";
 import type { Role } from "../../types/role.types";
+import type { Permission } from "../../types/permission.types";
 
 export const rolesService = {
   async findAll(): Promise<Role[]> {
     const response = await apiClient.get(API_ENDPOINTS.ROLES.LIST);
+    return response.data;
+  },
+
+  async findAllPermissions(): Promise<Permission[]> {
+    const response = await apiClient.get(API_ENDPOINTS.PERMISSIONS.LIST);
+    return response.data;
+  },
+
+  async getRolePermissions(roleId: number): Promise<Permission[]> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.ROLES.PERMISSIONS(roleId),
+    );
+    return response.data;
+  },
+
+  async setRolePermissions(
+    roleId: number,
+    permissionIds: number[],
+  ): Promise<Permission[]> {
+    const response = await apiClient.put(
+      API_ENDPOINTS.ROLES.PERMISSIONS(roleId),
+      { permissionIds },
+    );
     return response.data;
   },
 

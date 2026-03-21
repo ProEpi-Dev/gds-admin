@@ -36,6 +36,7 @@ import {
   Autorenew as AutorenewIcon,
   AdminPanelSettings as RoleIcon,
   Security as SecurityIcon,
+  VpnKey as VpnKeyIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -124,6 +125,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         path: "/roles",
         label: "Papéis",
         icon: <RoleIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/roles/permissions",
+        label: "Permissões dos papéis",
+        icon: <VpnKeyIcon />,
         roles: ["admin"],
       },
       {
