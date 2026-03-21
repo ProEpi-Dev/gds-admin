@@ -11,6 +11,18 @@ import TagSelector from "../../../src/components/common/TagSelector";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 
+/** Gera slug URL a partir do título (minúsculas, sem acentos, hífens). */
+function titleToSlug(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // Função para converter URL de vídeo em embed
 const convertVideoUrlToEmbed = (url: string): string => {
   // YouTube
@@ -78,6 +90,12 @@ export default function ContentForm() {
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
+  /** Se true, o slug foi editado manualmente e deixa de seguir o título. */
+  const slugUserEditedRef = useRef(!!id);
+
+  useEffect(() => {
+    slugUserEditedRef.current = !!id;
+  }, [id]);
 
   const [form, setForm] = useState({
     title: "",
@@ -279,9 +297,21 @@ export default function ContentForm() {
   }
 
   function handleSlugChange(e: React.ChangeEvent<HTMLInputElement>) {
+    slugUserEditedRef.current = true;
     const value = e.target.value;
-    setForm({ ...form, slug: value });
+    setForm((prev) => ({ ...prev, slug: value }));
     validateSlug(value);
+  }
+
+  function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const title = e.target.value;
+    if (slugUserEditedRef.current) {
+      setForm((prev) => ({ ...prev, title }));
+      return;
+    }
+    const slug = titleToSlug(title);
+    validateSlug(slug);
+    setForm((prev) => ({ ...prev, title, slug }));
   }
 
   function handleThumbnailFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -423,7 +453,7 @@ export default function ContentForm() {
           fullWidth
           margin="normal"
           value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          onChange={handleTitleChange}
         />
 
         <TextField

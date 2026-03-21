@@ -8,6 +8,7 @@ import {
 import { TrackService } from "../../api/services/track.service";
 import { useNavigate } from "react-router-dom";
 import { useSnackbar } from "../../hooks/useSnackbar";
+import { getErrorMessage } from "../../utils/errorHandler";
 import {
   Box,
   Typography,
@@ -24,12 +25,18 @@ import {
   MenuItem,
   Stack,
   TextField,
+  FormControlLabel,
+  Switch,
+  InputAdornment,
 } from "@mui/material";
 import {
   Add as AddIcon,
+  Search as SearchIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
+  RestoreFromTrash as RestoreFromTrashIcon,
   PlaylistAdd as PlaylistAddIcon,
   Check as CheckIcon,
   Close as CloseIcon,
@@ -45,6 +52,7 @@ interface Content {
   title: string;
   slug: string;
   content: string;
+  active?: boolean;
   content_tag?: Array<{ id: number; tag: { name: string; color?: string } }>;
   content_type?: {
     id: number;
@@ -58,6 +66,7 @@ export default function ContentList() {
   const [contents, setContents] = useState<Content[]>([]);
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [contentTypeFilter, setContentTypeFilter] = useState("all");
+  const [nameFilter, setNameFilter] = useState("");
   const [contentTypeDialogOpen, setContentTypeDialogOpen] = useState(false);
   const [newContentTypeName, setNewContentTypeName] = useState("");
   const [newContentTypeColor, setNewContentTypeColor] = useState("");
@@ -69,8 +78,19 @@ export default function ContentList() {
   const [previewContent, setPreviewContent] = useState<Content | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<number | null>(null);
+  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const [contentToReactivate, setContentToReactivate] = useState<number | null>(
+    null,
+  );
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] =
+    useState(false);
+  const [contentToPermanentDelete, setContentToPermanentDelete] = useState<
+    number | null
+  >(null);
+  const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [showInactive, setShowInactive] = useState(false);
   const navigate = useNavigate();
   const snackbar = useSnackbar();
 
@@ -84,7 +104,10 @@ export default function ContentList() {
   );
 
   const refreshContents = async () => {
-    const res = await ContentService.list(currentContext?.id);
+    const res = await ContentService.list(
+      currentContext?.id,
+      showInactive,
+    );
     setContents(res.data ?? []);
   };
 
@@ -106,23 +129,41 @@ export default function ContentList() {
       return;
     }
     refreshContents();
-  }, [currentContext?.id]);
+  }, [currentContext?.id, showInactive]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [showInactive]);
 
   useEffect(() => {
     setPage(1);
   }, [contentTypeFilter]);
 
-  const filteredContents = useMemo(() => {
-    if (contentTypeFilter === "all") return contents;
-    if (contentTypeFilter === "none") {
-      return contents.filter((content) => !content.content_type);
-    }
-    const typeId = Number(contentTypeFilter);
-    return contents.filter((content) => content.content_type?.id === typeId);
-  }, [contents, contentTypeFilter]);
+  useEffect(() => {
+    setPage(1);
+  }, [nameFilter]);
 
-  const activeFilters =
-    contentTypeFilter !== "all"
+  const filteredContents = useMemo(() => {
+    let list = contents;
+    if (contentTypeFilter === "none") {
+      list = list.filter((content) => !content.content_type);
+    } else if (contentTypeFilter !== "all") {
+      const typeId = Number(contentTypeFilter);
+      list = list.filter((content) => content.content_type?.id === typeId);
+    }
+    const q = nameFilter.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          c.slug.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [contents, contentTypeFilter, nameFilter]);
+
+  const activeFilters = [
+    ...(contentTypeFilter !== "all"
       ? [
           {
             label: "Tipo",
@@ -135,7 +176,17 @@ export default function ContentList() {
             onDelete: () => setContentTypeFilter("all"),
           },
         ]
-      : [];
+      : []),
+    ...(nameFilter.trim()
+      ? [
+          {
+            label: "Busca",
+            value: nameFilter.trim(),
+            onDelete: () => setNameFilter(""),
+          },
+        ]
+      : []),
+  ];
 
   const handleDelete = (id: number) => {
     setContentToDelete(id);
@@ -175,11 +226,60 @@ export default function ContentList() {
   };
 
   const confirmDelete = async () => {
-    if (contentToDelete) {
-      await ContentService.delete(contentToDelete);
-      setContents((prev) => prev.filter((c) => c.id !== contentToDelete));
+    if (!contentToDelete) return;
+
+    const id = contentToDelete;
+    try {
+      await ContentService.delete(id);
+      await refreshContents();
       setDeleteDialogOpen(false);
       setContentToDelete(null);
+      snackbar.showSuccess("Conteúdo desativado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao desativar conteúdo:", error);
+      snackbar.showError(
+        getErrorMessage(error, "Não foi possível desativar o conteúdo."),
+      );
+    }
+  };
+
+  const confirmReactivate = async () => {
+    if (contentToReactivate == null) return;
+    const id = contentToReactivate;
+    try {
+      await ContentService.reactivate(id);
+      await refreshContents();
+      setReactivateDialogOpen(false);
+      setContentToReactivate(null);
+      snackbar.showSuccess("Conteúdo reativado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao reativar conteúdo:", error);
+      snackbar.showError(
+        getErrorMessage(error, "Não foi possível reativar o conteúdo."),
+      );
+    }
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (contentToPermanentDelete == null) return;
+    const id = contentToPermanentDelete;
+    setPermanentDeleteLoading(true);
+    try {
+      await ContentService.permanentDelete(id);
+      setContents((prev) => prev.filter((c) => c.id !== id));
+      setPermanentDeleteDialogOpen(false);
+      setContentToPermanentDelete(null);
+      snackbar.showSuccess("Conteúdo excluído permanentemente.");
+    } catch (error) {
+      console.error("Erro ao excluir conteúdo permanentemente:", error);
+      snackbar.showError(
+        getErrorMessage(
+          error,
+          "Não foi possível excluir o conteúdo permanentemente.",
+        ),
+      );
+    } finally {
+      setPermanentDeleteLoading(false);
     }
   };
 
@@ -264,6 +364,17 @@ export default function ContentList() {
   const columns: Column<Content>[] = [
     { id: "id", label: "ID", minWidth: 70 },
     { id: "title", label: "Título", minWidth: 200 },
+    {
+      id: "status",
+      label: "Situação",
+      minWidth: 110,
+      render: (row) =>
+        row.active === false ? (
+          <Chip label="Inativo" size="small" color="default" variant="outlined" />
+        ) : (
+          <Chip label="Ativo" size="small" color="success" variant="outlined" />
+        ),
+    },
     { id: "slug", label: "Slug", minWidth: 150 },
     {
       id: "type",
@@ -311,44 +422,76 @@ export default function ContentList() {
     {
       id: "actions",
       label: "Ações",
-      minWidth: 150,
+      minWidth: 220,
       align: "left",
-      render: (row) => (
-        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-start" }}>
-          <IconButton
-            size="small"
-            onClick={() => setPreviewContent(row)}
-            title="Preview"
-            color="success"
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/contents/${row.id}/edit`)}
-            title="Editar"
-            color="primary"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleAddToTrack(row)}
-            title="Adicionar à Trilha"
-            color="secondary"
-          >
-            <PlaylistAddIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(row.id)}
-            title="Excluir"
-            color="error"
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      render: (row) => {
+        const isInactive = row.active === false;
+        return (
+          <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-start" }}>
+            <IconButton
+              size="small"
+              onClick={() => setPreviewContent(row)}
+              title="Preview"
+              color="success"
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/contents/${row.id}/edit`)}
+              title="Editar"
+              color="primary"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => handleAddToTrack(row)}
+              title="Adicionar à Trilha"
+              color="secondary"
+              disabled={isInactive}
+            >
+              <PlaylistAddIcon fontSize="small" />
+            </IconButton>
+            {!isInactive && (
+              <IconButton
+                size="small"
+                onClick={() => handleDelete(row.id)}
+                title="Desativar (exclusão lógica)"
+                color="error"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            )}
+            {isInactive && (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setContentToReactivate(row.id);
+                    setReactivateDialogOpen(true);
+                  }}
+                  title="Reativar"
+                  color="success"
+                >
+                  <RestoreFromTrashIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setContentToPermanentDelete(row.id);
+                    setPermanentDeleteDialogOpen(true);
+                  }}
+                  title="Excluir permanentemente"
+                  color="error"
+                >
+                  <DeleteForeverIcon fontSize="small" />
+                </IconButton>
+              </>
+            )}
+          </Box>
+        );
+      },
     },
   ];
 
@@ -357,19 +500,21 @@ export default function ContentList() {
     if (!filteredContents || filteredContents.length === 0) return;
 
     // Cabeçalhos das colunas
-    const headers = ["ID", "Título", "Slug", "Tipo", "Tags"];
+    const headers = ["ID", "Título", "Situação", "Slug", "Tipo", "Tags"];
 
     // Linhas de dados
     const rows = filteredContents.map((item) => {
       const type = item.content_type?.name || "Sem tipo";
       const tags =
         item.content_tag?.map((t) => `#${t.tag.name}`).join(", ") || "";
+      const situacao = item.active === false ? "Inativo" : "Ativo";
 
       return [
         item.id.toString(),
         item.title.replace(/"/g, '""'),
-        type.replace(/"/g, '""'),
+        situacao,
         item.slug.replace(/"/g, '""'),
+        type.replace(/"/g, '""'),
         tags.replace(/"/g, '""'),
       ];
     });
@@ -438,7 +583,24 @@ export default function ContentList() {
         mb={2}
         flexWrap="wrap"
         useFlexGap
+        alignItems={{ xs: "stretch", md: "center" }}
       >
+        <TextField
+          size="small"
+          label="Buscar"
+          placeholder="Título ou slug"
+          value={nameFilter}
+          onChange={(e) => setNameFilter(e.target.value)}
+          sx={{ minWidth: 220, flex: { md: "1 1 260px" }, maxWidth: { md: 420 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
         <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel>Tipo de Conteúdo</InputLabel>
           <Select
@@ -462,6 +624,17 @@ export default function ContentList() {
         >
           Gerenciar tipos
         </Button>
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showInactive}
+              onChange={(_, checked) => setShowInactive(checked)}
+              color="primary"
+            />
+          }
+          label="Mostrar inativos"
+        />
       </Stack>
 
       {activeFilters.length > 0 && <FilterChips filters={activeFilters} />}
@@ -660,17 +833,47 @@ export default function ContentList() {
         </DialogActions>
       </Dialog>
 
-      {/* CONFIRM DELETE DIALOG */}
+      {/* CONFIRM DELETE DIALOG (soft) */}
       <ConfirmDialog
         open={deleteDialogOpen}
-        title="Excluir Conteúdo"
-        message="Tem certeza que deseja excluir este conteúdo?"
-        confirmText="Excluir"
+        title="Desativar conteúdo"
+        message='Só é possível desativar se o conteúdo não estiver em trilhas nem tiver quizzes vinculados; caso contrário a API retornará um aviso para remover essas associações. Após desativar, você poderá vê-lo com "Mostrar inativos", reativá-lo ou excluí-lo permanentemente (também sujeito à mesma regra de vínculos).'
+        confirmText="Desativar"
         cancelText="Cancelar"
         onConfirm={confirmDelete}
         onCancel={() => {
           setDeleteDialogOpen(false);
           setContentToDelete(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={reactivateDialogOpen}
+        title="Reativar conteúdo"
+        message="O conteúdo voltará a ficar ativo e visível na listagem padrão."
+        confirmText="Reativar"
+        confirmColor="primary"
+        cancelText="Cancelar"
+        onConfirm={confirmReactivate}
+        onCancel={() => {
+          setReactivateDialogOpen(false);
+          setContentToReactivate(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={permanentDeleteDialogOpen}
+        title="Excluir permanentemente"
+        message="Esta ação não pode ser desfeita. Só é permitida se o conteúdo não estiver em trilhas nem tiver quizzes vinculados; caso contrário o sistema avisará para remover essas associações antes."
+        confirmText="Excluir permanentemente"
+        cancelText="Cancelar"
+        loading={permanentDeleteLoading}
+        onConfirm={confirmPermanentDelete}
+        onCancel={() => {
+          if (!permanentDeleteLoading) {
+            setPermanentDeleteDialogOpen(false);
+            setContentToPermanentDelete(null);
+          }
         }}
       />
 

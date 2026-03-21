@@ -13,6 +13,8 @@ interface ConfirmDialogProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  /** Cor do botão de confirmação (padrão: error, para ações destrutivas). */
+  confirmColor?: 'primary' | 'error' | 'success';
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
@@ -24,12 +26,18 @@ export default function ConfirmDialog({
   message,
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
+  confirmColor = 'error',
   onConfirm,
   onCancel,
   loading = false,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onClose={onCancel}>
+    <Dialog
+      open={open}
+      onClose={() => {
+        if (!loading) onCancel();
+      }}
+    >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <DialogContentText>{message}</DialogContentText>
@@ -38,7 +46,12 @@ export default function ConfirmDialog({
         <Button onClick={onCancel} disabled={loading}>
           {cancelText}
         </Button>
-        <Button onClick={onConfirm} color="error" variant="contained" disabled={loading}>
+        <Button
+          onClick={onConfirm}
+          color={confirmColor}
+          variant="contained"
+          disabled={loading}
+        >
           {confirmText}
         </Button>
       </DialogActions>
