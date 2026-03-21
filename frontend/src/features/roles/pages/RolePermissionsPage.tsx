@@ -20,7 +20,6 @@ import {
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
-  VpnKey as VpnKeyIcon,
 } from "@mui/icons-material";
 import { rolesService } from "../../../api/services/roles.service";
 import { useRoles } from "../hooks/useRoles";
