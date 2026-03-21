@@ -35,6 +35,8 @@ describe('ContentController', () => {
             get: jest.fn(),
             update: jest.fn(),
             delete: jest.fn(),
+            reactivate: jest.fn(),
+            permanentDelete: jest.fn(),
           },
         },
       ],
@@ -78,10 +80,21 @@ describe('ContentController', () => {
       jest.spyOn(service, 'list').mockResolvedValue(mockContents as any);
       const user = { userId: 1 };
 
-      const result = await controller.list(undefined, user);
+      const result = await controller.list(undefined, undefined, user);
 
       expect(result).toEqual(mockContents);
-      expect(service.list).toHaveBeenCalledWith(undefined, 1);
+      expect(service.list).toHaveBeenCalledWith(undefined, 1, undefined);
+    });
+
+    it('deve repassar includeInactive quando query true', async () => {
+      jest.spyOn(service, 'list').mockResolvedValue([] as any);
+      const user = { userId: 2 };
+
+      await controller.list('5', 'true', user);
+
+      expect(service.list).toHaveBeenCalledWith(5, 2, {
+        includeInactive: true,
+      });
     });
   });
 
@@ -149,6 +162,29 @@ describe('ContentController', () => {
       await controller.delete('789');
 
       expect(service.delete).toHaveBeenCalledWith(789);
+    });
+  });
+
+  describe('reactivate', () => {
+    it('deve reativar conteúdo', async () => {
+      const user = { userId: 3 };
+      jest.spyOn(service, 'reactivate').mockResolvedValue(mockContent as any);
+
+      const result = await controller.reactivate('2', user);
+
+      expect(result).toEqual(mockContent);
+      expect(service.reactivate).toHaveBeenCalledWith(2, 3);
+    });
+  });
+
+  describe('permanentDelete', () => {
+    it('deve excluir permanentemente', async () => {
+      const user = { userId: 4 };
+      jest.spyOn(service, 'permanentDelete').mockResolvedValue(undefined);
+
+      await controller.permanentDelete('5', user);
+
+      expect(service.permanentDelete).toHaveBeenCalledWith(5, 4);
     });
   });
 });

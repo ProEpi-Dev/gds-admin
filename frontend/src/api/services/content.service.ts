@@ -1,9 +1,10 @@
 import apiClient from "../client";
 
 export const ContentService = {
-  list(contextId?: number) {
+  list(contextId?: number, includeInactive?: boolean) {
     const params = new URLSearchParams();
     if (contextId != null) params.append("contextId", String(contextId));
+    if (includeInactive) params.append("includeInactive", "true");
     const query = params.toString();
     return apiClient.get(`/contents${query ? `?${query}` : ""}`);
   },
@@ -22,6 +23,14 @@ export const ContentService = {
 
   delete(id: number) {
     return apiClient.delete(`/contents/${id}`);
+  },
+
+  reactivate(id: number) {
+    return apiClient.post(`/contents/${id}/reactivate`);
+  },
+
+  permanentDelete(id: number) {
+    return apiClient.delete(`/contents/${id}/permanent`);
   },
 };
 
