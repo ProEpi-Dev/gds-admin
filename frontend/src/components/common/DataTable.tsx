@@ -26,6 +26,8 @@ export interface Column<T> {
   mobileLabel?: string; // Label específico para mobile
 }
 
+type CardGridBreakpoint = "xs" | "sm" | "md" | "lg" | "xl";
+
 interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
@@ -37,6 +39,8 @@ interface DataTableProps<T> {
   loading?: boolean;
   emptyMessage?: string;
   variant?: "cards" | "table";
+  /** Sobrescreve colunas do grid nos cards (variante cards). Útil quando há 3 campos e se quer uma linha em sm+. */
+  cardGridTemplateColumns?: Partial<Record<CardGridBreakpoint, string>>;
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -50,6 +54,7 @@ export default function DataTable<T extends { id: number }>({
   loading = false,
   emptyMessage,
   variant = "cards",
+  cardGridTemplateColumns,
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const defaultEmptyMessage = emptyMessage || t("common.noResults");
@@ -62,6 +67,15 @@ export default function DataTable<T extends { id: number }>({
   ) => {
     onPageSizeChange(parseInt(event.target.value, 10));
   };
+
+  const defaultCardGrid: Record<CardGridBreakpoint, string> = {
+    xs: "1fr",
+    sm: "repeat(2, 1fr)",
+    md: "repeat(3, 1fr)",
+    lg: "repeat(3, 1fr)",
+    xl: "repeat(3, 1fr)",
+  };
+  const mergedCardGrid = { ...defaultCardGrid, ...cardGridTemplateColumns };
 
   return (
     <Box>
@@ -150,9 +164,11 @@ export default function DataTable<T extends { id: number }>({
                   sx={{
                     display: "grid",
                     gridTemplateColumns: {
-                      xs: "1fr",
-                      sm: "repeat(2, 1fr)",
-                      md: "repeat(3, 1fr)",
+                      xs: mergedCardGrid.xs,
+                      sm: mergedCardGrid.sm,
+                      md: mergedCardGrid.md,
+                      lg: mergedCardGrid.lg,
+                      xl: mergedCardGrid.xl,
                     },
                     gap: 2,
                   }}

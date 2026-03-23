@@ -173,7 +173,12 @@
     "errorLoadingParticipation": "Error loading participation",
     "errorCreatingParticipation": "Error creating participation",
     "errorUpdatingParticipation": "Error updating participation",
-    "associatedReports": "Associated Reports"
+    "associatedReports": "Associated Reports",
+    "sortBy": "Sort by",
+    "sortNameAsc": "Name (A to Z)",
+    "sortNameDesc": "Name (Z to A)",
+    "sortStartDateAsc": "Enrollment: oldest first",
+    "sortStartDateDesc": "Enrollment: newest first"
   },
   "users": {
     "title": "Users",

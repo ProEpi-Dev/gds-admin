@@ -13,6 +13,7 @@ export const participationsService = {
     if (query?.contextId) params.append('contextId', query.contextId.toString());
     if (query?.includeUser !== undefined) params.append('includeUser', query.includeUser.toString());
     if (query?.search) params.append('search', query.search);
+    if (query?.sort) params.append('sort', query.sort);
 
     const response = await apiClient.get(`${API_ENDPOINTS.PARTICIPATIONS.LIST}?${params.toString()}`);
     return response.data;

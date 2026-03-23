@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
 export class ParticipationQueryDto extends PaginationQueryDto {
@@ -50,4 +50,14 @@ export class ParticipationQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Ordenação: name_asc, name_desc (nome do usuário), startDate_asc, startDate_desc (data de início da participação). Padrão: startDate_desc.',
+    example: 'startDate_desc',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['name_asc', 'name_desc', 'startDate_asc', 'startDate_desc'])
+  sort?: string;
 }
