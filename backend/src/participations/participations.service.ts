@@ -19,6 +19,24 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import { Prisma } from '@prisma/client';
+
+function participationListOrderBy(
+  sort?: string,
+): Prisma.participationOrderByWithRelationInput[] {
+  switch (sort) {
+    case 'name_asc':
+      return [{ user: { name: 'asc' } }, { id: 'asc' }];
+    case 'name_desc':
+      return [{ user: { name: 'desc' } }, { id: 'desc' }];
+    case 'startDate_asc':
+      return [{ start_date: 'asc' }, { id: 'asc' }];
+    case 'startDate_desc':
+      return [{ start_date: 'desc' }, { id: 'desc' }];
+    default:
+      return [{ start_date: 'desc' }, { id: 'desc' }];
+  }
+}
 
 @Injectable()
 export class ParticipationsService {
@@ -206,6 +224,7 @@ export class ParticipationsService {
     }
 
     const includeUser = query.includeUser === true;
+    const orderBy = participationListOrderBy(query.sort);
 
     // Buscar participações e total
     const [participations, totalItems] = await Promise.all([
@@ -213,7 +232,7 @@ export class ParticipationsService {
         where,
         skip,
         take: pageSize,
-        orderBy: { created_at: 'desc' },
+        orderBy,
         include: includeUser
           ? {
               user: {
@@ -234,6 +253,7 @@ export class ParticipationsService {
     if (query.includeUser !== undefined)
       queryParams.includeUser = query.includeUser;
     if (query.search !== undefined) queryParams.search = query.search;
+    if (query.sort !== undefined) queryParams.sort = query.sort;
 
     return {
       data: participations.map((participation) =>

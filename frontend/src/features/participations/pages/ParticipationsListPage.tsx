@@ -9,6 +9,10 @@ import {
   Stack,
   TextField,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,7 +31,25 @@ import { useTranslation } from '../../../hooks/useTranslation';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Participation } from '../../../types/participation.types';
+import {
+  DEFAULT_PARTICIPATION_LIST_SORT,
+  type Participation,
+  type ParticipationListSort,
+} from '../../../types/participation.types';
+
+const PARTICIPATION_SORT_OPTIONS: ParticipationListSort[] = [
+  'name_asc',
+  'name_desc',
+  'startDate_asc',
+  'startDate_desc',
+];
+
+const PARTICIPATION_SORT_LABEL_KEY: Record<ParticipationListSort, string> = {
+  name_asc: 'participations.sortNameAsc',
+  name_desc: 'participations.sortNameDesc',
+  startDate_asc: 'participations.sortStartDateAsc',
+  startDate_desc: 'participations.sortStartDateDesc',
+};
 
 export default function ParticipationsListPage() {
   const navigate = useNavigate();
@@ -40,6 +62,7 @@ export default function ParticipationsListPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [participationToDelete, setParticipationToDelete] = useState<Participation | null>(null);
+  const [listSort, setListSort] = useState<ParticipationListSort>(DEFAULT_PARTICIPATION_LIST_SORT);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -52,6 +75,10 @@ export default function ParticipationsListPage() {
     setPage(1);
   }, [debouncedSearch]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [listSort]);
+
   const { data, isLoading, error } = useParticipations({
     page,
     pageSize,
@@ -59,6 +86,7 @@ export default function ParticipationsListPage() {
     contextId: currentContext?.id,
     includeUser: true,
     search: debouncedSearch || undefined,
+    sort: listSort,
   });
 
   const deleteMutation = useDeleteParticipation();
@@ -102,14 +130,6 @@ export default function ParticipationsListPage() {
       minWidth: 120,
       mobileLabel: t('participations.startDate'),
       render: (row) => format(new Date(row.startDate), 'dd/MM/yyyy', { locale: ptBR }),
-    },
-    {
-      id: 'endDate',
-      label: t('participations.endDate'),
-      minWidth: 120,
-      mobileLabel: t('participations.endDate'),
-      render: (row) =>
-        row.endDate ? format(new Date(row.endDate), 'dd/MM/yyyy', { locale: ptBR }) : '-',
     },
     {
       id: 'active',
@@ -253,6 +273,21 @@ export default function ParticipationsListPage() {
               {t('participations.inactive')}
             </Button>
           </Box>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 280 } }}>
+            <InputLabel id="participations-sort-label">{t('participations.sortBy')}</InputLabel>
+            <Select
+              labelId="participations-sort-label"
+              label={t('participations.sortBy')}
+              value={listSort}
+              onChange={(e) => setListSort(e.target.value as ParticipationListSort)}
+            >
+              {PARTICIPATION_SORT_OPTIONS.map((value) => (
+                <MenuItem key={value} value={value}>
+                  {t(PARTICIPATION_SORT_LABEL_KEY[value])}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
 
         <FilterChips
@@ -273,6 +308,9 @@ export default function ParticipationsListPage() {
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           loading={isLoading}
+          cardGridTemplateColumns={{
+            sm: 'repeat(3, minmax(0, 1fr))',
+          }}
         />
       </Stack>
 

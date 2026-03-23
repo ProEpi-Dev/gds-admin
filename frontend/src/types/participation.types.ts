@@ -1,5 +1,14 @@
 import type { PaginationQuery } from './api.types';
 
+/** Ordenação da listagem GET /participations (deve coincidir com o backend). */
+export type ParticipationListSort =
+  | 'name_asc'
+  | 'name_desc'
+  | 'startDate_asc'
+  | 'startDate_desc';
+
+export const DEFAULT_PARTICIPATION_LIST_SORT: ParticipationListSort = 'startDate_desc';
+
 export interface Participation {
   id: number;
   userId: number;
@@ -48,5 +57,6 @@ export interface ParticipationQuery extends PaginationQuery {
   includeUser?: boolean;
   /** Buscar por nome ou email do usuário (server-side) */
   search?: string;
+  sort?: ParticipationListSort;
 }
 

@@ -284,7 +284,12 @@
     "errorLoadingParticipation": "Erro ao carregar participação",
     "errorCreatingParticipation": "Erro ao criar participação",
     "errorUpdatingParticipation": "Erro ao atualizar participação",
-    "associatedReports": "Reports Associados"
+    "associatedReports": "Reports Associados",
+    "sortBy": "Ordenar por",
+    "sortNameAsc": "Nome (A a Z)",
+    "sortNameDesc": "Nome (Z a A)",
+    "sortStartDateAsc": "Inscrição: mais antiga primeiro",
+    "sortStartDateDesc": "Inscrição: mais recente primeiro"
   },
   "users": {
     "title": "Usuários",
