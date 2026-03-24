@@ -18,12 +18,55 @@ import { SignupDto } from './dto/signup.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { BCRYPT_ROUNDS } from './constants/password.constants';
 
 @Injectable()
 export class AuthService {
   private readonly resetTokenExpiryHours = 1;
+
+  private hashRefreshToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /** Parse duração estilo JWT (ex.: 7d, 12h, 30m). */
+  private parseDurationToMilliseconds(value: string): number {
+    const trimmed = value.trim().toLowerCase();
+    const match = /^(\d+)(ms|s|m|h|d)$/.exec(trimmed);
+    if (!match) {
+      throw new Error(`Invalid JWT_REFRESH_EXPIRES_IN: ${value}`);
+    }
+    const n = parseInt(match[1], 10);
+    const mult: Record<string, number> = {
+      ms: 1,
+      s: 1000,
+      m: 60_000,
+      h: 3_600_000,
+      d: 86_400_000,
+    };
+    return n * mult[match[2]];
+  }
+
+  private computeRefreshExpiryDate(): Date {
+    const raw =
+      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
+    const ms = this.parseDurationToMilliseconds(raw);
+    return new Date(Date.now() + ms);
+  }
+
+  private async issueRefreshToken(userId: number): Promise<string> {
+    const raw = randomBytes(48).toString('hex');
+    const tokenHash = this.hashRefreshToken(raw);
+    const expiresAt = this.computeRefreshExpiryDate();
+    await this.prisma.user_refresh_token.create({
+      data: {
+        user_id: userId,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      },
+    });
+    return raw;
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -49,6 +92,7 @@ export class AuthService {
     }
 
     const token = this.generateToken(user);
+    const refreshToken = await this.issueRefreshToken(user.id);
 
     // Buscar participação ativa do usuário
     // Uma participação está ativa se:
@@ -114,6 +158,7 @@ export class AuthService {
 
     return {
       token,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -268,11 +313,16 @@ export class AuthService {
       BCRYPT_ROUNDS,
     );
 
-    // Atualizar senha
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedNewPassword },
-    });
+    // Atualizar senha e invalidar sessões (refresh tokens)
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedNewPassword },
+      }),
+      this.prisma.user_refresh_token.deleteMany({
+        where: { user_id: userId },
+      }),
+    ]);
   }
 
   async signup(
@@ -378,8 +428,9 @@ export class AuthService {
       return { user, participation, acceptances };
     });
 
-    // 6. Gerar JWT
+    // 6. Gerar JWT e refresh token
     const accessToken = this.generateToken(result.user);
+    const refreshToken = await this.issueRefreshToken(result.user.id);
 
     // 7. Retornar resposta
     return {
@@ -392,6 +443,7 @@ export class AuthService {
         updatedAt: result.user.updated_at,
       },
       accessToken,
+      refreshToken,
       participation: {
         id: result.participation.id,
         contextId: result.participation.context_id,
@@ -403,6 +455,45 @@ export class AuthService {
   generateToken(user: any): string {
     const payload = { email: user.email, sub: user.id };
     return this.jwtService.sign(payload);
+  }
+
+  async refreshAccessToken(
+    rawRefreshToken: string,
+  ): Promise<{ token: string; refreshToken: string }> {
+    const tokenHash = this.hashRefreshToken(rawRefreshToken);
+    const row = await this.prisma.user_refresh_token.findFirst({
+      where: {
+        token_hash: tokenHash,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      include: { user: true },
+    });
+
+    if (!row || !row.user.active) {
+      throw new UnauthorizedException('Refresh token inválido ou expirado');
+    }
+
+    await this.prisma.user_refresh_token.update({
+      where: { id: row.id },
+      data: { revoked_at: new Date() },
+    });
+
+    const newRefreshToken = await this.issueRefreshToken(row.user_id);
+    const token = this.generateToken(row.user);
+
+    return { token, refreshToken: newRefreshToken };
+  }
+
+  async logoutWithRefreshToken(rawRefreshToken: string): Promise<void> {
+    const tokenHash = this.hashRefreshToken(rawRefreshToken);
+    await this.prisma.user_refresh_token.updateMany({
+      where: {
+        token_hash: tokenHash,
+        revoked_at: null,
+      },
+      data: { revoked_at: new Date() },
+    });
   }
 
   async requestPasswordReset(email: string): Promise<{ message: string }> {
@@ -463,13 +554,18 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        password_reset_token: null,
-        password_reset_expires: null,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          password_reset_token: null,
+          password_reset_expires: null,
+        },
+      }),
+      this.prisma.user_refresh_token.deleteMany({
+        where: { user_id: user.id },
+      }),
+    ]);
   }
 }

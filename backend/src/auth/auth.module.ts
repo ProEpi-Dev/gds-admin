@@ -14,7 +14,8 @@ import { LegalDocumentsModule } from '../legal-documents/legal-documents.module'
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '1d';
+        // Duração do JWT de acesso; override via JWT_EXPIRES_IN (ex.: 1h com refresh curto).
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '7d';
         return {
           secret: configService.get<string>('JWT_SECRET') || 'your-secret-key',
           signOptions: {

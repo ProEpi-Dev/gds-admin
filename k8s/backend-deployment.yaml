@@ -43,6 +43,11 @@ spec:
             secretKeyRef:
               name: gds-secrets
               key: JWT_EXPIRES_IN
+        - name: JWT_REFRESH_EXPIRES_IN
+          valueFrom:
+            secretKeyRef:
+              name: gds-secrets
+              key: JWT_REFRESH_EXPIRES_IN
         - name: MAILER_SMTP_ADDRESS
           valueFrom:
             secretKeyRef:

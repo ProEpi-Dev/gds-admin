@@ -5,10 +5,16 @@ import { DefaultFormDto } from './default-form.dto';
 
 export class LoginResponseDto {
   @ApiProperty({
-    description: 'Token JWT de autenticação',
+    description: 'Token JWT de autenticação (acesso)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
   token: string;
+
+  @ApiProperty({
+    description: 'Refresh token opaco; use em POST /v1/auth/refresh quando o JWT expirar',
+    example: 'a1b2c3d4e5f6...',
+  })
+  refreshToken: string;
 
   @ApiProperty({
     description: 'Dados do usuário autenticado',

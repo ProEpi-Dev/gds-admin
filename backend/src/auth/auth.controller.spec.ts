@@ -11,6 +11,7 @@ describe('AuthController', () => {
 
   const mockLoginResponse = {
     token: 'mockToken',
+    refreshToken: 'mockRefresh',
     user: {
       id: 1,
       name: 'Test User',
@@ -31,9 +32,12 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             login: jest.fn(),
+            refreshAccessToken: jest.fn(),
+            logoutWithRefreshToken: jest.fn(),
             changePassword: jest.fn(),
             requestPasswordReset: jest.fn(),
             resetPassword: jest.fn(),
+            signup: jest.fn(),
           },
         },
       ],
@@ -131,6 +135,66 @@ describe('AuthController', () => {
       await expect(
         controller.changePassword(changePasswordDto, mockUser),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('refresh', () => {
+    it('deve delegar refreshAccessToken ao service', async () => {
+      const body = { refreshToken: 'a'.repeat(32) };
+      const tokens = { token: 'newJwt', refreshToken: 'newRefresh' };
+      jest.spyOn(authService, 'refreshAccessToken').mockResolvedValue(tokens);
+
+      const result = await controller.refresh(body);
+
+      expect(result).toEqual(tokens);
+      expect(authService.refreshAccessToken).toHaveBeenCalledWith(body.refreshToken);
+    });
+  });
+
+  describe('logout', () => {
+    it('deve delegar logoutWithRefreshToken ao service', async () => {
+      const body = { refreshToken: 'b'.repeat(32) };
+      jest.spyOn(authService, 'logoutWithRefreshToken').mockResolvedValue(undefined);
+
+      await controller.logout(body);
+
+      expect(authService.logoutWithRefreshToken).toHaveBeenCalledWith(
+        body.refreshToken,
+      );
+    });
+  });
+
+  describe('signup', () => {
+    it('deve passar ip e userAgent ao signup', async () => {
+      const signupDto = {
+        name: 'N',
+        email: 'n@e.com',
+        password: 'password123',
+        contextId: 1,
+        acceptedLegalDocumentIds: [1],
+      };
+      const response = {
+        user: { id: 2, name: 'N', email: 'n@e.com', active: true, createdAt: new Date(), updatedAt: new Date() },
+        accessToken: 'jwt',
+        refreshToken: 'rt',
+        participation: { id: 1, contextId: 1, startDate: '2025-01-01' },
+      };
+      jest.spyOn(authService, 'signup').mockResolvedValue(response as any);
+
+      const request = {
+        ip: '10.0.0.1',
+        headers: {},
+        socket: { remoteAddress: '10.0.0.2' },
+      } as any;
+
+      const result = await controller.signup(signupDto as any, request, 'jest-agent');
+
+      expect(authService.signup).toHaveBeenCalledWith(
+        signupDto,
+        '10.0.0.1',
+        'jest-agent',
+      );
+      expect(result).toEqual(response);
     });
   });
 

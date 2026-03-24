@@ -37,6 +37,7 @@ describe('AuthService', () => {
   let jwtService: JwtService;
   let legalDocumentsService: LegalDocumentsService;
   let mailService: MailService;
+  let configService: ConfigService;
 
   const mockUser = {
     id: 1,
@@ -103,6 +104,13 @@ describe('AuthService', () => {
             context: {
               findUnique: jest.fn(),
             },
+            user_refresh_token: {
+              create: jest.fn().mockResolvedValue({ id: 1 }),
+              findFirst: jest.fn(),
+              update: jest.fn(),
+              updateMany: jest.fn(),
+              deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+            },
             $transaction: jest.fn(),
           },
         },
@@ -129,9 +137,11 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) =>
-              key === 'FRONTEND_URL' ? 'http://localhost:5173' : undefined,
-            ),
+            get: jest.fn((key: string) => {
+              if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+              if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
+              return undefined;
+            }),
           },
         },
         {
@@ -148,6 +158,7 @@ describe('AuthService', () => {
       LegalDocumentsService,
     );
     mailService = module.get<MailService>(MailService);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('validateUser', () => {
@@ -260,10 +271,12 @@ describe('AuthService', () => {
       const result = await service.login(loginDto);
 
       expect(result).toHaveProperty('token');
+      expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('participation');
       expect(result).toHaveProperty('defaultForms');
       expect(jwtService.sign).toHaveBeenCalled();
+      expect(prismaService.user_refresh_token.create).toHaveBeenCalled();
     });
 
     it('deve lançar UnauthorizedException quando credenciais são inválidas', async () => {
@@ -338,6 +351,60 @@ describe('AuthService', () => {
       expect(result.defaultForms).toBeDefined();
       expect(Array.isArray(result.defaultForms)).toBe(true);
     });
+
+    it('deve retornar participação quando end_date é futura', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      today.setMinutes(0);
+      today.setSeconds(0);
+      today.setMilliseconds(0);
+
+      const futureEnd = new Date(today);
+      futureEnd.setDate(futureEnd.getDate() + 30);
+
+      const participationWithEnd = {
+        ...mockParticipation,
+        start_date: new Date(today.getTime() - 86400000),
+        end_date: futureEnd,
+      };
+
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([participationWithEnd] as any);
+      jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
+
+      const result = await service.login(loginDto);
+
+      expect(result.participation).not.toBeNull();
+      expect(result.participation?.id).toBe(1);
+    });
+
+    it('deve falhar no login quando JWT_REFRESH_EXPIRES_IN é inválido', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+        if (key === 'JWT_REFRESH_EXPIRES_IN') return 'valor-invalido';
+        return undefined;
+      });
+
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser as any);
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Invalid JWT_REFRESH_EXPIRES_IN',
+      );
+    });
   });
 
   describe('changePassword', () => {
@@ -358,9 +425,18 @@ describe('AuthService', () => {
         ...mockUser,
         password: 'newHashedPassword',
       } as any);
+      jest
+        .spyOn(prismaService.user_refresh_token, 'deleteMany')
+        .mockResolvedValue({ count: 0 } as any);
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation((ops: unknown) =>
+          Promise.all(ops as Promise<unknown>[]),
+        );
 
       await service.changePassword(1, changePasswordDto);
 
+      expect(prismaService.$transaction).toHaveBeenCalled();
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(bcrypt.hash).toHaveBeenCalledWith(
         changePasswordDto.newPassword,
@@ -501,6 +577,7 @@ describe('AuthService', () => {
 
       expect(result.user.email).toBe('newuser@example.com');
       expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
       expect(result.participation.contextId).toBe(1);
     });
 
@@ -643,6 +720,14 @@ describe('AuthService', () => {
       jest
         .spyOn(prismaService.user, 'update')
         .mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.user_refresh_token, 'deleteMany')
+        .mockResolvedValue({ count: 0 } as any);
+      jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation((ops: unknown) =>
+          Promise.all(ops as Promise<unknown>[]),
+        );
       (bcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
 
       await service.resetPassword('valid-token', 'NewPass123');
@@ -655,6 +740,7 @@ describe('AuthService', () => {
         },
       });
       expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', BCRYPT_ROUNDS);
+      expect(prismaService.$transaction).toHaveBeenCalled();
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: userWithToken.id },
         data: {
@@ -680,6 +766,76 @@ describe('AuthService', () => {
       await expect(
         service.resetPassword('expired-token', 'NewPass123'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('refreshAccessToken', () => {
+    it('deve retornar novo token e refresh quando refresh é válido', async () => {
+      const row = {
+        id: 99,
+        user_id: 1,
+        user: { ...mockUser, active: true },
+      };
+      jest
+        .spyOn(prismaService.user_refresh_token, 'findFirst')
+        .mockResolvedValue(row as any);
+      jest
+        .spyOn(prismaService.user_refresh_token, 'update')
+        .mockResolvedValue({} as any);
+      jest
+        .spyOn(prismaService.user_refresh_token, 'create')
+        .mockResolvedValue({ id: 2 } as any);
+      jest.spyOn(jwtService, 'sign').mockReturnValue('newAccess');
+
+      const result = await service.refreshAccessToken('raw-refresh-token');
+
+      expect(result.token).toBe('newAccess');
+      expect(result.refreshToken).toBeDefined();
+      expect(prismaService.user_refresh_token.update).toHaveBeenCalledWith({
+        where: { id: 99 },
+        data: { revoked_at: expect.any(Date) },
+      });
+      expect(prismaService.user_refresh_token.create).toHaveBeenCalled();
+    });
+
+    it('deve lançar UnauthorizedException quando refresh não existe', async () => {
+      jest
+        .spyOn(prismaService.user_refresh_token, 'findFirst')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.refreshAccessToken('token-desconhecido'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('deve lançar UnauthorizedException quando usuário está inativo', async () => {
+      jest.spyOn(prismaService.user_refresh_token, 'findFirst').mockResolvedValue({
+        id: 1,
+        user_id: 1,
+        user: { ...mockUser, active: false },
+      } as any);
+
+      await expect(service.refreshAccessToken('x')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('logoutWithRefreshToken', () => {
+    it('deve revogar refresh token', async () => {
+      jest
+        .spyOn(prismaService.user_refresh_token, 'updateMany')
+        .mockResolvedValue({ count: 1 } as any);
+
+      await service.logoutWithRefreshToken('raw-token');
+
+      expect(prismaService.user_refresh_token.updateMany).toHaveBeenCalledWith({
+        where: {
+          token_hash: expect.any(String),
+          revoked_at: null,
+        },
+        data: { revoked_at: expect.any(Date) },
+      });
     });
   });
 });

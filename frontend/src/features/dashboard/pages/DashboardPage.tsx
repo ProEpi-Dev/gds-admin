@@ -138,41 +138,73 @@ export default function DashboardPage() {
   });
 
   const canSeeParticipationsAndReports = isAdmin || isManager;
+  /** Admin: backend exige contextId explícito (cabeçalho). Demais papéis resolvem no servidor. */
+  const listQueriesReady = isAdmin ? !!currentContext?.id : true;
+
   const { data: participationsData, isLoading: participationsLoading } =
     useQuery({
-      queryKey: ["participations", { page: 1, pageSize: 1, contextId: currentContext?.id }],
+      queryKey: [
+        "participations",
+        { page: 1, pageSize: 1, contextId: currentContext?.id },
+      ],
       queryFn: () =>
         participationsService.findAll({
           page: 1,
           pageSize: 1,
           contextId: currentContext?.id,
         }),
-      enabled: canSeeParticipationsAndReports,
+      enabled: canSeeParticipationsAndReports && listQueriesReady,
     });
 
   const { data: formsData, isLoading: formsLoading } = useQuery({
-    queryKey: ["forms", { page: 1, pageSize: 1 }],
-    queryFn: () => formsService.findAll({ page: 1, pageSize: 1 }),
+    queryKey: ["forms", { page: 1, pageSize: 1, contextId: currentContext?.id }],
+    queryFn: () =>
+      formsService.findAll({
+        page: 1,
+        pageSize: 1,
+        contextId: currentContext?.id,
+      }),
+    enabled: listQueriesReady,
   });
 
   const { data: reportsData, isLoading: reportsLoading } = useQuery({
-    queryKey: ["reports", { page: 1, pageSize: 1 }],
-    queryFn: () => reportsService.findAll({ page: 1, pageSize: 1 }),
-    enabled: canSeeParticipationsAndReports,
+    queryKey: [
+      "reports",
+      { page: 1, pageSize: 1, contextId: currentContext?.id },
+    ],
+    queryFn: () =>
+      reportsService.findAll({
+        page: 1,
+        pageSize: 1,
+        contextId: currentContext?.id,
+      }),
+    enabled: canSeeParticipationsAndReports && listQueriesReady,
   });
 
   const { data: contentsData, isLoading: contentsLoading } = useQuery({
-    queryKey: ["contents", { page: 1, pageSize: 1 }],
-    queryFn: () => contentService.findAll({ page: 1, pageSize: 1 }),
+    queryKey: [
+      "contents",
+      { page: 1, pageSize: 1, contextId: currentContext?.id },
+    ],
+    queryFn: () =>
+      contentService.findAll({
+        page: 1,
+        pageSize: 1,
+        contextId: currentContext?.id,
+      }),
+    enabled: listQueriesReady,
   });
 
   const { data: tracksData, isLoading: tracksLoading } = useQuery({
-    queryKey: ["tracks", { page: 1, pageSize: 1 }],
+    queryKey: ["tracks", { contextId: currentContext?.id }],
     queryFn: () =>
-      TrackService.list().then((res) => ({
+      TrackService.list(
+        currentContext?.id != null ? { contextId: currentContext.id } : {},
+      ).then((res) => ({
         data: res.data,
         meta: { totalItems: (res.data as any[]).length },
       })),
+    enabled: listQueriesReady,
   });
 
   const stats: Array<{

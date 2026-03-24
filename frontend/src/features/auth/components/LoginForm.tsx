@@ -56,7 +56,12 @@ export default function LoginForm() {
         ...data.user,
         participation: data.participation,
       };
-      login(data.token, userWithParticipation, data.participation);
+      login(
+        data.token,
+        userWithParticipation,
+        data.participation,
+        data.refreshToken,
+      );
       // Invalida caches de role/perfil para garantir dados frescos após troca de usuário
       queryClient.invalidateQueries({ queryKey: ['user-role'] });
       queryClient.invalidateQueries({ queryKey: ['profile-status'] });

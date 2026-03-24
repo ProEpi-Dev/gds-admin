@@ -42,6 +42,7 @@ export interface DefaultForm {
 
 export interface LoginResponse {
   token: string;
+  refreshToken: string;
   user: {
     id: number;
     name: string;
@@ -76,7 +77,8 @@ export interface SignupDto {
 }
 
 export interface SignupResponse {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   user: {
     id: number;
     name: string;
