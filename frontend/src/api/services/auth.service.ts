@@ -1,5 +1,7 @@
+import axios from 'axios';
 import apiClient from '../client';
 import { API_ENDPOINTS } from '../endpoints';
+import { API_BASE_URL } from '../../utils/constants';
 import type {
   LoginDto,
   LoginResponse,
@@ -32,6 +34,20 @@ export const authService = {
   async signup(data: SignupDto): Promise<SignupResponse> {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.SIGNUP, data);
     return response.data;
+  },
+
+  /** Revoga o refresh token no servidor (axios direto para evitar interceptor). */
+  async revokeRefreshToken(refreshToken: string | null): Promise<void> {
+    if (!refreshToken) return;
+    try {
+      await axios.post(
+        `${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`,
+        { refreshToken },
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+    } catch {
+      // sessão local já será limpa
+    }
   },
 };
 

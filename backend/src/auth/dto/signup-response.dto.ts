@@ -35,6 +35,12 @@ export class SignupResponseDto {
   accessToken: string;
 
   @ApiProperty({
+    description: 'Refresh token opaco',
+    example: 'a1b2c3d4e5f6...',
+  })
+  refreshToken: string;
+
+  @ApiProperty({
     description: 'Informações da participação criada',
     type: ParticipationInfoDto,
   })

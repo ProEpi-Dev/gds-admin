@@ -23,6 +23,8 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
+import { RefreshTokenBodyDto } from './dto/refresh-token.dto';
+import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Request } from 'express';
@@ -56,6 +58,40 @@ export class AuthController {
       req.headers?.['x-forwarded-for']?.toString() ??
       undefined;
     return this.authService.login(loginDto, clientIp);
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Renovar access token',
+    description:
+      'Envia o refresh token para obter um novo JWT e um novo refresh token (rotação).',
+  })
+  @ApiBody({ type: RefreshTokenBodyDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Novos tokens emitidos',
+    type: RefreshResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
+  async refresh(
+    @Body() body: RefreshTokenBodyDto,
+  ): Promise<RefreshResponseDto> {
+    return this.authService.refreshAccessToken(body.refreshToken);
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Encerrar sessão (refresh)',
+    description: 'Revoga o refresh token informado. O JWT de acesso continua válido até expirar.',
+  })
+  @ApiBody({ type: RefreshTokenBodyDto })
+  @ApiResponse({ status: 204, description: 'Refresh token revogado' })
+  async logout(@Body() body: RefreshTokenBodyDto): Promise<void> {
+    await this.authService.logoutWithRefreshToken(body.refreshToken);
   }
 
   @Patch('change-password')

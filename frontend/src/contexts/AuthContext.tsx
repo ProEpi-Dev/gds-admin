@@ -2,11 +2,17 @@ import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthUser, ParticipationLogin } from '../types/auth.types';
 import { STORAGE_KEYS } from '../utils/constants';
+import { authService } from '../api/services/auth.service';
 
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (token: string, user: AuthUser, participation: ParticipationLogin | null) => void;
+  login: (
+    accessToken: string,
+    user: AuthUser,
+    participation: ParticipationLogin | null,
+    refreshToken: string,
+  ) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -36,21 +42,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(stored.user);
   const [token, setToken] = useState<string | null>(stored.token);
 
-  const login = (newToken: string, newUser: AuthUser, participation: ParticipationLogin | null) => {
+  const login = (
+    accessToken: string,
+    newUser: AuthUser,
+    participation: ParticipationLogin | null,
+    refreshToken: string,
+  ) => {
     const userWithParticipation: AuthUser = {
       ...newUser,
       participation,
     };
-    setToken(newToken);
+    setToken(accessToken);
     setUser(userWithParticipation);
-    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, newToken);
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, accessToken);
+    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userWithParticipation));
   };
 
   const logout = () => {
+    const rt = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    void authService.revokeRefreshToken(rt);
     setToken(null);
     setUser(null);
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
   };
 

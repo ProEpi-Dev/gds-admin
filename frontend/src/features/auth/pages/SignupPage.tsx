@@ -61,7 +61,12 @@ export default function SignupPage() {
       return response;
     },
     onSuccess: (data) => {
-      login(data.token, { ...data.user, participation: data.participation }, data.participation);
+      login(
+        data.accessToken,
+        { ...data.user, participation: data.participation },
+        data.participation,
+        data.refreshToken,
+      );
       snackbar.showSuccess(t('signup.success'));
       navigate('/app/complete-profile');
     },
