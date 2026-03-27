@@ -12,6 +12,8 @@ import {
   Card,
   CardContent,
   Stack,
+  Skeleton,
+  LinearProgress,
 } from "@mui/material";
 import { isValidElement } from "react";
 import type { ReactNode } from "react";
@@ -77,12 +79,146 @@ export default function DataTable<T extends { id: number }>({
   };
   const mergedCardGrid = { ...defaultCardGrid, ...cardGridTemplateColumns };
 
+  const contentColumns = columns.filter((c) => c.id !== "actions");
+  const hasActions = columns.some((c) => c.id === "actions");
+  const skeletonRowCount = Math.min(Math.max(pageSize, 3), 8);
+
+  const cardSkeletonList = (
+    <Stack spacing={2}>
+      {Array.from({ length: skeletonRowCount }).map((_, i) => (
+        <Card key={`sk-card-${i}`} variant="outlined">
+          <CardContent>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: mergedCardGrid.xs,
+                  sm: mergedCardGrid.sm,
+                  md: mergedCardGrid.md,
+                  lg: mergedCardGrid.lg,
+                  xl: mergedCardGrid.xl,
+                },
+                gap: 2,
+              }}
+            >
+              {contentColumns.map((col) => (
+                <Box key={col.id}>
+                  <Skeleton
+                    variant="text"
+                    width="42%"
+                    height={18}
+                    sx={{ mb: 0.75 }}
+                  />
+                  <Skeleton variant="text" width="88%" height={22} />
+                </Box>
+              ))}
+              {hasActions && (
+                <Box
+                  sx={{
+                    pt: 2,
+                    mt: 1,
+                    borderTop: 1,
+                    borderColor: "divider",
+                    gridColumn: { xs: "1 / -1", sm: "1 / -1" },
+                  }}
+                >
+                  <Stack direction="row" spacing={1} justifyContent="flex-start">
+                    <Skeleton variant="circular" width={34} height={34} />
+                    <Skeleton variant="circular" width={34} height={34} />
+                    <Skeleton variant="circular" width={34} height={34} />
+                  </Stack>
+                </Box>
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+      ))}
+    </Stack>
+  );
+
+  const tableSkeleton = (
+    <TableContainer
+      component={Paper}
+      variant="outlined"
+      sx={{ maxHeight: "calc(100vh - 400px)", overflowX: "auto" }}
+    >
+      <Table stickyHeader>
+        <TableHead>
+          <TableRow>
+            {columns.map((column, index) => {
+              const isLastColumn = index === columns.length - 1;
+              return (
+                <TableCell
+                  key={column.id}
+                  align={column.align || "left"}
+                  sx={{
+                    minWidth: column.minWidth,
+                    fontWeight: "bold",
+                    ...(isLastColumn && {
+                      position: "sticky",
+                      right: 0,
+                      backgroundColor: "background.paper",
+                      zIndex: 12,
+                      boxShadow: "-2px 0 4px rgba(0,0,0,0.1)",
+                    }),
+                  }}
+                >
+                  {column.label}
+                </TableCell>
+              );
+            })}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {Array.from({ length: skeletonRowCount }).map((_, i) => (
+            <TableRow key={`sk-row-${i}`}>
+              {columns.map((column, index) => {
+                const isLastColumn = index === columns.length - 1;
+                return (
+                  <TableCell
+                    key={column.id}
+                    align={column.align || "left"}
+                    sx={{
+                      minWidth: column.minWidth,
+                      ...(isLastColumn && {
+                        position: "sticky",
+                        right: 0,
+                        backgroundColor: "background.paper",
+                        zIndex: 2,
+                        boxShadow: "-2px 0 4px rgba(0,0,0,0.1)",
+                      }),
+                    }}
+                  >
+                    <Skeleton variant="text" width="90%" height={24} />
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+
+  const showSkeletonOnly = loading && data.length === 0;
+  const showBackgroundRefresh = loading && data.length > 0;
+
   return (
-    <Box>
-      {loading ? (
-        <Box sx={{ py: 4, textAlign: "center" }}>
-          <Typography>{t("common.loading")}</Typography>
-        </Box>
+    <Box sx={{ position: "relative" }}>
+      {showBackgroundRefresh && (
+        <LinearProgress
+          sx={{
+            position: "absolute",
+            top: -4,
+            left: 0,
+            right: 0,
+            borderRadius: 1,
+            zIndex: 1,
+          }}
+        />
+      )}
+      {showSkeletonOnly ? (
+        variant === "table" ? tableSkeleton : cardSkeletonList
       ) : data.length === 0 ? (
         <Box sx={{ py: 4, textAlign: "center" }}>
           <Typography color="text.secondary">{defaultEmptyMessage}</Typography>
