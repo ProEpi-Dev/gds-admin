@@ -25,7 +25,6 @@ import { useParticipations, useDeleteParticipation } from '../hooks/useParticipa
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
@@ -79,7 +78,7 @@ export default function ParticipationsListPage() {
     setPage(1);
   }, [listSort]);
 
-  const { data, isLoading, error } = useParticipations({
+  const { data, isFetching, error } = useParticipations({
     page,
     pageSize,
     active: activeFilter,
@@ -202,11 +201,9 @@ export default function ParticipationsListPage() {
       : []),
   ];
 
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert message={t('participations.errorLoading')} />;
-
   return (
     <>
+      {error && <ErrorAlert message={t('participations.errorLoading')} />}
       <Box
         sx={{
           display: 'flex',
@@ -307,7 +304,7 @@ export default function ParticipationsListPage() {
           totalItems={data?.meta.totalItems || 0}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
-          loading={isLoading}
+          loading={isFetching}
           cardGridTemplateColumns={{
             sm: 'repeat(3, minmax(0, 1fr))',
           }}

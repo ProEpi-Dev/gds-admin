@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import { participationsService } from '../../../api/services/participations.service';
 import type { CreateParticipationDto, UpdateParticipationDto, ParticipationQuery } from '../../../types/participation.types';
 
@@ -6,6 +11,7 @@ export function useParticipations(query?: ParticipationQuery) {
   return useQuery({
     queryKey: ['participations', query],
     queryFn: () => participationsService.findAll(query),
+    placeholderData: keepPreviousData,
   });
 }
 
