@@ -38,8 +38,10 @@ import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import { useTranslation } from "../../../hooks/useTranslation";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { getErrorMessage } from "../../../utils/errorHandler";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  formatDateOnlyFromApi,
+  formatDateTimeFromApi,
+} from "../../../utils/formatDateOnlyFromApi";
 import { useReports } from "../../reports/hooks/useReports";
 import { useUserRole } from "../../../hooks/useUserRole";
 
@@ -54,7 +56,7 @@ const ROLE_COLOR: Record<string, "warning" | "info" | "success" | "default"> =
 export default function ParticipationViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const snackbar = useSnackbar();
   const { isAdmin } = useUserRole();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -63,10 +65,16 @@ export default function ParticipationViewPage() {
   const participationId = id ? parseInt(id, 10) : null;
   const { data: participation, isLoading, error } = useParticipation(participationId);
 
-  const { data: reportsData } = useReports({
-    participationId: participationId || undefined,
-    pageSize: 100,
-  });
+  const { data: reportsData } = useReports(
+    participation && participationId != null
+      ? {
+          participationId,
+          pageSize: 100,
+          contextId: participation.contextId,
+        }
+      : undefined,
+    { enabled: !!participation && participationId != null },
+  );
 
   const { data: participationRoles, isLoading: rolesLoading } =
     useParticipationRoles(participationId);
@@ -173,9 +181,7 @@ export default function ParticipationViewPage() {
               {t("participations.startDate")}
             </Typography>
             <Typography variant="body1">
-              {format(new Date(participation.startDate), "dd/MM/yyyy", {
-                locale: ptBR,
-              })}
+              {formatDateOnlyFromApi(participation.startDate)}
             </Typography>
           </Box>
 
@@ -187,9 +193,7 @@ export default function ParticipationViewPage() {
             </Typography>
             <Typography variant="body1">
               {participation.endDate
-                ? format(new Date(participation.endDate), "dd/MM/yyyy", {
-                    locale: ptBR,
-                  })
+                ? formatDateOnlyFromApi(participation.endDate)
                 : "-"}
             </Typography>
           </Box>
@@ -211,6 +215,38 @@ export default function ParticipationViewPage() {
                 size="small"
               />
             </Box>
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {t("participations.createdAt")}
+            </Typography>
+            <Typography variant="body1">
+              {participation.createdAt
+                ? formatDateTimeFromApi(
+                    participation.createdAt,
+                    currentLanguage ?? "pt-BR",
+                  )
+                : "-"}
+            </Typography>
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {t("participations.updatedAt")}
+            </Typography>
+            <Typography variant="body1">
+              {participation.updatedAt
+                ? formatDateTimeFromApi(
+                    participation.updatedAt,
+                    currentLanguage ?? "pt-BR",
+                  )
+                : "-"}
+            </Typography>
           </Box>
         </Stack>
       </Paper>

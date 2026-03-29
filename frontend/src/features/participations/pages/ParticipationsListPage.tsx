@@ -28,8 +28,10 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import {
+  formatDateOnlyFromApi,
+  formatDateTimeFromApi,
+} from '../../../utils/formatDateOnlyFromApi';
 import {
   DEFAULT_PARTICIPATION_LIST_SORT,
   type Participation,
@@ -52,7 +54,7 @@ const PARTICIPATION_SORT_LABEL_KEY: Record<ParticipationListSort, string> = {
 
 export default function ParticipationsListPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, currentLanguage } = useTranslation();
   const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -128,7 +130,14 @@ export default function ParticipationsListPage() {
       label: t('participations.startDate'),
       minWidth: 120,
       mobileLabel: t('participations.startDate'),
-      render: (row) => format(new Date(row.startDate), 'dd/MM/yyyy', { locale: ptBR }),
+      render: (row) => formatDateOnlyFromApi(row.startDate),
+    },
+    {
+      id: 'createdAt',
+      label: t('participations.createdAt'),
+      minWidth: 150,
+      mobileLabel: t('participations.createdAt'),
+      render: (row) => formatDateTimeFromApi(row.createdAt, currentLanguage),
     },
     {
       id: 'active',
@@ -306,7 +315,10 @@ export default function ParticipationsListPage() {
           onPageSizeChange={setPageSize}
           loading={isFetching}
           cardGridTemplateColumns={{
-            sm: 'repeat(3, minmax(0, 1fr))',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            md: 'repeat(4, minmax(0, 1fr))',
+            lg: 'repeat(4, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
           }}
         />
       </Stack>
