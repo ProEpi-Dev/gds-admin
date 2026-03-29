@@ -178,7 +178,9 @@
     "sortNameAsc": "Name (A to Z)",
     "sortNameDesc": "Name (Z to A)",
     "sortStartDateAsc": "Enrollment: oldest first",
-    "sortStartDateDesc": "Enrollment: newest first"
+    "sortStartDateDesc": "Enrollment: newest first",
+    "createdAt": "Created at",
+    "updatedAt": "Updated at"
   },
   "users": {
     "title": "Users",

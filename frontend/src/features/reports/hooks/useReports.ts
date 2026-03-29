@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import { reportsService } from "../../../api/services/reports.service";
 import type {
   CreateReportDto,
@@ -9,10 +14,14 @@ import type {
   ParticipationReportStreakQuery,
 } from "../../../types/report.types";
 
-export function useReports(query?: ReportQuery) {
+export function useReports(
+  query?: ReportQuery,
+  options?: Pick<UseQueryOptions, "enabled">,
+) {
   return useQuery({
     queryKey: ["reports", query],
     queryFn: () => reportsService.findAll(query),
+    enabled: options?.enabled !== false && query != null,
   });
 }
 

@@ -289,7 +289,9 @@
     "sortNameAsc": "Nome (A a Z)",
     "sortNameDesc": "Nome (Z a A)",
     "sortStartDateAsc": "Inscrição: mais antiga primeiro",
-    "sortStartDateDesc": "Inscrição: mais recente primeiro"
+    "sortStartDateDesc": "Inscrição: mais recente primeiro",
+    "createdAt": "Criado em",
+    "updatedAt": "Atualizado em"
   },
   "users": {
     "title": "Usuários",
