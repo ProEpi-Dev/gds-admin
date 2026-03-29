@@ -1,0 +1,175 @@
+# CronJob de exemplo: mesmo backup que `database-backup-s3-job-example.yaml`, em horário fixo.
+#
+# O arquivo `database-backup-s3-job-example.yaml` é um Job “manual” (só roda ao aplicar).
+# Este CronJob define **de quanto em quanto tempo** o Kubernetes dispara um novo Job.
+#
+# schedule (cron, UTC por padrão):
+#   "0 3 * * *"  → todo dia às 03:00 UTC
+#   "0 */6 * * *" → a cada 6 horas
+#   "0 0 * * 0"  → domingo à meia-noite UTC
+#
+# Em clusters 1.27+, descomente `timeZone` para usar fuso (ex.: Brasília).
+#
+# Pré-requisitos: mesmos secrets do Job (`gds-secrets`, `gds-db-backup-s3`).
+# Ajuste S3_PREFIX no jobTemplate abaixo se precisar de pasta no bucket.
+#
+# Healthchecks.io: `/start`, ping de sucesso (URL base) e `/fail` em erro; ajuste Grace
+# acima do pior tempo de dump+upload. Ver `HEALTHCHECKS_UUID` no Secret.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup-s3
+  namespace: gds
+  labels:
+    app: database-backup-s3
+spec:
+  # Padrão: 1x por dia, 03:00 UTC (altere conforme a necessidade)
+  schedule: "0 3 * * *"
+  # Kubernetes 1.27+ — descomente se o cluster suportar CronJobTimeZone:
+  # timeZone: "America/Sao_Paulo"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: database-backup-s3
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            - name: wait-for-database
+              image: postgres:15-alpine
+              command: ["sh", "-c"]
+              args:
+                - |
+                  until pg_isready -h postgres-oltp -p 5432 -U "$DB_USER" -d "$DB_NAME"; do
+                    echo "Waiting for database to be ready..."
+                    sleep 2
+                  done
+                  echo "Database is ready."
+              env:
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-secrets
+                      key: DB_USER
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-secrets
+                      key: DB_NAME
+              resources:
+                requests:
+                  memory: "32Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "64Mi"
+                  cpu: "100m"
+          containers:
+            - name: pg-dump-s3-upload
+              image: postgres:15-alpine
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -e
+                  export S3_PREFIX="$${S3_PREFIX:-}"
+                  export AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-$${AWS_REGION:-}}"
+                  hc_report() {
+                    suffix="$$1"
+                    [ -z "$${HEALTHCHECKS_UUID:-}" ] && return 0
+                    case "$$suffix" in
+                      /start) echo "Healthchecks.io: start" ;;
+                      /fail) echo "Healthchecks.io: fail" ;;
+                      *) echo "Healthchecks.io: sucesso" ;;
+                    esac
+                    wget -qO- --timeout=15 "https://hc-ping.com/$${HEALTHCHECKS_UUID}$$suffix" || true
+                  }
+                  hc_fail_on_exit() {
+                    ret=$$?
+                    trap - EXIT
+                    if [ "$$ret" -ne 0 ] && [ -n "$${HEALTHCHECKS_UUID:-}" ]; then
+                      hc_report /fail
+                    fi
+                    exit "$$ret"
+                  }
+                  trap hc_fail_on_exit EXIT
+                  set -u
+                  hc_report /start
+                  apk add --no-cache aws-cli >/dev/null
+                  export PGPASSWORD="$DB_PASS"
+                  STAMP=$$(date +%Y%m%d-%H%M%S)
+                  DUMP="/tmp/app-$${STAMP}.sql.gz"
+                  echo "Running pg_dump..."
+                  pg_dump -h postgres-oltp -p 5432 -U "$DB_USER" -d "$DB_NAME" \
+                    --no-owner --format=plain | gzip -c > "$$DUMP"
+                  DEST="$${S3_PREFIX}app-$${STAMP}.sql.gz"
+                  DEST=$${DEST#/}
+                  echo "Uploading to s3://$${S3_BUCKET}/$${DEST}"
+                  aws s3 cp "$$DUMP" "s3://$${S3_BUCKET}/$${DEST}"
+                  echo "Backup concluído: s3://$${S3_BUCKET}/$${DEST}"
+                  hc_report ""
+                  trap - EXIT
+              env:
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-secrets
+                      key: DB_USER
+                - name: DB_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-secrets
+                      key: DB_PASS
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-secrets
+                      key: DB_NAME
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: AWS_DEFAULT_REGION
+                      optional: true
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: S3_BUCKET
+                - name: S3_PREFIX
+                  value: ""
+                - name: HEALTHCHECKS_UUID
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-db-backup-s3
+                      key: HEALTHCHECKS_UUID
+                      optional: true
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
