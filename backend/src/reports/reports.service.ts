@@ -657,8 +657,8 @@ export class ReportsService {
         location &&
         typeof location.latitude === 'number' &&
         typeof location.longitude === 'number' &&
-        !isNaN(location.latitude) &&
-        !isNaN(location.longitude)
+        !Number.isNaN(location.latitude) &&
+        !Number.isNaN(location.longitude)
       ) {
         points.push({
           latitude: location.latitude,

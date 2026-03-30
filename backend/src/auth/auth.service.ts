@@ -36,7 +36,7 @@ export class AuthService {
     if (!match) {
       throw new Error(`Invalid JWT_REFRESH_EXPIRES_IN: ${value}`);
     }
-    const n = parseInt(match[1], 10);
+    const n = Number.parseInt(match[1], 10);
     const mult: Record<string, number> = {
       ms: 1,
       s: 1000,

@@ -108,8 +108,8 @@ export class TrackCyclesController {
     @Query('trackId') trackId?: string,
     @CurrentUser() user?: any,
   ) {
-    const ctxId = contextId ? parseInt(contextId, 10) : undefined;
-    const trkId = trackId ? parseInt(trackId, 10) : undefined;
+    const ctxId = contextId ? Number.parseInt(contextId, 10) : undefined;
+    const trkId = trackId ? Number.parseInt(trackId, 10) : undefined;
     return this.trackCyclesService.findActive(ctxId, trkId, user?.userId);
   }
 

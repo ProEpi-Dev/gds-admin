@@ -144,13 +144,15 @@ export class AuthzService {
 
     const permissoes_nesse_contexto =
       requestContextId != null
-        ? [...(byContext.get(requestContextId) ?? new Set())].sort()
+        ? [...(byContext.get(requestContextId) ?? new Set())].sort((a, b) =>
+            a.localeCompare(b),
+          )
         : [];
 
     const permissoes_por_contexto = [...byContext.entries()]
       .map(([context_id, codes]) => ({
         context_id,
-        permissoes: [...codes].sort(),
+        permissoes: [...codes].sort((a, b) => a.localeCompare(b)),
       }))
       .sort((a, b) => a.context_id - b.context_id);
 
@@ -167,7 +169,9 @@ export class AuthzService {
       contexto_usado_na_checagem: requestContextId ?? 'nenhum',
       permissoes_nesse_contexto,
       permissoes_por_contexto,
-      todas_perm_distintas_em_participacoes: [...allCodes].sort(),
+      todas_perm_distintas_em_participacoes: [...allCodes].sort((a, b) =>
+        a.localeCompare(b),
+      ),
       ...(nota ? { nota } : {}),
     };
   }

@@ -75,7 +75,7 @@ export class FormsController {
     @CurrentUser() user: any,
     @Query('contextId') contextId?: string,
   ): Promise<FormWithVersionDto[]> {
-    const id = contextId ? parseInt(contextId, 10) : undefined;
+    const id = contextId ? Number.parseInt(contextId, 10) : undefined;
     return this.formsService.findFormsWithLatestVersions(user.userId, id);
   }
 

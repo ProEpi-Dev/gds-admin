@@ -762,9 +762,11 @@ export class QuizSubmissionsService {
         if (!Array.isArray(userAnswer) || !Array.isArray(correctAnswer)) {
           return false;
         }
-        // Ordenar arrays para comparação
-        const sortedUser = [...userAnswer].sort();
-        const sortedCorrect = [...correctAnswer].sort();
+        // Ordenar arrays para comparação (comparador explícito; evita coerção implícita do .sort())
+        const byStableString = (a: unknown, b: unknown) =>
+          String(a).localeCompare(String(b));
+        const sortedUser = [...userAnswer].sort(byStableString);
+        const sortedCorrect = [...correctAnswer].sort(byStableString);
         return (
           sortedUser.length === sortedCorrect.length &&
           sortedUser.every((val, idx) => val === sortedCorrect[idx])
