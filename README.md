@@ -130,6 +130,69 @@ O backend estará disponível em:
 
 Verifique se o servidor está rodando corretamente acessando `http://localhost:3000/api` no navegador.
 
+##### SonarQube (backend)
+
+A qualidade e cobertura do backend são analisadas no SonarQube ([https://sonarqube.maolabs.com.br/](https://sonarqube.maolabs.com.br/)), projeto **`gds-backend`** (configuração em `backend/sonar-project.properties`).
+
+**Localmente** (na pasta `backend`), com token gerado no SonarQube exportado como variável de ambiente:
+
+```bash
+export SONAR_TOKEN=seu_token
+yarn test:cov
+yarn sonar
+```
+
+O alvo `yarn sonar:full` executa cobertura e, em seguida, o scanner. Em desenvolvimento você pode omitir `sonar.qualitygate.wait` (o CI usa espera ativa pelo Quality Gate).
+
+**CI (GitHub Actions):** no workflow [`.github/workflows/tests.yml`](.github/workflows/tests.yml), após testes e limiar de cobertura, o job envia a análise se existir o secret **`SONAR_TOKEN`** no repositório. Sem o secret, o passo apenas emite aviso e o job continua (configure o secret para exigir análise em PRs/pushes com mudanças em `backend/`).
+
+**Nota:** na edição **Community** do SonarQube, a visão por branch/PR no servidor pode ser mais limitada; o importante no fluxo atual é o **resultado do job no GitHub** e o relatório no painel do projeto.
+
+##### Trivy — vulnerabilidades (backend)
+
+O [Trivy](https://github.com/aquasecurity/trivy) usa o **`yarn.lock`** no modo filesystem (o projeto é **Yarn**, não `package-lock.json`). Por padrão costuma focar dependências de **produção**; no CLI use `--include-dev-deps` para incluir `devDependencies` ([documentação Node](https://trivy.dev/docs/latest/coverage/language/nodejs/)).
+
+**CI:** o [`.github/workflows/backend-trivy.yml`](.github/workflows/backend-trivy.yml) roda em **PRs para `main`** e em **pushes** que alterem `backend/`, em **dois jobs** sempre que o workflow dispara: **filesystem** (`yarn.lock` / código versionado) e **imagem Docker** (build + scan — novas CVEs na base OS ou em dependências transitivas podem surgir sem mudar o Dockerfile). Severidade **CRITICAL** e **HIGH**, falhando o job se houver achado. O **deploy** só publica a imagem.
+
+**Imagem:** o [`backend/Dockerfile`](backend/Dockerfile) usa **`node:20-bookworm`** no build e **`node:20-bookworm-slim`** no runtime (glibc Debian, alinhado a Prisma/bcrypt nativos), com **`corepack`** para Yarn e cache do Yarn só dentro do `RUN` de install. Após `prisma generate`, remove o CLI **`prisma`** e **TypeScript** do `node_modules`; em seguida remove **npm/Yarn/corepack** da imagem final (evita que o Trivy marque a árvore do npm embutido). Para runtime sem shell, existe o [`backend/Dockerfile.distroless`](backend/Dockerfile.distroless). O CI usa [`backend/.trivyignore`](backend/.trivyignore) para um subconjunto de CVEs de **SO** na base Debian: há casos em que o **tracker Debian** considera o achado não aplicável ao pacote (ex. zlib/MiniZip) e outros em que **ainda não há patch no Bookworm** (ex. glibc), com ignore **temporário** e revisão obrigatória — ver comentários no arquivo.
+
+**Validar localmente o mesmo critério do CI** (na **raiz do repositório**; exige [Docker](https://docs.docker.com/get-docker/) e, nos comandos abaixo que chamam `trivy` direto, a [CLI do Trivy](https://trivy.dev/latest/getting-started/installation/) no `PATH`):
+
+No [Docker Hub](https://hub.docker.com/r/aquasec/trivy/tags), `aquasec/trivy` **não tem tag `latest`** (só versões como `0.69.3` e `canary`); por isso os exemplos usam `0.69.3` — ajuste quando quiser alinhar a uma release mais nova.
+
+No **Git Bash no Windows**, o MSYS costuma reescrever caminhos como `/repo` e acaba gerando algo como `C:/Program Files/Git/repo` — aí o Trivy falha com `lstat ... no such file`. Coloque **`MSYS_NO_PATHCONV=1`** na mesma linha dos `docker run` (abaixo já está assim; no Linux/macOS essa variável não atrapalha). Em **PowerShell**, use por exemplo `-v "${PWD}/backend:/repo"` sem esse prefixo.
+
+**Parece travar** depois de `Vulnerability scanning is enabled`? Em geral não travou: o Trivy está varrendo arquivos. No **Windows**, montar `backend` com **`node_modules`** no volume é muito lento (milhões de arquivos + antivírus). No **CI** o checkout **não** traz `node_modules`, então o job é rápido. Para espelhar isso e não esperar dezenas de minutos, use **`--skip-dirs`** como abaixo (o scan de dependências Node continua pelo **`yarn.lock`**). Se quiser ver atividade, rode com **`--debug`** uma vez.
+
+```bash
+# 1) Filesystem (equivalente ao job trivy-fs — mesmo alvo que scan-ref: backend)
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd)/backend:/repo" aquasec/trivy:0.69.3 fs --scanners vuln --severity HIGH,CRITICAL --skip-dirs node_modules --skip-dirs dist --skip-dirs coverage /repo
+
+# 2) Build da imagem (igual ao contexto ./backend do CI — bookworm + bookworm-slim)
+docker build --no-cache -t gds-backend:ci-scan -f backend/Dockerfile backend
+# Opcional: runtime Distroless (sem shell na imagem final)
+# docker build -t gds-backend:distroless -f backend/Dockerfile.distroless backend
+
+# 3) Scan da imagem (equivalente ao job trivy-image — use o mesmo .trivyignore do CI)
+MSYS_NO_PATHCONV=1 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$(pwd)/backend/.trivyignore:/ignore/.trivyignore:ro" \
+  aquasec/trivy:0.69.3 image --ignorefile /ignore/.trivyignore --scanners vuln --severity HIGH,CRITICAL gds-backend:ci-scan
+```
+
+O passo **3** monta o socket do Docker para o container do Trivy enxergar a imagem que você buildou no host (comum em Linux e no Docker Desktop no macOS; no **Windows** com Docker Desktop, se esse mount falhar, use a CLI no host após o build: `trivy image --scanners vuln --severity HIGH,CRITICAL gds-backend:ci-scan`).
+
+**Atalho com Yarn + Trivy no PATH** (pasta `backend` para o scan de lockfile bater com o script do projeto):
+
+```bash
+cd backend && yarn security:trivy && cd ..
+docker build -t gds-backend:ci-scan -f backend/Dockerfile backend
+trivy image --scanners vuln --severity HIGH,CRITICAL gds-backend:ci-scan
+```
+
+(`yarn security:trivy` usa o mesmo critério do exemplo acima, com `--skip-dirs` para alinhar ao CI e evitar varrer `node_modules` local.)
+
+**Governança:** o [`backend/.trivyignore`](backend/.trivyignore) separa **ignore estável** (CVE que o Debian trata como não aplicável ao binário) de **ignore temporário** (CVE real aguardando pacote no Bookworm). Revise após cada bump da imagem base e, para glibc, periodicamente até surgir `Fixed Version` no Trivy.
+
 #### 5. Configurar e Iniciar o Frontend
 
 Em um novo terminal, configure o frontend:
