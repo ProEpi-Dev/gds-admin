@@ -740,13 +740,29 @@ export class QuizSubmissionsService {
     return { score, percentage, questionResults };
   }
 
-  /** Chave de ordenação para multiselect: objetos com JSON; primitivos com String. */
+  /** Chave de ordenação para multiselect (sem coerção genérica de objeto para string). */
   private compareMultiselectValues(a: unknown, b: unknown): number {
     const sortKey = (v: unknown): string => {
-      if (v !== null && typeof v === 'object') {
-        return JSON.stringify(v);
+      switch (typeof v) {
+        case 'string':
+          return v;
+        case 'number':
+        case 'boolean':
+        case 'bigint':
+          return String(v);
+        case 'undefined':
+          return 'undefined';
+        case 'object':
+          return v === null ? 'null' : JSON.stringify(v);
+        case 'symbol':
+          return v.toString();
+        case 'function': {
+          const fn = v as (...args: unknown[]) => unknown;
+          return `[function:${fn.name || 'anonymous'}]`;
+        }
+        default:
+          return '';
       }
-      return String(v);
     };
     return sortKey(a).localeCompare(sortKey(b));
   }

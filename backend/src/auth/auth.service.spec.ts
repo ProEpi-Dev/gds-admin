@@ -279,6 +279,30 @@ describe('AuthService', () => {
       expect(prismaService.user_refresh_token.create).toHaveBeenCalled();
     });
 
+    it('deve calcular expiração do refresh com JWT_REFRESH_EXPIRES_IN (ex.: 30m)', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+        if (key === 'JWT_REFRESH_EXPIRES_IN') return '30m';
+        return undefined;
+      });
+
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser as any);
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
+
+      await service.login(loginDto);
+
+      const createArg = (prismaService.user_refresh_token.create as jest.Mock)
+        .mock.calls[0][0];
+      expect(createArg.data.expires_at).toBeInstanceOf(Date);
+      expect(createArg.data.expires_at.getTime()).toBeGreaterThan(Date.now());
+    });
+
     it('deve lançar UnauthorizedException quando credenciais são inválidas', async () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',

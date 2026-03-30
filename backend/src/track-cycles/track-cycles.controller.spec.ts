@@ -73,6 +73,14 @@ describe('TrackCyclesController', () => {
     expect(service.findActive).toHaveBeenCalledWith(1, 2, 1);
   });
 
+  it('findActive() sem query repassa undefined nos ids', async () => {
+    service.findActive.mockResolvedValue([]);
+
+    await controller.findActive(undefined, undefined, { userId: 1 });
+
+    expect(service.findActive).toHaveBeenCalledWith(undefined, undefined, 1);
+  });
+
   it('findOne()', async () => {
     service.findOne.mockResolvedValue({ id: 1 } as any);
 

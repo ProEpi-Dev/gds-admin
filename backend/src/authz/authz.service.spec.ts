@@ -377,4 +377,55 @@ describe('AuthzService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('getPermissionDiagnosticsForLog', () => {
+    it('deve ordenar permissões e contextos para diagnóstico', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'participant' },
+      });
+      (prisma.participation.findMany as jest.Mock).mockResolvedValue([
+        {
+          context_id: 10,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'zebra:action', active: true } },
+                  { permission: { code: 'alpha:action', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          context_id: 2,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'beta:read', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, 10);
+
+      expect(diag.permissoes_nesse_contexto).toEqual([
+        'alpha:action',
+        'zebra:action',
+      ]);
+      expect(diag.permissoes_por_contexto).toEqual([
+        { context_id: 2, permissoes: ['beta:read'] },
+        { context_id: 10, permissoes: ['alpha:action', 'zebra:action'] },
+      ]);
+      expect(diag.todas_perm_distintas_em_participacoes).toEqual([
+        'alpha:action',
+        'beta:read',
+        'zebra:action',
+      ]);
+    });
+  });
 });

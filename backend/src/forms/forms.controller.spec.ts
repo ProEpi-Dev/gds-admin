@@ -165,6 +165,19 @@ describe('FormsController', () => {
         undefined,
       );
     });
+
+    it('deve converter contextId da query com Number.parseInt', async () => {
+      jest
+        .spyOn(formsService, 'findFormsWithLatestVersions')
+        .mockResolvedValue([]);
+
+      await controller.findFormsWithLatestVersions(mockUser, '42');
+
+      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
+        mockUser.userId,
+        42,
+      );
+    });
   });
 
   describe('findAll', () => {

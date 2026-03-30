@@ -179,6 +179,62 @@ describe('QuizSubmissionsService', () => {
       expect(prismaService.quiz_submission.create).toHaveBeenCalled();
     });
 
+    it('deve aceitar multiselect com mesma escolha em ordem diferente', async () => {
+      const multiselectFormVersion = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              id: 'qm',
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: ['a', 'b'],
+              options: [
+                { label: 'A', value: 'a' },
+                { label: 'B', value: 'b' },
+              ],
+            },
+          ],
+        },
+      };
+
+      const createMulti: CreateQuizSubmissionDto = {
+        ...createDto,
+        quizResponse: { multiQ: ['b', 'a'] },
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(multiselectFormVersion as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue(mockQuizSubmission as any);
+
+      await service.create(createMulti, 1);
+
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            score: 100,
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: true,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
     it('deve lançar BadRequestException quando participação não existe', async () => {
       jest
         .spyOn(prismaService.participation, 'findUnique')
