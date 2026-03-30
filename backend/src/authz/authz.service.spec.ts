@@ -377,4 +377,118 @@ describe('AuthzService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('getPermissionDiagnosticsForLog', () => {
+    it('deve ordenar permissões e contextos para diagnóstico', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'participant' },
+      });
+      (prisma.participation.findMany as jest.Mock).mockResolvedValue([
+        {
+          context_id: 10,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'zebra:action', active: true } },
+                  { permission: { code: 'alpha:action', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          context_id: 2,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'beta:read', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, 10);
+
+      expect(diag.permissoes_nesse_contexto).toEqual([
+        'alpha:action',
+        'zebra:action',
+      ]);
+      expect(diag.permissoes_por_contexto).toEqual([
+        { context_id: 2, permissoes: ['beta:read'] },
+        { context_id: 10, permissoes: ['alpha:action', 'zebra:action'] },
+      ]);
+      expect(diag.todas_perm_distintas_em_participacoes).toEqual([
+        'alpha:action',
+        'beta:read',
+        'zebra:action',
+      ]);
+    });
+
+    it('admin recebe diagnóstico sem lista de permissões de participação', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'admin' },
+      });
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, 5);
+
+      expect(diag.contexto_usado_na_checagem).toBe(5);
+      expect(diag.permissoes_nesse_contexto).toEqual([]);
+      expect(diag.nota).toContain('admin global');
+      expect(prisma.participation.findMany).not.toHaveBeenCalled();
+    });
+
+    it('deve incluir nota quando não há contextId na requisição', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'participant' },
+      });
+      (prisma.participation.findMany as jest.Mock).mockResolvedValue([
+        {
+          context_id: 1,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'p:x', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, null);
+
+      expect(diag.permissoes_nesse_contexto).toEqual([]);
+      expect(diag.nota).toContain('Nenhum contextId');
+    });
+
+    it('deve incluir nota quando o contexto da requisição não tem permissões mas outros têm', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'participant' },
+      });
+      (prisma.participation.findMany as jest.Mock).mockResolvedValue([
+        {
+          context_id: 1,
+          participation_role: [
+            {
+              role: {
+                role_permission: [
+                  { permission: { code: 'only:here', active: true } },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, 99);
+
+      expect(diag.permissoes_nesse_contexto).toEqual([]);
+      expect(diag.nota).toContain('outros contextos');
+    });
+  });
 });

@@ -179,6 +179,62 @@ describe('QuizSubmissionsService', () => {
       expect(prismaService.quiz_submission.create).toHaveBeenCalled();
     });
 
+    it('deve aceitar multiselect com mesma escolha em ordem diferente', async () => {
+      const multiselectFormVersion = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              id: 'qm',
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: ['a', 'b'],
+              options: [
+                { label: 'A', value: 'a' },
+                { label: 'B', value: 'b' },
+              ],
+            },
+          ],
+        },
+      };
+
+      const createMulti: CreateQuizSubmissionDto = {
+        ...createDto,
+        quizResponse: { multiQ: ['b', 'a'] },
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(multiselectFormVersion as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue(mockQuizSubmission as any);
+
+      await service.create(createMulti, 1);
+
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            score: 100,
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: true,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
     it('deve lançar BadRequestException quando participação não existe', async () => {
       jest
         .spyOn(prismaService.participation, 'findUnique')
@@ -998,6 +1054,268 @@ describe('QuizSubmissionsService', () => {
           sequence_progress_id: 10,
         },
       });
+    });
+  });
+
+  describe('compareMultiselectValues (interno)', () => {
+    let cmp: (a: unknown, b: unknown) => number;
+
+    beforeEach(() => {
+      cmp = (a, b) => (service as any).compareMultiselectValues(a, b);
+    });
+
+    it('cobre ramos de ordenação (primitivos, null, objeto, symbol, function)', () => {
+      expect(cmp('a', 'b')).toBeLessThan(0);
+      expect(cmp(1, 2)).toBeLessThan(0);
+      expect(cmp(true, false)).toBeGreaterThan(0);
+      expect(cmp(1n, 9n)).toBeLessThan(0);
+      expect(cmp(undefined, undefined)).toBe(0);
+      expect(cmp(null, { x: 1 })).not.toBe(0);
+      expect(cmp({ z: 1 }, { a: 1 })).toBeGreaterThan(0);
+      const s1 = Symbol('a');
+      const s2 = Symbol('b');
+      expect(cmp(s1, s2)).not.toBe(0);
+      function named() {}
+      expect(cmp(named, () => {})).not.toBe(0);
+    });
+  });
+
+  describe('isAnswerCorrect via create (multiselect e default)', () => {
+    const baseCreate: CreateQuizSubmissionDto = {
+      participationId: 1,
+      formVersionId: 1,
+      quizResponse: {},
+      startedAt: '2024-01-01T10:00:00Z',
+      completedAt: '2024-01-01T10:02:00Z',
+      timeSpentSeconds: 120,
+    };
+
+    const setupCreateMocks = (formVersion: any, quizResponse: Record<string, unknown>) => {
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(formVersion as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+      jest
+        .spyOn(prismaService.quiz_submission, 'findFirst')
+        .mockResolvedValue(null);
+      jest
+        .spyOn(prismaService.quiz_submission, 'create')
+        .mockResolvedValue(mockQuizSubmission as any);
+      return service.create(
+        { ...baseCreate, quizResponse } as CreateQuizSubmissionDto,
+        1,
+      );
+    };
+
+    it('multiselect: resposta não-array marca incorreto', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: ['a'],
+              options: [{ label: 'A', value: 'a' }],
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { multiQ: 'a' });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            score: 0,
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('multiselect: gabarito não-array marca incorreto', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: 'oops',
+              options: [],
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { multiQ: ['a'] });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('multiselect: tamanhos diferentes marca incorreto', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: ['a', 'b'],
+              options: [],
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { multiQ: ['a'] });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('multiselect: valores diferentes após ordenar marca incorreto', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'multiQ',
+              type: 'multiselect',
+              points: 1,
+              correctAnswer: ['a', 'b'],
+              options: [],
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { multiQ: ['a', 'c'] });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'multiQ',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('tipo desconhecido: compara via JSON.stringify', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'customQ',
+              type: 'custom_widget',
+              points: 1,
+              correctAnswer: { k: 1 },
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { customQ: { k: 1 } });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'customQ',
+                isCorrect: true,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('sem resposta do usuário para a questão marca incorreto', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'qEmpty',
+              type: 'text',
+              points: 1,
+              correctAnswer: 'ok',
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, {});
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'qEmpty',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('gabarito null marca incorreto mesmo com resposta', async () => {
+      const fv = {
+        ...mockFormVersion,
+        definition: {
+          fields: [
+            {
+              name: 'qNull',
+              type: 'text',
+              points: 1,
+              correctAnswer: null,
+            },
+          ],
+        },
+      };
+      await setupCreateMocks(fv, { qNull: 'texto' });
+      expect(prismaService.quiz_submission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            question_results: expect.arrayContaining([
+              expect.objectContaining({
+                questionName: 'qNull',
+                isCorrect: false,
+              }),
+            ]),
+          }),
+        }),
+      );
     });
   });
 });

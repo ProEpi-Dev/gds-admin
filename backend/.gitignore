@@ -15,6 +15,9 @@ lerna-debug.log*
 # OS
 .DS_Store
 
+# SonarQube (scanner local)
+.scannerwork
+
 # Tests
 /coverage
 /.nyc_output

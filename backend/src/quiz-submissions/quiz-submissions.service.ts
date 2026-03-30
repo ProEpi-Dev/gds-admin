@@ -740,6 +740,31 @@ export class QuizSubmissionsService {
     return { score, percentage, questionResults };
   }
 
+  /** Chave de ordenação para multiselect (sem coerção genérica de objeto para string). */
+  private compareMultiselectValues(a: unknown, b: unknown): number {
+    const sortKey = (v: unknown): string => {
+      switch (typeof v) {
+        case 'string':
+          return v;
+        case 'number':
+        case 'boolean':
+        case 'bigint':
+          return String(v);
+        case 'undefined':
+          return 'undefined';
+        case 'object':
+          return v === null ? 'null' : JSON.stringify(v);
+        case 'symbol':
+          return v.toString();
+        case 'function': {
+          const fn = v as (...args: unknown[]) => unknown;
+          return `[function:${fn.name || 'anonymous'}]`;
+        }
+      }
+    };
+    return sortKey(a).localeCompare(sortKey(b));
+  }
+
   /**
    * Verifica se a resposta está correta
    */
@@ -758,17 +783,19 @@ export class QuizSubmissionsService {
 
     // Comparação baseada no tipo
     switch (questionType) {
-      case 'multiselect':
+      case 'multiselect': {
         if (!Array.isArray(userAnswer) || !Array.isArray(correctAnswer)) {
           return false;
         }
-        // Ordenar arrays para comparação
-        const sortedUser = [...userAnswer].sort();
-        const sortedCorrect = [...correctAnswer].sort();
+        const cmp = (a: unknown, b: unknown) =>
+          this.compareMultiselectValues(a, b);
+        const sortedUser = [...userAnswer].sort(cmp);
+        const sortedCorrect = [...correctAnswer].sort(cmp);
         return (
           sortedUser.length === sortedCorrect.length &&
           sortedUser.every((val, idx) => val === sortedCorrect[idx])
         );
+      }
       case 'select':
       case 'text':
       case 'number':
