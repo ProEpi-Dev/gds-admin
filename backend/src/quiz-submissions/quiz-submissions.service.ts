@@ -740,6 +740,17 @@ export class QuizSubmissionsService {
     return { score, percentage, questionResults };
   }
 
+  /** Chave de ordenação para multiselect: objetos com JSON; primitivos com String. */
+  private compareMultiselectValues(a: unknown, b: unknown): number {
+    const sortKey = (v: unknown): string => {
+      if (v !== null && typeof v === 'object') {
+        return JSON.stringify(v);
+      }
+      return String(v);
+    };
+    return sortKey(a).localeCompare(sortKey(b));
+  }
+
   /**
    * Verifica se a resposta está correta
    */
@@ -758,19 +769,19 @@ export class QuizSubmissionsService {
 
     // Comparação baseada no tipo
     switch (questionType) {
-      case 'multiselect':
+      case 'multiselect': {
         if (!Array.isArray(userAnswer) || !Array.isArray(correctAnswer)) {
           return false;
         }
-        // Ordenar arrays para comparação (comparador explícito; evita coerção implícita do .sort())
-        const byStableString = (a: unknown, b: unknown) =>
-          String(a).localeCompare(String(b));
-        const sortedUser = [...userAnswer].sort(byStableString);
-        const sortedCorrect = [...correctAnswer].sort(byStableString);
+        const cmp = (a: unknown, b: unknown) =>
+          this.compareMultiselectValues(a, b);
+        const sortedUser = [...userAnswer].sort(cmp);
+        const sortedCorrect = [...correctAnswer].sort(cmp);
         return (
           sortedUser.length === sortedCorrect.length &&
           sortedUser.every((val, idx) => val === sortedCorrect[idx])
         );
+      }
       case 'select':
       case 'text':
       case 'number':
