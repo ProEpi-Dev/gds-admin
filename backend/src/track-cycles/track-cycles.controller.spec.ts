@@ -81,6 +81,14 @@ describe('TrackCyclesController', () => {
     expect(service.findActive).toHaveBeenCalledWith(undefined, undefined, 1);
   });
 
+  it('findActive() sem CurrentUser repassa undefined como userId', async () => {
+    service.findActive.mockResolvedValue([]);
+
+    await controller.findActive('3', '4', undefined);
+
+    expect(service.findActive).toHaveBeenCalledWith(3, 4, undefined);
+  });
+
   it('findOne()', async () => {
     service.findOne.mockResolvedValue({ id: 1 } as any);
 

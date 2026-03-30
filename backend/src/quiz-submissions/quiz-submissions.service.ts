@@ -760,8 +760,6 @@ export class QuizSubmissionsService {
           const fn = v as (...args: unknown[]) => unknown;
           return `[function:${fn.name || 'anonymous'}]`;
         }
-        default:
-          return '';
       }
     };
     return sortKey(a).localeCompare(sortKey(b));

@@ -303,6 +303,29 @@ describe('AuthService', () => {
       expect(createArg.data.expires_at.getTime()).toBeGreaterThan(Date.now());
     });
 
+    it('deve calcular expiração do refresh com unidade ms (ex.: 3600000ms)', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+        if (key === 'JWT_REFRESH_EXPIRES_IN') return '3600000ms';
+        return undefined;
+      });
+
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser as any);
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
+
+      await service.login(loginDto);
+
+      const createArg = (prismaService.user_refresh_token.create as jest.Mock)
+        .mock.calls[0][0];
+      expect(createArg.data.expires_at).toBeInstanceOf(Date);
+    });
+
     it('deve lançar UnauthorizedException quando credenciais são inválidas', async () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',
@@ -341,6 +364,36 @@ describe('AuthService', () => {
 
       expect(result.participation).not.toBeNull();
       expect(result.participation?.id).toBe(1);
+    });
+
+    it('deve retornar null quando participação tem start_date no futuro', async () => {
+      const loginDto: LoginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      tomorrow.setMinutes(0);
+      tomorrow.setSeconds(0);
+      tomorrow.setMilliseconds(0);
+
+      const futureStartParticipation = {
+        ...mockParticipation,
+        start_date: tomorrow,
+        end_date: null,
+      };
+
+      jest.spyOn(service, 'validateUser').mockResolvedValue(mockUser as any);
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([futureStartParticipation] as any);
+      jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
+
+      const result = await service.login(loginDto);
+
+      expect(result.participation).toBeNull();
     });
 
     it('deve retornar null quando não há participação ativa', async () => {
@@ -481,6 +534,25 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
+    it('deve lançar UnauthorizedException quando usuário não tem senha definida', async () => {
+      const changePasswordDto: ChangePasswordDto = {
+        currentPassword: 'oldPassword',
+        newPassword: 'newPassword123',
+      };
+
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({
+        ...mockUser,
+        password: null,
+      } as any);
+
+      await expect(
+        service.changePassword(1, changePasswordDto),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.changePassword(1, changePasswordDto),
+      ).rejects.toThrow('Senha não definida');
+    });
+
     it('deve lançar UnauthorizedException quando senha atual está incorreta', async () => {
       const changePasswordDto: ChangePasswordDto = {
         currentPassword: 'wrongPassword',
@@ -612,6 +684,18 @@ describe('AuthService', () => {
 
       await expect(service.signup(signupDto)).rejects.toThrow(
         ConflictException,
+      );
+    });
+
+    it('deve lançar BadRequestException se contexto não existe', async () => {
+      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
+
+      await expect(service.signup(signupDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.signup(signupDto)).rejects.toThrow(
+        'Contexto com ID 1 não encontrado',
       );
     });
 

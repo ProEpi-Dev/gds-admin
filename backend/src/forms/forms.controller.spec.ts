@@ -178,6 +178,19 @@ describe('FormsController', () => {
         42,
       );
     });
+
+    it('deve tratar contextId vazio como undefined', async () => {
+      jest
+        .spyOn(formsService, 'findFormsWithLatestVersions')
+        .mockResolvedValue([]);
+
+      await controller.findFormsWithLatestVersions(mockUser, '');
+
+      expect(formsService.findFormsWithLatestVersions).toHaveBeenCalledWith(
+        mockUser.userId,
+        undefined,
+      );
+    });
   });
 
   describe('findAll', () => {
