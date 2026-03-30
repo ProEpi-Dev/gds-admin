@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1
 #
-# Build: Debian glibc (compatível com Prisma e bcrypt nativos).
-# Runtime: bookworm-slim ainda inclui npm/Yarn; após install, removemos gerenciadores (só `node` no CMD).
-# Alternativa sem shell na imagem final: Dockerfile.distroless.
+# Mesmo fluxo que o Dockerfile principal, mas a imagem final é Google Distroless:
+# só o runtime Node — sem shell, sem npm/yarn no artefato final (menos superfície e menos ruído no Trivy).
+# Build: docker build -f Dockerfile.distroless -t gds-backend:distroless .
+#
+# Debug: não há sh no container; use logs, métricas ou uma imagem temporária com bookworm-slim.
 
 ARG NODE_VERSION=20
 
-# -------- Build --------
 FROM node:${NODE_VERSION}-bookworm AS builder
 
 WORKDIR /app
@@ -19,7 +20,6 @@ RUN corepack enable
 
 COPY package.json yarn.lock ./
 
-# Cache só nesta camada (some antes do fim do RUN)
 RUN YARN_CACHE_FOLDER=/tmp/yarn-cache yarn install --frozen-lockfile \
     && rm -rf /tmp/yarn-cache
 
@@ -32,10 +32,10 @@ RUN yarn prisma generate
 COPY . .
 
 RUN yarn build
-RUN test -f dist/src/main.js || (ls -la dist src 2>/dev/null; exit 1)
+RUN test -f dist/src/main.js || exit 1
 
-# -------- Runtime (slim) --------
-FROM node:${NODE_VERSION}-bookworm-slim AS production
+# Artefatos de runtime (node_modules de produção + dist), ainda com shell para yarn/prisma
+FROM node:${NODE_VERSION}-bookworm-slim AS prep
 
 WORKDIR /app
 
@@ -63,15 +63,13 @@ COPY --from=builder /app/dist ./dist
 
 RUN test -f dist/src/main.js || exit 1
 
-# Evita que o Trivy (node-pkg) varra a árvore do npm embutido na imagem oficial (cross-spawn, glob, tar…).
-RUN rm -rf /usr/local/lib/node_modules/npm \
-    && rm -f /usr/local/bin/npm /usr/local/bin/npx \
-    && rm -rf /opt/yarn-v* \
-    && rm -f /usr/local/bin/yarn /usr/local/bin/yarnpkg \
-    && rm -rf /usr/local/lib/node_modules/corepack \
-    && rm -f /usr/local/bin/corepack || true \
-    && rm -rf /usr/local/share/.cache/yarn /root/.cache/yarn /root/.yarn /root/.cache/node 2>/dev/null || true
+# Usuário não-root do Distroless (65532)
+FROM gcr.io/distroless/nodejs20-debian12:nonroot AS production
 
-EXPOSE 3000
+WORKDIR /app
 
-CMD ["node", "dist/src/main.js"]
+ENV NODE_ENV=production
+
+COPY --from=prep --chown=65532:65532 /app /app
+
+CMD ["dist/src/main.js"]

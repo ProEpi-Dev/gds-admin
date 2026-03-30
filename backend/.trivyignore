@@ -1,0 +1,25 @@
+# Ignores do Trivy (CVE IDs). Cada entrada precisa de motivo e revisão periódica.
+# Documentação: https://trivy.dev/docs/latest/configuration/filtering/#by-cve-ids
+#
+# -----------------------------------------------------------------------------
+# CVE-2023-45853 (zlib / MiniZip)
+# -----------------------------------------------------------------------------
+# O scanner associa o CVE ao pacote zlib do Debian Bookworm. O tracker Debian
+# trata como ignorado / won't fix: o vetor (MiniZip) não faz parte do zlib
+# suportado e o código vulnerável não entra nos binários que o Debian distribui.
+# Efeito prático: alerta de scanner sem mitigação via apt — alinhado a falso
+# positivo operacional. Referência: security-tracker.debian.org (CVE-2023-45853).
+# Revisão: se a política Debian ou o pacote mudarem.
+# -----------------------------------------------------------------------------
+CVE-2023-45853
+
+# -----------------------------------------------------------------------------
+# CVE-2026-0861 (glibc — memalign / libc6, libc-bin)
+# -----------------------------------------------------------------------------
+# Vulnerabilidade reconhecida; correção ainda não disponível no Debian Bookworm
+# estável (patch costuma chegar antes em testing/unstable). NÃO é o mesmo caso
+# do zlib: aqui o ignore é temporário para não bloquear CI até haver pacote
+# corrigido na imagem base (ex.: novo digest de node:*-bookworm-slim).
+# Governança: revisar obrigatoriamente ao atualizar a imagem base ou mensalmente.
+# -----------------------------------------------------------------------------
+CVE-2026-0861

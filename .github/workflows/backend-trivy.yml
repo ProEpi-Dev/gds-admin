@@ -1,0 +1,67 @@
+name: 🔒 Backend — Trivy (dependências + imagem)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-trivy.yml"
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-trivy.yml"
+
+jobs:
+  trivy-fs:
+    name: Trivy filesystem (yarn.lock)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: backend
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          trivyignores: backend/.trivyignore
+
+  trivy-image:
+    name: Trivy imagem Docker (Dockerfile)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (local, só para scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: true
+          tags: gds-backend:ci-scan
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: image
+          image-ref: gds-backend:ci-scan
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          trivyignores: backend/.trivyignore
