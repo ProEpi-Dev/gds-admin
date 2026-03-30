@@ -1,13 +1,10 @@
 name: 🔒 Backend — Trivy (dependências + imagem)
 
+# Só em PR para main (não em push na branch feature sem PR, nem no merge/push em main).
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-trivy.yml"
-  push:
     paths:
       - "backend/**"
       - ".github/workflows/backend-trivy.yml"
