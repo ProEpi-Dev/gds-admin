@@ -331,17 +331,25 @@ export class ReportsService {
       data.occurrence_location = createReportDto.occurrenceLocation;
     }
 
-    const report = await this.prisma.$transaction(async (tx) => {
-      const createdReport = await tx.report.create({ data });
+    const report = await this.prisma.report.create({ data });
 
+    try {
       await this.refreshParticipationReportMetrics(
-        tx,
-        createdReport.participation_id,
-        createdReport.created_at,
+        this.prisma,
+        report.participation_id,
+        report.created_at,
       );
-
-      return createdReport;
-    });
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        {
+          reportId: report.id,
+          participationId: report.participation_id,
+          errMessage: err?.message,
+        },
+        'Falha ao atualizar métricas de report; dados agregados podem estar desatualizados',
+      );
+    }
 
     return this.mapToResponseDto(report);
   }
