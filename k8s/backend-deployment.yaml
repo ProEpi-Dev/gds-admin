@@ -23,7 +23,14 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: gds-backend-otel
         env:
+        - name: OTEL_SERVICE_INSTANCE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: NODE_ENV
           value: production
         - name: PORT

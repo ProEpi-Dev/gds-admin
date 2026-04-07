@@ -33,6 +33,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { buildPinoOtelErrorHooks } from './otel-error-logs';
+
+const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
 
 @Module({
   imports: [
@@ -57,6 +60,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
             : undefined,
         redact: ['req.headers.authorization'],
         autoLogging: false,
+        ...(pinoOtelErrorHooks ? { hooks: pinoOtelErrorHooks } : {}),
       },
     }),
     PrismaModule,

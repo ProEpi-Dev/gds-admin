@@ -1,0 +1,107 @@
+# Stack Grafana OTEL LGTM (demo / testes; não usar como produção).
+# Baseado em: https://github.com/grafana/docker-otel-lgtm/blob/main/k8s/lgtm.yaml
+# Nome do ficheiro sem "otel-" evita o schema errado "OpenTelemetry Declarative Configuration" no editor.
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-lgtm
+  namespace: gds-observabilidade
+  labels:
+    app: otel-lgtm
+spec:
+  selector:
+    app: otel-lgtm
+  ports:
+    - name: grafana
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    - name: pyroscope
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
+    - name: otel-grpc
+      protocol: TCP
+      port: 4317
+      targetPort: 4317
+    - name: otel-http
+      protocol: TCP
+      port: 4318
+      targetPort: 4318
+    - name: prometheus
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-lgtm
+  namespace: gds-observabilidade
+  labels:
+    app: otel-lgtm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-lgtm
+  template:
+    metadata:
+      labels:
+        app: otel-lgtm
+    spec:
+      containers:
+        - name: otel-lgtm
+          image: grafana/otel-lgtm:latest
+          imagePullPolicy: Always
+          env:
+            # Grafana: sem login anónimo (equivale a auth.anonymous.enabled no grafana.ini)
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+          ports:
+            - containerPort: 3000
+            - containerPort: 4040
+            - containerPort: 4317
+            - containerPort: 4318
+            - containerPort: 9090
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /tmp/ready
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          volumeMounts:
+            - name: tempo-data
+              mountPath: /data/tempo
+            - name: grafana-data
+              mountPath: /data/grafana
+            - name: loki-data
+              mountPath: /data/loki
+            - name: loki-storage
+              mountPath: /loki
+            - name: p8s-storage
+              mountPath: /data/prometheus
+            - name: pyroscope-storage
+              mountPath: /data/pyroscope
+      volumes:
+        - name: tempo-data
+          emptyDir: {}
+        - name: loki-data
+          emptyDir: {}
+        - name: grafana-data
+          emptyDir: {}
+        - name: loki-storage
+          emptyDir: {}
+        - name: p8s-storage
+          emptyDir: {}
+        - name: pyroscope-storage
+          emptyDir: {}

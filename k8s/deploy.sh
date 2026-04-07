@@ -58,6 +58,10 @@ fi
 echo "🔐 Aplicando secrets..."
 kubectl apply -f secrets-production-example.yaml
 
+# ConfigMaps (OpenTelemetry e outras configs não sensíveis)
+echo "📋 Aplicando ConfigMaps..."
+kubectl apply -f configmaps.yaml
+
 # Aplicar bancos de dados
 echo "📦 Aplicando bancos de dados..."
 kubectl apply -f postgres-oltp-deployment.yaml

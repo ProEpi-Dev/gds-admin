@@ -1,0 +1,26 @@
+# Stack local para testar OpenTelemetry com Grafana (LGTM + Collector).
+# Imagem oficial: https://github.com/grafana/docker-otel-lgtm
+#
+# Grafana UI: http://localhost:4000 (admin / admin)
+# OTLP a partir do host (Nest rodando fora do Docker):
+#   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+#
+# A porta 4000 evita conflito com o backend Nest (3000).
+
+services:
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: gds-otel-lgtm
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "4000:3000" # Grafana
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+    # Descomente para persistir dados entre reinícios (somente dev/demo).
+    # volumes:
+    #   - lgtm-data:/data
+
+# volumes:
+#   lgtm-data:

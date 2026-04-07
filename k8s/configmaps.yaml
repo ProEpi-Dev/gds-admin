@@ -1,0 +1,16 @@
+# Configurações não sensíveis do backend (alinhado a backend/.env.example — OpenTelemetry).
+# OTEL_EXPORTER_OTLP_ENDPOINT vazio mantém o SDK desligado (comportamento igual ao .env local sem endpoint).
+# Para ativar: defina o URL HTTPS do collector (ex.: https://gds-otel.maolabs.com.br) e aplique de novo.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gds-backend-otel
+  namespace: gds
+  labels:
+    app: gds-backend
+data:
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_SERVICE_NAME: "gds-backend"
+  OTEL_METRIC_EXPORT_INTERVAL: "15000"
+  OTEL_EXPORT_ERROR_LOGS_TO_LOKI: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
