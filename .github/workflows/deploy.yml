@@ -241,6 +241,9 @@ jobs:
       run: |
         export KUBECONFIG=kubeconfig.yaml
         
+        # Aplica o template do Deployment (envFrom ConfigMap OTEL, OTEL_SERVICE_INSTANCE_ID, etc.)
+        kubectl apply -f k8s/backend-deployment.yaml
+        
         echo "🔄 Restarting backend deployment..."
         kubectl rollout restart deployment/gds-backend -n gds
         

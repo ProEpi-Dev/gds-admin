@@ -12,7 +12,10 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
-import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
+import {
+  ReportsPointsQueryDto,
+  REPORTS_POINTS_MAX_LIMIT,
+} from './dto/reports-points-query.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
 import { ReportStreakQueryDto } from './dto/report-streak-query.dto';
 import { ReportStreakSummaryResponseDto } from './dto/report-streak-summary-response.dto';
@@ -616,9 +619,8 @@ export class ReportsService {
         active: true,
         context_id: filterContextId,
       },
-      occurrence_location: {
-        not: null,
-      },
+      // Prisma.Json: `not: null` gera `::jsonb <> $n` (lento, não usa índice parcial IS NOT NULL).
+      occurrence_location: { not: Prisma.DbNull },
     };
 
     // Construir filtro de formulário
@@ -646,12 +648,23 @@ export class ReportsService {
       whereClause.form_version = formVersionFilter;
     }
 
+    const take =
+      query.limit != null
+        ? Math.min(query.limit, REPORTS_POINTS_MAX_LIMIT)
+        : undefined;
+
     const reports = await this.prisma.report.findMany({
       where: whereClause,
       select: {
         report_type: true,
         occurrence_location: true,
       },
+      ...(take != null
+        ? {
+            take,
+            orderBy: { created_at: 'desc' },
+          }
+        : {}),
     });
 
     // Filtrar e mapear apenas reports com latitude e longitude válidas
