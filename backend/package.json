@@ -107,6 +107,8 @@
       "/node_modules/",
       ".*\\.module\\.ts$",
       "main\\.ts$",
+      "tracing\\.ts$",
+      "otel-error-logs\\.ts$",
       "app\\.module\\.ts$",
       ".*context-id\\.decorator\\.ts$",
       ".*current-user\\.decorator\\.ts$",
