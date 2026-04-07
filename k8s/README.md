@@ -23,6 +23,20 @@ Este diretório contém os manifests Kubernetes para deploy da aplicação gds.
 - **Frontend**: `gds.com`, `www.gds.com`
 - **Backend API**: `api.gds.com`
 
+## Backend — OpenTelemetry
+
+Variáveis alinhadas a `backend/.env.example` vêm do ConfigMap `gds-backend-otel` (`configmaps.yaml`), injetadas no `gds-backend` via `envFrom`. O deployment define ainda `OTEL_SERVICE_INSTANCE_ID` com o **nome do pod** (Downward API), equivalente a um id de instância estável por réplica.
+
+| Chave | Notas |
+|-------|--------|
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | **Vazio por defeito** — SDK desligado. Preencha com o URL do collector (ex.: `https://gds-otel.exemplo.com.br`) e `kubectl apply -f configmaps.yaml` + restart do deployment. |
+| `OTEL_SERVICE_NAME` | `gds-backend` |
+| `OTEL_METRIC_EXPORT_INTERVAL` | ms entre exportações de métricas |
+| `OTEL_EXPORT_ERROR_LOGS_TO_LOKI` | `true` / `false` — logs Pino `error`/`fatal` via OTLP |
+
+Para desligar o SDK mesmo com endpoint definido, acrescente ao ConfigMap `OTEL_SDK_DISABLED: "true"`. Endpoints só de traces ou só de métricas (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`) podem ser adicionados ao mesmo ConfigMap se precisar; ver `.env.example`.
+
 ## Bancos de Dados
 
 A aplicação usa dois bancos PostgreSQL:

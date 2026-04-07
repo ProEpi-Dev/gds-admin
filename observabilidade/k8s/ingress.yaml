@@ -1,0 +1,69 @@
+# Ingress para Grafana e OTLP HTTP — mesmo padrão que Metabase (ingress-nginx + cert-manager).
+#
+# Pré-requisitos:
+# - Ingress controller com class "nginx" (ex.: ingress-nginx)
+# - cert-manager + ClusterIssuer "letsencrypt-prod"
+# - DNS dos hosts a apontar para o IP do Ingress
+#
+# Antes de aplicar: ajuste hosts/secretName TLS se mudar domínios.
+# OTLP: whitelist = VPS do backend (app). Para mais IPs: "212.85.20.154/32,outro/32"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gds-grafana-ingress
+  namespace: gds-observabilidade
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - gds-grafana.maolabs.com.br
+      secretName: gds-grafana-tls
+  rules:
+    - host: gds-grafana.maolabs.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-lgtm
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gds-otel-ingress
+  namespace: gds-observabilidade
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Só esta origem acede ao OTLP HTTP (VPS do backend gds-admin). Let's Encrypt HTTP-01 usa outro Ingress do cert-manager.
+    nginx.ingress.kubernetes.io/whitelist-source-range: "212.85.20.154/32"
+    # OTLP pode enviar lotes grandes / ligações mais longas
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - gds-otel.maolabs.com.br
+      secretName: gds-otel-tls
+  rules:
+    - host: gds-otel.maolabs.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: otel-lgtm
+                port:
+                  number: 4318
