@@ -64,18 +64,17 @@ if (shouldEnable()) {
 
   sdk.start();
 
-  if (process.env.NODE_ENV !== 'production') {
-    const endpoint =
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
-      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ??
-      process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
-    const logsHint = shouldEmitErrorLogsToLoki()
-      ? ' | logs de erro (error/fatal) → OTLP/Loki'
-      : '';
-    console.log(
-      `[OpenTelemetry] Telemetria ativa (service=${serviceName}, OTLP=${endpoint})${logsHint}`,
-    );
-  }
+  const endpoint =
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
+    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ??
+    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT;
+  const logsHint = shouldEmitErrorLogsToLoki()
+    ? ' | logs de erro (error/fatal) → OTLP/Loki'
+    : '';
+  // Uma linha no arranque (também em production) para confirmar no k8s / agregador de logs
+  console.log(
+    `[OpenTelemetry] Telemetria ativa (service=${serviceName}, OTLP=${endpoint})${logsHint}`,
+  );
 
   const shutdown = () => {
     void sdk.shutdown().catch(() => undefined);

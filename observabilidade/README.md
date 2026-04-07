@@ -42,8 +42,9 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 yarn --cwd ../backend start:dev
 ```
 
-No terminal do `yarn start:dev`, com `NODE_ENV` diferente de `production`, deve aparecer algo como:
-`[OpenTelemetry] Telemetria ativa (service=gds-backend, OTLP=http://127.0.0.1:4318)`.
+No arranque do processo, se o SDK estiver ativo, aparece uma linha como:
+`[OpenTelemetry] Telemetria ativa (service=gds-backend, OTLP=...)`
+(também em **production**, útil para confirmar no k8s / logs).
 
 Se **não** aparecer e também **não** houver erro: o SDK não subiu — em geral faltou exportar `OTEL_EXPORTER_OTLP_ENDPOINT` (ou endpoint por sinal).
 
