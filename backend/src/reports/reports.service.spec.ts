@@ -489,6 +489,25 @@ describe('ReportsService', () => {
         }),
       );
     });
+
+    it('deve aplicar take e orderBy quando limit é informado', async () => {
+      const query: ReportsPointsQueryDto = {
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        limit: 100,
+      };
+
+      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+
+      await service.findPoints(query, 1);
+
+      expect(prismaService.report.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100,
+          orderBy: { created_at: 'desc' },
+        }),
+      );
+    });
   });
 
   describe('findContextReportStreaks', () => {
