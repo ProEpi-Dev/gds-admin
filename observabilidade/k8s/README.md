@@ -48,6 +48,8 @@ kubectl port-forward -n gds-observabilidade svc/otel-lgtm \
 
 - Grafana: <http://localhost:3000> (credenciais por defeito do LGTM, ver [docker-otel-lgtm](https://github.com/grafana/docker-otel-lgtm)).
 
+O `lgtm-stack.yaml` define `GF_AUTH_ANONYMOUS_ENABLED=false` no container para **obrigar login** no Grafana, sem editar `grafana.ini`.
+
 ## Ingress (Grafana + OTLP com filtro de origem)
 
 Alinhado a um Ingress **ingress-nginx** + **cert-manager** (ex.: Metabase: `ingressClassName: nginx`, `cert-manager.io/cluster-issuer: letsencrypt-prod`, `proxy-body-size`, `ssl-redirect`).

@@ -54,6 +54,10 @@ spec:
         - name: otel-lgtm
           image: grafana/otel-lgtm:latest
           imagePullPolicy: Always
+          env:
+            # Grafana: sem login anónimo (equivale a auth.anonymous.enabled no grafana.ini)
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
           ports:
             - containerPort: 3000
             - containerPort: 4040

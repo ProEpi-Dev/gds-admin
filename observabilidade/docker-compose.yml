@@ -12,6 +12,8 @@ services:
   otel-lgtm:
     image: grafana/otel-lgtm:latest
     container_name: gds-otel-lgtm
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     ports:
       - "4000:3000" # Grafana
       - "4317:4317" # OTLP gRPC
