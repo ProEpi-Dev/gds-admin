@@ -14,6 +14,7 @@ import { ReportQueryDto } from './dto/report-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
 import {
   ReportsPointsQueryDto,
+  REPORTS_POINTS_DEFAULT_LIMIT,
   REPORTS_POINTS_MAX_LIMIT,
 } from './dto/reports-points-query.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
@@ -648,24 +649,29 @@ export class ReportsService {
       whereClause.form_version = formVersionFilter;
     }
 
-    const take =
-      query.limit != null
-        ? Math.min(query.limit, REPORTS_POINTS_MAX_LIMIT)
-        : undefined;
+    const take = Math.min(
+      query.limit ?? REPORTS_POINTS_DEFAULT_LIMIT,
+      REPORTS_POINTS_MAX_LIMIT,
+    );
 
-    const reports = await this.prisma.report.findMany({
-      where: whereClause,
-      select: {
-        report_type: true,
-        occurrence_location: true,
-      },
-      ...(take != null
-        ? {
-            take,
-            orderBy: { created_at: 'desc' },
-          }
-        : {}),
-    });
+    const hasFormFilter = !!(query.formId || query.formReference);
+
+    const reports = hasFormFilter
+      ? await this.prisma.report.findMany({
+          where: whereClause,
+          select: {
+            report_type: true,
+            occurrence_location: true,
+          },
+          take,
+          orderBy: { created_at: 'desc' },
+        })
+      : await this.fetchReportPointsRaw(
+          filterContextId,
+          startDate,
+          endDate,
+          take,
+        );
 
     // Filtrar e mapear apenas reports com latitude e longitude válidas
     const points: ReportPointResponseDto[] = [];
@@ -690,6 +696,39 @@ export class ReportsService {
     }
 
     return points;
+  }
+
+  /** Caminho sem filtro de formulário: INNER JOIN + IS NOT NULL (alinhado aos índices; evita LEFT JOIN do Prisma). */
+  private async fetchReportPointsRaw(
+    contextId: number,
+    startDate: Date,
+    endDate: Date,
+    take: number,
+  ): Promise<
+    Array<{
+      report_type: report_type_enum;
+      occurrence_location: Prisma.JsonValue;
+    }>
+  > {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ report_type: string; occurrence_location: Prisma.JsonValue }>
+    >(Prisma.sql`
+      SELECT r.report_type::text AS report_type, r.occurrence_location
+      FROM report r
+      INNER JOIN participation p ON p.id = r.participation_id
+      WHERE r.active = true
+        AND p.active = true
+        AND p.context_id = ${contextId}
+        AND r.created_at >= ${startDate}
+        AND r.created_at <= ${endDate}
+        AND r.occurrence_location IS NOT NULL
+      ORDER BY r.created_at DESC
+      LIMIT ${take}
+    `);
+    return rows.map((row) => ({
+      report_type: row.report_type as report_type_enum,
+      occurrence_location: row.occurrence_location,
+    }));
   }
 
   async findContextReportStreaks(

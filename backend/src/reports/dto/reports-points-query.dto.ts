@@ -2,8 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsDateString, IsOptional, IsString, Max, Min } from 'class-validator';
 
-/** Teto de linhas por pedido no mapa (evita findMany sem limite). */
+/** Teto de linhas por pedido no mapa. */
 export const REPORTS_POINTS_MAX_LIMIT = 50_000;
+
+/** Quando `limit` não vem na query, usa-se este teto (mapa + performance). */
+export const REPORTS_POINTS_DEFAULT_LIMIT = 10_000;
 
 export class ReportsPointsQueryDto {
   @ApiPropertyOptional({
@@ -54,7 +57,7 @@ export class ReportsPointsQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Máximo de reports a carregar do banco (pontos válidos podem ser menos). Recomendado para mapas com muitos dados. Omisso = sem limite no servidor.',
+      `Máximo de reports a carregar (pontos com lat/lng válidos podem ser menos). Omisso = ${REPORTS_POINTS_DEFAULT_LIMIT}. Máximo absoluto = ${REPORTS_POINTS_MAX_LIMIT}.`,
     example: 5000,
     minimum: 1,
     maximum: REPORTS_POINTS_MAX_LIMIT,

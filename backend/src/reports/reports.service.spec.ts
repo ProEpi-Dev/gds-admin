@@ -10,7 +10,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
-import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
+import {
+  ReportsPointsQueryDto,
+  REPORTS_POINTS_DEFAULT_LIMIT,
+} from './dto/reports-points-query.dto';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -81,6 +84,7 @@ describe('ReportsService', () => {
     prismaMock.$transaction = jest.fn(async (callback: any) =>
       callback(prismaMock),
     );
+    prismaMock.$queryRaw = jest.fn().mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -403,7 +407,7 @@ describe('ReportsService', () => {
       ];
 
       jest
-        .spyOn(prismaService.report, 'findMany')
+        .spyOn(prismaService as any, '$queryRaw')
         .mockResolvedValue(reportsWithLocation as any);
 
       const result = await service.findPoints(query, 1);
@@ -419,20 +423,12 @@ describe('ReportsService', () => {
         endDate: '2024-01-31',
       };
 
-      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService as any, '$queryRaw').mockResolvedValue([] as any);
 
       await service.findPoints(query, 1);
 
-      expect(prismaService.report.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            created_at: expect.objectContaining({
-              gte: expect.any(Date),
-              lte: expect.any(Date),
-            }),
-          }),
-        }),
-      );
+      expect(prismaService.$queryRaw).toHaveBeenCalled();
+      expect(prismaService.report.findMany).not.toHaveBeenCalled();
     });
 
     it('deve filtrar por formId quando fornecido', async () => {
@@ -477,23 +473,19 @@ describe('ReportsService', () => {
         endDate: '2024-01-31',
       };
 
-      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService as any, '$queryRaw').mockResolvedValue([] as any);
 
       await service.findPoints(query, 1);
 
-      expect(prismaService.report.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            active: true,
-          }),
-        }),
-      );
+      expect(prismaService.$queryRaw).toHaveBeenCalled();
+      expect(prismaService.report.findMany).not.toHaveBeenCalled();
     });
 
-    it('deve aplicar take e orderBy quando limit é informado', async () => {
+    it('deve aplicar take e orderBy no findMany quando limit e formId', async () => {
       const query: ReportsPointsQueryDto = {
         startDate: '2024-01-01',
         endDate: '2024-01-31',
+        formId: 1,
         limit: 100,
       };
 
@@ -507,6 +499,37 @@ describe('ReportsService', () => {
           orderBy: { created_at: 'desc' },
         }),
       );
+      expect(prismaService.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('deve passar limit ao $queryRaw quando não há filtro de formulário', async () => {
+      const query: ReportsPointsQueryDto = {
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+        limit: 100,
+      };
+
+      jest.spyOn(prismaService as any, '$queryRaw').mockResolvedValue([] as any);
+
+      await service.findPoints(query, 1);
+
+      const sqlArg = (prismaService as any).$queryRaw.mock.calls[0][0];
+      expect(sqlArg.values).toContain(100);
+      expect(prismaService.report.findMany).not.toHaveBeenCalled();
+    });
+
+    it('deve usar limite padrão no $queryRaw quando limit omitido', async () => {
+      const query: ReportsPointsQueryDto = {
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
+      };
+
+      jest.spyOn(prismaService as any, '$queryRaw').mockResolvedValue([] as any);
+
+      await service.findPoints(query, 1);
+
+      const sqlArg = (prismaService as any).$queryRaw.mock.calls[0][0];
+      expect(sqlArg.values).toContain(REPORTS_POINTS_DEFAULT_LIMIT);
     });
   });
 
