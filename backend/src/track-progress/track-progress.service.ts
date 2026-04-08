@@ -11,10 +11,14 @@ import { UpdateSequenceProgressDto } from './dto/update-sequence-progress.dto';
 import { TrackProgressQueryDto } from './dto/track-progress-query.dto';
 import { TrackExecutionsQueryDto } from './dto/track-executions-query.dto';
 import { progress_status_enum, track_cycle_status_enum } from '@prisma/client';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 @Injectable()
 export class TrackProgressService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessMetrics: BusinessMetricsService,
+  ) {}
 
   /**
    * Converte progress_percentage (Decimal do Prisma) para number na serialização JSON
@@ -139,6 +143,7 @@ export class TrackProgressService {
       });
     }
 
+    this.businessMetrics.recordTrackProgressStarted();
     return this.serializeProgressPercentage(trackProgress);
   }
 

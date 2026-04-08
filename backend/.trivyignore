@@ -23,3 +23,24 @@ CVE-2023-45853
 # Governança: revisar obrigatoriamente ao atualizar a imagem base ou mensalmente.
 # -----------------------------------------------------------------------------
 CVE-2026-0861
+
+# -----------------------------------------------------------------------------
+# CVE-2026-29111 (libsystemd0, libudev1 — systemd)
+# -----------------------------------------------------------------------------
+# Debian security-tracker: bookworm marcado como vulnerable; nota "<no-dsa>
+# (Minor issue)" — sem upload corrigido em stable. `apt-get full-upgrade` na
+# imagem não resolve até novo pacote. Container Node não corre systemd como PID 1.
+# https://security-tracker.debian.org/tracker/CVE-2026-29111
+# Revisão: ao mudar base (ex. trixie) ou quando bookworm receber DSA.
+# -----------------------------------------------------------------------------
+CVE-2026-29111
+
+# -----------------------------------------------------------------------------
+# CVE-2025-69720 (libtinfo6, ncurses-base, ncurses-bin)
+# -----------------------------------------------------------------------------
+# Debian security-tracker: bookworm 6.4-4 vulnerable; fix só em sid; bookworm
+# "<no-dsa> (Minor issue)". Sem mitigação via apt em Bookworm.
+# https://security-tracker.debian.org/tracker/CVE-2025-69720
+# Revisão: com cada bump de node:*-bookworm-slim ou migração de base OS.
+# -----------------------------------------------------------------------------
+CVE-2025-69720

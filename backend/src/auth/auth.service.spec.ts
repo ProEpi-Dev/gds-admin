@@ -17,6 +17,7 @@ import { LegalDocumentsService } from '../legal-documents/legal-documents.servic
 import { getLoggerToken } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
 import { BCRYPT_ROUNDS } from './constants/password.constants';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 const mockPinoLogger = {
   setContext: jest.fn(),
@@ -38,6 +39,7 @@ describe('AuthService', () => {
   let legalDocumentsService: LegalDocumentsService;
   let mailService: MailService;
   let configService: ConfigService;
+  let businessMetrics: BusinessMetricsService;
 
   const mockUser = {
     id: 1,
@@ -145,6 +147,13 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: BusinessMetricsService,
+          useValue: {
+            recordAuthLogin: jest.fn(),
+            recordAuthSignupCompleted: jest.fn(),
+          },
+        },
+        {
           provide: getLoggerToken(AuthService.name),
           useValue: mockPinoLogger,
         },
@@ -159,6 +168,7 @@ describe('AuthService', () => {
     );
     mailService = module.get<MailService>(MailService);
     configService = module.get<ConfigService>(ConfigService);
+    businessMetrics = module.get<BusinessMetricsService>(BusinessMetricsService);
   });
 
   describe('validateUser', () => {
@@ -277,6 +287,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('defaultForms');
       expect(jwtService.sign).toHaveBeenCalled();
       expect(prismaService.user_refresh_token.create).toHaveBeenCalled();
+      expect(businessMetrics.recordAuthLogin).toHaveBeenCalledWith('success');
     });
 
     it('deve calcular expiração do refresh com JWT_REFRESH_EXPIRES_IN (ex.: 30m)', async () => {
@@ -337,6 +348,7 @@ describe('AuthService', () => {
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
+      expect(businessMetrics.recordAuthLogin).toHaveBeenCalledWith('failure');
     });
 
     it('deve retornar participação ativa quando existe', async () => {
@@ -675,6 +687,7 @@ describe('AuthService', () => {
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
       expect(result.participation.contextId).toBe(1);
+      expect(businessMetrics.recordAuthSignupCompleted).toHaveBeenCalled();
     });
 
     it('deve lançar ConflictException se email já existe', async () => {

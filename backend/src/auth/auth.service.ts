@@ -20,6 +20,7 @@ import { LegalDocumentsService } from '../legal-documents/legal-documents.servic
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { BCRYPT_ROUNDS } from './constants/password.constants';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 @Injectable()
 export class AuthService {
@@ -74,6 +75,7 @@ export class AuthService {
     private legalDocumentsService: LegalDocumentsService,
     private mailService: MailService,
     private configService: ConfigService,
+    private readonly businessMetrics: BusinessMetricsService,
     @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -81,13 +83,20 @@ export class AuthService {
     loginDto: LoginDto,
     clientIp?: string,
   ): Promise<LoginResponseDto> {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    let user: Awaited<ReturnType<AuthService['validateUser']>>;
+    try {
+      user = await this.validateUser(loginDto.email, loginDto.password);
+    } catch (err) {
+      this.businessMetrics.recordAuthLogin('failure');
+      throw err;
+    }
 
     if (!user) {
       this.logger.warn(
         { event: 'LOGIN_FAILED', email: loginDto.email, ip: clientIp ?? 'n/a' },
         'Credenciais inválidas',
       );
+      this.businessMetrics.recordAuthLogin('failure');
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -156,6 +165,7 @@ export class AuthService {
     // Buscar formulários padrão
     const defaultForms = await this.getDefaultForms();
 
+    this.businessMetrics.recordAuthLogin('success');
     return {
       token,
       refreshToken,
@@ -427,6 +437,8 @@ export class AuthService {
 
       return { user, participation, acceptances };
     });
+
+    this.businessMetrics.recordAuthSignupCompleted();
 
     // 6. Gerar JWT e refresh token
     const accessToken = this.generateToken(result.user);

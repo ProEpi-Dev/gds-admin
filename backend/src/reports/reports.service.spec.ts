@@ -14,12 +14,14 @@ import {
   ReportsPointsQueryDto,
   REPORTS_POINTS_DEFAULT_LIMIT,
 } from './dto/reports-points-query.dto';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 describe('ReportsService', () => {
   let service: ReportsService;
   let moduleRef: TestingModule;
   let prismaService: PrismaService;
   let prismaMock: any;
+  let businessMetrics: BusinessMetricsService;
 
   const mockReport = {
     id: 1,
@@ -101,12 +103,17 @@ describe('ReportsService', () => {
             resolveListContextId: jest.fn().mockResolvedValue(1),
           },
         },
+        {
+          provide: BusinessMetricsService,
+          useValue: { recordReportCreated: jest.fn() },
+        },
       ],
     }).compile();
 
     moduleRef = module;
     service = module.get<ReportsService>(ReportsService);
     prismaService = module.get<PrismaService>(PrismaService);
+    businessMetrics = module.get<BusinessMetricsService>(BusinessMetricsService);
   });
 
   describe('create', () => {
@@ -132,6 +139,7 @@ describe('ReportsService', () => {
       const result = await service.create(createDto, 1);
 
       expect(result).toHaveProperty('id', 1);
+      expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE');
     });
 
     it('deve validar participation e formVersion', async () => {

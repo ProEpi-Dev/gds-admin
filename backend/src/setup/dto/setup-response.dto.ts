@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 
-export class ContextResponseDto {
+/** Contexto devolvido pelo setup (schema Swagger distinto de `contexts/dto/context-response.dto`). */
+export class SetupContextResponseDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })
   id: number;
 
@@ -37,9 +38,9 @@ export class SetupResponseDto {
 
   @ApiProperty({
     description: 'Contexto padrão criado',
-    type: ContextResponseDto,
+    type: SetupContextResponseDto,
   })
-  context: ContextResponseDto;
+  context: SetupContextResponseDto;
 
   @ApiProperty({
     description: 'Usuário manager padrão criado',

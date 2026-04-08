@@ -11,7 +11,9 @@ FROM node:${NODE_VERSION}-bookworm AS builder
 
 WORKDIR /app
 
+# full-upgrade: aplica security updates do snapshot Debian (bookworm / bookworm-security).
 RUN apt-get update \
+    && apt-get full-upgrade -y \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,8 +41,10 @@ FROM node:${NODE_VERSION}-bookworm-slim AS production
 
 WORKDIR /app
 
+# Mesmo padrão do builder: pacotes corrigíveis via apt (CVEs sem DSA em Bookworm
+# continuam documentados em .trivyignore — ver security-tracker.debian.org).
 RUN apt-get update \
-    && apt-get upgrade -y \
+    && apt-get full-upgrade -y \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
