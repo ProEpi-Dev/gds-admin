@@ -13,6 +13,7 @@ import { AuthzService } from '../authz/authz.service';
 import { CreateParticipationDto } from './dto/create-participation.dto';
 import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 describe('ParticipationsService', () => {
   let service: ParticipationsService;
@@ -44,6 +45,10 @@ describe('ParticipationsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ParticipationsService,
+        {
+          provide: BusinessMetricsService,
+          useValue: { recordParticipationCreated: jest.fn() },
+        },
         {
           provide: PrismaService,
           useValue: {

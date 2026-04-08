@@ -441,6 +441,18 @@ describe('AuthzService', () => {
       expect(prisma.participation.findMany).not.toHaveBeenCalled();
     });
 
+    it('admin com requestContextId null usa contexto_usado_na_checagem "nenhum"', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: { code: 'admin' },
+      });
+
+      const diag = await service.getPermissionDiagnosticsForLog(1, null);
+
+      expect(diag.contexto_usado_na_checagem).toBe('nenhum');
+      expect(diag.nota).toContain('admin global');
+      expect(prisma.participation.findMany).not.toHaveBeenCalled();
+    });
+
     it('deve incluir nota quando não há contextId na requisição', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         role: { code: 'participant' },

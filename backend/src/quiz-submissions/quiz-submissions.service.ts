@@ -18,6 +18,7 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 interface QuizQuestionOption {
   label: string;
@@ -56,6 +57,7 @@ export class QuizSubmissionsService {
     private prisma: PrismaService,
     private trackProgressService: TrackProgressService,
     private authz: AuthzService,
+    private readonly businessMetrics: BusinessMetricsService,
   ) {}
 
   /**
@@ -271,6 +273,10 @@ export class QuizSubmissionsService {
       }
     }
 
+    this.businessMetrics.recordQuizSubmissionCreated({
+      completed: !!completedAt,
+      passed: isPassed,
+    });
     return this.mapToResponseDto(quizSubmission);
   }
 

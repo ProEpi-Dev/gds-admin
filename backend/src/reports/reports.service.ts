@@ -27,6 +27,7 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
 
@@ -37,6 +38,7 @@ export class ReportsService {
   constructor(
     private prisma: PrismaService,
     private authz: AuthzService,
+    private readonly businessMetrics: BusinessMetricsService,
   ) {}
 
   /**
@@ -336,6 +338,8 @@ export class ReportsService {
     }
 
     const report = await this.prisma.report.create({ data });
+
+    this.businessMetrics.recordReportCreated(createReportDto.reportType);
 
     try {
       await this.refreshParticipationReportMetrics(

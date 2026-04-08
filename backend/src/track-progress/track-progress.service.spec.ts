@@ -7,6 +7,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 describe('TrackProgressService', () => {
   let service: TrackProgressService;
@@ -43,6 +44,10 @@ describe('TrackProgressService', () => {
       providers: [
         TrackProgressService,
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: BusinessMetricsService,
+          useValue: { recordTrackProgressStarted: jest.fn() },
+        },
       ],
     }).compile();
 

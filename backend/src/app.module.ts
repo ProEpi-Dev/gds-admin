@@ -26,6 +26,7 @@ import { TrackProgressModule } from './track-progress/track-progress.module';
 import { LegalDocumentsModule } from './legal-documents/legal-documents.module';
 import { GendersModule } from './genders/genders.module';
 import { MailModule } from './mail/mail.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { AuthzModule } from './authz/authz.module';
 import { RolesModule } from './roles/roles.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -42,6 +43,7 @@ const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    TelemetryModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',

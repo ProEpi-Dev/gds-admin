@@ -7,10 +7,12 @@ import { CreateQuizSubmissionDto } from './dto/create-quiz-submission.dto';
 import { UpdateQuizSubmissionDto } from './dto/update-quiz-submission.dto';
 import { QuizSubmissionQueryDto } from './dto/quiz-submission-query.dto';
 import { TrackProgressService } from '../track-progress/track-progress.service';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 describe('QuizSubmissionsService', () => {
   let service: QuizSubmissionsService;
   let prismaService: PrismaService;
+  let businessMetrics: BusinessMetricsService;
 
   const mockParticipation = {
     id: 1,
@@ -138,11 +140,16 @@ describe('QuizSubmissionsService', () => {
             getManagedContextIds: jest.fn().mockResolvedValue([1]),
           },
         },
+        {
+          provide: BusinessMetricsService,
+          useValue: { recordQuizSubmissionCreated: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get<QuizSubmissionsService>(QuizSubmissionsService);
     prismaService = module.get<PrismaService>(PrismaService);
+    businessMetrics = module.get<BusinessMetricsService>(BusinessMetricsService);
     jest.clearAllMocks();
   });
 
@@ -177,6 +184,10 @@ describe('QuizSubmissionsService', () => {
       expect(result).toHaveProperty('score', 100);
       expect(result).toHaveProperty('isPassed', true);
       expect(prismaService.quiz_submission.create).toHaveBeenCalled();
+      expect(businessMetrics.recordQuizSubmissionCreated).toHaveBeenCalledWith({
+        completed: true,
+        passed: true,
+      });
     });
 
     it('deve aceitar multiselect com mesma escolha em ordem diferente', async () => {

@@ -69,6 +69,10 @@ O dashboard mistura **TraceQL metrics** (séries RED e quebras por span) e **tab
 
 Importe `grafana/dashboards/gds-api-prometheus.json` (datasource **Prometheus**, uid `prometheus`). O Node OTel por omissão expõe **`http_server_duration_milliseconds_*`** e labels **`http_method`** / **`http_status_code`** (não os nomes da semconv estável). O dashboard usa isso nos painéis principais; `http_server_request_duration_seconds_*` está numa secção opcional. Filtro por **`job`**. Reimporte o JSON após atualizações.
 
+### Dashboard Prometheus (métricas de negócio)
+
+Importe `grafana/dashboards/gds-business-prometheus.json` — seis contadores emitidos pelo backend (`BusinessMetricsService`: participações, signup, trilha, login, relatórios, quizzes). Confirme os nomes `gds_*_total` em **Explore** se o pipeline OTLP usar prefixos diferentes.
+
 ## Parar
 
 ```bash

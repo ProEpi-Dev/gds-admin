@@ -1,31 +1,56 @@
+import { inspect } from 'node:util';
 import { context, trace } from '@opentelemetry/api';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 import type { LogAttributes } from '@opentelemetry/api-logs';
+import {
+  hasOtlpExporterEndpointEnv,
+  isErrorLogsToLokiDisabledByFlag,
+  isJestWorkerEnv,
+  isOtelSdkDisabledEnv,
+} from './telemetry/otel-runtime-env';
 
 const PINO_ERROR = 50;
 const PINO_FATAL = 60;
 
-/** Mesma base que `tracing.ts` usa para subir o SDK (sem só endpoint de logs). */
-function hasOtlpSdkBase(): boolean {
-  return !!(
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
-    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
-    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-  );
-}
-
 /** Exporta só níveis error/fatal do Pino para Loki via OTLP (collector → Loki). */
 export function shouldEmitErrorLogsToLoki(): boolean {
-  if (process.env.OTEL_SDK_DISABLED === 'true' || process.env.OTEL_SDK_DISABLED === '1') {
+  if (isOtelSdkDisabledEnv()) {
     return false;
   }
-  if (process.env.JEST_WORKER_ID !== undefined) {
+  if (isJestWorkerEnv()) {
     return false;
   }
-  if (process.env.OTEL_EXPORT_ERROR_LOGS_TO_LOKI === 'false' || process.env.OTEL_EXPORT_ERROR_LOGS_TO_LOKI === '0') {
+  if (isErrorLogsToLokiDisabledByFlag()) {
     return false;
   }
-  return hasOtlpSdkBase();
+  return hasOtlpExporterEndpointEnv();
+}
+
+function formatArgForLogBody(arg: unknown): string {
+  if (arg === null) {
+    return 'null';
+  }
+  const t = typeof arg;
+  if (t === 'string') {
+    return arg as string;
+  }
+  if (t === 'number') {
+    return (arg as number).toString();
+  }
+  if (t === 'boolean') {
+    return (arg as boolean) ? 'true' : 'false';
+  }
+  if (t === 'bigint') {
+    return (arg as bigint).toString();
+  }
+  if (t === 'symbol') {
+    return (arg as symbol).toString();
+  }
+  if (t === 'function') {
+    const fn = arg as (...args: unknown[]) => unknown;
+    return `[Function: ${fn.name || 'anonymous'}]`;
+  }
+  return inspect(arg, { depth: 6, breakLength: 120, maxStringLength: 2_000 });
 }
 
 function serializePinoArgs(args: unknown[]): { body: string; attributes: LogAttributes } {
@@ -45,10 +70,10 @@ function serializePinoArgs(args: unknown[]): { body: string; attributes: LogAttr
       try {
         parts.push(JSON.stringify(arg));
       } catch {
-        parts.push(String(arg));
+        parts.push(formatArgForLogBody(arg));
       }
     } else if (arg !== undefined) {
-      parts.push(String(arg));
+      parts.push(formatArgForLogBody(arg));
     }
   }
 

@@ -20,6 +20,7 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 import { Prisma } from '@prisma/client';
+import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 function participationListOrderBy(
   sort?: string,
@@ -45,6 +46,7 @@ export class ParticipationsService {
   constructor(
     private prisma: PrismaService,
     private authz: AuthzService,
+    private readonly businessMetrics: BusinessMetricsService,
   ) {}
 
   async create(
@@ -157,6 +159,7 @@ export class ParticipationsService {
       return p;
     });
 
+    this.businessMetrics.recordParticipationCreated();
     return this.mapToResponseDto(participation);
   }
 
