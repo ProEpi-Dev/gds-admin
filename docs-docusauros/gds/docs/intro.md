@@ -32,6 +32,7 @@ A aplicação web de administração oferece as seguintes funcionalidades para g
 - **Contextos**: Organização de comunidades, instituições e grupos de trabalho (ex: universidades, bairros)
 - **Conteúdo Educacional**: Sistema de artigos e materiais educacionais sobre saúde pública
 - **Formulários de Vigilância**: Criação e gerenciamento de formulários para registro de sinais e sintomas
+- **Dados adicionais de perfil (`profile_extra`)**: Formulários por contexto para o app do cidadão; documentação de API e fluxo em [Dados adicionais de perfil](/arquitetura/modelagem-banco-dados/dados-adicionais-perfil)
 - **Relatórios Epidemiológicos**: Geração e análise de relatórios de saúde pública
 - **Quizzes Educacionais**: Criação e gerenciamento de avaliações e questionários sobre saúde pública
 - **Trilhas de Aprendizado**: Estruturação de conteúdo educacional em trilhas para capacitação
@@ -80,4 +81,4 @@ Para começar a explorar a documentação, recomendamos:
 
 ---
 
-**Última atualização**: Fevereiro 2026
+**Última atualização**: Abril 2026

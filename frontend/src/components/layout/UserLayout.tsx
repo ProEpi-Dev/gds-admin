@@ -14,10 +14,16 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Logout as LogoutIcon, Lock as LockIcon, Person as PersonIcon } from '@mui/icons-material';
+import {
+  Logout as LogoutIcon,
+  Lock as LockIcon,
+  Person as PersonIcon,
+  Home as HomeIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useUserRole } from '../../hooks/useUserRole';
+import { useTranslation } from '../../hooks/useTranslation';
 
 function getRoleLabel(
   isAdmin: boolean,
@@ -39,6 +45,7 @@ interface UserLayoutProps {
 export default function UserLayout({ children }: UserLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
     useUserRole();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -55,6 +62,11 @@ export default function UserLayout({ children }: UserLayoutProps) {
   const handleProfile = () => {
     handleClose();
     navigate('/app/profile');
+  };
+
+  const handleHome = () => {
+    handleClose();
+    navigate('/app/welcome');
   };
 
   const handleChangePassword = () => {
@@ -82,7 +94,19 @@ export default function UserLayout({ children }: UserLayoutProps) {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="fixed">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography
+            variant="h6"
+            component={RouterLink}
+            to="/app/welcome"
+            sx={{
+              flexGrow: 1,
+              color: 'inherit',
+              textDecoration: 'none',
+              fontWeight: 600,
+              '&:hover': { opacity: 0.92 },
+            }}
+            aria-label={t('userLayout.goHomeAria')}
+          >
             Guardiões da Saúde
           </Typography>
 
@@ -141,6 +165,10 @@ export default function UserLayout({ children }: UserLayoutProps) {
                 )}
               </Box>
               <Divider />
+              <MenuItem onClick={handleHome}>
+                <HomeIcon sx={{ mr: 1, fontSize: 20 }} />
+                {t('userLayout.home')}
+              </MenuItem>
               <MenuItem onClick={handleProfile}>
                 <PersonIcon sx={{ mr: 1, fontSize: 20 }} />
                 Meu Perfil

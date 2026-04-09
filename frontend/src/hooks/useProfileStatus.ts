@@ -15,6 +15,8 @@ export function useProfileStatus(enabled = true) {
     isComplete: data?.isComplete ?? false,
     missingFields: data?.missingFields ?? [],
     profile: data?.profile ?? { genderId: null, locationId: null, externalIdentifier: null },
+    profileExtraRequired: data?.profileExtraRequired ?? false,
+    profileExtraComplete: data?.profileExtraComplete ?? true,
     isLoading,
     error,
     refetch,

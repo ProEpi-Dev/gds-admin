@@ -24,11 +24,12 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import type { FormField, FieldType, ConditionOperator, FieldCondition } from '../../types/form-builder.types';
+import type { FormType } from '../../types/form.types';
 
 interface FieldEditorProps {
   field: FormField;
   allFields: FormField[];
-  formType?: "quiz" | "signal";
+  formType?: FormType;
   onChange: (field: FormField) => void;
   onDelete: () => void;
 }

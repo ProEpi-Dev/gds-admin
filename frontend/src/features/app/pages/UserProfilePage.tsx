@@ -1,9 +1,11 @@
-import { Box, Typography, TextField, Button, CircularProgress, Paper, Chip, Divider } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, TextField, Button, CircularProgress, Paper, Chip, Divider, Alert } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../../api/services/users.service';
+import { participationProfileExtraService } from '../../../api/services/participation-profile-extra.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSnackbar } from '../../../hooks/useSnackbar';
 import { getErrorMessage } from '../../../utils/errorHandler';
@@ -11,6 +13,8 @@ import { useTranslation } from '../../../hooks/useTranslation';
 import SelectGender from '../../../components/common/SelectGender';
 import SelectLocation from '../../../components/common/SelectLocation';
 import UserLayout from '../../../components/layout/UserLayout';
+import ProfileExtraFormSection from '../components/ProfileExtraFormSection';
+import { resolveProfileExtraPayload } from '../utils/profileExtraPayload';
 import type { UpdateProfileDto } from '../../../types/user.types';
 
 const profileSchema = z.object({
@@ -25,10 +29,18 @@ export default function UserProfilePage() {
   const { user } = useAuth();
   const snackbar = useSnackbar();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
+  const [extraError, setExtraError] = useState<string | null>(null);
 
   const { data: profileStatus, isLoading: statusLoading, refetch } = useQuery({
     queryKey: ['profile-status'],
     queryFn: () => usersService.getProfileStatus(),
+  });
+
+  const { data: profileExtraMe } = useQuery({
+    queryKey: ['participation-profile-extra-me'],
+    queryFn: () => participationProfileExtraService.getMe(),
   });
 
   const {
@@ -42,6 +54,34 @@ export default function UserProfilePage() {
       genderId: profileStatus?.profile.genderId ?? undefined,
       locationId: profileStatus?.profile.locationId ?? undefined,
       externalIdentifier: profileStatus?.profile.externalIdentifier || '',
+    },
+  });
+
+  const saveProfileExtraMutation = useMutation({
+    mutationFn: async () => {
+      const me = await queryClient.fetchQuery({
+        queryKey: ['participation-profile-extra-me'],
+        queryFn: () => participationProfileExtraService.getMe(),
+      });
+      const resolved = resolveProfileExtraPayload(me, extraValues);
+      if ('error' in resolved || !me?.form) {
+        throw new Error(t('profile.profileExtraInvalid'));
+      }
+      await participationProfileExtraService.saveMe({
+        formVersionId: me.form.version.id,
+        formResponse: resolved.ok,
+      });
+    },
+    onSuccess: async () => {
+      snackbar.showSuccess(t('profile.profileExtraSaved'));
+      setExtraError(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['participation-profile-extra-me'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile-status'] }),
+      ]);
+    },
+    onError: (err: unknown) => {
+      snackbar.showError(getErrorMessage(err, t('profile.profileExtraInvalid')));
     },
   });
 
@@ -173,6 +213,39 @@ export default function UserProfilePage() {
             {updateProfileMutation.isPending ? <CircularProgress size={24} /> : 'Atualizar Perfil'}
           </Button>
         </Box>
+
+        <ProfileExtraFormSection onValuesChange={setExtraValues} />
+
+        {profileExtraMe?.form && (
+          <Box sx={{ mt: 2 }}>
+            {extraError && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setExtraError(null)}>
+                {extraError}
+              </Alert>
+            )}
+            <Button
+              fullWidth
+              variant="outlined"
+              size="large"
+              disabled={saveProfileExtraMutation.isPending}
+              onClick={() => {
+                setExtraError(null);
+                const resolved = resolveProfileExtraPayload(profileExtraMe, extraValues);
+                if ('error' in resolved) {
+                  setExtraError(t('profile.profileExtraInvalid'));
+                  return;
+                }
+                saveProfileExtraMutation.mutate();
+              }}
+            >
+              {saveProfileExtraMutation.isPending ? (
+                <CircularProgress size={24} />
+              ) : (
+                t('profile.profileExtraSave')
+              )}
+            </Button>
+          </Box>
+        )}
       </Paper>
     </UserLayout>
   );

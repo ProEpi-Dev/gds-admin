@@ -12,6 +12,7 @@ O diagrama completo abaixo é extenso. Para uma visão mais detalhada de cada pa
 - [Papéis e Permissões (RBAC)](papeis-permissoes-rbac) - Controle de acesso: roles, permissions, participation_role
 - [Conteúdo e Tags](conteudo-tags) - Artigos, materiais educacionais e sistema de tags
 - [Formulários e Relatórios](formularios-relatorios) - Formulários, versões, relatórios e quizzes
+- [Dados adicionais de perfil](dados-adicionais-perfil) - Formulário `profile_extra`, API e fluxo para apps (Android/iOS) e web
 - [Trilhas de Aprendizado](trilhas-aprendizado) - Trilhas, seções e sequências
 
 :::
@@ -49,6 +50,9 @@ erDiagram
     ROLE ||--o{ PARTICIPATION_ROLE : "assigned"
     PARTICIPATION ||--o{ REPORT : "generates"
     PARTICIPATION ||--o{ QUIZ_SUBMISSION : "submits"
+    PARTICIPATION ||--o{ PARTICIPATION_PROFILE_EXTRA : "has"
+    FORM ||--o{ PARTICIPATION_PROFILE_EXTRA : "defines"
+    FORM_VERSION ||--o{ PARTICIPATION_PROFILE_EXTRA : "submitted_as"
     
     CONTENT ||--o{ CONTENT_TAG : "tagged"
     CONTENT ||--o{ CONTENT_QUIZ : "has"
@@ -289,6 +293,17 @@ erDiagram
         boolean active
     }
     
+    PARTICIPATION_PROFILE_EXTRA {
+        int id PK
+        int participation_id FK
+        int form_id FK
+        int form_version_id FK
+        json response
+        datetime created_at
+        datetime updated_at
+        boolean active
+    }
+    
     LEGAL_DOCUMENT_TYPE {
         int id PK
         string code UK
@@ -350,10 +365,11 @@ erDiagram
 
 ### Formulários e Relatórios
 
-- **FORM**: Formulários do tipo "signal" (sinais) ou "quiz" (questionários)
+- **FORM**: Formulários do tipo "signal" (sinais), "quiz" (questionários) ou "profile_extra" (dados adicionais de perfil)
 - **FORM_VERSION**: Versões de formulários com definição JSON e configurações de quiz
 - **REPORT**: Relatórios gerados a partir de formulários do tipo "signal"
 - **QUIZ_SUBMISSION**: Submissões de quizzes com pontuação e resultados detalhados
+- **PARTICIPATION_PROFILE_EXTRA**: Respostas do formulário `profile_extra` por participação; detalhes e API em [Dados adicionais de perfil](dados-adicionais-perfil)
 
 ### Trilhas de Aprendizado
 
@@ -377,7 +393,7 @@ erDiagram
 ## Enums
 
 - **context_access_type**: `PUBLIC`, `PRIVATE`
-- **form_type_enum**: `signal`, `quiz`
+- **form_type_enum**: `signal`, `quiz`, `profile_extra`
 - **form_version_access_type**: `PUBLIC`, `PRIVATE`
 - **report_type_enum**: `POSITIVE`, `NEGATIVE`
 
@@ -386,8 +402,9 @@ erDiagram
 1. **Hierarquia de Localizações**: `LOCATION` → `LOCATION` (auto-relacionamento)
 2. **Usuário → Contexto**: Via `PARTICIPATION` e `PARTICIPATION_ROLE` (papéis por contexto); papel global em `USER.role_id`
 3. **Formulários → Relatórios**: Via `FORM_VERSION` → `REPORT`
-4. **Trilhas**: `TRACK` → `SECTION` → `SEQUENCE` → (`CONTENT` ou `FORM`)
-5. **Conteúdo → Quiz**: Via `CONTENT_QUIZ` (N:N)
+4. **Formulários → Dados adicionais de perfil**: `PARTICIPATION` + `FORM` (`profile_extra`) → `PARTICIPATION_PROFILE_EXTRA` (versão em `form_version_id`)
+5. **Trilhas**: `TRACK` → `SECTION` → `SEQUENCE` → (`CONTENT` ou `FORM`)
+6. **Conteúdo → Quiz**: Via `CONTENT_QUIZ` (N:N)
 
 ## Índices e Performance
 

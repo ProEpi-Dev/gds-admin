@@ -31,7 +31,7 @@ import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 import FormPreview from "../../../components/form-builder/FormPreview";
 import { useTranslation } from "../../../hooks/useTranslation";
-import type { Form } from "../../../types/form.types";
+import type { Form, FormType } from "../../../types/form.types";
 
 export default function FormsListPage() {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ export default function FormsListPage() {
       page,
       pageSize,
       active: activeFilter,
-      type: typeFilter as "signal" | "quiz" | undefined,
+      type: typeFilter as FormType | undefined,
       contextId: currentContext?.id,
     },
     { enabled: currentContext?.id != null }
@@ -121,7 +121,13 @@ export default function FormsListPage() {
       mobileLabel: t("forms.type"),
       render: (row) => (
         <Chip
-          label={row.type === "signal" ? t("forms.signal") : t("forms.quiz")}
+          label={
+            row.type === "signal"
+              ? t("forms.signal")
+              : row.type === "quiz"
+                ? t("forms.quiz")
+                : t("forms.profileExtra")
+          }
           size="small"
         />
       ),
@@ -202,7 +208,11 @@ export default function FormsListPage() {
           {
             label: t("forms.type"),
             value:
-              typeFilter === "signal" ? t("forms.signal") : t("forms.quiz"),
+              typeFilter === "signal"
+                ? t("forms.signal")
+                : typeFilter === "quiz"
+                  ? t("forms.quiz")
+                  : t("forms.profileExtra"),
             onDelete: () => setTypeFilter(undefined),
           },
         ]
@@ -281,6 +291,17 @@ export default function FormsListPage() {
             }
           >
             {t("forms.quiz")}
+          </Button>
+          <Button
+            variant={typeFilter === "profile_extra" ? "contained" : "outlined"}
+            size="small"
+            onClick={() =>
+              setTypeFilter(
+                typeFilter === "profile_extra" ? undefined : "profile_extra",
+              )
+            }
+          >
+            {t("forms.profileExtra")}
           </Button>
         </Box>
 

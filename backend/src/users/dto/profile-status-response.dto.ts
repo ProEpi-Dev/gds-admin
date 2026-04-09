@@ -42,4 +42,18 @@ export class ProfileStatusResponseDto {
     type: ProfileDataDto,
   })
   profile: ProfileDataDto;
+
+  @ApiProperty({
+    description:
+      'Se o contexto possui formulário profile_extra ativo, o preenchimento passa a ser obrigatório',
+    example: false,
+  })
+  profileExtraRequired: boolean;
+
+  @ApiProperty({
+    description:
+      'Submissão alinhada à versão atual do formulário profile_extra (quando aplicável)',
+    example: true,
+  })
+  profileExtraComplete: boolean;
 }

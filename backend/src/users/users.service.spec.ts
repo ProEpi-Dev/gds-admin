@@ -8,6 +8,7 @@ import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthzService } from '../authz/authz.service';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
+import { ParticipationProfileExtraService } from '../participation-profile-extra/participation-profile-extra.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
@@ -23,6 +24,7 @@ describe('UsersService', () => {
   let moduleRef: TestingModule;
   let prismaService: PrismaService;
   let legalDocumentsService: LegalDocumentsService;
+  let getProfileExtraCompletionMock: jest.Mock;
 
   const mockUser = {
     id: 1,
@@ -38,6 +40,10 @@ describe('UsersService', () => {
   };
 
   beforeEach(async () => {
+    getProfileExtraCompletionMock = jest
+      .fn()
+      .mockResolvedValue({ required: false, complete: true });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -86,6 +92,13 @@ describe('UsersService', () => {
           useValue: {
             findActive: jest.fn(),
             validateDocumentIds: jest.fn(),
+          },
+        },
+        {
+          provide: ParticipationProfileExtraService,
+          useValue: {
+            getProfileExtraCompletion: (...args: unknown[]) =>
+              getProfileExtraCompletionMock(...args),
           },
         },
       ],
@@ -751,6 +764,8 @@ describe('UsersService', () => {
       expect(result.missingFields).toContain('genderId');
       expect(result.missingFields).toContain('locationId');
       expect(result.missingFields).toContain('externalIdentifier');
+      expect(result.profileExtraRequired).toBe(false);
+      expect(result.profileExtraComplete).toBe(true);
     });
 
     it('deve retornar perfil completo quando todos campos preenchidos', async () => {
@@ -771,6 +786,8 @@ describe('UsersService', () => {
       expect(result.profile.genderId).toBe(1);
       expect(result.profile.locationId).toBe(150);
       expect(result.profile.externalIdentifier).toBe('12345678900');
+      expect(result.profileExtraRequired).toBe(false);
+      expect(result.profileExtraComplete).toBe(true);
     });
 
     it('deve lançar NotFoundException quando usuário não existe', async () => {
@@ -779,6 +796,68 @@ describe('UsersService', () => {
       await expect(service.getProfileStatus(999)).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('deve incluir profileExtra em missingFields quando obrigatório e incompleto', async () => {
+      const completeUser = {
+        ...mockUser,
+        gender_id: 1,
+        location_id: 150,
+        external_identifier: '12345678900',
+      };
+      getProfileExtraCompletionMock.mockResolvedValue({
+        required: true,
+        complete: false,
+      });
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(completeUser as any);
+
+      const result = await service.getProfileStatus(1);
+
+      expect(result.isComplete).toBe(false);
+      expect(result.missingFields).toContain('profileExtra');
+      expect(result.profileExtraRequired).toBe(true);
+      expect(result.profileExtraComplete).toBe(false);
+    });
+
+    it('deve manter perfil completo quando profile_extra obrigatório e preenchido', async () => {
+      const completeUser = {
+        ...mockUser,
+        gender_id: 1,
+        location_id: 150,
+        external_identifier: '12345678900',
+      };
+      getProfileExtraCompletionMock.mockResolvedValue({
+        required: true,
+        complete: true,
+      });
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(completeUser as any);
+
+      const result = await service.getProfileStatus(1);
+
+      expect(result.isComplete).toBe(true);
+      expect(result.missingFields).toHaveLength(0);
+      expect(result.profileExtraRequired).toBe(true);
+      expect(result.profileExtraComplete).toBe(true);
+    });
+
+    it('deve acumular profileExtra com campos base faltantes', async () => {
+      getProfileExtraCompletionMock.mockResolvedValue({
+        required: true,
+        complete: false,
+      });
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(mockUser as any);
+
+      const result = await service.getProfileStatus(1);
+
+      expect(result.isComplete).toBe(false);
+      expect(result.missingFields).toContain('genderId');
+      expect(result.missingFields).toContain('profileExtra');
     });
   });
 

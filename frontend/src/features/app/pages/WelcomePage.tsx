@@ -64,7 +64,7 @@ export default function WelcomePage() {
                 {t('welcome.message')}
               </Typography>
               <Chip 
-                label={user.participation.context.name} 
+                label={user.participation.context?.name ?? t('welcome.contextFallback')} 
                 color="primary" 
                 sx={{ 
                   mt: 2, 

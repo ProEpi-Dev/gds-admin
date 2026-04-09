@@ -63,6 +63,8 @@ export interface ProfileStatusResponse {
     locationId: number | null;
     externalIdentifier: string | null;
   };
+  profileExtraRequired: boolean;
+  profileExtraComplete: boolean;
 }
 
 export interface LegalAcceptanceStatusResponse {

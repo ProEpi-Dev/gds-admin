@@ -110,6 +110,10 @@ export const API_ENDPOINTS = {
     DELETE: (formId: number, id: number) => `/forms/${formId}/versions/${id}`,
   },
 
+  PARTICIPATION_PROFILE_EXTRA: {
+    ME: '/participation-profile-extra/me',
+  },
+
   // Reports
   REPORTS: {
     LIST: "/reports",

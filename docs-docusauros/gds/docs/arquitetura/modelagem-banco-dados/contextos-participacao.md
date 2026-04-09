@@ -14,6 +14,7 @@ erDiagram
     
     USER ||--o{ PARTICIPATION : "participates"
     PARTICIPATION ||--o{ PARTICIPATION_ROLE : "has"
+    PARTICIPATION ||--o{ PARTICIPATION_PROFILE_EXTRA : "has"
     ROLE ||--o{ PARTICIPATION_ROLE : "assigned"
     
     CONTEXT {
@@ -42,6 +43,14 @@ erDiagram
     PARTICIPATION_ROLE {
         int participation_id PK,FK
         int role_id PK,FK
+    }
+    
+    PARTICIPATION_PROFILE_EXTRA {
+        int id PK
+        int participation_id FK
+        int form_id FK
+        int form_version_id FK
+        json response
     }
     
     ROLE {
@@ -126,6 +135,7 @@ Os papéis (tabela `role`) incluem `manager`, `content_manager` e `participant` 
 6. **USER → PARTICIPATION**: Um usuário pode participar de múltiplos contextos
 7. **PARTICIPATION → PARTICIPATION_ROLE**: Uma participação pode ter vários papéis (manager, content_manager, participant)
 8. **ROLE → PARTICIPATION_ROLE**: Papéis atribuídos por contexto
+9. **PARTICIPATION → PARTICIPATION_PROFILE_EXTRA**: Dados adicionais de perfil (`profile_extra`) vinculados à participação; modelo e API em [Formulários e Relatórios](formularios-relatorios#participation_profile_extra) e [Dados adicionais de perfil](dados-adicionais-perfil)
 
 ## Regras de Negócio
 

@@ -1,25 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
-
-class ParticipationInfoDto {
-  @ApiProperty({
-    description: 'ID da participação',
-    example: 10,
-  })
-  id: number;
-
-  @ApiProperty({
-    description: 'ID do contexto',
-    example: 1,
-  })
-  contextId: number;
-
-  @ApiProperty({
-    description: 'Data de início da participação',
-    example: '2026-01-16',
-  })
-  startDate: string;
-}
+import { ParticipationLoginDto } from './participation-login.dto';
 
 export class SignupResponseDto {
   @ApiProperty({
@@ -41,8 +22,9 @@ export class SignupResponseDto {
   refreshToken: string;
 
   @ApiProperty({
-    description: 'Informações da participação criada',
-    type: ParticipationInfoDto,
+    description:
+      'Participação criada (mesmo formato do login, incluindo nome do contexto)',
+    type: ParticipationLoginDto,
   })
-  participation: ParticipationInfoDto;
+  participation: ParticipationLoginDto;
 }

@@ -177,7 +177,16 @@ describe('AuthController', () => {
         user: { id: 2, name: 'N', email: 'n@e.com', active: true, createdAt: new Date(), updatedAt: new Date() },
         accessToken: 'jwt',
         refreshToken: 'rt',
-        participation: { id: 1, contextId: 1, startDate: '2025-01-01' },
+        participation: {
+          id: 1,
+          userId: 2,
+          context: { id: 1, name: 'Ctx' },
+          startDate: new Date('2025-01-01'),
+          endDate: null,
+          active: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       };
       jest.spyOn(authService, 'signup').mockResolvedValue(response as any);
 

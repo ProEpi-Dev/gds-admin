@@ -14,12 +14,13 @@ import { v4 as uuidv4 } from 'uuid';
 import FieldEditor from './FieldEditor';
 import FormPreview from './FormPreview';
 import type { FormField, FormBuilderDefinition } from '../../types/form-builder.types';
+import type { FormType } from '../../types/form.types';
 
 interface FormBuilderProps {
   definition?: FormBuilderDefinition;
   onChange?: (definition: FormBuilderDefinition) => void;
   readOnly?: boolean;
-  formType?: "quiz" | "signal";
+  formType?: FormType;
 }
 
 export default function FormBuilder({ definition, onChange, readOnly = false, formType }: FormBuilderProps) {

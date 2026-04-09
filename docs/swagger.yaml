@@ -449,7 +449,7 @@ components:
           nullable: true
         type:
           type: string
-          enum: [signal, quiz]
+          enum: [signal, quiz, profile_extra]
         active:
           type: boolean
           default: true
@@ -481,7 +481,7 @@ components:
           nullable: true
         type:
           type: string
-          enum: [signal, quiz]
+          enum: [signal, quiz, profile_extra]
         active:
           type: boolean
           default: true
@@ -502,7 +502,7 @@ components:
           nullable: true
         type:
           type: string
-          enum: [signal, quiz]
+          enum: [signal, quiz, profile_extra]
         active:
           type: boolean
 
@@ -1382,7 +1382,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [signal, quiz]
+            enum: [signal, quiz, profile_extra]
         - name: active
           in: query
           schema:
