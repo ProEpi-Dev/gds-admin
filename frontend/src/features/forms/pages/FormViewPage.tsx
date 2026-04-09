@@ -118,7 +118,16 @@ export default function FormViewPage() {
               Tipo
             </Typography>
             <Box sx={{ mt: 0.5 }}>
-              <Chip label={form.type === 'signal' ? 'Sinal' : 'Quiz'} size="small" />
+              <Chip
+                label={
+                  form.type === 'signal'
+                    ? 'Sinal'
+                    : form.type === 'quiz'
+                      ? 'Quiz'
+                      : 'Dados adicionais (perfil)'
+                }
+                size="small"
+              />
             </Box>
           </Box>
 

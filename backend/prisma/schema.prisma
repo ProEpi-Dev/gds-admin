@@ -55,9 +55,10 @@ model form {
   updated_at   DateTime       @default(now()) @db.Timestamp(6)
   active       Boolean        @default(true)
   context      context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
-  form_version form_version[]
-  content_quiz content_quiz[]
-  sequence     sequence[]
+  form_version                form_version[]
+  content_quiz                content_quiz[]
+  sequence                    sequence[]
+  participation_profile_extra participation_profile_extra[]
 
   @@index([context_id], map: "idx_form_context_id")
 }
@@ -77,8 +78,9 @@ model form_version {
   updated_at           DateTime                 @default(now()) @db.Timestamp(6)
   active               Boolean                  @default(true)
   form                 form                     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  report               report[]
-  quiz_submission      quiz_submission[]
+  report                      report[]
+  quiz_submission             quiz_submission[]
+  participation_profile_extra participation_profile_extra[]
 
   @@unique([form_id, version_number])
   @@index([form_id], map: "idx_form_version_form_id")
@@ -157,11 +159,29 @@ model participation {
   report           report[]
   participation_report_day    participation_report_day[]
   participation_report_streak participation_report_streak?
-  quiz_submission  quiz_submission[]
-  track_progress   track_progress[]
+  quiz_submission             quiz_submission[]
+  track_progress              track_progress[]
+  participation_profile_extra participation_profile_extra[]
 
   @@index([context_id], map: "idx_participation_context_id")
   @@index([user_id], map: "idx_participation_user_id")
+}
+
+model participation_profile_extra {
+  id                Int           @id @default(autoincrement())
+  participation_id  Int
+  form_id           Int
+  form_version_id   Int
+  response          Json
+  created_at        DateTime      @default(now()) @db.Timestamp(6)
+  updated_at        DateTime      @default(now()) @updatedAt @db.Timestamp(6)
+  active            Boolean       @default(true)
+  participation     participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form              form          @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form_version      form_version  @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([participation_id, form_id], map: "uq_participation_profile_extra_form")
+  @@index([participation_id], map: "idx_participation_profile_extra_participation_id")
 }
 
 model participation_role {
@@ -333,6 +353,7 @@ enum context_access_type {
 enum form_type_enum {
   signal
   quiz
+  profile_extra
 }
 
 enum form_version_access_type {

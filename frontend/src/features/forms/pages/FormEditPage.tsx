@@ -25,7 +25,7 @@ import type { UpdateFormDto } from '../../../types/form.types';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
-  type: z.enum(['signal', 'quiz']),
+  type: z.enum(['signal', 'quiz', 'profile_extra']),
   reference: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   active: z.boolean().optional(),
@@ -126,6 +126,7 @@ export default function FormEditPage() {
               <Select {...register('type')} label="Tipo" value={form.type}>
                 <MenuItem value="signal">Sinal</MenuItem>
                 <MenuItem value="quiz">Quiz</MenuItem>
+                <MenuItem value="profile_extra">Dados adicionais (perfil)</MenuItem>
               </Select>
               {errors.type && (
                 <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>

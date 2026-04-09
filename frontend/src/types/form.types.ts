@@ -2,7 +2,7 @@ import type { PaginationQuery } from './api.types';
 import type { Context } from './context.types';
 import type { FormVersion } from './form-version.types';
 
-export type FormType = 'signal' | 'quiz';
+export type FormType = 'signal' | 'quiz' | 'profile_extra';
 
 export interface Form {
   id: number;

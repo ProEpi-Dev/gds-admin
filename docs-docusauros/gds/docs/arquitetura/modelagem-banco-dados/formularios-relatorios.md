@@ -16,6 +16,9 @@ erDiagram
     
     PARTICIPATION ||--o{ REPORT : "generates"
     PARTICIPATION ||--o{ QUIZ_SUBMISSION : "submits"
+    PARTICIPATION ||--o{ PARTICIPATION_PROFILE_EXTRA : "has"
+    FORM ||--o{ PARTICIPATION_PROFILE_EXTRA : "defines"
+    FORM_VERSION ||--o{ PARTICIPATION_PROFILE_EXTRA : "submitted_as"
     
     FORM {
         int id PK
@@ -75,6 +78,17 @@ erDiagram
         boolean active
     }
     
+    PARTICIPATION_PROFILE_EXTRA {
+        int id PK
+        int participation_id FK
+        int form_id FK
+        int form_version_id FK
+        json response
+        datetime created_at
+        datetime updated_at
+        boolean active
+    }
+    
     CONTEXT {
         int id PK
         string name
@@ -91,7 +105,7 @@ erDiagram
 
 ### FORM
 
-Formulários do sistema - podem ser do tipo "signal" (sinais) ou "quiz" (questionários).
+Formulários do sistema - podem ser do tipo "signal" (sinais), "quiz" (questionários) ou **"profile_extra"** (dados adicionais de perfil por contexto).
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
@@ -100,13 +114,13 @@ Formulários do sistema - podem ser do tipo "signal" (sinais) ou "quiz" (questio
 | `title` | VARCHAR(255) | Título do formulário |
 | `reference` | VARCHAR(255) | Código de referência (opcional) |
 | `description` | TEXT | Descrição do formulário |
-| `type` | ENUM | Tipo: `signal` ou `quiz` |
+| `type` | ENUM | Tipo: `signal`, `quiz` ou `profile_extra` |
 | `created_at` | TIMESTAMP | Data de criação |
 | `updated_at` | TIMESTAMP | Data de última atualização |
 | `active` | BOOLEAN | Status ativo/inativo |
 
 **Enums:**
-- `form_type_enum`: `signal`, `quiz`
+- `form_type_enum`: `signal`, `quiz`, `profile_extra`
 
 **Índices:**
 - `idx_form_context_id` (context_id)
@@ -193,6 +207,29 @@ Submissões de quizzes com pontuação e resultados detalhados.
 - `idx_quiz_submission_attempt` (participation_id, form_version_id, attempt_number)
 - `idx_quiz_submission_completed_at` (completed_at)
 
+### PARTICIPATION_PROFILE_EXTRA {#participation_profile_extra}
+
+Respostas do formulário tipo **`profile_extra`**, **por participação** e **por formulário** (uma linha ativa por par `participation_id` + `form_id`). Usado para campos de perfil configuráveis que dependem do **contexto** da participação ativa do usuário.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `id` | INT | Identificador único (PK) |
+| `participation_id` | INT | Referência à participação (FK → participation.id) |
+| `form_id` | INT | Referência ao formulário (FK → form.id), tipo `profile_extra` |
+| `form_version_id` | INT | Versão utilizada na submissão (FK → form_version.id, RESTRICT) |
+| `response` | JSONB | Respostas (mapa alinhado aos `name` dos campos em `definition`) |
+| `created_at` | TIMESTAMP | Data de criação |
+| `updated_at` | TIMESTAMP | Data de última atualização |
+| `active` | BOOLEAN | Status ativo/inativo |
+
+**Constraints:**
+- UNIQUE (`participation_id`, `form_id`)
+
+**Índices:**
+- `idx_participation_profile_extra_participation_id` (`participation_id`)
+
+Fluxo e endpoints REST para aplicativos: [Dados adicionais de perfil](dados-adicionais-perfil).
+
 ## Relacionamentos
 
 1. **FORM → CONTEXT**: Um formulário pode pertencer a um contexto (opcional)
@@ -201,8 +238,10 @@ Submissões de quizzes com pontuação e resultados detalhados.
 4. **FORM_VERSION → QUIZ_SUBMISSION**: Uma versão pode ter múltiplas submissões
 5. **PARTICIPATION → REPORT**: Uma participação pode gerar múltiplos relatórios
 6. **PARTICIPATION → QUIZ_SUBMISSION**: Uma participação pode ter múltiplas submissões de quiz
-7. **FORM → CONTENT_QUIZ**: Um formulário (quiz) pode estar associado a conteúdos
-8. **FORM → SEQUENCE**: Um formulário pode ser incluído em sequências de trilhas
+7. **PARTICIPATION → PARTICIPATION_PROFILE_EXTRA**: Uma participação pode ter até uma submissão ativa por formulário `profile_extra` (constraint única)
+8. **FORM / FORM_VERSION → PARTICIPATION_PROFILE_EXTRA**: Define qual formulário e versão foram respondidos
+9. **FORM → CONTENT_QUIZ**: Um formulário (quiz) pode estar associado a conteúdos
+10. **FORM → SEQUENCE**: Um formulário pode ser incluído em sequências de trilhas
 
 ## Tipos de Formulários
 
@@ -221,6 +260,13 @@ Formulários de avaliação com pontuação:
 - Podem ter nota mínima para aprovação
 - Suportam múltiplas tentativas
 - Podem ter limite de tempo
+
+### Profile extra (Dados adicionais de perfil)
+
+Formulários **por contexto** para campos extras de perfil do cidadão:
+- **Não** geram `report` nem `quiz_submission`
+- Persistem em **PARTICIPATION_PROFILE_EXTRA** (upsert via API `PUT /v1/participation-profile-extra/me`)
+- A versão ativa mais recente com `definition.fields` não vazio define o que o app deve coletir; ver [Dados adicionais de perfil](dados-adicionais-perfil)
 
 ## Regras de Negócio
 
@@ -254,6 +300,12 @@ Formulários de avaliação com pontuação:
 - O sistema controla número de tentativas baseado em `max_attempts`
 - O campo `is_passed` é calculado baseado em `passing_score`
 - Ao excluir uma participação, suas submissões são excluídas (CASCADE)
+
+### Dados adicionais de perfil (`profile_extra`)
+
+- Um contexto pode ter um ou mais formulários `profile_extra` ativos; a API do participante usa **um** por vez (menor `id` do formulário)
+- A completude do perfil (incluindo bloqueio no app) combina perfil base do usuário + alinhamento da submissão à **versão atual** do formulário
+- Exclusão da participação remove registros em `participation_profile_extra` (CASCADE)
 
 ## Consultas Comuns
 

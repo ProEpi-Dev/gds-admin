@@ -644,6 +644,8 @@ describe('AuthService', () => {
         start_date: new Date(),
         end_date: null,
         active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
@@ -686,7 +688,9 @@ describe('AuthService', () => {
       expect(result.user.email).toBe('newuser@example.com');
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
-      expect(result.participation.contextId).toBe(1);
+      expect(result.participation.context.id).toBe(1);
+      expect(result.participation.context.name).toBe('Public Context');
+      expect(result.participation.userId).toBe(2);
       expect(businessMetrics.recordAuthSignupCompleted).toHaveBeenCalled();
     });
 

@@ -49,6 +49,7 @@
     "inactive": "Inativo",
     "signal": "Sinal",
     "quiz": "Quiz",
+    "profileExtra": "Dados adicionais (perfil)",
     "deleteConfirm": "Confirmar exclusão",
     "deleteMessage": "Tem certeza que deseja deletar o formulário \"{{title}}\"?",
     "deleteButton": "Deletar",
@@ -62,6 +63,10 @@
       "multiselect": "Seleção Múltipla",
       "date": "Data"
     }
+  },
+  "userLayout": {
+    "home": "Início",
+    "goHomeAria": "Ir para a página inicial do aplicativo"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -194,7 +199,12 @@
       "locationRequired": "Localização é obrigatória",
       "externalIdentifierRequired": "Identificador externo é obrigatório"
     },
-    "success": "Perfil atualizado com sucesso!"
+    "success": "Perfil atualizado com sucesso!",
+    "profileExtraTitle": "Dados adicionais",
+    "profileExtraSubtitle": "Informações extras definidas pelo seu contexto de participação.",
+    "profileExtraInvalid": "Preencha todos os campos obrigatórios em dados adicionais.",
+    "profileExtraSave": "Salvar dados adicionais",
+    "profileExtraSaved": "Dados adicionais salvos com sucesso!"
   },
   "legalDocuments": {
     "title": "Documentos Legais",
@@ -213,6 +223,7 @@
   "welcome": {
     "title": "Bem-vindo(a) ao Guardiões da Saúde!",
     "subtitle": "Sua conta foi criada com sucesso",
+    "contextFallback": "Seu contexto",
     "message": "Você está cadastrado no contexto:",
     "appMessage": "Para participar ativamente, baixe nosso aplicativo Android:",
     "downloadApp": "Baixar aplicativo",
@@ -444,7 +455,8 @@
     "forms": {
       "menuTitle": "Formulários",
       "title": "Formulários de Quiz",
-      "newQuizForm": "Novo Formulário de Quiz"
+      "newQuizForm": "Novo Formulário de Quiz",
+      "addToTrack": "Adicionar à trilha"
     },
     "submissions": {
       "menuTitle": "Submissões"

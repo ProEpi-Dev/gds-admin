@@ -22,6 +22,7 @@ import {
 } from '../common/helpers/pagination.helper';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import { AuthzService } from '../authz/authz.service';
+import { ParticipationProfileExtraService } from '../participation-profile-extra/participation-profile-extra.service';
 import * as bcrypt from 'bcrypt';
 import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 
@@ -31,6 +32,7 @@ export class UsersService {
     private prisma: PrismaService,
     private legalDocumentsService: LegalDocumentsService,
     private authz: AuthzService,
+    private readonly participationProfileExtraService: ParticipationProfileExtraService,
   ) {}
 
   async create(
@@ -465,14 +467,33 @@ export class UsersService {
       missingFields.push('externalIdentifier');
     }
 
+    const { required: profileExtraRequired, complete: profileExtraComplete } =
+      await this.participationProfileExtraService.getProfileExtraCompletion(
+        userId,
+      );
+
+    if (profileExtraRequired && !profileExtraComplete) {
+      missingFields.push('profileExtra');
+    }
+
+    const baseComplete =
+      !missingFields.includes('genderId') &&
+      !missingFields.includes('locationId') &&
+      !missingFields.includes('externalIdentifier');
+
+    const isComplete =
+      baseComplete && (!profileExtraRequired || profileExtraComplete);
+
     return {
-      isComplete: missingFields.length === 0,
+      isComplete,
       missingFields,
       profile: {
         genderId: user.gender_id,
         locationId: user.location_id,
         externalIdentifier: user.external_identifier,
       },
+      profileExtraRequired,
+      profileExtraComplete,
     };
   }
 

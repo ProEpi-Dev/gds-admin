@@ -1,17 +1,22 @@
-import { Box, Typography, TextField, Button, CircularProgress, Paper } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, Typography, TextField, Button, CircularProgress, Paper, Alert } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../../../api/services/users.service';
+import { participationProfileExtraService } from '../../../api/services/participation-profile-extra.service';
 import { useSnackbar } from '../../../hooks/useSnackbar';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useTranslation } from '../../../hooks/useTranslation';
 import SelectGender from '../../../components/common/SelectGender';
 import SelectLocation from '../../../components/common/SelectLocation';
 import UserLayout from '../../../components/layout/UserLayout';
+import ProfileExtraFormSection from '../components/ProfileExtraFormSection';
 import type { UpdateProfileDto } from '../../../types/user.types';
+import type { ParticipationProfileExtraMeResponse } from '../../../types/participation-profile-extra.types';
+import { resolveProfileExtraPayload } from '../utils/profileExtraPayload';
 
 const profileSchema = z.object({
   genderId: z.number({ message: 'Gênero é obrigatório' }),
@@ -26,42 +31,75 @@ export default function CompleteProfilePage() {
   const snackbar = useSnackbar();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: profileStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['profile-status'],
+    queryFn: () => usersService.getProfileStatus(),
+  });
+
+  const { data: profileExtraMe, isLoading: extraMeLoading } = useQuery({
+    queryKey: ['participation-profile-extra-me'],
+    queryFn: () => participationProfileExtraService.getMe(),
+  });
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
   });
 
+  useEffect(() => {
+    if (!profileStatus?.profile) return;
+    reset({
+      genderId: profileStatus.profile.genderId ?? undefined,
+      locationId: profileStatus.profile.locationId ?? undefined,
+      externalIdentifier: profileStatus.profile.externalIdentifier ?? '',
+    });
+  }, [profileStatus, reset]);
+
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: UpdateProfileDto) => {
-      await usersService.updateProfile(data);
+    mutationFn: async (vars: {
+      profile: UpdateProfileDto;
+      extraMe: ParticipationProfileExtraMeResponse | null | undefined;
+      extras: Record<string, unknown>;
+    }) => {
+      await usersService.updateProfile(vars.profile);
+      if (!vars.extraMe?.form) {
+        return;
+      }
+      const resolved = resolveProfileExtraPayload(vars.extraMe, vars.extras);
+      if ('error' in resolved) {
+        throw new Error(t('profile.profileExtraInvalid'));
+      }
+      await participationProfileExtraService.saveMe({
+        formVersionId: vars.extraMe.form.version.id,
+        formResponse: resolved.ok,
+      });
     },
     onSuccess: async () => {
       snackbar.showSuccess(t('profile.success'));
-      
-      // Invalida todos os caches relacionados ao usuário
+      setFormError(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['profile-status'] }),
         queryClient.invalidateQueries({ queryKey: ['user-role'] }),
+        queryClient.invalidateQueries({ queryKey: ['participation-profile-extra-me'] }),
       ]);
-      
-      // Força o refetch dos dados antes de redirecionar
       const [, userRole] = await Promise.all([
-        queryClient.fetchQuery({ 
+        queryClient.fetchQuery({
           queryKey: ['profile-status'],
-          queryFn: () => usersService.getProfileStatus()
+          queryFn: () => usersService.getProfileStatus(),
         }),
         queryClient.fetchQuery({
           queryKey: ['user-role'],
-          queryFn: () => usersService.getUserRole()
-        })
+          queryFn: () => usersService.getUserRole(),
+        }),
       ]);
-      
-      // Redireciona baseado no papel do usuário (usando dados recém-carregados)
       if (userRole.isManager) {
         navigate('/dashboard');
       } else {
@@ -75,8 +113,28 @@ export default function CompleteProfilePage() {
   });
 
   const onSubmit = (data: ProfileFormData) => {
-    updateProfileMutation.mutate(data);
+    setFormError(null);
+    const resolved = resolveProfileExtraPayload(profileExtraMe, extraValues);
+    if ('error' in resolved) {
+      setFormError(t('profile.profileExtraInvalid'));
+      return;
+    }
+    updateProfileMutation.mutate({
+      profile: data,
+      extraMe: profileExtraMe,
+      extras: extraValues,
+    });
   };
+
+  if (statusLoading || extraMeLoading) {
+    return (
+      <UserLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      </UserLayout>
+    );
+  }
 
   return (
     <UserLayout>
@@ -89,6 +147,12 @@ export default function CompleteProfilePage() {
         </Typography>
 
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+          {formError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFormError(null)}>
+              {formError}
+            </Alert>
+          )}
+
           <Box sx={{ mb: 2 }}>
             <Controller
               name="genderId"
@@ -132,6 +196,8 @@ export default function CompleteProfilePage() {
             helperText={errors.externalIdentifier?.message || t('profile.externalIdentifierHelper')}
             required
           />
+
+          <ProfileExtraFormSection onValuesChange={setExtraValues} />
 
           <Button
             type="submit"

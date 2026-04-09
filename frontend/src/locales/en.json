@@ -21,6 +21,10 @@
     "createdAt": "Created At",
     "updatedAt": "Updated At"
   },
+  "userLayout": {
+    "home": "Home",
+    "goHomeAria": "Go to app home"
+  },
   "layout": {
     "menu": "Menu",
     "logout": "Logout",
@@ -333,7 +337,8 @@
     "forms": {
       "menuTitle": "Forms",
       "title": "Quiz Forms",
-      "newQuizForm": "New Quiz Form"
+      "newQuizForm": "New Quiz Form",
+      "addToTrack": "Add to track"
     },
     "submissions": {
       "menuTitle": "Submissions"

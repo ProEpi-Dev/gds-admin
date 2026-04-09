@@ -21,9 +21,9 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   PlaylistAdd as PlaylistAddIcon,
-  Article as ArticleIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { useForms } from "../../forms/hooks/useForms";
+import { useForms, useDeleteForm } from "../../forms/hooks/useForms";
 import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { TrackService } from "../../../api/services/track.service";
 import DataTable, { type Column } from "../../../components/common/DataTable";
@@ -31,12 +31,15 @@ import FilterChips from "../../../components/common/FilterChips";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 import FormPreview from "../../../components/form-builder/FormPreview";
+import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import { useTranslation } from "../../../hooks/useTranslation";
+import { useSnackbar } from "../../../hooks/useSnackbar";
 import type { Form } from "../../../types/form.types";
 
 export default function QuizFormsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const snackbar = useSnackbar();
   const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -51,7 +54,12 @@ export default function QuizFormsListPage() {
   const [formToAdd, setFormToAdd] = useState<Form | null>(null);
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [addingToTrack, setAddingToTrack] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [formToDelete, setFormToDelete] = useState<Form | null>(null);
+
+  const deleteFormMutation = useDeleteForm();
 
   // Backend exige contextId; listar apenas quizzes do contexto selecionado
   const { data, isLoading, error } = useForms(
@@ -65,14 +73,20 @@ export default function QuizFormsListPage() {
     { enabled: currentContext?.id != null }
   );
 
-  // Load tracks when opening the dialog
+  // Carregar trilhas ao abrir o modal (filtra pelo contexto atual quando houver)
   useEffect(() => {
-    if (addToTrackDialogOpen) {
-      TrackService.list()
-        .then((res: any) => setTracks(res.data))
-        .catch((err: any) => console.error("Erro ao carregar trilhas:", err));
-    }
-  }, [addToTrackDialogOpen]);
+    if (!addToTrackDialogOpen) return;
+    const params =
+      currentContext?.id != null ? { contextId: currentContext.id } : undefined;
+    TrackService.list(params)
+      .then((res) => setTracks(Array.isArray(res.data) ? res.data : []))
+      .catch((err: unknown) => {
+        console.error("Erro ao carregar trilhas:", err);
+        setTracks([]);
+        snackbar.showError(t("forms.errorLoading"));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarregar só ao abrir o modal ou mudar contexto
+  }, [addToTrackDialogOpen, currentContext?.id]);
 
   const handlePreview = (form: Form) => {
     setFormToPreview(form);
@@ -82,25 +96,51 @@ export default function QuizFormsListPage() {
   const handleAddToTrack = (form: Form) => {
     setFormToAdd(form);
     setSelectedTrackId(null);
+    setSelectedSectionId(null);
     setAddToTrackDialogOpen(true);
   };
 
+  const handleDeleteClick = (form: Form) => {
+    setFormToDelete(form);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteForm = () => {
+    if (!formToDelete) return;
+    deleteFormMutation.mutate(formToDelete.id, {
+      onSuccess: () => {
+        snackbar.showSuccess(t("common.success"));
+        setDeleteDialogOpen(false);
+        setFormToDelete(null);
+      },
+      onError: () => {
+        snackbar.showError(t("forms.errorLoading"));
+      },
+    });
+  };
+
   const handleConfirmAddToTrack = async () => {
-    if (!formToAdd || !selectedTrackId) return;
+    if (!formToAdd || !selectedTrackId || !selectedSectionId) return;
 
     setAddingToTrack(true);
     try {
-      // Nota: Para adicionar um quiz à trilha, precisaríamos de uma seção específica
-      // Por ora, vamos apenas fechar o diálogo com uma mensagem
-      alert(
-        "Funcionalidade de adicionar quiz à trilha requer seleção de seção. Use a página de trilhas para adicionar conteúdo.",
+      await TrackService.addFormToSection(
+        selectedTrackId,
+        selectedSectionId,
+        formToAdd.id,
       );
+      snackbar.showSuccess(t("common.success"));
+      const params =
+        currentContext?.id != null ? { contextId: currentContext.id } : undefined;
+      const res = await TrackService.list(params);
+      setTracks(Array.isArray(res.data) ? res.data : []);
       setAddToTrackDialogOpen(false);
       setFormToAdd(null);
       setSelectedTrackId(null);
+      setSelectedSectionId(null);
     } catch (err) {
       console.error("Erro ao adicionar formulário à trilha:", err);
-      alert("Erro ao adicionar formulário à trilha");
+      snackbar.showError(t("forms.errorLoading"));
     } finally {
       setAddingToTrack(false);
     }
@@ -144,40 +184,50 @@ export default function QuizFormsListPage() {
     {
       id: "actions",
       label: t("forms.actions"),
-      minWidth: 200,
-      align: "right",
-      render: (row) => (
-        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/forms/${row.id}`)}
-            title={t("common.view")}
-          >
-            <ArticleIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => navigate(`/form-builder?formId=${row.id}`)}
-            title={t("common.edit")}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handlePreview(row)}
-            title={t("forms.preview")}
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleAddToTrack(row)}
-            title="Adicionar à trilha"
-          >
-            <PlaylistAddIcon fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
+      minWidth: 220,
+      align: "left",
+      render: (row) => {
+        const isInactive = row.active === false;
+        return (
+          <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-start" }}>
+            <IconButton
+              size="small"
+              onClick={() => handlePreview(row)}
+              title={t("forms.preview")}
+              color="success"
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/form-builder?formId=${row.id}`)}
+              title={t("common.edit")}
+              color="primary"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => handleAddToTrack(row)}
+              title={t("quizzes.forms.addToTrack")}
+              color="secondary"
+              disabled={isInactive}
+            >
+              <PlaylistAddIcon fontSize="small" />
+            </IconButton>
+            {row.active && (
+              <IconButton
+                size="small"
+                onClick={() => handleDeleteClick(row)}
+                title={t("common.delete")}
+                color="error"
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
+        );
+      },
     },
   ];
 
@@ -302,34 +352,87 @@ export default function QuizFormsListPage() {
       >
         <DialogTitle>Adicionar Quiz à Trilha</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Trilha</InputLabel>
+          <Typography variant="body2" sx={{ mt: 1, mb: 2 }}>
+            {formToAdd?.title}
+          </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="quiz-add-track-select-label">Trilha</InputLabel>
             <Select
-              value={selectedTrackId || ""}
+              labelId="quiz-add-track-select-label"
+              value={selectedTrackId ?? ""}
               label="Trilha"
-              onChange={(e) => setSelectedTrackId(Number(e.target.value))}
+              onChange={(e) => {
+                setSelectedTrackId(Number(e.target.value));
+                setSelectedSectionId(null);
+              }}
             >
-              {tracks.map((track) => (
+              {tracks.map((track: { id: number; name: string }) => (
                 <MenuItem key={track.id} value={track.id}>
-                  {track.title}
+                  {track.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+          {selectedTrackId != null && (
+            <FormControl fullWidth>
+              <InputLabel id="quiz-add-section-select-label">Seção</InputLabel>
+              <Select
+                labelId="quiz-add-section-select-label"
+                value={selectedSectionId ?? ""}
+                label="Seção"
+                onChange={(e) => setSelectedSectionId(Number(e.target.value))}
+              >
+                {tracks
+                  .find((tr) => tr.id === selectedTrackId)
+                  ?.section?.map((section: { id: number; name: string }) => (
+                    <MenuItem key={section.id} value={section.id}>
+                      {section.name}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddToTrackDialogOpen(false)}>
+          <Button
+            onClick={() => {
+              setAddToTrackDialogOpen(false);
+              setFormToAdd(null);
+              setSelectedTrackId(null);
+              setSelectedSectionId(null);
+            }}
+          >
             {t("common.cancel")}
           </Button>
           <Button
             onClick={handleConfirmAddToTrack}
             variant="contained"
-            disabled={!selectedTrackId || addingToTrack}
+            disabled={
+              !selectedTrackId || !selectedSectionId || addingToTrack
+            }
           >
             {addingToTrack ? "Adicionando..." : "Adicionar"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title={t("forms.deleteConfirm")}
+        message={
+          formToDelete
+            ? t("forms.deleteMessage", { title: formToDelete.title })
+            : ""
+        }
+        confirmText={t("forms.deleteButton")}
+        cancelText={t("common.cancel")}
+        onConfirm={handleConfirmDeleteForm}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setFormToDelete(null);
+        }}
+        loading={deleteFormMutation.isPending}
+      />
     </Box>
   );
 }

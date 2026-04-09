@@ -458,8 +458,16 @@ export class AuthService {
       refreshToken,
       participation: {
         id: result.participation.id,
-        contextId: result.participation.context_id,
-        startDate: result.participation.start_date.toISOString().split('T')[0],
+        userId: result.user.id,
+        context: {
+          id: context.id,
+          name: context.name,
+        },
+        startDate: result.participation.start_date,
+        endDate: result.participation.end_date,
+        active: result.participation.active,
+        createdAt: result.participation.created_at,
+        updatedAt: result.participation.updated_at,
       },
     };
   }

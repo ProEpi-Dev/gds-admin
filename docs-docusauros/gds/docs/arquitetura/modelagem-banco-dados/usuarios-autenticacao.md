@@ -197,6 +197,10 @@ Registro de aceitação de documentos legais pelos usuários.
 5. **LEGAL_DOCUMENT_TYPE → LEGAL_DOCUMENT**: Um tipo pode ter múltiplas versões
 6. **LEGAL_DOCUMENT → USER_LEGAL_ACCEPTANCE**: Um documento pode ser aceito por múltiplos usuários
 
+## Perfil e dados adicionais por contexto
+
+O perfil do **usuário** inclui gênero, localização e identificador externo na tabela `user`. Quando a **participação ativa** do usuário está em um contexto que define um formulário **`profile_extra`**, o sistema pode exigir o preenchimento de campos extras (armazenados em `participation_profile_extra`). O endpoint agregador **`GET /v1/users/me/profile-status`** indica se falta `profileExtra` junto dos demais campos; o fluxo completo, payloads e erros estão em [Dados adicionais de perfil](dados-adicionais-perfil).
+
 ## Regras de Negócio
 
 - Um usuário deve ter email único no sistema

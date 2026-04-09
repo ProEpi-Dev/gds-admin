@@ -28,6 +28,7 @@ import {
   validateFormDefinition,
 } from "../utils/formDefinitionValidator";
 import type { FormBuilderDefinition } from "../../../types/form-builder.types";
+import type { FormType } from "../../../types/form.types";
 
 const formSchema = z.object({
   accessType: z.enum(["PUBLIC", "PRIVATE"]).optional(),
@@ -46,7 +47,7 @@ interface FormVersionEditorProps {
   initialDefinition?: FormBuilderDefinition;
   initialAccessType?: "PUBLIC" | "PRIVATE";
   initialActive?: boolean;
-  formType?: "quiz" | "signal";
+  formType?: FormType;
   // Campos específicos de quiz
   initialPassingScore?: number | null;
   initialMaxAttempts?: number | null;
