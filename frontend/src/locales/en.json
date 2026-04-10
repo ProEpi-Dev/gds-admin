@@ -111,7 +111,8 @@
   },
   "reportStreaks": {
     "title": "Report Streaks",
-    "searchLabel": "Search student",
+    "timezoneHint": "Streaks and dates use the civil day in Brasília (America/Sao_Paulo, UTC−3).",
+    "searchLabel": "Search participant",
     "searchPlaceholder": "Type name or email",
     "currentStreak": "Current streak",
     "longestStreak": "Longest streak",
