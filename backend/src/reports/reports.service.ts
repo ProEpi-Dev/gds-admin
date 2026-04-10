@@ -28,8 +28,18 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { addDays, parseISO } from 'date-fns';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
+
+/**
+ * Fuso usado para definir o "dia civil" em agregações de report-streaks
+ * (participation_report_day / ofensiva). Os timestamps de report permanecem em UTC;
+ * só o bucket do dia segue esta convenção. Linhas agregadas antes desta regra podem
+ * precisar de recálculo (backfill) se o produto exigir consistência retroativa.
+ */
+export const REPORT_STREAK_AGGREGATION_TZ = 'America/Sao_Paulo' as const;
 
 @Injectable()
 export class ReportsService {
@@ -62,10 +72,49 @@ export class ReportsService {
     }
   }
 
+  /**
+   * Normaliza datas já armazenadas como DATE (meia-noite UTC com o yyyy-MM-dd civil).
+   */
   private normalizeDateOnly(value: Date): Date {
     const normalized = new Date(value);
     normalized.setUTCHours(0, 0, 0, 0);
     return normalized;
+  }
+
+  /** Data civil em REPORT_STREAK_AGGREGATION_TZ para persistência @db.Date (meia-noite UTC do mesmo yyyy-MM-dd). */
+  private toSaoPauloCalendarDateForDb(instant: Date): Date {
+    const ymd = formatInTimeZone(
+      instant,
+      REPORT_STREAK_AGGREGATION_TZ,
+      'yyyy-MM-dd',
+    );
+    return new Date(`${ymd}T00:00:00.000Z`);
+  }
+
+  /** Intervalo UTC [início, fim) do dia civil em REPORT_STREAK_AGGREGATION_TZ que contém `instant`. */
+  private getSaoPauloDayUtcBounds(instant: Date): {
+    start: Date;
+    endExclusive: Date;
+  } {
+    const ymd = formatInTimeZone(
+      instant,
+      REPORT_STREAK_AGGREGATION_TZ,
+      'yyyy-MM-dd',
+    );
+    const start = fromZonedTime(
+      `${ymd}T00:00:00.000`,
+      REPORT_STREAK_AGGREGATION_TZ,
+    );
+    const nextYmd = formatInTimeZone(
+      addDays(parseISO(`${ymd}T12:00:00.000Z`), 1),
+      'UTC',
+      'yyyy-MM-dd',
+    );
+    const endExclusive = fromZonedTime(
+      `${nextYmd}T00:00:00.000`,
+      REPORT_STREAK_AGGREGATION_TZ,
+    );
+    return { start, endExclusive };
   }
 
   private parseDateOnly(value: string): Date {
@@ -74,16 +123,6 @@ export class ReportsService {
 
   private formatDateOnly(value?: Date | null): string | null {
     return value ? value.toISOString().split('T')[0] : null;
-  }
-
-  private getTimestampDayRange(value: Date): { start: Date; end: Date } {
-    const start = new Date(value);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(value);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
   }
 
   private calculateStreakMetrics(reportDays: Array<{ report_date: Date }>): {
@@ -155,8 +194,9 @@ export class ReportsService {
     participationId: number,
     reportDate: Date,
   ): Promise<void> {
-    const normalizedDate = this.normalizeDateOnly(reportDate);
-    const { start, end } = this.getTimestampDayRange(reportDate);
+    const normalizedDate = this.toSaoPauloCalendarDateForDb(reportDate);
+    const { start, endExclusive } =
+      this.getSaoPauloDayUtcBounds(reportDate);
 
     const reports = await prisma.report.findMany({
       where: {
@@ -164,7 +204,7 @@ export class ReportsService {
         active: true,
         created_at: {
           gte: start,
-          lte: end,
+          lt: endExclusive,
         },
       },
       select: {

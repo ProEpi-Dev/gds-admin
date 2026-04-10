@@ -119,7 +119,7 @@ export class ContextsController {
   @ApiOperation({
     summary: 'Listar ofensivas de reports do contexto',
     description:
-      'Retorna a ofensiva atual, maior ofensiva e total de dias reportados para as participações do contexto.',
+      'Retorna a ofensiva atual, maior ofensiva e total de dias reportados para as participações do contexto. Métricas de dia seguem o calendário America/Sao_Paulo.',
   })
   @ApiParam({ name: 'contextId', type: Number, description: 'ID do contexto' })
   @ApiResponse({
@@ -145,7 +145,7 @@ export class ContextsController {
   @ApiOperation({
     summary: 'Obter ofensiva e calendário de reports da participação',
     description:
-      'Retorna a ofensiva da participação e os dias em que houve report, com filtro opcional por período.',
+      'Retorna a ofensiva da participação e os dias em que houve report, com filtro opcional por período. Datas agregadas seguem o dia civil em America/Sao_Paulo (parâmetros startDate/endDate filtram nessa mesma convenção).',
   })
   @ApiParam({ name: 'contextId', type: Number, description: 'ID do contexto' })
   @ApiParam({

@@ -12,6 +12,7 @@ import {
 import {
   Search as SearchIcon,
   LocalFireDepartment as LocalFireDepartmentIcon,
+  Schedule as ScheduleIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -198,47 +199,105 @@ export default function ReportStreaksPage() {
           flexWrap: "wrap",
         }}
       >
-        <Box>
-          <Typography variant="h4">{t("reportStreaks.title")}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {currentContext.name}
-          </Typography>
-        </Box>
+        <Typography variant="h4" component="h1">
+          {t("reportStreaks.title")}
+        </Typography>
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <TextField
-            label={t("reportStreaks.searchLabel")}
-            placeholder={t("reportStreaks.searchPlaceholder")}
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: 1,
+            width: { xs: "100%", sm: "fit-content" },
+            maxWidth: "100%",
+            alignSelf: { xs: "stretch", sm: "flex-end" },
+            minWidth: 0,
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={0.75}
+            alignItems="flex-start"
+            justifyContent="flex-start"
+            sx={{
+              width: "100%",
+              color: "text.secondary",
+              opacity: 0.92,
+            }}
+          >
+            <ScheduleIcon
+              sx={{
+                fontSize: 18,
+                mt: "1px",
+                flexShrink: 0,
+                color: "action.active",
+              }}
+            />
+            <Typography
+              variant="caption"
+              component="p"
+              sx={{
+                m: 0,
+                lineHeight: 1.4,
+                textAlign: "left",
+                flex: "1 1 auto",
+                minWidth: 0,
+              }}
+            >
+              {t("reportStreaks.timezoneHint")}
+            </Typography>
+          </Stack>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            justifyContent={{ xs: "stretch", sm: "flex-end" }}
+            flexWrap="nowrap"
+            sx={{ width: "100%" }}
+          >
+            <TextField
+              label={t("reportStreaks.searchLabel")}
+              placeholder={t("reportStreaks.searchPlaceholder")}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  setPage(1);
+                  setSearch(searchInput.trim() || undefined);
+                }
+              }}
+              size="small"
+              sx={{
+                minWidth: { sm: 220 },
+                flex: { sm: "1 1 200px" },
+              }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<SearchIcon />}
+              size="small"
+              onClick={() => {
                 setPage(1);
                 setSearch(searchInput.trim() || undefined);
-              }
-            }}
-            size="small"
-          />
-          <Button
-            variant="contained"
-            startIcon={<SearchIcon />}
-            onClick={() => {
-              setPage(1);
-              setSearch(searchInput.trim() || undefined);
-            }}
-          >
-            {t("common.search")}
-          </Button>
-          <Button
-            variant={activeFilter === true ? "contained" : "outlined"}
-            onClick={() => {
-              setPage(1);
-              setActiveFilter(activeFilter === true ? undefined : true);
-            }}
-          >
-            {t("reportStreaks.activeOnly")}
-          </Button>
-        </Stack>
+              }}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              {t("common.search")}
+            </Button>
+            <Button
+              variant={activeFilter === true ? "contained" : "outlined"}
+              size="small"
+              onClick={() => {
+                setPage(1);
+                setActiveFilter(activeFilter === true ? undefined : true);
+              }}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              {t("reportStreaks.activeOnly")}
+            </Button>
+          </Stack>
+        </Box>
       </Box>
 
       <Paper sx={{ p: 3 }}>
