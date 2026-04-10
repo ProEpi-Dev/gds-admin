@@ -19,12 +19,9 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
-import { Prisma } from '@prisma/client';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
-function participationListOrderBy(
-  sort?: string,
-): Prisma.participationOrderByWithRelationInput[] {
+function participationListOrderBy(sort?: string) {
   switch (sort) {
     case 'name_asc':
       return [{ user: { name: 'asc' } }, { id: 'asc' }];
@@ -397,22 +394,43 @@ export class ParticipationsService {
       throw new NotFoundException(`Participação com ID ${id} não encontrada`);
     }
 
-    // Verificar se há reports associados
-    const reports = await this.prisma.report.count({
-      where: { participation_id: id },
-    });
+    if (participation.active) {
+      const reports = await this.prisma.report.count({
+        where: { participation_id: id },
+      });
 
-    if (reports > 0) {
-      throw new BadRequestException(
-        `Não é possível deletar participação com ${reports} report(s) associado(s)`,
-      );
+      if (reports > 0) {
+        throw new BadRequestException(
+          `Não é possível deletar participação com ${reports} report(s) associado(s)`,
+        );
+      }
+
+      await this.prisma.participation.update({
+        where: { id },
+        data: { active: false },
+      });
+      return;
     }
 
-    // Soft delete - apenas desativar
-    await this.prisma.participation.update({
-      where: { id },
-      data: { active: false },
-    });
+    try {
+      await this.prisma.participation.delete({
+        where: { id },
+      });
+    } catch (error) {
+      const isFkError =
+        error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          (error as { code: string }).code === 'P2003';
+
+      if (isFkError) {
+        throw new BadRequestException(
+          'Não é possível excluir permanentemente esta participação: existem vínculos no sistema que impedem a exclusão. Mantenha-a inativa ou remova as dependências.',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async findRoles(participationId: number): Promise<RoleResponseDto[]> {

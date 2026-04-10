@@ -281,5 +281,13 @@ describe('ParticipationsController', () => {
 
       await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
     });
+
+    it('deve excluir permanentemente participação inativa', async () => {
+      jest.spyOn(participationsService, 'remove').mockResolvedValue(undefined);
+
+      await controller.remove(1);
+
+      expect(participationsService.remove).toHaveBeenCalledWith(1);
+    });
   });
 });

@@ -57,6 +57,7 @@ describe('ParticipationsService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
               count: jest.fn(),
             },
             role: {
@@ -202,9 +203,7 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValue(mockUser as any);
-      jest
-        .spyOn(prismaService.context, 'findUnique')
-        .mockResolvedValue(mockContext as any);
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
 
       await expect(service.create(createParticipationDto)).rejects.toThrow(
         BadRequestException,
@@ -222,7 +221,9 @@ describe('ParticipationsService', () => {
       };
 
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
       jest.spyOn(prismaService.user, 'create').mockResolvedValue({
         id: 10,
@@ -587,6 +588,36 @@ describe('ParticipationsService', () => {
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(mockParticipation as any);
       jest.spyOn(prismaService.report, 'count').mockResolvedValue(2);
+
+      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve excluir permanentemente participação inativa', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      jest.spyOn(prismaService.participation, 'delete').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+
+      await service.remove(1);
+
+      expect(prismaService.report.count).not.toHaveBeenCalled();
+      expect(prismaService.participation.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+    });
+
+    it('deve lançar BadRequestException quando exclusão permanente falha por dependências', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      jest.spyOn(prismaService.participation, 'delete').mockRejectedValue({
+        code: 'P2003',
+      });
 
       await expect(service.remove(1)).rejects.toThrow(BadRequestException);
     });

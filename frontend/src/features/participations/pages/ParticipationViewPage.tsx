@@ -17,6 +17,7 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
   ArrowBack as ArrowBackIcon,
   Add as AddIcon,
   Close as CloseIcon,
@@ -94,8 +95,20 @@ export default function ParticipationViewPage() {
 
   const handleDelete = () => {
     if (participationId) {
+      const isActive = participation?.active ?? true;
       deleteMutation.mutate(participationId, {
-        onSuccess: () => navigate("/participations"),
+        onSuccess: () => {
+          snackbar.showSuccess(
+            t(
+              isActive
+                ? "participations.deleteSuccess"
+                : "participations.permanentDeleteSuccess",
+            ),
+          );
+          navigate("/participations");
+        },
+        onError: (err) =>
+          snackbar.showError(getErrorMessage(err, t("participations.deleteError"))),
       });
     }
   };
@@ -144,10 +157,14 @@ export default function ParticipationViewPage() {
         <Button
           variant="outlined"
           color="error"
-          startIcon={<DeleteIcon />}
+          startIcon={
+            participation.active ? <DeleteIcon /> : <DeleteForeverIcon />
+          }
           onClick={() => setDeleteDialogOpen(true)}
         >
-          {t("common.delete")}
+          {participation.active
+            ? t("common.delete")
+            : t("participations.permanentDeleteAction")}
         </Button>
       </Box>
 
@@ -375,7 +392,11 @@ export default function ParticipationViewPage() {
       <ConfirmDialog
         open={deleteDialogOpen}
         title={t("participations.deleteConfirm")}
-        message={t("participations.deleteMessage")}
+        message={
+          participation.active
+            ? t("participations.deleteMessage")
+            : t("participations.deleteMessageInactive")
+        }
         confirmText={t("common.delete")}
         cancelText={t("common.cancel")}
         onConfirm={handleDelete}

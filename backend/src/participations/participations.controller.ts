@@ -125,16 +125,17 @@ export class ParticipationsController {
   @ApiOperation({
     summary: 'Deletar participação',
     description:
-      'Remove uma participação (soft delete - desativa). Não permite deletar se houver reports associados.',
+      'Participação ativa: desativa. Participação inativa: exclui permanentemente do banco de dados.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
   @ApiResponse({
     status: 204,
-    description: 'Participação deletada com sucesso',
+    description: 'Participação removida (desativada ou excluída permanentemente)',
   })
   @ApiResponse({
     status: 400,
-    description: 'Participação possui reports associados',
+    description:
+      'Participação possui reports associados ou vínculos que impedem a exclusão permanente',
   })
   @ApiResponse({ status: 404, description: 'Participação não encontrada' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {

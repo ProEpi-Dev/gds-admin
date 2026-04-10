@@ -18,6 +18,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
   Visibility as VisibilityIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
@@ -28,6 +29,8 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
+import { useSnackbar } from '../../../hooks/useSnackbar';
+import { getErrorMessage } from '../../../utils/errorHandler';
 import {
   formatDateOnlyFromApi,
   formatDateTimeFromApi,
@@ -55,6 +58,7 @@ const PARTICIPATION_SORT_LABEL_KEY: Record<ParticipationListSort, string> = {
 export default function ParticipationsListPage() {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const snackbar = useSnackbar();
   const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -99,10 +103,23 @@ export default function ParticipationsListPage() {
 
   const confirmDelete = () => {
     if (participationToDelete) {
+      const isActive = participationToDelete.active;
       deleteMutation.mutate(participationToDelete.id, {
         onSuccess: () => {
+          snackbar.showSuccess(
+            t(
+              isActive
+                ? 'participations.deleteSuccess'
+                : 'participations.permanentDeleteSuccess',
+            ),
+          );
           setDeleteDialogOpen(false);
           setParticipationToDelete(null);
+        },
+        onError: (error: unknown) => {
+          snackbar.showError(
+            getErrorMessage(error, t('participations.deleteError')),
+          );
         },
       });
     }
@@ -173,14 +190,25 @@ export default function ParticipationsListPage() {
           >
             <EditIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(row)}
-            color="error"
-            title={t('common.delete')}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          {row.active ? (
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(row)}
+              color="error"
+              title={t('common.delete')}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          ) : (
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(row)}
+              color="error"
+              title={t('participations.permanentDeleteAction')}
+            >
+              <DeleteForeverIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
       ),
     },
@@ -326,7 +354,11 @@ export default function ParticipationsListPage() {
       <ConfirmDialog
         open={deleteDialogOpen}
         title={t('participations.deleteConfirm')}
-        message={t('participations.deleteMessage')}
+        message={
+          participationToDelete?.active
+            ? t('participations.deleteMessage')
+            : t('participations.deleteMessageInactive')
+        }
         confirmText={t('common.delete')}
         cancelText={t('common.cancel')}
         onConfirm={confirmDelete}
