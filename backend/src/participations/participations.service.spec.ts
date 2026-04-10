@@ -203,7 +203,9 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.user, 'findUnique')
         .mockResolvedValue(mockUser as any);
-      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(mockContext as any);
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
 
       await expect(service.create(createParticipationDto)).rejects.toThrow(
         BadRequestException,

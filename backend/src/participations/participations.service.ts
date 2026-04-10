@@ -36,6 +36,15 @@ function participationListOrderBy(sort?: string) {
   }
 }
 
+function hasPrismaErrorCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === code
+  );
+}
+
 @Injectable()
 export class ParticipationsService {
   private readonly logger = new Logger(ParticipationsService.name);
@@ -417,13 +426,7 @@ export class ParticipationsService {
         where: { id },
       });
     } catch (error) {
-      const isFkError =
-        error &&
-          typeof error === 'object' &&
-          'code' in error &&
-          (error as { code: string }).code === 'P2003';
-
-      if (isFkError) {
+      if (hasPrismaErrorCode(error, 'P2003')) {
         throw new BadRequestException(
           'Não é possível excluir permanentemente esta participação: existem vínculos no sistema que impedem a exclusão. Mantenha-a inativa ou remova as dependências.',
         );
