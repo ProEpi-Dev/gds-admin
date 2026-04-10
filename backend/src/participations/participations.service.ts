@@ -24,15 +24,15 @@ import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 function participationListOrderBy(sort?: string) {
   switch (sort) {
     case 'name_asc':
-      return [{ user: { name: 'asc' } }, { id: 'asc' }];
+      return [{ user: { name: 'asc' as const } }, { id: 'asc' as const }];
     case 'name_desc':
-      return [{ user: { name: 'desc' } }, { id: 'desc' }];
+      return [{ user: { name: 'desc' as const } }, { id: 'desc' as const }];
     case 'startDate_asc':
-      return [{ start_date: 'asc' }, { id: 'asc' }];
+      return [{ start_date: 'asc' as const }, { id: 'asc' as const }];
     case 'startDate_desc':
-      return [{ start_date: 'desc' }, { id: 'desc' }];
+      return [{ start_date: 'desc' as const }, { id: 'desc' as const }];
     default:
-      return [{ start_date: 'desc' }, { id: 'desc' }];
+      return [{ start_date: 'desc' as const }, { id: 'desc' as const }];
   }
 }
 
