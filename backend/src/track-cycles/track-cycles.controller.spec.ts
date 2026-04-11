@@ -16,6 +16,7 @@ describe('TrackCyclesController', () => {
     update: jest.fn(),
     updateStatus: jest.fn(),
     remove: jest.fn(),
+    replaceSchedules: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -134,5 +135,15 @@ describe('TrackCyclesController', () => {
 
     expect(result).toEqual({ id: 1 });
     expect(service.remove).toHaveBeenCalledWith(1, 1);
+  });
+
+  it('replaceSchedules() repassa o corpo ao serviço (após pipe em requisições HTTP)', async () => {
+    service.replaceSchedules.mockResolvedValue({ id: 1 } as any);
+    const body = { sectionSchedules: [], sequenceSchedules: [] };
+
+    const result = await controller.replaceSchedules(1, body as any, { userId: 1 });
+
+    expect(result).toEqual({ id: 1 });
+    expect(service.replaceSchedules).toHaveBeenCalledWith(1, body, 1);
   });
 });

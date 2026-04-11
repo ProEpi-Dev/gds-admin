@@ -12,9 +12,17 @@ import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 describe('TrackProgressService', () => {
   let service: TrackProgressService;
 
+  /** Janela que inclui a data atual usada nos testes (BRT → UTC date-only no serviço). */
+  const openCycleDates = {
+    start_date: new Date('2026-01-01T00:00:00.000Z'),
+    end_date: new Date('2026-12-31T00:00:00.000Z'),
+  };
+
   const prismaMock = {
     participation: { findUnique: jest.fn(), findFirst: jest.fn() },
     track_cycle: { findUnique: jest.fn(), findMany: jest.fn() },
+    track_cycle_section_schedule: { findMany: jest.fn() },
+    track_cycle_sequence_schedule: { findMany: jest.fn() },
     track_progress: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -53,6 +61,12 @@ describe('TrackProgressService', () => {
 
     service = module.get(TrackProgressService);
     jest.clearAllMocks();
+    prismaMock.track_cycle_section_schedule.findMany.mockResolvedValue([]);
+    prismaMock.track_cycle_sequence_schedule.findMany.mockResolvedValue([]);
+    prismaMock.track_cycle.findUnique.mockResolvedValue({
+      id: 1,
+      ...openCycleDates,
+    });
   });
 
   it('should be defined', () => {
@@ -68,6 +82,7 @@ describe('TrackProgressService', () => {
     prismaMock.track_cycle.findUnique.mockResolvedValue({
       id: 1,
       context_id: 1,
+      ...openCycleDates,
       track: { section: [] },
     });
 
@@ -97,6 +112,7 @@ describe('TrackProgressService', () => {
     prismaMock.track_cycle.findUnique.mockResolvedValue({
       id: 1,
       context_id: 1,
+      ...openCycleDates,
       track: {
         section: [
           {
@@ -163,6 +179,7 @@ describe('TrackProgressService', () => {
     prismaMock.track_cycle.findUnique.mockResolvedValue({
       id: 1,
       context_id: 2,
+      ...openCycleDates,
       track: { section: [] },
     });
 
@@ -199,6 +216,7 @@ describe('TrackProgressService', () => {
     prismaMock.track_cycle.findUnique.mockResolvedValue({
       id: 1,
       context_id: 1,
+      ...openCycleDates,
       track: { section: [] },
     });
 
@@ -215,6 +233,7 @@ describe('TrackProgressService', () => {
   it('updateSequenceProgress – sequência já existe, deve atualizar', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,
+      track_cycle_id: 1,
       status: progress_status_enum.in_progress,
       sequence_progress: [
         {
@@ -225,6 +244,8 @@ describe('TrackProgressService', () => {
         },
       ],
       track_cycle: {
+        id: 1,
+        ...openCycleDates,
         track: {
           section: [
             {
@@ -235,7 +256,11 @@ describe('TrackProgressService', () => {
       },
     });
 
-    prismaMock.sequence.findUnique.mockResolvedValue({ id: 1, active: true });
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      active: true,
+      section_id: 1,
+    });
     prismaMock.sequence_progress.findUnique.mockResolvedValue({
       id: 1,
       status: progress_status_enum.in_progress,
@@ -254,11 +279,14 @@ describe('TrackProgressService', () => {
   it('canAccessSequence – pode acessar', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,
+      track_cycle_id: 1,
       status: progress_status_enum.in_progress,
       sequence_progress: [
         { id: 1, status: progress_status_enum.completed, sequence_id: 1 },
       ],
       track_cycle: {
+        id: 1,
+        ...openCycleDates,
         track: {
           section: [
             {
@@ -272,7 +300,12 @@ describe('TrackProgressService', () => {
       },
     } as any);
 
-    prismaMock.sequence.findUnique.mockResolvedValue({ id: 2, active: true });
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 2,
+      active: true,
+      section_id: 1,
+      order: 2,
+    });
 
     const result = await service.canAccessSequence(1, 1, 2);
 
@@ -338,12 +371,15 @@ describe('TrackProgressService', () => {
   it('updateSequenceProgress – sucesso', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,
+      track_cycle_id: 1,
       status: progress_status_enum.in_progress,
       sequence_progress: [
         { id: 1, status: progress_status_enum.completed },
         { id: 2, status: progress_status_enum.in_progress },
       ],
       track_cycle: {
+        id: 1,
+        ...openCycleDates,
         track: {
           section: [
             {
@@ -357,7 +393,11 @@ describe('TrackProgressService', () => {
       },
     });
 
-    prismaMock.sequence.findUnique.mockResolvedValue({ id: 1, active: true });
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 1,
+      active: true,
+      section_id: 1,
+    });
     prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
     prismaMock.sequence_progress.create.mockResolvedValue({ id: 1 });
     prismaMock.track_progress.update.mockResolvedValue({ id: 1 });
@@ -601,13 +641,16 @@ describe('TrackProgressService', () => {
       id: 1,
       progress_percentage: 0,
       track_cycle: {
+        id: 1,
+        ...openCycleDates,
         track: {
           section: [
             {
+              id: 10,
               order: 1,
               sequence: [
-                { id: 1, order: 1, active: true },
-                { id: 2, order: 2, active: true },
+                { id: 1, order: 1, active: true, section_id: 10 },
+                { id: 2, order: 2, active: true, section_id: 10 },
               ],
             },
           ],
@@ -623,6 +666,77 @@ describe('TrackProgressService', () => {
 
     expect(result.sequence_locked[1]).toBe(false);
     expect(result.sequence_locked[2]).toBe(true);
+    expect(result.sequence_order_locked?.[1]).toBe(false);
+    expect(result.sequence_order_locked?.[2]).toBe(true);
+    expect(result.sequence_schedule_state?.[1]).toBe('open');
+    expect(result.sequence_schedule_state?.[2]).toBe('open');
+    expect(result.sequence_schedule_window?.[1]).toMatchObject({
+      start: expect.any(String),
+      end: expect.any(String),
+    });
+    expect(result.sequence_schedule_window?.[2]).toMatchObject({
+      start: expect.any(String),
+      end: expect.any(String),
+    });
+  });
+
+  it('findByUserAndCycle – has_progression false não bloqueia por ordem', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      progress_percentage: 0,
+      track_cycle: {
+        id: 1,
+        ...openCycleDates,
+        track: {
+          has_progression: false,
+          section: [
+            {
+              id: 10,
+              order: 1,
+              sequence: [
+                { id: 1, order: 1, active: true, section_id: 10 },
+                { id: 2, order: 2, active: true, section_id: 10 },
+              ],
+            },
+          ],
+        },
+      },
+      sequence_progress: [
+        { sequence_id: 1, status: progress_status_enum.in_progress },
+        { sequence_id: 2, status: progress_status_enum.not_started },
+      ],
+    });
+
+    const result = await service.findByUserAndCycle(1, 1);
+
+    expect(result.sequence_order_locked?.[1]).toBe(false);
+    expect(result.sequence_order_locked?.[2]).toBe(false);
+    expect(result.sequence_locked?.[2]).toBe(false);
+  });
+
+  it('canAccessSequence – has_progression false permite sem concluir anterior', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue({
+      id: 1,
+      track_cycle_id: 1,
+      status: progress_status_enum.in_progress,
+      sequence_progress: [
+        { id: 1, status: progress_status_enum.in_progress, sequence_id: 1 },
+      ],
+    });
+
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 2,
+      active: true,
+      section_id: 1,
+      order: 2,
+      section: {
+        track: { has_progression: false },
+      },
+    });
+
+    const result = await service.canAccessSequence(1, 1, 2);
+
+    expect(result.canAccess).toBe(true);
   });
 
   it('findExecutions – filtra e retorna', async () => {

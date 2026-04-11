@@ -17,6 +17,10 @@ erDiagram
     SECTION ||--o{ SEQUENCE : "orders"
     CONTENT ||--o{ SEQUENCE : "references"
     FORM ||--o{ SEQUENCE : "references"
+    TRACK_CYCLE ||--o{ TRACK_CYCLE_SECTION_SCHEDULE : "optional windows"
+    TRACK_CYCLE ||--o{ TRACK_CYCLE_SEQUENCE_SCHEDULE : "optional windows"
+    SECTION ||--o{ TRACK_CYCLE_SECTION_SCHEDULE : "per cycle"
+    SEQUENCE ||--o{ TRACK_CYCLE_SEQUENCE_SCHEDULE : "per cycle"
     TRACK_CYCLE ||--o{ TRACK_PROGRESS : "tracks"
     PARTICIPATION ||--o{ TRACK_PROGRESS : "enrolls"
     TRACK_PROGRESS ||--o{ SEQUENCE_PROGRESS : "details"
@@ -71,6 +75,22 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         boolean active
+    }
+
+    TRACK_CYCLE_SECTION_SCHEDULE {
+        integer id PK
+        integer track_cycle_id FK
+        integer section_id FK
+        date start_date
+        date end_date
+    }
+
+    TRACK_CYCLE_SEQUENCE_SCHEDULE {
+        integer id PK
+        integer track_cycle_id FK
+        integer sequence_id FK
+        date start_date
+        date end_date
     }
 
     TRACK_PROGRESS {
@@ -204,6 +224,42 @@ Representa uma **instância/oferta de trilha** em um contexto e período especí
 
 ---
 
+### Table: `track_cycle_section_schedule`
+
+Janelas de data **opcionais** por **seção**, escopadas a um **ciclo** (`track_cycle`). A mesma trilha pode ser ofertada em ciclos diferentes com períodos distintos por seção, sem alterar a entidade `section` compartilhada.
+
+| Campo            | Tipo    | Constraint                          | Descrição                                                |
+| ---------------- | ------- | ----------------------------------- | -------------------------------------------------------- |
+| `id`             | SERIAL  | PRIMARY KEY                         | Identificador                                            |
+| `track_cycle_id` | INTEGER | NOT NULL, FK → track_cycle.id       | Ciclo ao qual o override pertence                        |
+| `section_id`     | INTEGER | NOT NULL, FK → section.id           | Seção da trilha do ciclo                                 |
+| `start_date`     | DATE    | NULL                                | Início efetivo opcional (herda do ciclo se NULL)         |
+| `end_date`       | DATE    | NULL                                | Término efetivo opcional (herda do ciclo se NULL)        |
+
+**Constraints:** `UNIQUE (track_cycle_id, section_id)`; validação de aplicação garante interseção não vazia com o intervalo do ciclo após *clamp*.
+
+---
+
+### Table: `track_cycle_sequence_schedule`
+
+Janelas opcionais por **sequência** (item de conteúdo/quiz), escopadas ao ciclo. Herança em cascata: após calcular a janela efetiva da seção, aplica-se o mesmo padrão ao item.
+
+| Campo            | Tipo    | Constraint                          | Descrição                                                |
+| ---------------- | ------- | ----------------------------------- | -------------------------------------------------------- |
+| `id`             | SERIAL  | PRIMARY KEY                         | Identificador                                            |
+| `track_cycle_id` | INTEGER | NOT NULL, FK → track_cycle.id       | Ciclo                                                    |
+| `sequence_id`    | INTEGER | NOT NULL, FK → sequence.id          | Sequência (item) na trilha                               |
+| `start_date`     | DATE    | NULL                                | Início opcional (herda da janela efetiva da seção)       |
+| `end_date`       | DATE    | NULL                                | Término opcional                                         |
+
+**Constraints:** `UNIQUE (track_cycle_id, sequence_id)`.
+
+**Semântica:** ausência de linha ou campo `NULL` em `start_date`/`end_date` significa herdar do nível superior (ciclo → seção → sequência). A API admin pode substituir todos os overrides de um ciclo com `PUT /v1/track-cycles/:id/schedules` (corpo idempotente).
+
+**Fuso de referência para “hoje”:** `America/Sao_Paulo` (alinhado ao restante do produto em BRT), comparando datas civis.
+
+---
+
 ### Table: `track_progress`
 
 Rastreia o **progresso geral do usuário** em um ciclo de trilha específico. Registra métricas agregadas e status global.
@@ -309,10 +365,11 @@ Rastreia o **progresso detalhado** de cada sequência (conteúdo ou quiz) dentro
 
 ### Progresso de Usuários
 - Um usuário (via `participation_id`) pode ter apenas um registro de progresso por ciclo
-- Progresso é criado ao iniciar um ciclo (endpoint `/track-progress/start`)
+- Progresso é criado ao iniciar um ciclo (endpoint `/track-progress/start`); o ciclo precisa estar vigente (`today` dentro de `[start_date, end_date]` do ciclo)
 - Percentual calculado automaticamente: `(sequências completadas / total) * 100`
 - Status = 'completed' quando `progress_percentage = 100%`
 - Bloqueio sequencial: usuário só acessa próxima sequência após completar a anterior
+- Bloqueio por agenda: além da ordem, `canAccessSequence`, gravação de progresso e conclusão respeitam a janela efetiva da sequência; a resposta de progresso pode incluir `sequence_schedule_state` (`open` | `upcoming` | `expired`) por item para a UI
 
 ### Registro de Execuções
 - Toda conclusão de sequência gera um registro (via `sequence_progress.completed_at`)

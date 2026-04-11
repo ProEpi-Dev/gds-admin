@@ -69,8 +69,20 @@ export interface TrackProgress {
       email: string;
     };
   };
-  /** Mapa sequenceId -> locked (calculado no backend; locked = conclua a anterior primeiro) */
+  /** Mapa sequenceId -> locked (ordem ou agenda do ciclo) */
   sequence_locked?: Record<number, boolean>;
+  /** Bloqueio apenas por ordem (sequência anterior não concluída) */
+  sequence_order_locked?: Record<number, boolean>;
+  /** Estado da agenda por sequência: open | upcoming | expired */
+  sequence_schedule_state?: Record<
+    number,
+    "open" | "upcoming" | "expired"
+  >;
+  /** Janela efetiva por sequência (yyyy-MM-dd), quando calculada */
+  sequence_schedule_window?: Record<
+    number,
+    { start: string; end: string }
+  >;
 }
 
 export interface StartTrackProgressDto {

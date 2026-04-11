@@ -788,7 +788,7 @@
     "@nestjs/mapped-types" "2.1.0"
     js-yaml "4.1.0"
     lodash "4.17.21"
-    path-to-regexp "8.4.0"
+    path-to-regexp "8.3.0"
     swagger-ui-dist "5.29.4"
 
 "@nestjs/testing@^10.0.0":
@@ -1610,7 +1610,7 @@
   dependencies:
     c12 "3.1.0"
     deepmerge-ts "7.1.5"
-    effect "3.21.0"
+    effect "3.18.4"
     empathic "2.0.0"
 
 "@prisma/debug@6.19.0":
@@ -3192,6 +3192,16 @@ data-uri-to-buffer@^4.0.0:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/data-uri-to-buffer/-/data-uri-to-buffer-4.0.1.tgz#d8feb2b2881e6a4f58c2e08acfd0e2834e26222e"
   integrity sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==
+
+date-fns-tz@^3.2.0:
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/date-fns-tz/-/date-fns-tz-3.2.0.tgz#647dc56d38ac33a3e37b65e9d5c4cda5af5e58e6"
+  integrity sha512-sg8HqoTEulcbbbVXeg84u5UnlsQa8GS5QXMqjjYIhS4abEVVKIUwe0/l/UhrZdKaL/W5eWZNlbTeEIiOXTcsBQ==
+
+date-fns@^4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/date-fns/-/date-fns-4.1.0.tgz#64b3d83fff5aa80438f5b1a633c2e83b8a1c2d14"
+  integrity sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==
 
 dateformat@^4.6.3:
   version "4.6.3"

@@ -12,6 +12,26 @@ import { TrackProgressQueryDto } from './dto/track-progress-query.dto';
 import { TrackExecutionsQueryDto } from './dto/track-executions-query.dto';
 import { progress_status_enum, track_cycle_status_enum } from '@prisma/client';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import {
+  assertTodayWithinCycle,
+  assertValidWindow,
+  resolveSectionEffectiveWindow,
+  resolveSequenceEffectiveWindow,
+  scheduleAccessForToday,
+  todayDateOnlyUtc,
+  type ScheduleAccess,
+} from '../track-cycles/track-cycle-schedule.util';
+
+type ScheduleMaps = {
+  sectionById: Map<
+    number,
+    { section_id: number; start_date: Date | null; end_date: Date | null }
+  >;
+  sequenceById: Map<
+    number,
+    { sequence_id: number; start_date: Date | null; end_date: Date | null }
+  >;
+};
 
 @Injectable()
 export class TrackProgressService {
@@ -34,6 +54,136 @@ export class TrackProgressService {
 
   private serializeProgressList<T>(items: T[]): T[] {
     return items.map((item) => this.serializeProgressPercentage(item));
+  }
+
+  /**
+   * Quando `has_progression === false`, a trilha não exige concluir a etapa anterior.
+   * Se a trilha não vier no payload (include), mantém o comportamento sequencial por segurança.
+   */
+  private trackRequiresSequentialOrder(
+    track: { has_progression?: boolean } | null | undefined,
+  ): boolean {
+    if (track == null) return true;
+    return track.has_progression !== false;
+  }
+
+  private async loadScheduleMaps(trackCycleId: number): Promise<ScheduleMaps> {
+    const [sectionRows, sequenceRows] = await Promise.all([
+      this.prisma.track_cycle_section_schedule.findMany({
+        where: { track_cycle_id: trackCycleId },
+      }),
+      this.prisma.track_cycle_sequence_schedule.findMany({
+        where: { track_cycle_id: trackCycleId },
+      }),
+    ]);
+    return {
+      sectionById: new Map(sectionRows.map((r) => [r.section_id, r])),
+      sequenceById: new Map(sequenceRows.map((r) => [r.sequence_id, r])),
+    };
+  }
+
+  private resolveSequenceWindowFromMaps(
+    cycle: { start_date: Date; end_date: Date },
+    sectionId: number,
+    sequenceId: number,
+    maps: ScheduleMaps,
+  ): { start: Date; end: Date } {
+    const secOv = maps.sectionById.get(sectionId) ?? null;
+    const sectionWin = resolveSectionEffectiveWindow(
+      cycle.start_date,
+      cycle.end_date,
+      secOv,
+    );
+    assertValidWindow(sectionWin.start, sectionWin.end);
+    const seqOv = maps.sequenceById.get(sequenceId) ?? null;
+    const seqWin = resolveSequenceEffectiveWindow(sectionWin, seqOv);
+    assertValidWindow(seqWin.start, seqWin.end);
+    return seqWin;
+  }
+
+  private formatScheduleDay(d: Date): string {
+    return d.toISOString().split('T')[0];
+  }
+
+  private async getScheduleGateResult(
+    trackProgressId: number,
+    trackCycleId: number,
+    sectionId: number,
+    sequenceId: number,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
+    const cycle = await this.prisma.track_cycle.findUnique({
+      where: { id: trackCycleId },
+    });
+    if (!cycle) {
+      return { ok: false, reason: 'Ciclo não encontrado' };
+    }
+    const maps = await this.loadScheduleMaps(trackCycleId);
+    let win: { start: Date; end: Date };
+    try {
+      win = this.resolveSequenceWindowFromMaps(
+        cycle,
+        sectionId,
+        sequenceId,
+        maps,
+      );
+    } catch {
+      return { ok: true };
+    }
+    const today = todayDateOnlyUtc();
+    const sp = await this.prisma.sequence_progress.findUnique({
+      where: {
+        track_progress_id_sequence_id: {
+          track_progress_id: trackProgressId,
+          sequence_id: sequenceId,
+        },
+      },
+    });
+    const completed = sp?.status === progress_status_enum.completed;
+    const access = scheduleAccessForToday(today, win, completed);
+    if (access === 'upcoming') {
+      return {
+        ok: false,
+        reason: `Este conteúdo ficará disponível a partir de ${this.formatScheduleDay(win.start)}.`,
+      };
+    }
+    if (access === 'expired') {
+      return {
+        ok: false,
+        reason: `O prazo para este conteúdo encerrou em ${this.formatScheduleDay(win.end)}.`,
+      };
+    }
+    return { ok: true };
+  }
+
+  private async assertSequenceScheduleAllowsInteraction(
+    trackProgressId: number,
+    sequenceId: number,
+  ): Promise<void> {
+    const tp = await this.prisma.track_progress.findUnique({
+      where: { id: trackProgressId },
+    });
+    if (!tp) {
+      throw new NotFoundException(
+        `Progresso de trilha com ID ${trackProgressId} não encontrado`,
+      );
+    }
+    const seq = await this.prisma.sequence.findUnique({
+      where: { id: sequenceId },
+    });
+    if (!seq) {
+      throw new NotFoundException(
+        `Sequência com ID ${sequenceId} não encontrada`,
+      );
+    }
+    const gate = await this.getScheduleGateResult(
+      trackProgressId,
+      tp.track_cycle_id,
+      seq.section_id,
+      sequenceId,
+    );
+    if (gate.ok === false) {
+      throw new BadRequestException(gate.reason);
+    }
   }
 
   /**
@@ -84,6 +234,27 @@ export class TrackProgressService {
       throw new BadRequestException(
         'A participação não pertence ao contexto do ciclo',
       );
+    }
+
+    try {
+      assertTodayWithinCycle(
+        todayDateOnlyUtc(),
+        cycle.start_date,
+        cycle.end_date,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === 'CYCLE_NOT_STARTED') {
+        throw new BadRequestException(
+          `Este ciclo ainda não está disponível. Data de início: ${this.formatScheduleDay(cycle.start_date)}.`,
+        );
+      }
+      if (msg === 'CYCLE_ENDED') {
+        throw new BadRequestException(
+          `Este ciclo já foi encerrado. Data de término: ${this.formatScheduleDay(cycle.end_date)}.`,
+        );
+      }
+      throw err;
     }
 
     // Verificar se já existe progresso para esta participação/ciclo
@@ -154,6 +325,11 @@ export class TrackProgressService {
     trackProgressId: number,
     sequenceId: number,
   ) {
+    await this.assertSequenceScheduleAllowsInteraction(
+      trackProgressId,
+      sequenceId,
+    );
+
     let sequenceProgress = await this.prisma.sequence_progress.findUnique({
       where: {
         track_progress_id_sequence_id: {
@@ -380,20 +556,35 @@ export class TrackProgressService {
       };
     }
 
-    // Buscar sequência anterior (mesma seção, ordem anterior)
-    const previousSequence = await this.prisma.sequence.findFirst({
-      where: {
-        section_id: sequence.section_id,
-        order: { lt: sequence.order },
-        active: true,
-      },
-      orderBy: {
-        order: 'desc',
-      },
-    });
+    const requiresSequentialOrder = this.trackRequiresSequentialOrder(
+      sequence.section?.track,
+    );
 
-    // Se não há sequência anterior, pode acessar
+    // Buscar sequência anterior (mesma seção, ordem anterior)
+    const previousSequence = requiresSequentialOrder
+      ? await this.prisma.sequence.findFirst({
+          where: {
+            section_id: sequence.section_id,
+            order: { lt: sequence.order },
+            active: true,
+          },
+          orderBy: {
+            order: 'desc',
+          },
+        })
+      : null;
+
+    // Se não há sequência anterior, pode acessar (sujeito à agenda)
     if (!previousSequence) {
+      const gate = await this.getScheduleGateResult(
+        trackProgress.id,
+        trackCycleId,
+        sequence.section_id,
+        sequenceId,
+      );
+      if (gate.ok === false) {
+        return { canAccess: false, reason: gate.reason };
+      }
       return { canAccess: true };
     }
 
@@ -408,8 +599,8 @@ export class TrackProgressService {
     });
 
     if (
-      !previousProgress ||
-      previousProgress.status !== progress_status_enum.completed
+      requiresSequentialOrder &&
+      previousProgress?.status !== progress_status_enum.completed
     ) {
       return {
         canAccess: false,
@@ -417,12 +608,22 @@ export class TrackProgressService {
       };
     }
 
+    const gate = await this.getScheduleGateResult(
+      trackProgress.id,
+      trackCycleId,
+      sequence.section_id,
+      sequenceId,
+    );
+    if (gate.ok === false) {
+      return { canAccess: false, reason: gate.reason };
+    }
+
     return { canAccess: true };
   }
 
   /**
    * Busca progresso de um usuário em um ciclo específico.
-   * Inclui sequence_locked: mapa sequenceId -> boolean (locked = precisa concluir anterior).
+   * Inclui sequence_locked (ordem e/ou agenda) e sequence_order_locked (só ordem, respeita track.has_progression).
    */
   async findByUserAndCycle(participationId: number, trackCycleId: number) {
     const trackProgress = await this.prisma.track_progress.findUnique({
@@ -486,8 +687,76 @@ export class TrackProgressService {
     const serialized = this.serializeProgressPercentage(trackProgress) as any;
     if (!serialized) return serialized;
 
-    const sequence_locked = this.computeSequenceLocked(serialized);
-    return { ...serialized, sequence_locked };
+    const sequentialLocked = this.computeSequenceLocked(serialized);
+    const maps = await this.loadScheduleMaps(trackCycleId);
+    const today = todayDateOnlyUtc();
+    const cycle = serialized.track_cycle;
+    const statusBySequenceId = new Map<number, string>();
+    (serialized.sequence_progress ?? []).forEach((sp: any) => {
+      statusBySequenceId.set(sp.sequence_id, sp.status ?? 'not_started');
+    });
+    const ordered = this.buildOrderedSequenceIdsWithSections(serialized);
+    const sequence_schedule_state: Record<number, ScheduleAccess> = {};
+    /** Janela efetiva (após herança ciclo → seção → item), só quando válida; ISO date yyyy-MM-dd */
+    const sequence_schedule_window: Record<
+      number,
+      { start: string; end: string }
+    > = {};
+    const mergedLocked: Record<number, boolean> = { ...sequentialLocked };
+
+    for (const { sequenceId, sectionId } of ordered) {
+      let win: { start: Date; end: Date };
+      try {
+        win = this.resolveSequenceWindowFromMaps(
+          cycle,
+          sectionId,
+          sequenceId,
+          maps,
+        );
+      } catch {
+        sequence_schedule_state[sequenceId] = 'open';
+        continue;
+      }
+      sequence_schedule_window[sequenceId] = {
+        start: this.formatScheduleDay(win.start),
+        end: this.formatScheduleDay(win.end),
+      };
+      const completed =
+        statusBySequenceId.get(sequenceId) === progress_status_enum.completed;
+      const st = scheduleAccessForToday(today, win, completed);
+      sequence_schedule_state[sequenceId] = st;
+      if (st !== 'open') {
+        mergedLocked[sequenceId] = true;
+      }
+    }
+
+    return {
+      ...serialized,
+      sequence_order_locked: sequentialLocked,
+      sequence_locked: mergedLocked,
+      sequence_schedule_state,
+      sequence_schedule_window,
+    };
+  }
+
+  private buildOrderedSequenceIdsWithSections(trackProgress: any): Array<{
+    sequenceId: number;
+    sectionId: number;
+  }> {
+    const sections = trackProgress?.track_cycle?.track?.section;
+    if (!Array.isArray(sections)) return [];
+    const orderedSections = [...sections].sort(
+      (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0),
+    );
+    const out: Array<{ sequenceId: number; sectionId: number }> = [];
+    orderedSections.forEach((sec: any) => {
+      const seqs = Array.isArray(sec.sequence) ? [...sec.sequence] : [];
+      seqs.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      seqs.forEach((seq: any) =>
+        out.push({ sequenceId: seq.id, sectionId: sec.id }),
+      );
+    });
+    return out;
   }
 
   /**
@@ -496,8 +765,22 @@ export class TrackProgressService {
    */
   private computeSequenceLocked(trackProgress: any): Record<number, boolean> {
     const result: Record<number, boolean> = {};
-    const sections = trackProgress?.track_cycle?.track?.section;
+    const track = trackProgress?.track_cycle?.track;
+    const sections = track?.section;
     if (!Array.isArray(sections)) return result;
+
+    if (!this.trackRequiresSequentialOrder(track)) {
+      const orderedSections = [...sections].sort(
+        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0),
+      );
+      orderedSections.forEach((sec: any) => {
+        const seqs = Array.isArray(sec.sequence) ? [...sec.sequence] : [];
+        seqs.forEach((seq: any) => {
+          result[seq.id] = false;
+        });
+      });
+      return result;
+    }
 
     const statusBySequenceId = new Map<number, string>();
     (trackProgress.sequence_progress ?? []).forEach((sp: any) => {

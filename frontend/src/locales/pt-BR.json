@@ -114,7 +114,8 @@
   },
   "reportStreaks": {
     "title": "Ofensivas de Reports",
-    "searchLabel": "Buscar aluno",
+    "timezoneHint": "Datas e ofensiva usam o dia civil em Brasília (America/Sao_Paulo, UTC−3).",
+    "searchLabel": "Buscar participante",
     "searchPlaceholder": "Digite nome ou e-mail",
     "currentStreak": "Ofensiva atual",
     "longestStreak": "Maior ofensiva",

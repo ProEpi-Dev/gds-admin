@@ -23,6 +23,12 @@ describe('TrackCyclesService', () => {
     context: {
       findUnique: jest.fn(),
     },
+    section: {
+      findMany: jest.fn(),
+    },
+    sequence: {
+      findMany: jest.fn(),
+    },
     track_cycle: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -34,6 +40,15 @@ describe('TrackCyclesService', () => {
     track_progress: {
       findMany: jest.fn(),
     },
+    track_cycle_section_schedule: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    track_cycle_sequence_schedule: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -406,5 +421,82 @@ describe('TrackCyclesService', () => {
     const result = await service.getStudentsProgress(1, 1);
 
     expect(result[0].progress_percentage).toBe(50);
+  });
+
+  describe('replaceSchedules()', () => {
+    const cycleRow = {
+      id: 1,
+      track_id: 5,
+      context_id: 1,
+      start_date: new Date('2026-01-01T00:00:00.000Z'),
+      end_date: new Date('2026-12-31T00:00:00.000Z'),
+    };
+
+    const fullCycleResponse = {
+      ...cycleRow,
+      track: { section: [] },
+      context: { id: 1, name: 'Ctx' },
+      track_cycle_section_schedule: [],
+      track_cycle_sequence_schedule: [],
+    };
+
+    beforeEach(() => {
+      (authz.isAdmin as jest.Mock).mockResolvedValue(true);
+      (prisma.track_cycle.findUnique as jest.Mock)
+        .mockResolvedValueOnce(cycleRow)
+        .mockResolvedValueOnce(fullCycleResponse);
+      (prisma.section.findMany as jest.Mock).mockResolvedValue([
+        { id: 10, track_id: 5 },
+      ]);
+      (prisma.sequence.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: any) => unknown) =>
+        fn({
+          track_cycle_section_schedule: prisma.track_cycle_section_schedule,
+          track_cycle_sequence_schedule: prisma.track_cycle_sequence_schedule,
+        }),
+      );
+      (prisma.track_cycle_section_schedule.deleteMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+      (prisma.track_cycle_sequence_schedule.deleteMany as jest.Mock).mockResolvedValue({
+        count: 0,
+      });
+      (prisma.track_cycle_section_schedule.createMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
+    });
+
+    it('persiste override de seção válido', async () => {
+      const result = await service.replaceSchedules(
+        1,
+        {
+          sectionSchedules: [
+            { sectionId: 10, startDate: '2026-03-01', endDate: '2026-03-31' },
+          ],
+          sequenceSchedules: [],
+        },
+        1,
+      );
+
+      expect(prisma.track_cycle_section_schedule.createMany).toHaveBeenCalled();
+      expect(result).toMatchObject({ id: 1 });
+    });
+
+    it('rejeita seção que não pertence à trilha do ciclo', async () => {
+      (prisma.section.findMany as jest.Mock).mockResolvedValue([
+        { id: 99, track_id: 1 },
+      ]);
+
+      await expect(
+        service.replaceSchedules(
+          1,
+          {
+            sectionSchedules: [{ sectionId: 10, startDate: '2026-03-01', endDate: null }],
+            sequenceSchedules: [],
+          },
+          1,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });

@@ -6,6 +6,7 @@ import type {
   UpdateTrackCycleStatusDto,
   TrackCycleQueryParams,
   StudentProgress,
+  ReplaceTrackCycleSchedulesDto,
 } from '../../types/track-cycle.types';
 
 export const TrackCyclesService = {
@@ -65,5 +66,12 @@ export const TrackCyclesService = {
    */
   getStudentsProgress(id: number) {
     return apiClient.get<StudentProgress[]>(`/track-cycles/${id}/students`);
+  },
+
+  /**
+   * Substitui agendamentos opcionais de seções e sequências do ciclo (idempotente).
+   */
+  replaceSchedules(id: number, data: ReplaceTrackCycleSchedulesDto) {
+    return apiClient.put<TrackCycle>(`/track-cycles/${id}/schedules`, data);
   },
 };
