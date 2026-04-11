@@ -230,6 +230,34 @@ export class TrackCyclesService {
 
     await this.assertCanManageCycle(userId, cycle.context_id);
 
+    const sequenceById = await this.loadAndAssertScheduleTargets(dto, cycle.track_id);
+
+    const sectionCreates = this.buildSectionScheduleCreates(dto, cycle, cycleId);
+    const sectionScheduleBySectionId = new Map(
+      sectionCreates.map((r) => [r.section_id, r]),
+    );
+    const sequenceCreates = this.buildSequenceScheduleCreates(
+      dto,
+      cycle,
+      cycleId,
+      sectionScheduleBySectionId,
+      sequenceById,
+    );
+
+    await this.persistScheduleReplacement(cycleId, sectionCreates, sequenceCreates);
+
+    return this.findOne(cycleId, userId);
+  }
+
+  private parseScheduleDay(v: string | null | undefined): Date | null {
+    if (v === undefined || v === null || v === '') return null;
+    return new Date(`${v}T00:00:00.000Z`);
+  }
+
+  private async loadAndAssertScheduleTargets(
+    dto: ReplaceTrackCycleSchedulesDto,
+    trackId: number,
+  ) {
     const sectionIds = dto.sectionSchedules.map((s) => s.sectionId);
     if (new Set(sectionIds).size !== sectionIds.length) {
       throw new BadRequestException('sectionId duplicado em sectionSchedules');
@@ -244,8 +272,7 @@ export class TrackCyclesService {
     });
     const sectionById = new Map(sections.map((s) => [s.id, s]));
     for (const sid of sectionIds) {
-      const sec = sectionById.get(sid);
-      if (!sec || sec.track_id !== cycle.track_id) {
+      if (sectionById.get(sid)?.track_id !== trackId) {
         throw new BadRequestException(
           `Seção ${sid} não pertence à trilha deste ciclo`,
         );
@@ -258,20 +285,22 @@ export class TrackCyclesService {
     });
     const sequenceById = new Map(sequences.map((q) => [q.id, q]));
     for (const qid of sequenceIds) {
-      const seq = sequenceById.get(qid);
-      if (!seq || seq.section.track_id !== cycle.track_id) {
+      if (sequenceById.get(qid)?.section.track_id !== trackId) {
         throw new BadRequestException(
           `Sequência ${qid} não pertence à trilha deste ciclo`,
         );
       }
     }
 
-    const parseDay = (v: string | null | undefined): Date | null => {
-      if (v === undefined || v === null || v === '') return null;
-      return new Date(`${v}T00:00:00.000Z`);
-    };
+    return sequenceById;
+  }
 
-    const sectionCreates: Array<{
+  private buildSectionScheduleCreates(
+    dto: ReplaceTrackCycleSchedulesDto,
+    cycle: { start_date: Date; end_date: Date },
+    cycleId: number,
+  ) {
+    const rows: Array<{
       track_cycle_id: number;
       section_id: number;
       start_date: Date | null;
@@ -279,8 +308,8 @@ export class TrackCyclesService {
     }> = [];
 
     for (const item of dto.sectionSchedules) {
-      const startD = parseDay(item.startDate ?? null);
-      const endD = parseDay(item.endDate ?? null);
+      const startD = this.parseScheduleDay(item.startDate ?? null);
+      const endD = this.parseScheduleDay(item.endDate ?? null);
       if (startD && endD && toDateOnlyUtc(startD) > toDateOnlyUtc(endD)) {
         throw new BadRequestException(
           `Seção ${item.sectionId}: data de início deve ser anterior ou igual ao término`,
@@ -300,7 +329,7 @@ export class TrackCyclesService {
           `Seção ${item.sectionId}: janela efetiva inválida em relação ao ciclo`,
         );
       }
-      sectionCreates.push({
+      rows.push({
         track_cycle_id: cycleId,
         section_id: item.sectionId,
         start_date: startD,
@@ -308,20 +337,32 @@ export class TrackCyclesService {
       });
     }
 
-    const sequenceCreates: Array<{
+    return rows;
+  }
+
+  private buildSequenceScheduleCreates(
+    dto: ReplaceTrackCycleSchedulesDto,
+    cycle: { start_date: Date; end_date: Date },
+    cycleId: number,
+    sectionScheduleBySectionId: Map<
+      number,
+      { start_date: Date | null; end_date: Date | null }
+    >,
+    sequenceById: Map<
+      number,
+      { section_id: number; section: { track_id: number } }
+    >,
+  ) {
+    const rows: Array<{
       track_cycle_id: number;
       sequence_id: number;
       start_date: Date | null;
       end_date: Date | null;
     }> = [];
 
-    const sectionScheduleBySectionId = new Map(
-      sectionCreates.map((r) => [r.section_id, r]),
-    );
-
     for (const item of dto.sequenceSchedules) {
-      const startD = parseDay(item.startDate ?? null);
-      const endD = parseDay(item.endDate ?? null);
+      const startD = this.parseScheduleDay(item.startDate ?? null);
+      const endD = this.parseScheduleDay(item.endDate ?? null);
       if (startD && endD && toDateOnlyUtc(startD) > toDateOnlyUtc(endD)) {
         throw new BadRequestException(
           `Sequência ${item.sequenceId}: data de início deve ser anterior ou igual ao término`,
@@ -330,7 +371,10 @@ export class TrackCyclesService {
       if (startD == null && endD == null) {
         continue;
       }
-      const seq = sequenceById.get(item.sequenceId)!;
+      const seq = sequenceById.get(item.sequenceId);
+      if (seq === undefined) {
+        throw new BadRequestException(`Sequência ${item.sequenceId} não encontrada`);
+      }
       const secOvRow = sectionScheduleBySectionId.get(seq.section_id);
       const secOverride = secOvRow
         ? { start_date: secOvRow.start_date, end_date: secOvRow.end_date }
@@ -361,7 +405,7 @@ export class TrackCyclesService {
             'Ajuste início/término do item para ficarem totalmente dentro desse intervalo (ex.: término do item não pode passar do fim da seção; datas antes do início da seção são “puxadas” para o início da seção e podem conflitar com o término).',
         );
       }
-      sequenceCreates.push({
+      rows.push({
         track_cycle_id: cycleId,
         sequence_id: item.sequenceId,
         start_date: startD,
@@ -369,6 +413,24 @@ export class TrackCyclesService {
       });
     }
 
+    return rows;
+  }
+
+  private async persistScheduleReplacement(
+    cycleId: number,
+    sectionCreates: Array<{
+      track_cycle_id: number;
+      section_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }>,
+    sequenceCreates: Array<{
+      track_cycle_id: number;
+      sequence_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }>,
+  ) {
     await this.prisma.$transaction(async (tx) => {
       await tx.track_cycle_section_schedule.deleteMany({
         where: { track_cycle_id: cycleId },
@@ -385,8 +447,6 @@ export class TrackCyclesService {
         });
       }
     });
-
-    return this.findOne(cycleId, userId);
   }
 
   async findActive(contextId?: number, trackId?: number, userId?: number) {

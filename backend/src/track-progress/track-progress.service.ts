@@ -600,8 +600,7 @@ export class TrackProgressService {
 
     if (
       requiresSequentialOrder &&
-      (!previousProgress ||
-        previousProgress.status !== progress_status_enum.completed)
+      previousProgress?.status !== progress_status_enum.completed
     ) {
       return {
         canAccess: false,

@@ -14,6 +14,13 @@ export function toDateOnlyUtc(d: Date): Date {
   return new Date(`${ymd}T00:00:00.000Z`);
 }
 
+function dateOnlyOrFallback(value: Date | null | undefined, fallback: Date): Date {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  return toDateOnlyUtc(value);
+}
+
 export function todayDateOnlyUtc(): Date {
   const ymd = formatInTimeZone(new Date(), TRACK_CYCLE_SCHEDULE_TZ, 'yyyy-MM-dd');
   return new Date(`${ymd}T00:00:00.000Z`);
@@ -26,9 +33,8 @@ export function resolveSectionEffectiveWindow(
 ): { start: Date; end: Date } {
   const cS = toDateOnlyUtc(cycleStart);
   const cE = toDateOnlyUtc(cycleEnd);
-  let s =
-    override?.start_date != null ? toDateOnlyUtc(override.start_date) : cS;
-  let e = override?.end_date != null ? toDateOnlyUtc(override.end_date) : cE;
+  let s = dateOnlyOrFallback(override?.start_date, cS);
+  let e = dateOnlyOrFallback(override?.end_date, cE);
   if (s < cS) s = cS;
   if (e > cE) e = cE;
   return { start: s, end: e };
@@ -38,14 +44,8 @@ export function resolveSequenceEffectiveWindow(
   sectionWindow: { start: Date; end: Date },
   override: ScheduleOverride | null | undefined,
 ): { start: Date; end: Date } {
-  let s =
-    override?.start_date != null
-      ? toDateOnlyUtc(override.start_date)
-      : sectionWindow.start;
-  let e =
-    override?.end_date != null
-      ? toDateOnlyUtc(override.end_date)
-      : sectionWindow.end;
+  let s = dateOnlyOrFallback(override?.start_date, sectionWindow.start);
+  let e = dateOnlyOrFallback(override?.end_date, sectionWindow.end);
   if (s < sectionWindow.start) s = sectionWindow.start;
   if (e > sectionWindow.end) e = sectionWindow.end;
   return { start: s, end: e };

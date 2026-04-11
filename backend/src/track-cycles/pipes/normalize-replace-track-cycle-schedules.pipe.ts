@@ -3,8 +3,10 @@ import {
   Injectable,
   PipeTransform,
 } from '@nestjs/common';
-import type { SectionScheduleItemDto } from '../dto/replace-track-cycle-schedules.dto';
-import type { SequenceScheduleItemDto } from '../dto/replace-track-cycle-schedules.dto';
+import type {
+  SectionScheduleItemDto,
+  SequenceScheduleItemDto,
+} from '../dto/replace-track-cycle-schedules.dto';
 
 function normalizeDateField(v: unknown): string | null | undefined {
   if (v === undefined) return undefined;
