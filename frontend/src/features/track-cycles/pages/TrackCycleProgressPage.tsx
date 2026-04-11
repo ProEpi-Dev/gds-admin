@@ -33,6 +33,19 @@ import { useTrackProgressByParticipationAndCycle } from "../../track-progress/ho
 import { TrackProgressService } from "../../../api/services/track-progress.service";
 import { ProgressStatus } from "../../../types/track-progress.types";
 
+/** Formata yyyy-MM-DD (civil) sem deslocar o dia por fuso. */
+function formatScheduleDayBr(iso: string): string {
+  const parts = iso.split("-").map((p) => parseInt(p, 10));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return iso;
+  const [y, m, d] = parts;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 interface SectionWithSequences {
   id: number;
   name: string;
@@ -212,9 +225,11 @@ export default function TrackCycleProgressPage() {
       </Paper>
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        As sequências são liberadas em ordem. Conclua uma para desbloquear a
-        próxima. Use &quot;Marcar como concluído&quot; em conteúdos ou abra o
-        quiz em outra aba e conclua-o.
+        As sequências são liberadas em ordem e podem ter janelas de data no ciclo
+        (período efetivo após herança ciclo → seção → item). Itens fora do período
+        mostram &quot;Em breve&quot; ou &quot;Encerrado&quot;, com as datas
+        previstas. Se ainda estiver bloqueado pela ordem, o rótulo é
+        &quot;Bloqueado&quot; e o texto explica o período quando aplicável.
       </Alert>
 
       {sectionsOrdered.map((section) => {
@@ -235,6 +250,13 @@ export default function TrackCycleProgressPage() {
                   const status =
                     seqProgress?.status ?? ProgressStatus.NOT_STARTED;
                   const locked = progress.sequence_locked?.[seq.id] ?? false;
+                  const orderLocked =
+                    progress.sequence_order_locked?.[seq.id] ?? false;
+                  const scheduleState =
+                    progress.sequence_schedule_state?.[seq.id];
+                  const scheduleWin = progress.sequence_schedule_window?.[
+                    seq.id
+                  ];
                   const isContent = !!seq.content_id;
                   const isQuiz = !!seq.form_id;
                   const completedAt = seqProgress?.completed_at;
@@ -281,8 +303,39 @@ export default function TrackCycleProgressPage() {
                   }
                   // Estados padrão
                   else if (locked) {
-                    additionalInfo =
-                      "Conclua a sequência anterior para desbloquear";
+                    const from = scheduleWin?.start
+                      ? formatScheduleDayBr(scheduleWin.start)
+                      : null;
+                    const to = scheduleWin?.end
+                      ? formatScheduleDayBr(scheduleWin.end)
+                      : null;
+                    const period =
+                      from && to ? `de ${from} a ${to}` : null;
+
+                    if (orderLocked) {
+                      additionalInfo =
+                        "Conclua a sequência anterior para desbloquear.";
+                      if (period) {
+                        if (scheduleState === "upcoming") {
+                          additionalInfo += ` Depois disso, ficará disponível ${period} (abre em ${from}).`;
+                        } else if (scheduleState === "expired") {
+                          additionalInfo += ` Atenção: quando liberado na ordem, o prazo deste item já terá encerrado (${period}).`;
+                        } else {
+                          additionalInfo += ` Disponibilidade ${period}.`;
+                        }
+                      }
+                    } else if (scheduleState === "upcoming") {
+                      additionalInfo = period
+                        ? `Em breve. Ficará disponível ${period} (abre em ${from}).`
+                        : "Em breve — fora do período de disponibilidade deste item";
+                    } else if (scheduleState === "expired") {
+                      additionalInfo = period
+                        ? `Prazo encerrado. Este item esteve disponível ${period}.`
+                        : "Prazo de disponibilidade encerrado";
+                    } else {
+                      additionalInfo =
+                        "Conclua a sequência anterior para desbloquear";
+                    }
                   } else if (status === ProgressStatus.IN_PROGRESS) {
                     additionalInfo = "Em progresso";
                   } else {
@@ -327,9 +380,40 @@ export default function TrackCycleProgressPage() {
                       <ListItemSecondaryAction>
                         {locked ? (
                           <Chip
-                            label="Bloqueado"
+                            label={
+                              orderLocked && scheduleState === "upcoming"
+                                ? "Bloqueado"
+                                : scheduleState === "upcoming"
+                                  ? "Em breve"
+                                  : scheduleState === "expired"
+                                    ? "Encerrado"
+                                    : "Bloqueado"
+                            }
                             size="small"
                             icon={<LockIcon />}
+                            color={
+                              scheduleState === "expired"
+                                ? "default"
+                                : scheduleState === "upcoming" && !orderLocked
+                                  ? "warning"
+                                  : "default"
+                            }
+                            variant={
+                              scheduleState === "expired" ? "outlined" : "filled"
+                            }
+                            sx={
+                              scheduleState === "expired"
+                                ? (theme) => ({
+                                    borderColor: theme.palette.divider,
+                                    bgcolor: theme.palette.action.hover,
+                                    color: theme.palette.text.secondary,
+                                    fontWeight: 500,
+                                    "& .MuiChip-icon": {
+                                      color: theme.palette.text.secondary,
+                                    },
+                                  })
+                                : undefined
+                            }
                           />
                         ) : (
                           <Stack direction="row" spacing={1}>

@@ -11,7 +11,14 @@ import { CreateTrackCycleDto } from './dto/create-track-cycle.dto';
 import { UpdateTrackCycleDto } from './dto/update-track-cycle.dto';
 import { UpdateTrackCycleStatusDto } from './dto/update-track-cycle-status.dto';
 import { TrackCycleQueryDto } from './dto/track-cycle-query.dto';
+import { ReplaceTrackCycleSchedulesDto } from './dto/replace-track-cycle-schedules.dto';
 import { track_cycle_status_enum } from '@prisma/client';
+import {
+  assertValidWindow,
+  resolveSectionEffectiveWindow,
+  resolveSequenceEffectiveWindow,
+  toDateOnlyUtc,
+} from './track-cycle-schedule.util';
 
 @Injectable()
 export class TrackCyclesService {
@@ -191,6 +198,8 @@ export class TrackCyclesService {
           },
         },
         context: true,
+        track_cycle_section_schedule: true,
+        track_cycle_sequence_schedule: true,
       },
     });
 
@@ -201,6 +210,243 @@ export class TrackCyclesService {
     await this.assertCanReadCycle(userId, cycle.context_id);
 
     return cycle;
+  }
+
+  /**
+   * Substitui todos os agendamentos opcionais de seção/sequência do ciclo (idempotente).
+   */
+  async replaceSchedules(
+    cycleId: number,
+    dto: ReplaceTrackCycleSchedulesDto,
+    userId: number,
+  ) {
+    const cycle = await this.prisma.track_cycle.findUnique({
+      where: { id: cycleId },
+    });
+
+    if (!cycle) {
+      throw new NotFoundException(`Ciclo com ID ${cycleId} não encontrado`);
+    }
+
+    await this.assertCanManageCycle(userId, cycle.context_id);
+
+    const sequenceById = await this.loadAndAssertScheduleTargets(dto, cycle.track_id);
+
+    const sectionCreates = this.buildSectionScheduleCreates(dto, cycle, cycleId);
+    const sectionScheduleBySectionId = new Map(
+      sectionCreates.map((r) => [r.section_id, r]),
+    );
+    const sequenceCreates = this.buildSequenceScheduleCreates(
+      dto,
+      cycle,
+      cycleId,
+      sectionScheduleBySectionId,
+      sequenceById,
+    );
+
+    await this.persistScheduleReplacement(cycleId, sectionCreates, sequenceCreates);
+
+    return this.findOne(cycleId, userId);
+  }
+
+  private parseScheduleDay(v: string | null | undefined): Date | null {
+    if (v === undefined || v === null || v === '') return null;
+    return new Date(`${v}T00:00:00.000Z`);
+  }
+
+  private async loadAndAssertScheduleTargets(
+    dto: ReplaceTrackCycleSchedulesDto,
+    trackId: number,
+  ) {
+    const sectionIds = dto.sectionSchedules.map((s) => s.sectionId);
+    if (new Set(sectionIds).size !== sectionIds.length) {
+      throw new BadRequestException('sectionId duplicado em sectionSchedules');
+    }
+    const sequenceIds = dto.sequenceSchedules.map((s) => s.sequenceId);
+    if (new Set(sequenceIds).size !== sequenceIds.length) {
+      throw new BadRequestException('sequenceId duplicado em sequenceSchedules');
+    }
+
+    const sections = await this.prisma.section.findMany({
+      where: { id: { in: sectionIds.length ? sectionIds : [-1] } },
+    });
+    const sectionById = new Map(sections.map((s) => [s.id, s]));
+    for (const sid of sectionIds) {
+      if (sectionById.get(sid)?.track_id !== trackId) {
+        throw new BadRequestException(
+          `Seção ${sid} não pertence à trilha deste ciclo`,
+        );
+      }
+    }
+
+    const sequences = await this.prisma.sequence.findMany({
+      where: { id: { in: sequenceIds.length ? sequenceIds : [-1] } },
+      include: { section: true },
+    });
+    const sequenceById = new Map(sequences.map((q) => [q.id, q]));
+    for (const qid of sequenceIds) {
+      if (sequenceById.get(qid)?.section.track_id !== trackId) {
+        throw new BadRequestException(
+          `Sequência ${qid} não pertence à trilha deste ciclo`,
+        );
+      }
+    }
+
+    return sequenceById;
+  }
+
+  private buildSectionScheduleCreates(
+    dto: ReplaceTrackCycleSchedulesDto,
+    cycle: { start_date: Date; end_date: Date },
+    cycleId: number,
+  ) {
+    const rows: Array<{
+      track_cycle_id: number;
+      section_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }> = [];
+
+    for (const item of dto.sectionSchedules) {
+      const startD = this.parseScheduleDay(item.startDate ?? null);
+      const endD = this.parseScheduleDay(item.endDate ?? null);
+      if (startD && endD && toDateOnlyUtc(startD) > toDateOnlyUtc(endD)) {
+        throw new BadRequestException(
+          `Seção ${item.sectionId}: data de início deve ser anterior ou igual ao término`,
+        );
+      }
+      if (startD == null && endD == null) {
+        continue;
+      }
+      const win = resolveSectionEffectiveWindow(cycle.start_date, cycle.end_date, {
+        start_date: startD,
+        end_date: endD,
+      });
+      try {
+        assertValidWindow(win.start, win.end);
+      } catch {
+        throw new BadRequestException(
+          `Seção ${item.sectionId}: janela efetiva inválida em relação ao ciclo`,
+        );
+      }
+      rows.push({
+        track_cycle_id: cycleId,
+        section_id: item.sectionId,
+        start_date: startD,
+        end_date: endD,
+      });
+    }
+
+    return rows;
+  }
+
+  private buildSequenceScheduleCreates(
+    dto: ReplaceTrackCycleSchedulesDto,
+    cycle: { start_date: Date; end_date: Date },
+    cycleId: number,
+    sectionScheduleBySectionId: Map<
+      number,
+      { start_date: Date | null; end_date: Date | null }
+    >,
+    sequenceById: Map<
+      number,
+      { section_id: number; section: { track_id: number } }
+    >,
+  ) {
+    const rows: Array<{
+      track_cycle_id: number;
+      sequence_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }> = [];
+
+    for (const item of dto.sequenceSchedules) {
+      const startD = this.parseScheduleDay(item.startDate ?? null);
+      const endD = this.parseScheduleDay(item.endDate ?? null);
+      if (startD && endD && toDateOnlyUtc(startD) > toDateOnlyUtc(endD)) {
+        throw new BadRequestException(
+          `Sequência ${item.sequenceId}: data de início deve ser anterior ou igual ao término`,
+        );
+      }
+      if (startD == null && endD == null) {
+        continue;
+      }
+      const seq = sequenceById.get(item.sequenceId);
+      if (seq === undefined) {
+        throw new BadRequestException(`Sequência ${item.sequenceId} não encontrada`);
+      }
+      const secOvRow = sectionScheduleBySectionId.get(seq.section_id);
+      const secOverride = secOvRow
+        ? { start_date: secOvRow.start_date, end_date: secOvRow.end_date }
+        : null;
+      const sectionWin = resolveSectionEffectiveWindow(
+        cycle.start_date,
+        cycle.end_date,
+        secOverride,
+      );
+      try {
+        assertValidWindow(sectionWin.start, sectionWin.end);
+      } catch {
+        throw new BadRequestException(
+          `Sequência ${item.sequenceId}: janela da seção inválida`,
+        );
+      }
+      const seqWin = resolveSequenceEffectiveWindow(sectionWin, {
+        start_date: startD,
+        end_date: endD,
+      });
+      try {
+        assertValidWindow(seqWin.start, seqWin.end);
+      } catch {
+        const secFrom = sectionWin.start.toISOString().split('T')[0];
+        const secTo = sectionWin.end.toISOString().split('T')[0];
+        throw new BadRequestException(
+          `Sequência ${item.sequenceId}: as datas deste item, após encaixar na janela da seção (${secFrom} a ${secTo}), não formam um período válido (início deve ser ≤ fim). ` +
+            'Ajuste início/término do item para ficarem totalmente dentro desse intervalo (ex.: término do item não pode passar do fim da seção; datas antes do início da seção são “puxadas” para o início da seção e podem conflitar com o término).',
+        );
+      }
+      rows.push({
+        track_cycle_id: cycleId,
+        sequence_id: item.sequenceId,
+        start_date: startD,
+        end_date: endD,
+      });
+    }
+
+    return rows;
+  }
+
+  private async persistScheduleReplacement(
+    cycleId: number,
+    sectionCreates: Array<{
+      track_cycle_id: number;
+      section_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }>,
+    sequenceCreates: Array<{
+      track_cycle_id: number;
+      sequence_id: number;
+      start_date: Date | null;
+      end_date: Date | null;
+    }>,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.track_cycle_section_schedule.deleteMany({
+        where: { track_cycle_id: cycleId },
+      });
+      await tx.track_cycle_sequence_schedule.deleteMany({
+        where: { track_cycle_id: cycleId },
+      });
+      if (sectionCreates.length > 0) {
+        await tx.track_cycle_section_schedule.createMany({ data: sectionCreates });
+      }
+      if (sequenceCreates.length > 0) {
+        await tx.track_cycle_sequence_schedule.createMany({
+          data: sequenceCreates,
+        });
+      }
+    });
   }
 
   async findActive(contextId?: number, trackId?: number, userId?: number) {
