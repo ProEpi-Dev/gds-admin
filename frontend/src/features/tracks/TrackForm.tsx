@@ -385,7 +385,7 @@ export default function TrackForm() {
     start_date: "",
     end_date: "",
     show_after_completion: false,
-    has_progression: false,
+    has_progression: true,
     sections: [] as Array<{
       id?: number;
       tempId?: string;
@@ -882,8 +882,9 @@ export default function TrackForm() {
                 label="Exigir conclusão da etapa anterior"
               />
               <Typography variant="caption" color="text.secondary">
-                Quando ativado, o usuário só poderá avançar após concluir a
-                etapa anterior.
+                Quando ativado, nos ciclos desta trilha é obrigatório concluir
+                cada etapa antes da seguinte. Desativado, a ordem fica livre;
+                as janelas de data do ciclo (se houver) continuam valendo.
               </Typography>
             </Box>
           </Box>

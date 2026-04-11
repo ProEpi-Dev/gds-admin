@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,8 +11,8 @@ import {
   Typography,
   Paper,
   Stack,
-  Alert,
   CircularProgress,
+  Divider,
   FormControl,
   InputLabel,
   Select,
@@ -32,10 +33,53 @@ import {
 } from "../hooks/useTrackCycles";
 import { useCurrentContext } from "../../../contexts/CurrentContextContext";
 import { useTracks } from "../../tracks/hooks/useTracks";
-import { TrackCycleStatus } from "../../../types/track-cycle.types";
+import {
+  TrackCycleStatus,
+  type TrackCycleSectionSummary,
+  type ReplaceTrackCycleSchedulesDto,
+} from "../../../types/track-cycle.types";
 import { getErrorMessage } from "../../../utils/errorHandler";
+import { useSnackbar as useNotistackSnackbar } from "notistack";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
+import { TrackService } from "../../../api/services/track.service";
+import { TrackCyclesService } from "../../../api/services/track-cycles.service";
+
+function buildReplaceSchedulesPayload(
+  sections: TrackCycleSectionSummary[],
+  sectionDates: Record<number, { start: string; end: string }>,
+  sequenceDates: Record<number, { start: string; end: string }>,
+): ReplaceTrackCycleSchedulesDto {
+  const sectionSchedules: ReplaceTrackCycleSchedulesDto["sectionSchedules"] =
+    [];
+  const sequenceSchedules: ReplaceTrackCycleSchedulesDto["sequenceSchedules"] =
+    [];
+  for (const sec of sections) {
+    const d = sectionDates[sec.id];
+    const start = d?.start?.trim() || null;
+    const end = d?.end?.trim() || null;
+    if (start || end) {
+      sectionSchedules.push({
+        sectionId: sec.id,
+        startDate: start,
+        endDate: end,
+      });
+    }
+    for (const seq of sec.sequence ?? []) {
+      const qd = sequenceDates[seq.id];
+      const qs = qd?.start?.trim() || null;
+      const qe = qd?.end?.trim() || null;
+      if (qs || qe) {
+        sequenceSchedules.push({
+          sequenceId: seq.id,
+          startDate: qs,
+          endDate: qe,
+        });
+      }
+    }
+  }
+  return { sectionSchedules, sequenceSchedules };
+}
 
 const MANDATORY_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -68,12 +112,46 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
+/** yyyy-mm-dd; string comparison is order-safe. */
+function minIsoDate(a: string, b: string): string {
+  return a <= b ? a : b;
+}
+
+function maxIsoDate(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
+function effectiveSectionWindow(
+  sectionStart: string,
+  sectionEnd: string,
+  cycleStart: string,
+  cycleEnd: string,
+): { winStart: string; winEnd: string } {
+  const s = sectionStart.trim();
+  const e = sectionEnd.trim();
+  let winStart = s || cycleStart;
+  let winEnd = e || cycleEnd;
+  if (winStart > winEnd) {
+    winStart = cycleStart;
+    winEnd = cycleEnd;
+  }
+  return { winStart, winEnd };
+}
+
 export default function TrackCycleFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
-  const [error, setError] = useState<string | null>(null);
+  const { enqueueSnackbar } = useNotistackSnackbar();
+  const [sectionDates, setSectionDates] = useState<
+    Record<number, { start: string; end: string }>
+  >({});
+  const [sequenceDates, setSequenceDates] = useState<
+    Record<number, { start: string; end: string }>
+  >({});
+  const [savingSchedules, setSavingSchedules] = useState(false);
 
+  const queryClient = useQueryClient();
   const { currentContext } = useCurrentContext();
   const {
     data: cycle,
@@ -106,9 +184,31 @@ export default function TrackCycleFormPage() {
   });
 
   const contextId = watch("contextId");
+  const trackIdWatched = watch("trackId");
+  const cycleStartDate = watch("startDate");
+  const cycleEndDate = watch("endDate");
+  const cycleDatesReady =
+    Boolean(cycleStartDate?.trim()) && Boolean(cycleEndDate?.trim());
   const { data: tracksData, isLoading: isLoadingTracks } = useTracks(
     contextId && contextId > 0 ? contextId : undefined
   );
+
+  const { data: trackForPlanning, isLoading: isLoadingTrackPlan } = useQuery({
+    queryKey: ["tracks", trackIdWatched, "planning-structure"],
+    queryFn: async () => {
+      const res = await TrackService.get(trackIdWatched);
+      return res.data as { section?: TrackCycleSectionSummary[] };
+    },
+    enabled: !isEditing && !!trackIdWatched && trackIdWatched > 0,
+  });
+
+  const sectionsForPlan = useMemo((): TrackCycleSectionSummary[] => {
+    if (isEditing && cycle?.track?.section) {
+      return cycle.track.section;
+    }
+    const sec = trackForPlanning?.section;
+    return Array.isArray(sec) ? sec : [];
+  }, [isEditing, cycle, trackForPlanning]);
 
   // Na criação, usar o contexto selecionado no cabeçalho da aplicação
   useEffect(() => {
@@ -116,18 +216,6 @@ export default function TrackCycleFormPage() {
       setValue("contextId", currentContext.id);
     }
   }, [isEditing, currentContext?.id, setValue]);
-
-  // Debug: verificar dados das trilhas
-  useEffect(() => {
-    if (tracksData && contextId) {
-      console.log(
-        "📚 Trilhas carregadas para contexto",
-        contextId,
-        ":",
-        tracksData,
-      );
-    }
-  }, [tracksData, contextId]);
 
   // Carregar dados do ciclo ao editar
   useEffect(() => {
@@ -145,6 +233,37 @@ export default function TrackCycleFormPage() {
     }
   }, [cycle, reset]);
 
+  useEffect(() => {
+    if (!cycle || !isEditing) return;
+    const nextS: Record<number, { start: string; end: string }> = {};
+    (cycle.track_cycle_section_schedule ?? []).forEach((row) => {
+      nextS[row.section_id] = {
+        start: row.start_date?.split("T")[0] ?? "",
+        end: row.end_date?.split("T")[0] ?? "",
+      };
+    });
+    setSectionDates(nextS);
+    const nextQ: Record<number, { start: string; end: string }> = {};
+    (cycle.track_cycle_sequence_schedule ?? []).forEach((row) => {
+      nextQ[row.sequence_id] = {
+        start: row.start_date?.split("T")[0] ?? "",
+        end: row.end_date?.split("T")[0] ?? "",
+      };
+    });
+    setSequenceDates(nextQ);
+  }, [
+    cycle?.id,
+    isEditing,
+    cycle?.track_cycle_section_schedule,
+    cycle?.track_cycle_sequence_schedule,
+  ]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    setSectionDates({});
+    setSequenceDates({});
+  }, [trackIdWatched, isEditing]);
+
   // Resetar trilha quando contexto mudar
   useEffect(() => {
     if (!isEditing && contextId) {
@@ -152,9 +271,7 @@ export default function TrackCycleFormPage() {
     }
   }, [contextId, isEditing, setValue]);
 
-  const onSubmit = (data: FormData) => {
-    setError(null);
-
+  const onSubmit = async (data: FormData) => {
     const cycleData = {
       trackId: data.trackId,
       contextId: data.contextId,
@@ -166,26 +283,42 @@ export default function TrackCycleFormPage() {
       endDate: data.endDate,
     };
 
-    if (isEditing && id) {
-      updateMutation.mutate(
-        { id: parseInt(id), data: cycleData },
-        {
-          onSuccess: () => {
-            navigate("/admin/track-cycles");
-          },
-          onError: (err) => {
-            setError(getErrorMessage(err));
-          },
-        },
+    try {
+      let cycleId: number;
+      if (isEditing && id) {
+        await updateMutation.mutateAsync({
+          id: parseInt(id, 10),
+          data: cycleData,
+        });
+        cycleId = parseInt(id, 10);
+      } else {
+        const created = await createMutation.mutateAsync(cycleData);
+        cycleId = created.id;
+      }
+
+      const payload = buildReplaceSchedulesPayload(
+        sectionsForPlan,
+        sectionDates,
+        sequenceDates,
       );
-    } else {
-      createMutation.mutate(cycleData, {
-        onSuccess: () => {
-          navigate("/admin/track-cycles");
-        },
-        onError: (err) => {
-          setError(getErrorMessage(err));
-        },
+      setSavingSchedules(true);
+      try {
+        await TrackCyclesService.replaceSchedules(cycleId, payload);
+      } finally {
+        setSavingSchedules(false);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["track-cycles"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["track-cycles", cycleId],
+      });
+      enqueueSnackbar("Ciclo salvo com sucesso.", { variant: "success" });
+      navigate("/admin/track-cycles");
+    } catch (err) {
+      enqueueSnackbar(getErrorMessage(err), {
+        variant: "error",
+        autoHideDuration: 14_000,
+        style: { maxWidth: 520 },
       });
     }
   };
@@ -218,12 +351,6 @@ export default function TrackCycleFormPage() {
         <Typography variant="h5" component="h1" gutterBottom>
           {isEditing ? "Editar Ciclo" : "Novo Ciclo"}
         </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Stack spacing={3}>
@@ -377,6 +504,253 @@ export default function TrackCycleFormPage() {
               />
             </Stack>
 
+            {sectionsForPlan.length > 0 && (
+              <>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle1" fontWeight="medium">
+                  Planejamento opcional (por seção e por item)
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Deixe em branco para herdar as datas do ciclo. As janelas são
+                  aplicadas em cascata: ciclo → seção → conteúdo/quiz. Fuso de
+                  referência: America/Sao_Paulo. Validação: cada item precisa
+                  caber na janela efetiva da seção (ex.: término do item não pode
+                  ser depois do fim da seção; datas antes do início da seção são
+                  recortadas e podem deixar o período vazio).
+                </Typography>
+                {isLoadingTrackPlan && !isEditing ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                    <CircularProgress size={28} />
+                  </Box>
+                ) : (
+                  <Stack spacing={3}>
+                    {sectionsForPlan
+                      .slice()
+                      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                      .map((sec) => {
+                        const sRow = sectionDates[sec.id] ?? {
+                          start: "",
+                          end: "",
+                        };
+                        const sStart = sRow.start.trim();
+                        const sEnd = sRow.end.trim();
+
+                        let sectionStartMin = cycleStartDate;
+                        let sectionStartMax = cycleEndDate;
+                        let sectionEndMin = cycleStartDate;
+                        let sectionEndMax = cycleEndDate;
+                        if (cycleDatesReady) {
+                          sectionStartMax = sEnd
+                            ? minIsoDate(sEnd, cycleEndDate)
+                            : cycleEndDate;
+                          sectionEndMin = sStart
+                            ? maxIsoDate(sStart, cycleStartDate)
+                            : cycleStartDate;
+                          if (sectionStartMin > sectionStartMax) {
+                            sectionStartMax = cycleEndDate;
+                          }
+                          if (sectionEndMin > sectionEndMax) {
+                            sectionEndMin = cycleStartDate;
+                          }
+                        }
+
+                        const { winStart, winEnd } = cycleDatesReady
+                          ? effectiveSectionWindow(
+                              sRow.start,
+                              sRow.end,
+                              cycleStartDate,
+                              cycleEndDate,
+                            )
+                          : { winStart: "", winEnd: "" };
+
+                        return (
+                        <Paper key={sec.id} variant="outlined" sx={{ p: 2 }}>
+                          <Typography fontWeight="medium" gutterBottom>
+                            {sec.name}
+                          </Typography>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={2}
+                            sx={{ mb: 2 }}
+                          >
+                            <TextField
+                              label="Início da seção (opcional)"
+                              type="date"
+                              value={sectionDates[sec.id]?.start ?? ""}
+                              onChange={(e) =>
+                                setSectionDates((p) => ({
+                                  ...p,
+                                  [sec.id]: {
+                                    start: e.target.value,
+                                    end: p[sec.id]?.end ?? "",
+                                  },
+                                }))
+                              }
+                              InputLabelProps={{ shrink: true }}
+                              fullWidth
+                              size="small"
+                              inputProps={
+                                cycleDatesReady
+                                  ? {
+                                      min: sectionStartMin,
+                                      max: sectionStartMax,
+                                    }
+                                  : undefined
+                              }
+                            />
+                            <TextField
+                              label="Término da seção (opcional)"
+                              type="date"
+                              value={sectionDates[sec.id]?.end ?? ""}
+                              onChange={(e) =>
+                                setSectionDates((p) => ({
+                                  ...p,
+                                  [sec.id]: {
+                                    start: p[sec.id]?.start ?? "",
+                                    end: e.target.value,
+                                  },
+                                }))
+                              }
+                              InputLabelProps={{ shrink: true }}
+                              fullWidth
+                              size="small"
+                              inputProps={
+                                cycleDatesReady
+                                  ? {
+                                      min: sectionEndMin,
+                                      max: sectionEndMax,
+                                    }
+                                  : undefined
+                              }
+                            />
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            sx={{ mb: 1 }}
+                          >
+                            Itens nesta seção
+                          </Typography>
+                          <Stack spacing={2}>
+                            {(sec.sequence ?? [])
+                              .slice()
+                              .sort(
+                                (a, b) => (a.order ?? 0) - (b.order ?? 0),
+                              )
+                              .map((seq) => {
+                                const label =
+                                  seq.content?.title ??
+                                  seq.form?.title ??
+                                  (seq.content_id
+                                    ? `Conteúdo #${seq.content_id}`
+                                    : seq.form_id
+                                      ? `Quiz #${seq.form_id}`
+                                      : `Sequência #${seq.order + 1}`);
+                                const qRow = sequenceDates[seq.id] ?? {
+                                  start: "",
+                                  end: "",
+                                };
+                                const qStart = qRow.start.trim();
+                                const qEnd = qRow.end.trim();
+
+                                let itemStartMin = winStart;
+                                let itemStartMax = winEnd;
+                                let itemEndMin = winStart;
+                                let itemEndMax = winEnd;
+                                if (cycleDatesReady) {
+                                  itemStartMax = qEnd
+                                    ? minIsoDate(qEnd, winEnd)
+                                    : winEnd;
+                                  itemEndMin = qStart
+                                    ? maxIsoDate(qStart, winStart)
+                                    : winStart;
+                                  if (itemStartMin > itemStartMax) {
+                                    itemStartMax = winEnd;
+                                  }
+                                  if (itemEndMin > itemEndMax) {
+                                    itemEndMin = winStart;
+                                  }
+                                }
+
+                                return (
+                                  <Stack
+                                    key={seq.id}
+                                    direction={{ xs: "column", sm: "row" }}
+                                    spacing={2}
+                                    sx={{ pl: { sm: 1 } }}
+                                  >
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        minWidth: { sm: 200 },
+                                        pt: { sm: 1 },
+                                      }}
+                                    >
+                                      {label}
+                                    </Typography>
+                                    <TextField
+                                      label="Início (opcional)"
+                                      type="date"
+                                      value={sequenceDates[seq.id]?.start ?? ""}
+                                      onChange={(e) =>
+                                        setSequenceDates((p) => ({
+                                          ...p,
+                                          [seq.id]: {
+                                            start: e.target.value,
+                                            end: p[seq.id]?.end ?? "",
+                                          },
+                                        }))
+                                      }
+                                      InputLabelProps={{ shrink: true }}
+                                      size="small"
+                                      fullWidth
+                                      inputProps={
+                                        cycleDatesReady
+                                          ? {
+                                              min: itemStartMin,
+                                              max: itemStartMax,
+                                            }
+                                          : undefined
+                                      }
+                                    />
+                                    <TextField
+                                      label="Término (opcional)"
+                                      type="date"
+                                      value={sequenceDates[seq.id]?.end ?? ""}
+                                      onChange={(e) =>
+                                        setSequenceDates((p) => ({
+                                          ...p,
+                                          [seq.id]: {
+                                            start: p[seq.id]?.start ?? "",
+                                            end: e.target.value,
+                                          },
+                                        }))
+                                      }
+                                      InputLabelProps={{ shrink: true }}
+                                      size="small"
+                                      fullWidth
+                                      inputProps={
+                                        cycleDatesReady
+                                          ? {
+                                              min: itemEndMin,
+                                              max: itemEndMax,
+                                            }
+                                          : undefined
+                                      }
+                                    />
+                                  </Stack>
+                                );
+                              })}
+                          </Stack>
+                        </Paper>
+                        );
+                      })}
+                  </Stack>
+                )}
+              </>
+            )}
+
             {/* Botões */}
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
@@ -388,11 +762,15 @@ export default function TrackCycleFormPage() {
               <Button
                 type="submit"
                 variant="contained"
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  savingSchedules
+                }
                 startIcon={
-                  (createMutation.isPending || updateMutation.isPending) && (
-                    <CircularProgress size={20} />
-                  )
+                  (createMutation.isPending ||
+                    updateMutation.isPending ||
+                    savingSchedules) && <CircularProgress size={20} />
                 }
               >
                 {isEditing ? "Salvar" : "Criar"}

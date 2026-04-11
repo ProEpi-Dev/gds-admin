@@ -5,6 +5,7 @@ import type {
   UpdateTrackCycleDto,
   UpdateTrackCycleStatusDto,
   TrackCycleQueryParams,
+  ReplaceTrackCycleSchedulesDto,
 } from '../../../types/track-cycle.types';
 
 export function useTrackCycles(params?: TrackCycleQueryParams) {
@@ -59,6 +60,27 @@ export function useUpdateTrackCycle() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateTrackCycleDto }) => {
       const response = await TrackCyclesService.update(id, data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['track-cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['track-cycles', variables.id] });
+    },
+  });
+}
+
+export function useReplaceTrackCycleSchedules() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: ReplaceTrackCycleSchedulesDto;
+    }) => {
+      const response = await TrackCyclesService.replaceSchedules(id, data);
       return response.data;
     },
     onSuccess: (_, variables) => {

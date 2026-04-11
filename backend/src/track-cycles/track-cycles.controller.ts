@@ -26,6 +26,8 @@ import { CreateTrackCycleDto } from './dto/create-track-cycle.dto';
 import { UpdateTrackCycleDto } from './dto/update-track-cycle.dto';
 import { UpdateTrackCycleStatusDto } from './dto/update-track-cycle-status.dto';
 import { TrackCycleQueryDto } from './dto/track-cycle-query.dto';
+import { ReplaceTrackCycleSchedulesDto } from './dto/replace-track-cycle-schedules.dto';
+import { NormalizeReplaceTrackCycleSchedulesPipe } from './pipes/normalize-replace-track-cycle-schedules.pipe';
 import { RolesGuard } from '../authz/guards/roles.guard';
 import { Roles } from '../authz/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -163,6 +165,27 @@ export class TrackCyclesController {
   })
   async getStudentsProgress(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
     return this.trackCyclesService.getStudentsProgress(id, user.userId);
+  }
+
+  @Put(':id/schedules')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Substituir agendamentos de seções e conteúdos do ciclo',
+    description:
+      'Remove agendamentos anteriores do ciclo e grava os informados. Datas opcionais por seção/sequência herdam o nível superior (ciclo → seção → item). Corpo idempotente. ' +
+      'Compatível com camelCase (sectionSchedules, sectionId, startDate) ou snake_case (section_schedules, section_id, start_date), como no JSON do GET.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID do ciclo' })
+  @ApiResponse({ status: 200, description: 'Ciclo com agendamentos atualizados' })
+  async replaceSchedules(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new NormalizeReplaceTrackCycleSchedulesPipe())
+    body: ReplaceTrackCycleSchedulesDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.trackCyclesService.replaceSchedules(id, body, user.userId);
   }
 
   @Put(':id')
