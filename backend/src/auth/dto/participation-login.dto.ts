@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { context_module_code } from '@prisma/client';
 
 class ContextInfoDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })
@@ -9,6 +10,14 @@ class ContextInfoDto {
     example: 'Contexto de Saúde Pública',
   })
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Módulos habilitados no contexto',
+    enum: context_module_code,
+    isArray: true,
+    example: ['self_health'],
+  })
+  modules?: context_module_code[];
 }
 
 export class ParticipationLoginDto {

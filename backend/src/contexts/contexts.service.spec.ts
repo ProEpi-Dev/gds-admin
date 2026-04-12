@@ -24,6 +24,7 @@ describe('ContextsService', () => {
     active: true,
     created_at: new Date('2024-01-01'),
     updated_at: new Date('2024-01-01'),
+    context_module: [{ module_code: 'self_health' }],
   };
 
   beforeEach(async () => {
@@ -97,11 +98,13 @@ describe('ContextsService', () => {
 
       await service.create(createContextDto);
 
-      expect(prismaService.context.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          description: 'Test Description',
+      expect(prismaService.context.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            description: 'Test Description',
+          }),
         }),
-      });
+      );
     });
 
     it('deve incluir type quando fornecido', async () => {
@@ -117,11 +120,13 @@ describe('ContextsService', () => {
 
       await service.create(createContextDto);
 
-      expect(prismaService.context.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          type: 'TEST',
+      expect(prismaService.context.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'TEST',
+          }),
         }),
-      });
+      );
     });
 
     it('deve validar location_id quando fornecido', async () => {
@@ -259,10 +264,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { access_type: 'PRIVATE' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { access_type: 'PRIVATE' },
+        }),
+      );
     });
 
     it('deve atualizar description quando fornecido', async () => {
@@ -279,10 +286,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { description: 'Updated Description' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { description: 'Updated Description' },
+        }),
+      );
     });
 
     it('deve atualizar type quando fornecido', async () => {
@@ -299,10 +308,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { type: 'UPDATED' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { type: 'UPDATED' },
+        }),
+      );
     });
 
     it('deve validar location_id quando fornecido', async () => {

@@ -126,6 +126,11 @@ export class AuthService {
           select: {
             id: true,
             name: true,
+            context_module: {
+              select: {
+                module_code: true,
+              },
+            },
           },
         },
       },
@@ -184,6 +189,9 @@ export class AuthService {
             context: {
               id: activeParticipation.context.id,
               name: activeParticipation.context.name,
+              modules: (activeParticipation.context.context_module ?? []).map(
+                (item) => item.module_code,
+              ),
             },
             startDate: activeParticipation.start_date,
             endDate: activeParticipation.end_date,
@@ -352,6 +360,13 @@ export class AuthService {
     // 2. Validar contexto existe e é PUBLIC
     const context = await this.prisma.context.findUnique({
       where: { id: signupDto.contextId },
+      include: {
+        context_module: {
+          select: {
+            module_code: true,
+          },
+        },
+      },
     });
 
     if (!context) {
@@ -462,6 +477,7 @@ export class AuthService {
         context: {
           id: context.id,
           name: context.name,
+          modules: (context.context_module ?? []).map((item) => item.module_code),
         },
         startDate: result.participation.start_date,
         endDate: result.participation.end_date,

@@ -121,6 +121,10 @@ export class ReportsService {
     return new Date(`${value}T00:00:00.000Z`);
   }
 
+  private normalizeReportChannel(channel?: string): 'web' | 'app' {
+    return channel?.toLowerCase() === 'web' ? 'web' : 'app';
+  }
+
   private formatDateOnly(value?: Date | null): string | null {
     return value ? value.toISOString().split('T')[0] : null;
   }
@@ -325,6 +329,7 @@ export class ReportsService {
   async create(
     createReportDto: CreateReportDto,
     userId: number,
+    channel?: 'web' | 'app',
   ): Promise<ReportResponseDto> {
     // Validar participação
     const participation = await this.prisma.participation.findUnique({
@@ -379,7 +384,11 @@ export class ReportsService {
 
     const report = await this.prisma.report.create({ data });
 
-    this.businessMetrics.recordReportCreated(createReportDto.reportType);
+    const reportChannel = this.normalizeReportChannel(channel);
+    this.businessMetrics.recordReportCreated(
+      createReportDto.reportType,
+      reportChannel,
+    );
 
     try {
       await this.refreshParticipationReportMetrics(
@@ -414,12 +423,26 @@ export class ReportsService {
       userId,
       query.contextId,
       'GET /reports',
+      { allowParticipantContext: true },
     );
+
+    const isAdmin = await this.authz.isAdmin(userId);
+    const canManageContext = isAdmin
+      ? true
+      : await this.authz.hasAnyRole(userId, filterContextId, [
+          'manager',
+          'content_manager',
+        ]);
 
     // Construir filtros (context_id sempre aplicado via participação)
     const where: any = {
       participation: { context_id: filterContextId },
     };
+
+    // Participante só pode listar seus próprios reports.
+    if (!canManageContext) {
+      where.participation.user_id = userId;
+    }
 
     if (query.active !== undefined) {
       where.active = query.active;

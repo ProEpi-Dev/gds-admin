@@ -364,6 +364,9 @@ export class FormsService {
           active: form.context.active,
           createdAt: form.context.created_at,
           updatedAt: form.context.updated_at,
+          modules: (form.context.context_module ?? []).map(
+            (item: any) => item.module_code,
+          ),
         }
       : null;
 

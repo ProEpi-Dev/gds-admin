@@ -25,6 +25,7 @@ describe('ContextsController', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    modules: ['self_health'],
   };
 
   const mockListResponse: ListResponseDto<ContextResponseDto> = {

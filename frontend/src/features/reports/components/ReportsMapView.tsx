@@ -158,9 +158,14 @@ function MarkerClusterGroupComponent({ points }: { points: ReportPoint[] }) {
 interface ReportsMapViewProps {
   points: ReportPoint[];
   height?: number;
+  showSummary?: boolean;
 }
 
-export default function ReportsMapView({ points, height = 600 }: ReportsMapViewProps) {
+export default function ReportsMapView({
+  points,
+  height = 600,
+  showSummary = true,
+}: ReportsMapViewProps) {
   // Calcular o centro do mapa baseado nos pontos
   const mapCenter = useMemo(() => {
     if (points.length === 0) {
@@ -205,17 +210,19 @@ export default function ReportsMapView({ points, height = 600 }: ReportsMapViewP
 
   return (
     <Box>
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          Total de pontos: {points.length}
-        </Typography>
-        <Typography variant="body2" color="success.main">
-          Positivos: {positiveCount}
-        </Typography>
-        <Typography variant="body2" color="error.main">
-          Negativos: {negativeCount}
-        </Typography>
-      </Box>
+      {showSummary && (
+        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Total de pontos: {points.length}
+          </Typography>
+          <Typography variant="body2" color="success.main">
+            Positivos: {positiveCount}
+          </Typography>
+          <Typography variant="body2" color="error.main">
+            Negativos: {negativeCount}
+          </Typography>
+        </Box>
+      )}
       <Box sx={{ height, width: '100%', position: 'relative', borderRadius: 1, overflow: 'hidden' }}>
         <MapContainer
           center={mapCenter}

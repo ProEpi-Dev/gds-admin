@@ -31,7 +31,7 @@ async function bootstrap() {
       'https://www.api.dev.gds.proepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-gds-channel'],
     credentials: true,
   });
 
@@ -72,6 +72,13 @@ async function bootstrap() {
 
   app.use(bodyParser.json({ limit: '10mb' }));
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  app.use((req, _res, next) => {
+    const rawHeader = req.headers['x-gds-channel'];
+    const rawValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+    const normalized = String(rawValue ?? '').toLowerCase();
+    req.gdsChannel = normalized === 'web' ? 'web' : 'app';
+    next();
+  });
 
   await app.listen(3000);
   console.log('Application is running on: http://localhost:3000');

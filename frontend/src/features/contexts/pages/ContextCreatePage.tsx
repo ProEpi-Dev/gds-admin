@@ -6,13 +6,16 @@ import { z } from 'zod';
 import {
   Box,
   Button,
+  Checkbox,
   TextField,
   Typography,
   Paper,
   Stack,
   Alert,
   CircularProgress,
+  FormGroup,
   FormControl,
+  FormLabel,
   InputLabel,
   Select,
   MenuItem,
@@ -23,7 +26,7 @@ import { useCreateContext } from '../hooks/useContexts';
 import SelectLocation from '../../../components/common/SelectLocation';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { getErrorMessage } from '../../../utils/errorHandler';
-import type { CreateContextDto } from '../../../types/context.types';
+import type { ContextModuleCode, CreateContextDto } from '../../../types/context.types';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -32,6 +35,7 @@ const formSchema = z.object({
   description: z.string().optional().nullable(),
   type: z.string().optional().nullable(),
   active: z.boolean().optional(),
+  modules: z.array(z.enum(['self_health', 'community_signal'])).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -56,11 +60,13 @@ export default function ContextCreatePage() {
       description: '',
       type: '',
       active: true,
+      modules: ['self_health'],
     },
   });
 
   const locationId = watch('locationId');
   const active = watch('active');
+  const selectedModules = watch('modules') ?? [];
 
   const createMutation = useCreateContext();
 
@@ -74,6 +80,7 @@ export default function ContextCreatePage() {
       description: data.description?.trim() ? data.description : undefined,
       type: data.type?.trim() ? data.type : undefined,
       active: data.active,
+      modules: data.modules,
     };
 
     createMutation.mutate(contextData, {
@@ -161,6 +168,44 @@ export default function ContextCreatePage() {
               }
               label={t('contexts.status')}
             />
+
+            <FormControl component="fieldset">
+              <FormLabel component="legend">Módulos habilitados</FormLabel>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedModules.includes('self_health')}
+                      onChange={(_, checked) => {
+                        const next = checked
+                          ? [...selectedModules, 'self_health']
+                          : selectedModules.filter(
+                              (module) => module !== 'self_health',
+                            );
+                        setValue('modules', next as ContextModuleCode[]);
+                      }}
+                    />
+                  }
+                  label="Autoavaliação de saúde"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedModules.includes('community_signal')}
+                      onChange={(_, checked) => {
+                        const next = checked
+                          ? [...selectedModules, 'community_signal']
+                          : selectedModules.filter(
+                              (module) => module !== 'community_signal',
+                            );
+                        setValue('modules', next as ContextModuleCode[]);
+                      }}
+                    />
+                  }
+                  label="Sinal comunitário"
+                />
+              </FormGroup>
+            </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
               <Button

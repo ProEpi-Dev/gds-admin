@@ -62,6 +62,9 @@ export const reportsService = {
 
   async findPoints(query: ReportsPointsQuery): Promise<ReportPoint[]> {
     const params = new URLSearchParams();
+    if (query.contextId !== undefined) {
+      params.append("contextId", query.contextId.toString());
+    }
     if (query.formId !== undefined) {
       params.append("formId", query.formId.toString());
     }

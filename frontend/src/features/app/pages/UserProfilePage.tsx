@@ -121,7 +121,12 @@ export default function UserProfilePage() {
         </Typography>
 
         <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            component="div"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+          >
             Status do Perfil:{' '}
             <Chip
               label={profileStatus?.isComplete ? t('profile.profileComplete') : t('profile.profileIncomplete')}

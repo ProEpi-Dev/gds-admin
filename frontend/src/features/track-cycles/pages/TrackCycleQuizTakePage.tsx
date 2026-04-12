@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Box, Button, Typography, Paper, Alert } from "@mui/material";
 import {
@@ -17,6 +17,7 @@ import QuizRenderer from "../../../components/quiz/QuizRenderer";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 import { useSnackbar } from "../../../hooks/useSnackbar";
+import { useAuth } from "../../../contexts/AuthContext";
 import type {
   QuizDefinition,
   FormVersionQuizMetadata,
@@ -30,6 +31,8 @@ export default function TrackCycleQuizTakePage() {
     sequenceId: sequenceIdParam,
   } = useParams<{ id: string; participationId: string; sequenceId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const snackbar = useSnackbar();
   const queryClient = useQueryClient();
   const [quizStarted, setQuizStarted] = useState(false);
@@ -37,7 +40,7 @@ export default function TrackCycleQuizTakePage() {
   const cycleId = cycleIdParam ? parseInt(cycleIdParam) : null;
   const participationId = participationIdParam
     ? parseInt(participationIdParam)
-    : null;
+    : (user?.participation?.id ?? null);
   const sequenceId = sequenceIdParam ? parseInt(sequenceIdParam) : null;
 
   const {
@@ -101,7 +104,11 @@ export default function TrackCycleQuizTakePage() {
   const existingSubmissions: QuizSubmission[] = submissionsData?.data ?? [];
   const createSubmission = useCreateQuizSubmission();
 
-  const backUrl = `/admin/track-cycles/${cycleId}/participation/${participationId}/trilha`;
+  const isAppRoute = location.pathname.startsWith("/app/");
+  const backUrl =
+    isAppRoute
+      ? `/app/aprenda/ciclo/${cycleId}`
+      : `/admin/track-cycles/${cycleId}/participation/${participationId}/trilha`;
 
   const handleSubmit = async (submissionData: any): Promise<QuizSubmission> => {
     if (

@@ -5,9 +5,10 @@ import {
   IsBoolean,
   IsOptional,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { context_access_type } from '@prisma/client';
+import { context_access_type, context_module_code } from '@prisma/client';
 
 export class UpdateContextDto {
   @ApiPropertyOptional({
@@ -59,4 +60,15 @@ export class UpdateContextDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Módulos habilitados no contexto',
+    enum: context_module_code,
+    isArray: true,
+    example: ['self_health'],
+  })
+  @IsArray()
+  @IsEnum(context_module_code, { each: true })
+  @IsOptional()
+  modules?: context_module_code[];
 }

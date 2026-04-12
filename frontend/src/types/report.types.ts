@@ -21,6 +21,7 @@ export interface ReportPoint {
 }
 
 export interface ReportsPointsQuery {
+  contextId?: number;
   formId?: number;
   startDate: string;
   endDate: string;

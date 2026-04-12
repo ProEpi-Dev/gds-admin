@@ -21,11 +21,24 @@ model context {
   content         content[]
   location        location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
   form            form[]
+  context_module  context_module[]
   participation   participation[]
   track           track[]
   track_cycle     track_cycle[]
 
   @@index([location_id], map: "idx_context_location_id")
+}
+
+model context_module {
+  id          Int                 @id @default(autoincrement())
+  context_id  Int
+  module_code context_module_code
+  created_at  DateTime            @default(now()) @db.Timestamp(6)
+  updated_at  DateTime            @default(now()) @db.Timestamp(6)
+  context     context             @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, module_code], map: "uq_context_module_unique")
+  @@index([context_id], map: "idx_context_module_context_id")
 }
 
 
@@ -348,6 +361,11 @@ model tag {
 enum context_access_type {
   PUBLIC
   PRIVATE
+}
+
+enum context_module_code {
+  self_health
+  community_signal
 }
 
 enum form_type_enum {

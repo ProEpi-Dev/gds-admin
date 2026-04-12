@@ -176,6 +176,32 @@ export default function ContextViewPage() {
           )}
 
           <Divider />
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Módulos habilitados
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+              {(context.modules ?? []).length > 0 ? (
+                (context.modules ?? []).map((moduleCode) => (
+                  <Chip
+                    key={moduleCode}
+                    size="small"
+                    label={
+                      moduleCode === 'self_health'
+                        ? 'Autoavaliação de saúde'
+                        : 'Sinal comunitário'
+                    }
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))
+              ) : (
+                <Typography variant="body2">-</Typography>
+              )}
+            </Stack>
+          </Box>
+
+          <Divider />
 
           <Box>
             <Typography variant="caption" color="text.secondary">

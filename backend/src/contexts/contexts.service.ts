@@ -9,6 +9,7 @@ import { CreateContextDto } from './dto/create-context.dto';
 import { UpdateContextDto } from './dto/update-context.dto';
 import { ContextQueryDto } from './dto/context-query.dto';
 import { ContextResponseDto } from './dto/context-response.dto';
+import { context_module_code } from '@prisma/client';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
 import { ReportStreakSummaryResponseDto } from '../reports/dto/report-streak-summary-response.dto';
@@ -61,8 +62,22 @@ export class ContextsService {
       data.type = createContextDto.type;
     }
 
+    const modules = this.normalizeModules(createContextDto.modules);
+    if (modules.length > 0) {
+      data.context_module = {
+        create: modules.map((moduleCode) => ({
+          module_code: moduleCode,
+        })),
+      };
+    }
+
     // Criar contexto
-    const context = await this.prisma.context.create({ data });
+    const context = await this.prisma.context.create({
+      data,
+      include: {
+        context_module: true,
+      },
+    });
 
     return this.mapToResponseDto(context);
   }
@@ -98,6 +113,9 @@ export class ContextsService {
         where,
         skip,
         take: pageSize,
+        include: {
+          context_module: true,
+        },
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.context.count({ where }),
@@ -135,6 +153,9 @@ export class ContextsService {
   async findPublicForSignup(): Promise<ListResponseDto<ContextResponseDto>> {
     const contexts = await this.prisma.context.findMany({
       where: { access_type: 'PUBLIC', active: true },
+      include: {
+        context_module: true,
+      },
       orderBy: { name: 'asc' },
     });
     const totalItems = contexts.length;
@@ -159,6 +180,9 @@ export class ContextsService {
   async findOne(id: number): Promise<ContextResponseDto> {
     const context = await this.prisma.context.findUnique({
       where: { id },
+      include: {
+        context_module: true,
+      },
     });
 
     if (!context) {
@@ -247,10 +271,23 @@ export class ContextsService {
       updateData.active = updateContextDto.active;
     }
 
+    if (updateContextDto.modules !== undefined) {
+      const modules = this.normalizeModules(updateContextDto.modules);
+      updateData.context_module = {
+        deleteMany: {},
+        create: modules.map((moduleCode) => ({
+          module_code: moduleCode,
+        })),
+      };
+    }
+
     // Atualizar contexto
     const context = await this.prisma.context.update({
       where: { id },
       data: updateData,
+      include: {
+        context_module: true,
+      },
     });
 
     return this.mapToResponseDto(context);
@@ -306,6 +343,18 @@ export class ContextsService {
       active: context.active,
       createdAt: context.created_at,
       updatedAt: context.updated_at,
+      modules: this.normalizeModules(
+        (context.context_module ?? []).map((item: any) => item.module_code),
+      ),
     };
+  }
+
+  private normalizeModules(
+    modules?: context_module_code[] | string[],
+  ): context_module_code[] {
+    if (!Array.isArray(modules)) return [];
+    return [...new Set(modules as context_module_code[])].sort((a, b) =>
+      a.localeCompare(b),
+    ) as context_module_code[];
   }
 }

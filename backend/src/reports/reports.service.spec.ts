@@ -586,6 +586,38 @@ describe('ReportsService', () => {
         }),
       );
     });
+
+    it('deve restringir participante aos próprios reports', async () => {
+      const query: ReportQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
+
+      await service.findAll(query, 1);
+
+      expect(prismaService.report.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            participation: expect.objectContaining({
+              context_id: 1,
+              user_id: 1,
+            }),
+          }),
+        }),
+      );
+      expect(authz.resolveListContextId).toHaveBeenCalledWith(
+        1,
+        undefined,
+        'GET /reports',
+        { allowParticipantContext: true },
+      );
+    });
   });
 
   describe('findPoints', () => {
