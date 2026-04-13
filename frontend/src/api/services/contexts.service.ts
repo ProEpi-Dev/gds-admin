@@ -8,6 +8,8 @@ import type {
 } from "../../types/context.types";
 import type { ListResponse } from "../../types/api.types";
 
+const MAX_PAGE_SIZE = 100;
+
 export const contextsService = {
   /** Lista contextos públicos para signup (não requer autenticação). */
   async findPublicForSignup(): Promise<ListResponse<Context>> {
@@ -30,6 +32,25 @@ export const contextsService = {
       `${API_ENDPOINTS.CONTEXTS.LIST_ADMIN}?${params.toString()}`
     );
     return response.data;
+  },
+
+  /** Todas as páginas concatenadas (admin / listagens que precisam do conjunto completo). */
+  async findAllAllPages(
+    query?: Omit<ContextQuery, "page" | "pageSize">,
+  ): Promise<Context[]> {
+    const pageSize = MAX_PAGE_SIZE;
+    const merged: Context[] = [];
+    let page = 1;
+    const maxPages = 200;
+
+    while (page <= maxPages) {
+      const res = await this.findAll({ ...query, page, pageSize });
+      merged.push(...res.data);
+      if (res.data.length < pageSize) break;
+      page += 1;
+    }
+
+    return merged;
   },
 
   async findOne(id: number): Promise<Context> {

@@ -78,6 +78,8 @@ import RolesListPage from "../features/roles/pages/RolesListPage";
 import RolePermissionsPage from "../features/roles/pages/RolePermissionsPage";
 import AdminOnlyRoute from "./AdminOnlyRoute";
 import AdminsListPage from "../features/admins/pages/AdminsListPage";
+import IntegrationEventsPage from "../features/report-integrations/pages/IntegrationEventsPage";
+import IntegrationConfigPage from "../features/report-integrations/pages/IntegrationConfigPage";
 import { hasModule, resolveEnabledModules } from "../features/app/utils/contextModules";
 
 interface ProtectedRouteProps {
@@ -709,6 +711,27 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <LegalDocumentTypeFormPage />
+          </AdminRoute>
+        }
+      />
+      {/* Integração externa */}
+      <Route
+        path="/admin/integrations"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <IntegrationEventsPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/integrations/config"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <IntegrationConfigPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />

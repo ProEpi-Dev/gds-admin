@@ -1,6 +1,9 @@
+import { forwardRef } from 'react';
 import { Box, Divider, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import FormRenderer from '../../../components/form-renderer/FormRenderer';
+import FormRenderer, {
+  type FormRendererHandle,
+} from '../../../components/form-renderer/FormRenderer';
 import { participationProfileExtraService } from '../../../api/services/participation-profile-extra.service';
 import { ensureFormDefinition } from '../../forms/utils/formDefinitionValidator';
 import { useTranslation } from '../../../hooks/useTranslation';
@@ -8,11 +11,16 @@ import type { FormBuilderDefinition } from '../../../types/form-builder.types';
 
 interface ProfileExtraFormSectionProps {
   onValuesChange: (values: Record<string, unknown>) => void;
+  participantCountryLocationId?: number | null;
 }
 
-export default function ProfileExtraFormSection({
-  onValuesChange,
-}: ProfileExtraFormSectionProps) {
+const ProfileExtraFormSection = forwardRef<
+  FormRendererHandle,
+  ProfileExtraFormSectionProps
+>(function ProfileExtraFormSection(
+  { onValuesChange, participantCountryLocationId },
+  ref,
+) {
   const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ['participation-profile-extra-me'],
@@ -42,13 +50,17 @@ export default function ProfileExtraFormSection({
       </Typography>
       <Box sx={{ mb: 2 }}>
         <FormRenderer
+          ref={ref}
           key={data.form.version.id}
           definition={definition}
           initialValues={initialValues}
           onChange={onValuesChange}
           isQuiz={false}
+          participantCountryLocationId={participantCountryLocationId}
         />
       </Box>
     </>
   );
-}
+});
+
+export default ProfileExtraFormSection;

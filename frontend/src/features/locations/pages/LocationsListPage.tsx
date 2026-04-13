@@ -5,6 +5,8 @@ import {
   Button,
   Typography,
   Chip,
+  MenuItem,
+  TextField,
   IconButton,
   Stack,
   Dialog,
@@ -37,6 +39,9 @@ export default function LocationsListPage() {
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
   const [parentIdFilter, setParentIdFilter] = useState<number | undefined>(undefined);
+  const [orgLevelFilter, setOrgLevelFilter] = useState<
+    'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL' | undefined
+  >(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
@@ -47,6 +52,7 @@ export default function LocationsListPage() {
     pageSize,
     active: activeFilter,
     parentId: parentIdFilter,
+    orgLevel: orgLevelFilter,
   });
 
   const deleteMutation = useDeleteLocation();
@@ -91,6 +97,13 @@ export default function LocationsListPage() {
         }
         return row.parentId ? `#${row.parentId}` : '-';
       },
+    },
+    {
+      id: 'orgLevel',
+      label: t('locations.orgLevel'),
+      minWidth: 160,
+      mobileLabel: t('locations.orgLevel'),
+      render: (row) => getOrgLevelLabel(row.orgLevel, t),
     },
     {
       id: 'coordinates',
@@ -181,6 +194,15 @@ export default function LocationsListPage() {
           },
         ]
       : []),
+    ...(orgLevelFilter !== undefined
+      ? [
+          {
+            label: t('locations.orgLevel'),
+            value: getOrgLevelLabel(orgLevelFilter, t),
+            onDelete: () => setOrgLevelFilter(undefined),
+          },
+        ]
+      : []),
   ];
 
   if (isLoading) {
@@ -229,6 +251,30 @@ export default function LocationsListPage() {
               activeOnly={false}
             />
           </Box>
+          <TextField
+            select
+            label={t('locations.orgLevel')}
+            value={orgLevelFilter ?? ''}
+            onChange={(event) => {
+              const value = event.target.value as
+                | 'COUNTRY'
+                | 'STATE_DISTRICT'
+                | 'CITY_COUNCIL'
+                | '';
+              setOrgLevelFilter(value || undefined);
+            }}
+            sx={{ minWidth: 220 }}
+            size="small"
+          >
+            <MenuItem value="">{t('common.clear')}</MenuItem>
+            <MenuItem value="COUNTRY">{t('locations.orgLevelCountry')}</MenuItem>
+            <MenuItem value="STATE_DISTRICT">
+              {t('locations.orgLevelStateDistrict')}
+            </MenuItem>
+            <MenuItem value="CITY_COUNCIL">
+              {t('locations.orgLevelCityCouncil')}
+            </MenuItem>
+          </TextField>
           <Button
             variant={activeFilter === true ? 'contained' : 'outlined'}
             size="small"
@@ -250,6 +296,7 @@ export default function LocationsListPage() {
           onClearAll={() => {
             setActiveFilter(undefined);
             setParentIdFilter(undefined);
+            setOrgLevelFilter(undefined);
           }}
         />
 
@@ -308,5 +355,21 @@ export default function LocationsListPage() {
       </Dialog>
     </>
   );
+}
+
+function getOrgLevelLabel(
+  value: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL',
+  t: (key: string) => string,
+): string {
+  switch (value) {
+    case 'COUNTRY':
+      return t('locations.orgLevelCountry');
+    case 'STATE_DISTRICT':
+      return t('locations.orgLevelStateDistrict');
+    case 'CITY_COUNCIL':
+      return t('locations.orgLevelCityCouncil');
+    default:
+      return value;
+  }
 }
 

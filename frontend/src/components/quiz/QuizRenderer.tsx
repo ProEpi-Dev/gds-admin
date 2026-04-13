@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box, Button, Paper, Typography } from '@mui/material';
-import FormRenderer from '../form-renderer/FormRenderer';
+import FormRenderer, { type FormRendererHandle } from '../form-renderer/FormRenderer';
 import QuizTimer from './QuizTimer';
 import QuizAttempts from './QuizAttempts';
 import QuizScore from './QuizScore';
@@ -32,6 +32,7 @@ export default function QuizRenderer({
   const [isCompleted, setIsCompleted] = useState(false);
   const [currentSubmission, setCurrentSubmission] =
     useState<QuizSubmission | null>(null);
+  const quizFormRef = useRef<FormRendererHandle>(null);
 
   const timeLimitMinutes = metadata?.timeLimitMinutes ?? null;
   const maxAttempts = metadata?.maxAttempts ?? null;
@@ -62,6 +63,11 @@ export default function QuizRenderer({
 
   const handleSubmit = async () => {
     if (readOnly || isCompleted) return;
+
+    if (quizResponse._isValid !== true) {
+      quizFormRef.current?.revealFieldErrors();
+      return;
+    }
 
     const completedAt = new Date();
     const timeSpentSeconds = Math.floor(
@@ -175,6 +181,7 @@ export default function QuizRenderer({
 
       <Paper sx={{ p: 3, mt: 2 }}>
         <FormRenderer
+          ref={quizFormRef}
           definition={definition}
           initialValues={readOnly && currentSubmission?.quizResponse ? currentSubmission.quizResponse : {}}
           onChange={handleResponseChange}
@@ -189,7 +196,6 @@ export default function QuizRenderer({
             variant="contained"
             color="primary"
             onClick={handleSubmit}
-            disabled={!quizResponse._isValid}
           >
             Finalizar Quiz
           </Button>

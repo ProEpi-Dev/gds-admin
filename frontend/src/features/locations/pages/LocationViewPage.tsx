@@ -128,6 +128,21 @@ export default function LocationViewPage() {
 
           <Box>
             <Typography variant="caption" color="text.secondary">
+              {t('locations.orgLevel')}
+            </Typography>
+            <Typography variant="body1">
+              {location.orgLevel === 'COUNTRY' && t('locations.orgLevelCountry')}
+              {location.orgLevel === 'STATE_DISTRICT' &&
+                t('locations.orgLevelStateDistrict')}
+              {location.orgLevel === 'CITY_COUNCIL' &&
+                t('locations.orgLevelCityCouncil')}
+            </Typography>
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
               {t('locations.coordinates')}
             </Typography>
             <Typography variant="body1">

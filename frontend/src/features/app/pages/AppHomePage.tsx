@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -10,6 +10,8 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -19,11 +21,10 @@ import {
   Grid,
   IconButton,
   Paper,
+  Skeleton,
   Stack,
   TextField,
   Typography,
-  Checkbox,
-  Chip,
 } from "@mui/material";
 import {
   addDays,
@@ -39,17 +40,35 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import UserLayout from "../../../components/layout/UserLayout";
 import ReportsMapView from "../../reports/components/ReportsMapView";
 import { reportsService } from "../../../api/services/reports.service";
 import { formsService } from "../../../api/services/forms.service";
+import { usersService } from "../../../api/services/users.service";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { TrackProgressService } from "../../../api/services/track-progress.service";
 import type { CreateReportDto } from "../../../types/report.types";
 import type { ContextModuleCode } from "../../../types/context.types";
-import FormRenderer from "../../../components/form-renderer/FormRenderer";
+import FormRenderer, {
+  type FormRendererHandle,
+} from "../../../components/form-renderer/FormRenderer";
 import { hasModule, resolveEnabledModules } from "../utils/contextModules";
+import { useUserRole } from "../../../hooks/useUserRole";
+
+function getRoleLabel(
+  isAdmin: boolean,
+  isManager: boolean,
+  isContentManager: boolean,
+  isParticipant: boolean,
+): string {
+  if (isAdmin) return "Administrador";
+  if (isManager) return "Gerente";
+  if (isContentManager) return "Gerente de Conteúdo";
+  if (isParticipant) return "Participante";
+  return "Sem papel";
+}
 
 const SYMPTOMS = [
   "Dor de cabeça",
@@ -62,6 +81,8 @@ const SYMPTOMS = [
 
 export default function AppHomePage() {
   const { user } = useAuth();
+  const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
+    useUserRole();
   const queryClient = useQueryClient();
   const snackbar = useSnackbar();
   const [openDialog, setOpenDialog] = useState(false);
@@ -72,6 +93,7 @@ export default function AppHomePage() {
   const [communitySignalResponse, setCommunitySignalResponse] = useState<
     Record<string, unknown>
   >({});
+  const communitySignalFormRef = useRef<FormRendererHandle>(null);
   const [selectedModule, setSelectedModule] = useState<ContextModuleCode | null>(null);
   const participation = user?.participation;
   const contextId = participation?.context.id;
@@ -109,6 +131,12 @@ export default function AppHomePage() {
         active: true,
       }),
     enabled: Boolean(contextId),
+  });
+
+  const { data: profileStatus } = useQuery({
+    queryKey: ["profile-status"],
+    queryFn: () => usersService.getProfileStatus(),
+    enabled: Boolean(participationId),
   });
 
   const { data: compliance, isLoading: complianceLoading } = useQuery({
@@ -254,6 +282,7 @@ export default function AppHomePage() {
       return;
     }
     if (_isValid === false) {
+      communitySignalFormRef.current?.revealFieldErrors();
       snackbar.showError("Revise os campos obrigatórios do formulário.");
       return;
     }
@@ -270,47 +299,167 @@ export default function AppHomePage() {
 
   return (
     <UserLayout>
-      <Stack spacing={2}>
-        <Typography variant="h5" fontWeight={700}>
-          Início
-        </Typography>
-
-        {!participationId && (
-          <Alert severity="warning">
-            Sua conta não possui participação ativa para registrar reports.
-          </Alert>
-        )}
-
-        {!signalFormVersionId && participationId && (
-          <Alert severity="warning">
-            Não encontramos formulário de report ativo para seu contexto.
-          </Alert>
-        )}
-
-        {enabledModules.length > 1 && (
-          <Paper sx={{ p: 1 }}>
-            <Stack direction="row" spacing={1}>
-              {selfHealthEnabled && (
-                <Button
-                  variant={activeModule === "self_health" ? "contained" : "outlined"}
-                  onClick={() => setSelectedModule("self_health")}
-                  fullWidth
-                >
-                  Meu estado
-                </Button>
+      <Stack spacing={0}>
+        {(!participationId || (participationId && !signalFormVersionId)) && (
+          <Box sx={{ px: 2, pt: 1, pb: 1 }}>
+            <Stack spacing={2}>
+              {!participationId && (
+                <Alert severity="warning">
+                  Sua conta não possui participação ativa para registrar reports.
+                </Alert>
               )}
-              {communitySignalEnabled && (
-                <Button
-                  variant={
-                    activeModule === "community_signal" ? "contained" : "outlined"
-                  }
-                  onClick={() => setSelectedModule("community_signal")}
-                  fullWidth
-                >
-                  Sinal de alerta
-                </Button>
+              {!signalFormVersionId && participationId && (
+                <Alert severity="warning">
+                  Não encontramos formulário de report ativo para seu contexto.
+                </Alert>
               )}
             </Stack>
+          </Box>
+        )}
+
+        {/* Faixa superior: largura total do Container (Início sem gutters) */}
+        <Box
+          sx={{
+            width: "100%",
+            boxSizing: "border-box",
+            pt: 2,
+            pb: 4.5,
+            px: 2,
+            borderRadius: "0 0 20px 20px",
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+          }}
+        >
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            component="h1"
+            sx={{ wordBreak: "break-word", lineHeight: 1.3 }}
+          >
+            Olá, {user?.name ?? "Participante"}
+          </Typography>
+          {roleLoading ? (
+            <Skeleton
+              variant="text"
+              sx={{
+                bgcolor: "rgba(255,255,255,0.22)",
+                mt: 0.75,
+                width: { xs: "70%", sm: 200 },
+              }}
+            />
+          ) : (
+            <Typography variant="body2" sx={{ opacity: 0.92, mt: 0.5 }}>
+              {getRoleLabel(
+                isAdmin,
+                isManager,
+                isContentManager,
+                isParticipant,
+              )}
+            </Typography>
+          )}
+        </Box>
+
+        <Stack spacing={2} sx={{ px: 2, pt: 2, pb: 1 }}>
+        {/* Cartão principal “flutuando” sobre a faixa */}
+        {(selfHealthEnabled || communitySignalEnabled) && (
+          <Paper
+            elevation={6}
+            sx={{
+              mt: -3.5,
+              position: "relative",
+              zIndex: 1,
+              borderRadius: 2,
+              p: 2,
+            }}
+          >
+            {enabledModules.length > 1 && (
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                {selfHealthEnabled && (
+                  <Button
+                    variant={activeModule === "self_health" ? "contained" : "outlined"}
+                    onClick={() => setSelectedModule("self_health")}
+                    fullWidth
+                    size="small"
+                  >
+                    Meu estado
+                  </Button>
+                )}
+                {communitySignalEnabled && (
+                  <Button
+                    variant={
+                      activeModule === "community_signal" ? "contained" : "outlined"
+                    }
+                    onClick={() => setSelectedModule("community_signal")}
+                    fullWidth
+                    size="small"
+                  >
+                    Sinal de alerta
+                  </Button>
+                )}
+              </Stack>
+            )}
+
+            {activeModule === "self_health" && selfHealthEnabled && (
+              <>
+                <Typography variant="h6" sx={{ mb: 1.5 }} textAlign="center">
+                  Como está se sentindo hoje?
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6 }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      disabled={!canSubmit || createReportMutation.isPending}
+                      onClick={() => submitSelfHealthReport("NEGATIVE")}
+                      startIcon={<SentimentSatisfiedAltOutlinedIcon />}
+                    >
+                      BEM
+                    </Button>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled={!canSubmit || createReportMutation.isPending}
+                      onClick={() => setOpenDialog(true)}
+                      startIcon={<SentimentDissatisfiedOutlinedIcon />}
+                    >
+                      MAL
+                    </Button>
+                  </Grid>
+                </Grid>
+              </>
+            )}
+
+            {activeModule === "community_signal" && communitySignalEnabled && (
+              <>
+                <Typography variant="h6" sx={{ mb: 1.5 }} textAlign="center">
+                  Quer informar um sinal de alerta?
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6 }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      disabled={!canSubmit || createReportMutation.isPending}
+                      onClick={() => submitReport("NEGATIVE", null)}
+                    >
+                      Nada ocorreu
+                    </Button>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      disabled={!canSubmit || createReportMutation.isPending}
+                      onClick={() => setOpenSignalDialog(true)}
+                    >
+                      Informar
+                    </Button>
+                  </Grid>
+                </Grid>
+              </>
+            )}
           </Paper>
         )}
 
@@ -326,82 +475,72 @@ export default function AppHomePage() {
           </Paper>
         )}
 
-        {activeModule === "self_health" && selfHealthEnabled && (
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Como está se sentindo hoje?
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  disabled={!canSubmit || createReportMutation.isPending}
-                  onClick={() => submitSelfHealthReport("NEGATIVE")}
-                  startIcon={<SentimentSatisfiedAltOutlinedIcon />}
-                >
-                  BEM
-                </Button>
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  disabled={!canSubmit || createReportMutation.isPending}
-                  onClick={() => setOpenDialog(true)}
-                  startIcon={<SentimentDissatisfiedOutlinedIcon />}
-                >
-                  MAL
-                </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        )}
-
         {activeModule === "community_signal" && communitySignalEnabled && (
           <>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Quer informar um sinal de alerta?
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    disabled={!canSubmit || createReportMutation.isPending}
-                    onClick={() => submitReport("NEGATIVE", null)}
-                  >
-                    Nada ocorreu
-                  </Button>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    disabled={!canSubmit || createReportMutation.isPending}
-                    onClick={() => setOpenSignalDialog(true)}
-                  >
-                    Informar
-                  </Button>
-                </Grid>
-              </Grid>
+            <Paper
+              component={RouterLink}
+              to="/app/sinais"
+              elevation={0}
+              sx={{
+                p: 2,
+                display: "block",
+                textDecoration: "none",
+                color: "inherit",
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.paper",
+                boxShadow: "none",
+                transition: (theme) =>
+                  theme.transitions.create(
+                    ["background-color", "box-shadow"],
+                    { duration: theme.transitions.duration.shortest },
+                  ),
+                "&:hover": {
+                  bgcolor: "action.hover",
+                  boxShadow: 1,
+                },
+                "&:focus-visible": {
+                  outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+                  outlineOffset: 2,
+                },
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Meus sinais informados
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                    Veja os sinais de alerta já informados por você.
+                  </Typography>
+                </Box>
+                <ChevronRightIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
+              </Stack>
             </Paper>
 
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
                 Seus sinais e frequência
               </Typography>
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-                <Chip
-                  color="primary"
-                  label={`${informedDaysCount} dia(s) com registro no mês`}
-                />
-                <Chip
-                  color="success"
-                  variant="outlined"
-                  label={`${noSignalDaysCount} dia(s) sem sinal`}
-                />
+              <Stack spacing={1.25} sx={{ mb: 2 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  flexWrap="wrap"
+                  useFlexGap
+                  sx={{ width: "100%" }}
+                >
+                  <Chip
+                    color="primary"
+                    label={`${informedDaysCount} dia(s) com registro no mês`}
+                  />
+                  <Chip
+                    color="success"
+                    variant="outlined"
+                    label={`${noSignalDaysCount} dia(s) sem sinal`}
+                  />
+                </Stack>
               </Stack>
 
               <Stack
@@ -492,24 +631,55 @@ export default function AppHomePage() {
                   })}
                 </Box>
               )}
-
             </Paper>
           </>
         )}
 
         {compliance && pendingRequiredTracks > 0 && (
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6">Trilhas obrigatórias</Typography>
-            {complianceLoading ? (
-              <CircularProgress size={20} />
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                {pendingRequiredTracks} pendente
-                {pendingRequiredTracks === 1 ? "" : "s"} de {compliance.totalRequired}
-              </Typography>
-            )}
+          <Paper
+            component={RouterLink}
+            to="/app/aprenda"
+            elevation={0}
+            sx={{
+              p: 2,
+              display: "block",
+              textDecoration: "none",
+              color: "inherit",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              boxShadow: "none",
+              transition: (theme) =>
+                theme.transitions.create(["background-color", "box-shadow"], {
+                  duration: theme.transitions.duration.shortest,
+                }),
+              "&:hover": {
+                bgcolor: "action.hover",
+                boxShadow: 1,
+              },
+              "&:focus-visible": {
+                outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+                outlineOffset: 2,
+              },
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h6">Trilhas obrigatórias</Typography>
+                {complianceLoading ? (
+                  <CircularProgress size={20} sx={{ mt: 0.5 }} />
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                    {pendingRequiredTracks} pendente
+                    {pendingRequiredTracks === 1 ? "" : "s"} de {compliance.totalRequired}
+                  </Typography>
+                )}
+              </Box>
+              <ChevronRightIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
+            </Stack>
           </Paper>
         )}
+        </Stack>
       </Stack>
 
       <Dialog
@@ -560,7 +730,10 @@ export default function AppHomePage() {
 
       <Dialog
         open={openSignalDialog}
-        onClose={() => setOpenSignalDialog(false)}
+        onClose={() => {
+          setOpenSignalDialog(false);
+          communitySignalFormRef.current?.resetFieldErrors();
+        }}
         fullWidth
         maxWidth="sm"
       >
@@ -572,10 +745,14 @@ export default function AppHomePage() {
             </Alert>
           ) : (
             <FormRenderer
+              ref={communitySignalFormRef}
               definition={signalFormDefinition}
               initialValues={communitySignalResponse}
               onChange={(nextValues) =>
                 setCommunitySignalResponse(nextValues as Record<string, unknown>)
+              }
+              participantCountryLocationId={
+                profileStatus?.profile.countryLocationId ?? null
               }
             />
           )}

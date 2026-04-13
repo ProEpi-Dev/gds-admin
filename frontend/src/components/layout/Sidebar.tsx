@@ -37,6 +37,8 @@ import {
   AdminPanelSettings as RoleIcon,
   Security as SecurityIcon,
   VpnKey as VpnKeyIcon,
+  SyncAlt as SyncAltIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -204,6 +206,23 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             path: "/tracks/executions",
             label: "Registro de Execução",
             icon: <AssessmentIcon />,
+          },
+        ],
+      },
+      {
+        label: "Integrações",
+        icon: <SyncAltIcon />,
+        roles: ["admin", "manager"],
+        children: [
+          {
+            path: "/admin/integrations",
+            label: "Eventos",
+            icon: <SyncAltIcon />,
+          },
+          {
+            path: "/admin/integrations/config",
+            label: "Configuração",
+            icon: <SettingsIcon />,
           },
         ],
       },

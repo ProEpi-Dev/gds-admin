@@ -28,6 +28,7 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 import { addDays, parseISO } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
@@ -49,6 +50,7 @@ export class ReportsService {
     private prisma: PrismaService,
     private authz: AuthzService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly reportIntegrations: ReportIntegrationsService,
   ) {}
 
   /**
@@ -407,6 +409,15 @@ export class ReportsService {
         'Falha ao atualizar métricas de report; dados agregados podem estar desatualizados',
       );
     }
+
+    this.reportIntegrations
+      .dispatchIntegrationEvent(report.id)
+      .catch((err: Error) =>
+        this.logger.error(
+          { reportId: report.id, errMessage: err?.message },
+          'Falha ao disparar integração externa para report',
+        ),
+      );
 
     return this.mapToResponseDto(report);
   }

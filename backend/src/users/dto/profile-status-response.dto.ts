@@ -16,11 +16,26 @@ class ProfileDataDto {
   locationId?: number;
 
   @ApiProperty({
+    description: 'ID da localização de país',
+    example: 10,
+    required: false,
+  })
+  countryLocationId?: number;
+
+  @ApiProperty({
     description: 'Identificador externo',
     example: '12345678900',
     required: false,
   })
   externalIdentifier?: string;
+
+  @ApiProperty({
+    description: 'Telefone',
+    example: '+2389912345',
+    required: false,
+  })
+  phone?: string;
+
 }
 
 export class ProfileStatusResponseDto {

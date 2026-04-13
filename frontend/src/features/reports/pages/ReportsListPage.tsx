@@ -209,6 +209,23 @@ export default function ReportsListPage() {
     if (field.type === 'date' && value) {
       return new Date(value).toLocaleDateString('pt-BR');
     }
+    if (
+      field.type === 'mapPoint' &&
+      value &&
+      typeof value === 'object' &&
+      typeof (value as any).latitude === 'number' &&
+      typeof (value as any).longitude === 'number'
+    ) {
+      return `${Number((value as any).latitude).toFixed(6)}, ${Number(
+        (value as any).longitude,
+      ).toFixed(6)}`;
+    }
+    if (field.type === 'location' && value && typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>)
+        .filter(([, val]) => val !== null && val !== undefined && val !== '')
+        .map(([key, val]) => `${key}: ${String(val)}`);
+      return entries.length > 0 ? entries.join(' | ') : '-';
+    }
     return String(value);
   };
 

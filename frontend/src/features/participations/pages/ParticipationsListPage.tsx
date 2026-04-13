@@ -153,6 +153,23 @@ export default function ParticipationsListPage() {
       ),
     },
     {
+      id: 'integrationTrainingMode',
+      label: t('participations.integrationTraining'),
+      minWidth: 130,
+      mobileLabel: t('participations.integrationTraining'),
+      render: (row) => {
+        const training = row.integrationTrainingMode ?? false;
+        return (
+          <Chip
+            label={training ? t('participations.integrationTrainingOn') : t('participations.integrationTrainingOff')}
+            color={training ? 'warning' : 'default'}
+            size="small"
+            variant={training ? 'filled' : 'outlined'}
+          />
+        );
+      },
+    },
+    {
       id: 'actions',
       label: t('participations.actions'),
       minWidth: 120,

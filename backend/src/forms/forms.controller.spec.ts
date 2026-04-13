@@ -30,6 +30,7 @@ describe('FormsController', () => {
       description: null,
       type: null,
       accessType: 'PUBLIC',
+      modules: [],
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),

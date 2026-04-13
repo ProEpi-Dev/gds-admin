@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Typography, TextField, Button, CircularProgress, Paper, Alert } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +14,7 @@ import SelectGender from '../../../components/common/SelectGender';
 import SelectLocation from '../../../components/common/SelectLocation';
 import UserLayout from '../../../components/layout/UserLayout';
 import ProfileExtraFormSection from '../components/ProfileExtraFormSection';
+import type { FormRendererHandle } from '../../../components/form-renderer/FormRenderer';
 import type { UpdateProfileDto } from '../../../types/user.types';
 import type { ParticipationProfileExtraMeResponse } from '../../../types/participation-profile-extra.types';
 import { resolveProfileExtraPayload } from '../utils/profileExtraPayload';
@@ -33,6 +34,7 @@ export default function CompleteProfilePage() {
   const queryClient = useQueryClient();
   const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const profileExtraFormRef = useRef<FormRendererHandle>(null);
 
   const { data: profileStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['profile-status'],
@@ -116,6 +118,9 @@ export default function CompleteProfilePage() {
     setFormError(null);
     const resolved = resolveProfileExtraPayload(profileExtraMe, extraValues);
     if ('error' in resolved) {
+      if (resolved.error === 'invalid') {
+        profileExtraFormRef.current?.revealFieldErrors();
+      }
       setFormError(t('profile.profileExtraInvalid'));
       return;
     }
@@ -197,7 +202,13 @@ export default function CompleteProfilePage() {
             required
           />
 
-          <ProfileExtraFormSection onValuesChange={setExtraValues} />
+          <ProfileExtraFormSection
+            ref={profileExtraFormRef}
+            onValuesChange={setExtraValues}
+            participantCountryLocationId={
+              profileStatus?.profile.countryLocationId ?? null
+            }
+          />
 
           <Button
             type="submit"

@@ -61,7 +61,9 @@
       "boolean": "Booleano",
       "select": "Seleção Única",
       "multiselect": "Seleção Múltipla",
-      "date": "Data"
+      "date": "Data",
+      "location": "Localização",
+      "mapPoint": "Ponto no mapa"
     }
   },
   "userLayout": {
@@ -303,7 +305,10 @@
     "sortStartDateAsc": "Inscrição: mais antiga primeiro",
     "sortStartDateDesc": "Inscrição: mais recente primeiro",
     "createdAt": "Criado em",
-    "updatedAt": "Atualizado em"
+    "updatedAt": "Atualizado em",
+    "integrationTraining": "Treinamento (integração)",
+    "integrationTrainingOn": "Homologação",
+    "integrationTrainingOff": "Produção"
   },
   "users": {
     "title": "Usuários",
@@ -333,6 +338,10 @@
     "newLocation": "Nova Localização",
     "name": "Nome",
     "parent": "Localização Pai",
+    "orgLevel": "Nível organizacional",
+    "orgLevelCountry": "País",
+    "orgLevelStateDistrict": "Estado/Distrito",
+    "orgLevelCityCouncil": "Cidade/Conselho",
     "coordinates": "Coordenadas",
     "latitude": "Latitude",
     "longitude": "Longitude",

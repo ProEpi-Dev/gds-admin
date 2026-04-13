@@ -4,7 +4,24 @@ export type FieldType =
   | 'boolean'
   | 'select'
   | 'multiselect'
-  | 'date';
+  | 'date'
+  | 'location'
+  | 'mapPoint';
+
+export type LocationOrgLevel =
+  | 'COUNTRY'
+  | 'STATE_DISTRICT'
+  | 'CITY_COUNCIL';
+
+export interface LocationFieldConfig {
+  maxLevel: LocationOrgLevel;
+  countryKey: string;
+  countryNameKey?: string;
+  stateDistrictKey?: string;
+  stateDistrictNameKey?: string;
+  cityCouncilKey?: string;
+  cityCouncilNameKey?: string;
+}
 
 export type ConditionOperator = 
   | 'equals'
@@ -44,6 +61,8 @@ export interface FormField {
   // Para date
   minDate?: string;
   maxDate?: string;
+  // Para location
+  locationConfig?: LocationFieldConfig;
   // Condições de exibição
   conditions?: FieldCondition[];
   // Validações customizadas
@@ -66,5 +85,10 @@ export interface FormBuilderDefinition {
   fields: FormField[];
   title?: string;
   description?: string;
+  /**
+   * `name` do campo cujo valor aparece na listagem "Meus sinais" (app).
+   * Se vazio, usa resumo automático (até 2 campos).
+   */
+  listPreviewFieldName?: string;
 }
 

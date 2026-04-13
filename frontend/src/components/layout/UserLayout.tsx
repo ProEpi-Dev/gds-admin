@@ -108,6 +108,8 @@ export default function UserLayout({ children }: UserLayoutProps) {
     return 'inicio';
   }, [location.pathname, showDaysModule, showSignalsModule]);
   const hideBottomNav = location.pathname.startsWith('/app/complete-profile');
+  /** Início: sem gutters para o hero encostar nas laterais; margem superior alinhada à AppBar. */
+  const isAppInicio = location.pathname === '/app/inicio';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -125,13 +127,6 @@ export default function UserLayout({ children }: UserLayoutProps) {
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Guardiões da Saúde
           </Typography>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, maxWidth: 220 }} noWrap>
-              Olá, {user?.name ?? 'Participante'}!
-            </Typography>
-            <Avatar sx={{ width: 32, height: 32 }}>{user?.name ? getInitials(user.name) : '?'}</Avatar>
-          </Box>
         </Toolbar>
       </AppBar>
 
@@ -188,12 +183,14 @@ export default function UserLayout({ children }: UserLayoutProps) {
       <Container
         component="main"
         maxWidth="md"
+        disableGutters={isAppInicio}
         sx={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          mt: 10,
+          mt: isAppInicio ? { xs: 7, sm: 8 } : 10,
           mb: hideBottomNav ? 4 : 10,
+          overflowX: isAppInicio ? 'hidden' : undefined,
         }}
       >
         {children}

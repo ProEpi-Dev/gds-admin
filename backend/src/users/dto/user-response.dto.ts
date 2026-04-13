@@ -20,10 +20,22 @@ export class UserResponseDto {
   locationId?: number;
 
   @ApiPropertyOptional({
+    description: 'ID da localização de país',
+    example: 10,
+  })
+  countryLocationId?: number;
+
+  @ApiPropertyOptional({
     description: 'Identificador externo',
     example: '12345678900',
   })
   externalIdentifier?: string;
+
+  @ApiPropertyOptional({
+    description: 'Telefone',
+    example: '+2389912345',
+  })
+  phone?: string;
 
   @ApiPropertyOptional({ description: 'ID do papel global', example: 1 })
   roleId?: number | null;

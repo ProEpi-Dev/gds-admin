@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { LocationOrgLevelDto } from './create-location.dto';
 
 export class LocationQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -25,4 +26,14 @@ export class LocationQueryDto extends PaginationQueryDto {
   @IsInt()
   @IsOptional()
   parentId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por nível organizacional',
+    enum: LocationOrgLevelDto,
+    example: LocationOrgLevelDto.COUNTRY,
+  })
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  @IsEnum(LocationOrgLevelDto)
+  @IsOptional()
+  orgLevel?: LocationOrgLevelDto;
 }

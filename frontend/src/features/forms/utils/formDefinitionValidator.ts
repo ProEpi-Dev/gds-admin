@@ -22,9 +22,22 @@ const validationSchema = z
 
 const fieldSchema = z.object({
   id: z.string().min(1, 'O campo precisa de um id'),
-  type: z.enum(['text', 'number', 'boolean', 'select', 'multiselect', 'date'], {
-    message: 'Tipo de campo inválido. Tipos válidos são: text, number, boolean, select, multiselect, date',
-  }),
+  type: z.enum(
+    [
+      'text',
+      'number',
+      'boolean',
+      'select',
+      'multiselect',
+      'date',
+      'location',
+      'mapPoint',
+    ],
+    {
+      message:
+        'Tipo de campo inválido. Tipos válidos são: text, number, boolean, select, multiselect, date, location, mapPoint',
+    },
+  ),
   label: z.string().min(1, 'Informe um label'),
   name: z.string().min(1, 'Informe o name'),
   description: z.string().optional(),
@@ -37,6 +50,17 @@ const fieldSchema = z.object({
   maxLength: z.number().optional(),
   minDate: z.string().optional(),
   maxDate: z.string().optional(),
+  locationConfig: z
+    .object({
+      maxLevel: z.enum(['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL']),
+      countryKey: z.string().min(1),
+      countryNameKey: z.string().optional(),
+      stateDistrictKey: z.string().optional(),
+      stateDistrictNameKey: z.string().optional(),
+      cityCouncilKey: z.string().optional(),
+      cityCouncilNameKey: z.string().optional(),
+    })
+    .optional(),
   conditions: z.array(conditionSchema).optional(),
   validation: validationSchema,
   // Campos específicos de Quiz
@@ -55,6 +79,7 @@ const formDefinitionSchema = z
     title: z.string().optional(),
     description: z.string().optional(),
     fields: z.array(fieldSchema).default([]),
+    listPreviewFieldName: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Proteção extra contra dados nulos/indefinidos
@@ -91,7 +116,62 @@ const formDefinitionSchema = z
           path: ['fields', index, 'options'],
         });
       }
+
+      if (field.type === 'location') {
+        if (!field.locationConfig) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Campos do tipo location precisam de configuração',
+            path: ['fields', index, 'locationConfig'],
+          });
+          return;
+        }
+
+        if (!field.locationConfig.countryKey?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Informe a chave do ID de país',
+            path: ['fields', index, 'locationConfig', 'countryKey'],
+          });
+        }
+
+        if (
+          field.locationConfig.maxLevel !== 'COUNTRY' &&
+          !field.locationConfig.stateDistrictKey?.trim()
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'Informe a chave do ID de estado/distrito para este nível',
+            path: ['fields', index, 'locationConfig', 'stateDistrictKey'],
+          });
+        }
+
+        if (
+          field.locationConfig.maxLevel === 'CITY_COUNCIL' &&
+          !field.locationConfig.cityCouncilKey?.trim()
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'Informe a chave do ID de cidade/conselho para este nível',
+            path: ['fields', index, 'locationConfig', 'cityCouncilKey'],
+          });
+        }
+      }
     });
+
+    const preview = data.listPreviewFieldName?.trim();
+    if (preview) {
+      const names = new Set(fields.map((f: any) => f?.name).filter(Boolean));
+      if (!names.has(preview)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Campo "${preview}" não existe na lista de campos (listPreviewFieldName)`,
+          path: ['listPreviewFieldName'],
+        });
+      }
+    }
   });
 
 export type FormDefinitionValidationResult =
@@ -149,6 +229,7 @@ export function formatDefinition(definition: FormBuilderDefinition): string {
       ...field,
       required: field.required ?? false,
     })),
+    listPreviewFieldName: definition.listPreviewFieldName?.trim() || undefined,
   };
   return JSON.stringify(normalizedDefinition, null, 2);
 }
@@ -158,22 +239,39 @@ export function ensureFormDefinition(value: FormBuilderDefinition | null | undef
     return { fields: [] };
   }
 
+  const fields = Array.isArray(value.fields)
+    ? value.fields.map((field) => ({
+        ...field,
+        required: field.required ?? false,
+      }))
+    : [];
+  let listPreviewFieldName = value.listPreviewFieldName?.trim() || undefined;
+  if (
+    listPreviewFieldName &&
+    !fields.some((f) => f.name === listPreviewFieldName)
+  ) {
+    listPreviewFieldName = undefined;
+  }
   return {
     title: value.title,
     description: value.description,
-    fields: Array.isArray(value.fields)
-      ? value.fields.map((field) => ({
-          ...field,
-          required: field.required ?? false,
-        }))
-      : [],
+    fields,
+    listPreviewFieldName,
   };
 }
 
 export function mergeDefinitionChanges(current: FormBuilderDefinition, nextFields: FormField[]): FormBuilderDefinition {
+  let listPreviewFieldName = current.listPreviewFieldName;
+  if (
+    listPreviewFieldName &&
+    !nextFields.some((f) => f.name === listPreviewFieldName)
+  ) {
+    listPreviewFieldName = undefined;
+  }
   return {
     ...current,
     fields: nextFields,
+    listPreviewFieldName,
   };
 }
 

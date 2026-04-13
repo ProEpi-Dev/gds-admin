@@ -23,7 +23,13 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
-import type { FormField, FieldType, ConditionOperator, FieldCondition } from '../../types/form-builder.types';
+import type {
+  FormField,
+  FieldType,
+  ConditionOperator,
+  FieldCondition,
+  LocationFieldConfig,
+} from '../../types/form-builder.types';
 import type { FormType } from '../../types/form.types';
 
 interface FieldEditorProps {
@@ -33,6 +39,16 @@ interface FieldEditorProps {
   onChange: (field: FormField) => void;
   onDelete: () => void;
 }
+
+const DEFAULT_LOCATION_CONFIG: LocationFieldConfig = {
+  maxLevel: 'CITY_COUNCIL',
+  countryKey: 'countryLocationId',
+  countryNameKey: 'countryLocationName',
+  stateDistrictKey: 'stateDistrictLocationId',
+  stateDistrictNameKey: 'stateDistrictLocationName',
+  cityCouncilKey: 'cityCouncilLocationId',
+  cityCouncilNameKey: 'cityCouncilLocationName',
+};
 
 export default function FieldEditor({ field, allFields, formType, onChange, onDelete }: FieldEditorProps) {
   const { t } = useTranslation();
@@ -140,7 +156,18 @@ export default function FieldEditor({ field, allFields, formType, onChange, onDe
             <Select
               value={field.type}
               label="Tipo"
-              onChange={(e) => handleChange({ type: e.target.value as FieldType })}
+              onChange={(e) => {
+                const nextType = e.target.value as FieldType;
+                if (nextType === 'location') {
+                  handleChange({
+                    type: nextType,
+                    locationConfig:
+                      field.locationConfig ?? DEFAULT_LOCATION_CONFIG,
+                  });
+                  return;
+                }
+                handleChange({ type: nextType });
+              }}
             >
               <MenuItem value="text">Texto</MenuItem>
               <MenuItem value="number">Numérico</MenuItem>
@@ -148,6 +175,8 @@ export default function FieldEditor({ field, allFields, formType, onChange, onDe
               <MenuItem value="date">Data</MenuItem>
               <MenuItem value="select">Dropdown (Escolha Única)</MenuItem>
               <MenuItem value="multiselect">Dropdown (Múltiplas Escolhas)</MenuItem>
+              <MenuItem value="location">Localização (Dinâmico)</MenuItem>
+              <MenuItem value="mapPoint">Ponto no Mapa</MenuItem>
             </Select>
           </FormControl>
 
@@ -300,6 +329,194 @@ export default function FieldEditor({ field, allFields, formType, onChange, onDe
                 sx={{ flex: 1 }}
                 InputLabelProps={{ shrink: true }}
               />
+            </Box>
+          )}
+
+          {/* Configurações para location */}
+          {field.type === 'location' && (
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                Configuração de Localização
+              </Typography>
+
+              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel>Nível máximo</InputLabel>
+                <Select
+                  value={field.locationConfig?.maxLevel ?? 'CITY_COUNCIL'}
+                  label="Nível máximo"
+                  onChange={(e) => {
+                    const maxLevel = e.target.value as
+                      | 'COUNTRY'
+                      | 'STATE_DISTRICT'
+                      | 'CITY_COUNCIL';
+                    const currentConfig =
+                      field.locationConfig ?? DEFAULT_LOCATION_CONFIG;
+                    const nextConfig: LocationFieldConfig = {
+                      ...currentConfig,
+                      maxLevel,
+                    };
+                    if (maxLevel === 'COUNTRY') {
+                      delete nextConfig.stateDistrictKey;
+                      delete nextConfig.stateDistrictNameKey;
+                      delete nextConfig.cityCouncilKey;
+                      delete nextConfig.cityCouncilNameKey;
+                    }
+                    if (maxLevel === 'STATE_DISTRICT') {
+                      delete nextConfig.cityCouncilKey;
+                      delete nextConfig.cityCouncilNameKey;
+                      nextConfig.stateDistrictKey =
+                        nextConfig.stateDistrictKey ??
+                        DEFAULT_LOCATION_CONFIG.stateDistrictKey;
+                      nextConfig.stateDistrictNameKey =
+                        nextConfig.stateDistrictNameKey ??
+                        DEFAULT_LOCATION_CONFIG.stateDistrictNameKey;
+                    }
+                    if (maxLevel === 'CITY_COUNCIL') {
+                      nextConfig.stateDistrictKey =
+                        nextConfig.stateDistrictKey ??
+                        DEFAULT_LOCATION_CONFIG.stateDistrictKey;
+                      nextConfig.stateDistrictNameKey =
+                        nextConfig.stateDistrictNameKey ??
+                        DEFAULT_LOCATION_CONFIG.stateDistrictNameKey;
+                      nextConfig.cityCouncilKey =
+                        nextConfig.cityCouncilKey ??
+                        DEFAULT_LOCATION_CONFIG.cityCouncilKey;
+                      nextConfig.cityCouncilNameKey =
+                        nextConfig.cityCouncilNameKey ??
+                        DEFAULT_LOCATION_CONFIG.cityCouncilNameKey;
+                    }
+                    handleChange({ locationConfig: nextConfig });
+                  }}
+                >
+                  <MenuItem value="COUNTRY">COUNTRY</MenuItem>
+                  <MenuItem value="STATE_DISTRICT">STATE_DISTRICT</MenuItem>
+                  <MenuItem value="CITY_COUNCIL">CITY_COUNCIL</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Chave do ID de País"
+                value={field.locationConfig?.countryKey ?? 'countryLocationId'}
+                onChange={(e) =>
+                  handleChange({
+                    locationConfig: {
+                      ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                      countryKey: e.target.value,
+                    },
+                  })
+                }
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+                helperText="Nome da chave que será enviada para ID do país"
+              />
+
+              <TextField
+                label="Chave do Nome de País"
+                value={field.locationConfig?.countryNameKey ?? 'countryLocationName'}
+                onChange={(e) =>
+                  handleChange({
+                    locationConfig: {
+                      ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                      countryNameKey: e.target.value,
+                    },
+                  })
+                }
+                fullWidth
+                size="small"
+                sx={{ mb: 2 }}
+                helperText="Nome da chave que será enviada para nome do país"
+              />
+
+              {(field.locationConfig?.maxLevel ?? 'CITY_COUNCIL') !==
+                'COUNTRY' && (
+                <TextField
+                  label="Chave do ID de Estado/Distrito"
+                  value={
+                    field.locationConfig?.stateDistrictKey ??
+                    'stateDistrictLocationId'
+                  }
+                  onChange={(e) =>
+                    handleChange({
+                      locationConfig: {
+                        ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                        stateDistrictKey: e.target.value,
+                      },
+                    })
+                  }
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                  helperText="Nome da chave que será enviada para ID do estado/distrito"
+                />
+              )}
+
+              {(field.locationConfig?.maxLevel ?? 'CITY_COUNCIL') !==
+                'COUNTRY' && (
+                <TextField
+                  label="Chave do Nome de Estado/Distrito"
+                  value={
+                    field.locationConfig?.stateDistrictNameKey ??
+                    'stateDistrictLocationName'
+                  }
+                  onChange={(e) =>
+                    handleChange({
+                      locationConfig: {
+                        ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                        stateDistrictNameKey: e.target.value,
+                      },
+                    })
+                  }
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                  helperText="Nome da chave que será enviada para nome do estado/distrito"
+                />
+              )}
+
+              {(field.locationConfig?.maxLevel ?? 'CITY_COUNCIL') ===
+                'CITY_COUNCIL' && (
+                <TextField
+                  label="Chave do ID de Cidade/Conselho"
+                  value={
+                    field.locationConfig?.cityCouncilKey ??
+                    'cityCouncilLocationId'
+                  }
+                  onChange={(e) =>
+                    handleChange({
+                      locationConfig: {
+                        ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                        cityCouncilKey: e.target.value,
+                      },
+                    })
+                  }
+                  fullWidth
+                  size="small"
+                  helperText="Nome da chave que será enviada para ID da cidade/conselho"
+                />
+              )}
+
+              {(field.locationConfig?.maxLevel ?? 'CITY_COUNCIL') ===
+                'CITY_COUNCIL' && (
+                <TextField
+                  label="Chave do Nome de Cidade/Conselho"
+                  value={
+                    field.locationConfig?.cityCouncilNameKey ??
+                    'cityCouncilLocationName'
+                  }
+                  onChange={(e) =>
+                    handleChange({
+                      locationConfig: {
+                        ...(field.locationConfig ?? DEFAULT_LOCATION_CONFIG),
+                        cityCouncilNameKey: e.target.value,
+                      },
+                    })
+                  }
+                  fullWidth
+                  size="small"
+                  helperText="Nome da chave que será enviada para nome da cidade/conselho"
+                />
+              )}
             </Box>
           )}
 

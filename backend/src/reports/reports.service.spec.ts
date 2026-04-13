@@ -16,6 +16,7 @@ import {
   REPORTS_POINTS_DEFAULT_LIMIT,
 } from './dto/reports-points-query.dto';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -108,6 +109,10 @@ describe('ReportsService', () => {
           provide: BusinessMetricsService,
           useValue: { recordReportCreated: jest.fn() },
         },
+        {
+          provide: ReportIntegrationsService,
+          useValue: { dispatchIntegrationEvent: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -140,7 +145,7 @@ describe('ReportsService', () => {
       const result = await service.create(createDto, 1);
 
       expect(result).toHaveProperty('id', 1);
-      expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE');
+      expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE', 'app');
     });
 
     it('deve validar participation e formVersion', async () => {

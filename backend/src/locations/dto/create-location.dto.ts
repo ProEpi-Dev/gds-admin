@@ -5,10 +5,17 @@ import {
   IsBoolean,
   IsOptional,
   IsObject,
+  IsEnum,
   Min,
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export enum LocationOrgLevelDto {
+  COUNTRY = 'COUNTRY',
+  STATE_DISTRICT = 'STATE_DISTRICT',
+  CITY_COUNCIL = 'CITY_COUNCIL',
+}
 
 export class CreateLocationDto {
   @ApiProperty({
@@ -76,4 +83,14 @@ export class CreateLocationDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Nível organizacional da localização',
+    enum: LocationOrgLevelDto,
+    example: LocationOrgLevelDto.CITY_COUNCIL,
+    default: LocationOrgLevelDto.CITY_COUNCIL,
+  })
+  @IsEnum(LocationOrgLevelDto)
+  @IsOptional()
+  orgLevel?: LocationOrgLevelDto;
 }

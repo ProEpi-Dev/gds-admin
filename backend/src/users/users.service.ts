@@ -490,7 +490,9 @@ export class UsersService {
       profile: {
         genderId: user.gender_id,
         locationId: user.location_id,
+        countryLocationId: (user as any).country_location_id ?? null,
         externalIdentifier: user.external_identifier,
+        phone: (user as any).phone ?? null,
       },
       profileExtraRequired,
       profileExtraComplete,
@@ -538,14 +540,59 @@ export class UsersService {
       }
     }
 
+    // Validar countryLocationId se fornecido
+    if (updateProfileDto.countryLocationId !== undefined) {
+      const countryLocation = await this.prisma.location.findUnique({
+        where: { id: updateProfileDto.countryLocationId },
+      });
+
+      if (!countryLocation) {
+        throw new BadRequestException(
+          `País com ID ${updateProfileDto.countryLocationId} não encontrado`,
+        );
+      }
+
+      if ((countryLocation as any).org_level !== 'COUNTRY') {
+        throw new BadRequestException(
+          `Localização com ID ${updateProfileDto.countryLocationId} não está marcada como país`,
+        );
+      }
+    }
+
+    const effectiveCountryLocationId =
+      updateProfileDto.countryLocationId !== undefined
+        ? updateProfileDto.countryLocationId
+        : ((user as any).country_location_id ?? null);
+
+    if (
+      updateProfileDto.locationId !== undefined &&
+      updateProfileDto.locationId !== null &&
+      effectiveCountryLocationId
+    ) {
+      const isDescendant = await this.isDescendantOfCountry(
+        updateProfileDto.locationId,
+        effectiveCountryLocationId,
+      );
+
+      if (!isDescendant) {
+        throw new BadRequestException(
+          'A localização deve ser filha do país selecionado',
+        );
+      }
+    }
+
     // Atualizar perfil
+    const updateData: any = {
+      gender_id: updateProfileDto.genderId,
+      location_id: updateProfileDto.locationId,
+      country_location_id: updateProfileDto.countryLocationId,
+      external_identifier: updateProfileDto.externalIdentifier,
+      phone: updateProfileDto.phone,
+    };
+
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        gender_id: updateProfileDto.genderId,
-        location_id: updateProfileDto.locationId,
-        external_identifier: updateProfileDto.externalIdentifier,
-      },
+      data: updateData as any,
     });
 
     return this.mapToResponseDto(updatedUser);
@@ -772,11 +819,37 @@ export class UsersService {
       active: user.active,
       genderId: user.gender_id,
       locationId: user.location_id,
+      countryLocationId: (user as any).country_location_id ?? null,
       externalIdentifier: user.external_identifier,
+      phone: (user as any).phone ?? null,
       roleId: user.role_id ?? null,
       roleName: user.role?.name ?? null,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };
+  }
+
+  private async isDescendantOfCountry(
+    locationId: number,
+    countryLocationId: number,
+  ): Promise<boolean> {
+    let currentId: number | null = locationId;
+    const visited = new Set<number>();
+
+    while (currentId && !visited.has(currentId)) {
+      if (currentId === countryLocationId) {
+        return true;
+      }
+
+      visited.add(currentId);
+      const current = await this.prisma.location.findUnique({
+        where: { id: currentId },
+        select: { parent_id: true },
+      });
+
+      currentId = current?.parent_id ?? null;
+    }
+
+    return false;
   }
 }

@@ -62,7 +62,9 @@
       "boolean": "Boolean",
       "select": "Single Select",
       "multiselect": "Multi Select",
-      "date": "Date"
+      "date": "Date",
+      "location": "Location",
+      "mapPoint": "Map point"
     }
   },
   "navigation": {
@@ -185,7 +187,10 @@
     "sortStartDateAsc": "Enrollment: oldest first",
     "sortStartDateDesc": "Enrollment: newest first",
     "createdAt": "Created at",
-    "updatedAt": "Updated at"
+    "updatedAt": "Updated at",
+    "integrationTraining": "Integration training",
+    "integrationTrainingOn": "Staging",
+    "integrationTrainingOff": "Production"
   },
   "users": {
     "title": "Users",
@@ -215,6 +220,10 @@
     "newLocation": "New Location",
     "name": "Name",
     "parent": "Parent Location",
+    "orgLevel": "Organizational level",
+    "orgLevelCountry": "Country",
+    "orgLevelStateDistrict": "State/District",
+    "orgLevelCityCouncil": "City/Council",
     "coordinates": "Coordinates",
     "latitude": "Latitude",
     "longitude": "Longitude",

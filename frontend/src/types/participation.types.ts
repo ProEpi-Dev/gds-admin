@@ -16,6 +16,7 @@ export interface Participation {
   startDate: string;
   endDate: string | null;
   active: boolean;
+  integrationTrainingMode: boolean;
   createdAt: string;
   updatedAt: string;
   /** Nome do usuário (quando includeUser=true na listagem) */
@@ -47,6 +48,7 @@ export interface UpdateParticipationDto {
   startDate?: string;
   endDate?: string | null;
   active?: boolean;
+  integrationTrainingMode?: boolean;
 }
 
 export interface ParticipationQuery extends PaginationQuery {

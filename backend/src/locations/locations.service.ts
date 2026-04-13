@@ -41,6 +41,7 @@ export class LocationsService {
     const data: any = {
       name: createLocationDto.name,
       active: createLocationDto.active ?? true,
+      org_level: createLocationDto.orgLevel ?? 'CITY_COUNCIL',
     };
 
     if (createLocationDto.parentId !== undefined) {
@@ -86,6 +87,10 @@ export class LocationsService {
       where.parent_id = query.parentId;
     }
 
+    if (query.orgLevel !== undefined) {
+      where.org_level = query.orgLevel;
+    }
+
     // Buscar localizações e total
     const [locations, totalItems] = await Promise.all([
       this.prisma.location.findMany({
@@ -122,6 +127,7 @@ export class LocationsService {
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.parentId !== undefined) queryParams.parentId = query.parentId;
+    if (query.orgLevel !== undefined) queryParams.orgLevel = query.orgLevel;
 
     return {
       data: locations.map((location) => this.mapToResponseDto(location)),
@@ -235,6 +241,10 @@ export class LocationsService {
       updateData.active = updateLocationDto.active;
     }
 
+    if (updateLocationDto.orgLevel !== undefined) {
+      updateData.org_level = updateLocationDto.orgLevel;
+    }
+
     // Atualizar localização
     const location = await this.prisma.location.update({
       where: { id },
@@ -280,6 +290,7 @@ export class LocationsService {
         ? this.mapParentLocation(location.location, 1)
         : undefined,
       name: location.name,
+      orgLevel: location.org_level,
       latitude: location.latitude ? Number(location.latitude) : null,
       longitude: location.longitude ? Number(location.longitude) : null,
       polygons: location.polygons,

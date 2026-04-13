@@ -8,6 +8,10 @@ import {
   Stack,
   Tabs,
   Tab,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +29,9 @@ interface FormBuilderProps {
 
 export default function FormBuilder({ definition, onChange, readOnly = false, formType }: FormBuilderProps) {
   const [fields, setFields] = useState<FormField[]>(definition?.fields || []);
+  const [listPreviewFieldName, setListPreviewFieldName] = useState(
+    definition?.listPreviewFieldName ?? '',
+  );
   const [activeTab, setActiveTab] = useState(0);
 
   // Sincronizar campos quando a definition mudar (ex: quando os dados são carregados do backend)
@@ -34,9 +41,39 @@ export default function FormBuilder({ definition, onChange, readOnly = false, fo
     }
   }, [definition]);
 
+  useEffect(() => {
+    setListPreviewFieldName(definition?.listPreviewFieldName ?? '');
+  }, [definition?.listPreviewFieldName]);
+
+  const composeDefinition = (
+    newFields: FormField[],
+    previewField: string,
+  ): FormBuilderDefinition => ({
+    fields: newFields,
+    title: definition?.title,
+    description: definition?.description,
+    ...(formType === 'signal'
+      ? { listPreviewFieldName: previewField.trim() || undefined }
+      : {}),
+  });
+
   const handleFieldsChange = (newFields: FormField[]) => {
+    let preview = listPreviewFieldName;
+    if (
+      formType === 'signal' &&
+      preview &&
+      !newFields.some((f) => f.name === preview)
+    ) {
+      preview = '';
+      setListPreviewFieldName('');
+    }
     setFields(newFields);
-    onChange?.({ fields: newFields, title: definition?.title, description: definition?.description });
+    onChange?.(composeDefinition(newFields, preview));
+  };
+
+  const handleListPreviewChange = (name: string) => {
+    setListPreviewFieldName(name);
+    onChange?.(composeDefinition(fields, name));
   };
 
   const addField = () => {
@@ -61,11 +98,8 @@ export default function FormBuilder({ definition, onChange, readOnly = false, fo
     handleFieldsChange(newFields);
   };
 
-  const getDefinition = (): FormBuilderDefinition => ({
-    fields,
-    title: definition?.title,
-    description: definition?.description,
-  });
+  const getDefinition = (): FormBuilderDefinition =>
+    composeDefinition(fields, listPreviewFieldName);
 
   return (
     <Paper sx={{ p: 3 }}>
@@ -81,17 +115,38 @@ export default function FormBuilder({ definition, onChange, readOnly = false, fo
 
       {activeTab === 0 && (
         <Box>
-          {!readOnly && (
-            <Button
-              startIcon={<AddIcon />}
-              onClick={addField}
-              variant="contained"
+          {formType === 'signal' && (
+            <FormControl
+              fullWidth
+              size="small"
               sx={{ mb: 2 }}
+              disabled={readOnly}
             >
-              Adicionar Campo
-            </Button>
+              <InputLabel id="signal-list-preview-field-label">
+                Campo na listagem do app (Meus sinais)
+              </InputLabel>
+              <Select
+                labelId="signal-list-preview-field-label"
+                label="Campo na listagem do app (Meus sinais)"
+                value={listPreviewFieldName || ''}
+                onChange={(e) =>
+                  handleListPreviewChange(String(e.target.value))
+                }
+              >
+                <MenuItem value="">
+                  <em>Padrão — resumo automático (até 2 campos)</em>
+                </MenuItem>
+                {fields.map((f) => (
+                  <MenuItem key={f.id} value={f.name}>
+                    {f.label} ({f.name})
+                  </MenuItem>
+                ))}
+              </Select>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                Exibe só o valor desse campo em cada card (sem o texto da pergunta).
+              </Typography>
+            </FormControl>
           )}
-
           <Stack spacing={2}>
             {fields.length === 0 ? (
               <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
@@ -110,6 +165,17 @@ export default function FormBuilder({ definition, onChange, readOnly = false, fo
               ))
             )}
           </Stack>
+
+          {!readOnly && (
+            <Button
+              startIcon={<AddIcon />}
+              onClick={addField}
+              variant="contained"
+              sx={{ mt: 2 }}
+            >
+              Adicionar Campo
+            </Button>
+          )}
         </Box>
       )}
 

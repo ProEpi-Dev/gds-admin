@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   TextField,
+  MenuItem,
   Typography,
   Paper,
   Stack,
@@ -25,6 +26,7 @@ import type { CreateLocationDto } from '../../../types/location.types';
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   parentId: z.number().optional().nullable(),
+  orgLevel: z.enum(['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL']),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   polygons: z.any().optional().nullable(),
@@ -32,6 +34,12 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+const ORG_LEVEL_OPTIONS = [
+  { value: 'COUNTRY', labelKey: 'locations.orgLevelCountry' },
+  { value: 'STATE_DISTRICT', labelKey: 'locations.orgLevelStateDistrict' },
+  { value: 'CITY_COUNCIL', labelKey: 'locations.orgLevelCityCouncil' },
+] as const;
 
 export default function LocationCreatePage() {
   const navigate = useNavigate();
@@ -51,6 +59,7 @@ export default function LocationCreatePage() {
     defaultValues: {
       active: true,
       parentId: null,
+      orgLevel: 'CITY_COUNCIL',
       latitude: null,
       longitude: null,
       polygons: null,
@@ -81,6 +90,7 @@ export default function LocationCreatePage() {
     const locationData: CreateLocationDto = {
       name: data.name,
       parentId: data.parentId || undefined,
+      orgLevel: data.orgLevel,
       latitude: point?.latitude || undefined,
       longitude: point?.longitude || undefined,
       polygons: polygons || undefined,
@@ -127,6 +137,19 @@ export default function LocationCreatePage() {
               label={t('locations.parent')}
               activeOnly={false}
             />
+
+            <TextField
+              {...register('orgLevel')}
+              select
+              label={t('locations.orgLevel')}
+              fullWidth
+            >
+              {ORG_LEVEL_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {t(option.labelKey)}
+                </MenuItem>
+              ))}
+            </TextField>
 
             <Box>
               <Typography variant="subtitle2" gutterBottom>
