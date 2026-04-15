@@ -68,6 +68,9 @@ export const reportsService = {
     if (query.formId !== undefined) {
       params.append("formId", query.formId.toString());
     }
+    if (query.limit !== undefined) {
+      params.append("limit", query.limit.toString());
+    }
     params.append("startDate", query.startDate);
     params.append("endDate", query.endDate);
 
