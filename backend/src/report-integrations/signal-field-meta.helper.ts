@@ -1,3 +1,5 @@
+import { unknownToSafeString } from '../common/http/unknown-to-string';
+
 /**
  * Metadados de campos de formulário "signal" para montagem do payload Ephem.
  * Extraído do serviço para reduzir complexidade cognitiva (Sonar).
@@ -51,7 +53,7 @@ function optionValueToMapKey(key: unknown): string {
       return '';
     }
   }
-  return String(key);
+  return unknownToSafeString(key);
 }
 
 function buildLocationConfig(

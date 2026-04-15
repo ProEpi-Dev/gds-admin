@@ -412,7 +412,7 @@ export class ReportIntegrationsService {
       }
       return JSON.stringify(value);
     }
-    return String(value).trim();
+    return unknownToSafeString(value).trim();
   }
 
   /**
@@ -515,31 +515,33 @@ export class ReportIntegrationsService {
     return locationNamesById.get(parsed) ?? value;
   }
 
-  private appendLocationEntryToPayloadMaps(
-    meta: SignalFieldMeta,
+  private copyFlatLocationFieldsToPayloadMaps(
     locationObj: Record<string, unknown>,
     locationNamesById: Map<number, string>,
     dataMap: Record<string, unknown>,
     additionalDataMap: Record<string, unknown>,
   ): void {
-    const levelMappings = getLocationLevelMappings(meta);
-
-    if (levelMappings.length === 0) {
-      for (const [locationKey, rawValue] of Object.entries(locationObj)) {
-        const resolvedValue = this.mapLocationValueToName(
-          rawValue,
-          locationNamesById,
-        );
-        const outVal =
-          typeof resolvedValue === 'string'
-            ? this.normalizeUtf8MojibakeString(resolvedValue)
-            : resolvedValue;
-        dataMap[locationKey] = outVal;
-        additionalDataMap[locationKey] = outVal;
-      }
-      return;
+    for (const [locationKey, rawValue] of Object.entries(locationObj)) {
+      const resolvedValue = this.mapLocationValueToName(
+        rawValue,
+        locationNamesById,
+      );
+      const outVal =
+        typeof resolvedValue === 'string'
+          ? this.normalizeUtf8MojibakeString(resolvedValue)
+          : resolvedValue;
+      dataMap[locationKey] = outVal;
+      additionalDataMap[locationKey] = outVal;
     }
+  }
 
+  private applyStructuredLocationMappingsToPayloadMaps(
+    levelMappings: Array<{ idKey: string; nameKey?: string }>,
+    locationObj: Record<string, unknown>,
+    locationNamesById: Map<number, string>,
+    dataMap: Record<string, unknown>,
+    additionalDataMap: Record<string, unknown>,
+  ): void {
     for (let i = 0; i < levelMappings.length; i++) {
       const mapping = levelMappings[i];
       const rawId = locationObj[mapping.idKey];
@@ -562,6 +564,34 @@ export class ReportIntegrationsService {
       dataMap[dataPayloadKey] = outVal;
       additionalDataMap[this.locationLevelAdditionalLabel(i)] = outVal;
     }
+  }
+
+  private appendLocationEntryToPayloadMaps(
+    meta: SignalFieldMeta,
+    locationObj: Record<string, unknown>,
+    locationNamesById: Map<number, string>,
+    dataMap: Record<string, unknown>,
+    additionalDataMap: Record<string, unknown>,
+  ): void {
+    const levelMappings = getLocationLevelMappings(meta);
+
+    if (levelMappings.length === 0) {
+      this.copyFlatLocationFieldsToPayloadMaps(
+        locationObj,
+        locationNamesById,
+        dataMap,
+        additionalDataMap,
+      );
+      return;
+    }
+
+    this.applyStructuredLocationMappingsToPayloadMaps(
+      levelMappings,
+      locationObj,
+      locationNamesById,
+      dataMap,
+      additionalDataMap,
+    );
   }
 
   private appendStandardFieldToPayloadMaps(

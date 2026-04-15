@@ -29,7 +29,11 @@ describe('unknownToSafeString', () => {
   });
 
   it('cobre função (tipo restante)', () => {
-    expect(unknownToSafeString(() => 1)).toBe(String(() => 1));
+    expect(unknownToSafeString(() => 1)).toBe('[Function:anonymous]');
+    function namedFn() {
+      return 2;
+    }
+    expect(unknownToSafeString(namedFn)).toBe('[Function:namedFn]');
   });
 });
 
@@ -45,6 +49,11 @@ describe('errorMessageFromUnknown', () => {
   it('converte primitivos', () => {
     expect(errorMessageFromUnknown('oops')).toBe('oops');
     expect(errorMessageFromUnknown(42)).toBe('42');
+  });
+
+  it('trata null e undefined', () => {
+    expect(errorMessageFromUnknown(undefined)).toBe('');
+    expect(errorMessageFromUnknown(null)).toBe('null');
   });
 
   it('cobre fallback quando JSON.stringify do erro falha', () => {

@@ -26,19 +26,46 @@ export function unknownToSafeString(value: unknown): string {
       return '[object Object]';
     }
   }
-  return String(value);
+  if (typeof value === 'function') {
+    const fn = value as (...args: unknown[]) => unknown;
+    return `[Function:${fn.name || 'anonymous'}]`;
+  }
+  return '';
 }
 
 export function errorMessageFromUnknown(err: unknown): string {
   if (err instanceof Error) {
     return err.message;
   }
-  if (typeof err === 'object' && err !== null) {
+  if (err === undefined) {
+    return '';
+  }
+  if (err === null) {
+    return 'null';
+  }
+  if (typeof err === 'object') {
     try {
       return JSON.stringify(err);
     } catch {
       return '[object Object]';
     }
   }
-  return String(err);
+  if (typeof err === 'string') {
+    return err;
+  }
+  if (
+    typeof err === 'number' ||
+    typeof err === 'boolean' ||
+    typeof err === 'bigint'
+  ) {
+    return String(err);
+  }
+  if (typeof err === 'symbol') {
+    return err.toString();
+  }
+  if (typeof err === 'function') {
+    const fn = err as (...args: unknown[]) => unknown;
+    return `[Function:${fn.name || 'anonymous'}]`;
+  }
+  return '';
 }
