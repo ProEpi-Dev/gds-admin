@@ -312,6 +312,55 @@ describe('TrackProgressService', () => {
     expect(result.canAccess).toBe(true);
   });
 
+  it('canAccessSequenceForTrackProgress – sem registo por id', async () => {
+    prismaMock.track_progress.findUnique.mockResolvedValue(null);
+    const result = await service.canAccessSequenceForTrackProgress(999, 2);
+    expect(result).toEqual({
+      canAccess: false,
+      reason: 'Progresso não encontrado',
+    });
+  });
+
+  it('canAccessSequenceForTrackProgress – delega a canAccessSequence', async () => {
+    prismaMock.track_progress.findUnique
+      .mockResolvedValueOnce({
+        participation_id: 1,
+        track_cycle_id: 1,
+      })
+      .mockResolvedValueOnce({
+        id: 1,
+        track_cycle_id: 1,
+        status: progress_status_enum.in_progress,
+        sequence_progress: [
+          { id: 1, status: progress_status_enum.completed, sequence_id: 1 },
+        ],
+        track_cycle: {
+          id: 1,
+          ...openCycleDates,
+          track: {
+            section: [
+              {
+                sequence: [
+                  { id: 1, active: true },
+                  { id: 2, active: true },
+                ],
+              },
+            ],
+          },
+        },
+      } as any);
+
+    prismaMock.sequence.findUnique.mockResolvedValue({
+      id: 2,
+      active: true,
+      section_id: 1,
+      order: 2,
+    });
+
+    const result = await service.canAccessSequenceForTrackProgress(10, 2);
+    expect(result.canAccess).toBe(true);
+  });
+
   it('findAll – retorna lista de progressos', async () => {
     const mockData = [
       { id: 1, progress_percentage: 50 },
