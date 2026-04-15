@@ -147,7 +147,8 @@ export default function AppHomePage() {
   const communityRangeStart = format(communityMonthStart, "yyyy-MM-dd");
   const communityRangeEnd = format(communityMonthEnd, "yyyy-MM-dd");
 
-  const startDate = useMemo(() => format(subDays(new Date(), 30), "yyyy-MM-dd"), []);
+  /** Janela do mapa de reports (self_health): 1 semana para limitar payload /points. */
+  const startDate = useMemo(() => format(subDays(new Date(), 7), "yyyy-MM-dd"), []);
   const endDate = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
 
   const { data: points = [], isLoading: pointsLoading } = useQuery({
