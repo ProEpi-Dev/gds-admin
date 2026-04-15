@@ -622,6 +622,31 @@ export class TrackProgressService {
   }
 
   /**
+   * Mesma regra que {@link canAccessSequence}, mas recebe o ID do registo `track_progress`
+   * (evita `findAll({})` no controller, que carregava toda a base).
+   */
+  async canAccessSequenceForTrackProgress(
+    trackProgressId: number,
+    sequenceId: number,
+  ): Promise<{ canAccess: boolean; reason?: string }> {
+    const row = await this.prisma.track_progress.findUnique({
+      where: { id: trackProgressId },
+      select: { participation_id: true, track_cycle_id: true },
+    });
+    if (!row) {
+      return {
+        canAccess: false,
+        reason: 'Progresso não encontrado',
+      };
+    }
+    return this.canAccessSequence(
+      row.participation_id,
+      row.track_cycle_id,
+      sequenceId,
+    );
+  }
+
+  /**
    * Busca progresso de um usuário em um ciclo específico.
    * Inclui sequence_locked (ordem e/ou agenda) e sequence_order_locked (só ordem, respeita track.has_progression).
    */

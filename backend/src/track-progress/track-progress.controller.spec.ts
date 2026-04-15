@@ -15,13 +15,15 @@ describe('TrackProgressController', () => {
     findExecutions: jest.fn(),
     findByUserAndCycle: jest.fn(),
     canAccessSequence: jest.fn(),
+    canAccessSequenceForTrackProgress: jest.fn(),
     updateSequenceProgress: jest.fn(),
     completeContentSequence: jest.fn(),
     completeQuizSequence: jest.fn(),
     recalculateTrackProgress: jest.fn(),
   };
 
-  const mockUser = { id: 1, userId: 1 };
+  /** Alinhado ao payload do JWT (JwtStrategy): apenas userId. */
+  const mockUser = { userId: 1 };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -71,6 +73,7 @@ describe('TrackProgressController', () => {
   it('getHistory', async () => {
     mockService.findCompletedByUser.mockResolvedValue(['done']);
     const result = await controller.getHistory(mockUser);
+    expect(service.findCompletedByUser).toHaveBeenCalledWith(1);
     expect(result).toEqual(['done']);
   });
 
@@ -99,8 +102,12 @@ describe('TrackProgressController', () => {
   });
 
   it('canAccessSequence – progresso não encontrado', async () => {
-    mockService.findAll.mockResolvedValue([]);
+    mockService.canAccessSequenceForTrackProgress.mockResolvedValue({
+      canAccess: false,
+      reason: 'Progresso não encontrado',
+    });
     const result = await controller.canAccessSequence(1, 2);
+    expect(service.canAccessSequenceForTrackProgress).toHaveBeenCalledWith(1, 2);
     expect(result.canAccess).toBe(false);
   });
 

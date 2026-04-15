@@ -89,8 +89,8 @@ export class TrackProgressController {
     status: 200,
     description: 'Lista de progressos do usuário',
   })
-  async getMyProgress(@CurrentUser() user: any) {
-    return this.trackProgressService.findAll({ userId: user.id });
+  async getMyProgress(@CurrentUser() user: { userId: number }) {
+    return this.trackProgressService.findAll({ userId: user.userId });
   }
 
   @Get('history')
@@ -103,8 +103,8 @@ export class TrackProgressController {
     status: 200,
     description: 'Lista de ciclos completados',
   })
-  async getHistory(@CurrentUser() user: any) {
-    return this.trackProgressService.findCompletedByUser(user.id);
+  async getHistory(@CurrentUser() user: { userId: number }) {
+    return this.trackProgressService.findCompletedByUser(user.userId);
   }
 
   @Get('mandatory-compliance')
@@ -134,7 +134,7 @@ export class TrackProgressController {
   })
   async getMandatoryCompliance(
     @Query('participationId', ParseIntPipe) participationId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { userId: number },
   ) {
     return this.trackProgressService.getMandatoryCompliance(
       participationId,
@@ -219,20 +219,8 @@ export class TrackProgressController {
     @Param('id', ParseIntPipe) trackProgressId: number,
     @Param('sequenceId', ParseIntPipe) sequenceId: number,
   ) {
-    // Buscar track_progress para obter participation_id e track_cycle_id
-    const trackProgress = await this.trackProgressService.findAll({});
-    const progress = trackProgress.find((p) => p.id === trackProgressId);
-
-    if (!progress) {
-      return {
-        canAccess: false,
-        reason: 'Progresso não encontrado',
-      };
-    }
-
-    return this.trackProgressService.canAccessSequence(
-      progress.participation_id,
-      progress.track_cycle_id,
+    return this.trackProgressService.canAccessSequenceForTrackProgress(
+      trackProgressId,
       sequenceId,
     );
   }
