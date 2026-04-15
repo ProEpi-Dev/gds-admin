@@ -13,6 +13,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -20,6 +21,7 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Search as SearchIcon,
+  InfoOutlined as InfoOutlinedIcon,
 } from '@mui/icons-material';
 import { useParticipations, useDeleteParticipation } from '../hooks/useParticipations';
 import DataTable, { type Column } from '../../../components/common/DataTable';
@@ -108,6 +110,23 @@ export default function ParticipationsListPage() {
     }
   };
 
+  const integrationTrainingLabel = (
+    <Stack direction="row" alignItems="center" spacing={0.25} component="span">
+      <Box component="span">{t('participations.integrationTraining')}</Box>
+      <Tooltip title={t('participations.integrationTrainingTooltip')}>
+        <IconButton
+          size="small"
+          component="span"
+          aria-label={t('participations.integrationTrainingTooltip')}
+          sx={{ p: 0.25, color: 'text.secondary' }}
+          onClick={(e) => e.preventDefault()}
+        >
+          <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+
   const columns: Column<Participation>[] = [
     {
       id: 'userName',
@@ -154,9 +173,9 @@ export default function ParticipationsListPage() {
     },
     {
       id: 'integrationTrainingMode',
-      label: t('participations.integrationTraining'),
+      label: integrationTrainingLabel,
       minWidth: 130,
-      mobileLabel: t('participations.integrationTraining'),
+      mobileLabel: integrationTrainingLabel,
       render: (row) => {
         const training = row.integrationTrainingMode ?? false;
         return (

@@ -21,11 +21,12 @@ import { useTranslation } from "../../hooks/useTranslation";
 
 export interface Column<T> {
   id: string;
-  label: string;
+  label: ReactNode;
   minWidth?: number;
   align?: "right" | "left" | "center";
   render?: (row: T) => ReactNode;
-  mobileLabel?: string; // Label específico para mobile
+  /** Label específico para mobile (cards) */
+  mobileLabel?: ReactNode;
 }
 
 type CardGridBreakpoint = "xs" | "sm" | "md" | "lg" | "xl";
@@ -327,6 +328,7 @@ export default function DataTable<T extends { id: number }>({
                     return (
                       <Box key={column.id}>
                         <Typography
+                          component="div"
                           variant="caption"
                           color="text.secondary"
                           display="block"
