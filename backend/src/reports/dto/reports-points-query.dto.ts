@@ -6,7 +6,7 @@ import { IsInt, IsDateString, IsOptional, IsString, Max, Min } from 'class-valid
 export const REPORTS_POINTS_MAX_LIMIT = 50_000;
 
 /** Quando `limit` não vem na query, usa-se este teto (mapa + performance). */
-export const REPORTS_POINTS_DEFAULT_LIMIT = 10_000;
+export const REPORTS_POINTS_DEFAULT_LIMIT = 1_000;
 
 export class ReportsPointsQueryDto {
   @ApiPropertyOptional({
