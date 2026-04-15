@@ -16,6 +16,21 @@ describe('unknownToSafeString', () => {
   it('serializa objetos simples em JSON', () => {
     expect(unknownToSafeString({ a: 1 })).toBe('{"a":1}');
   });
+
+  it('usa toString para símbolo', () => {
+    const s = Symbol('x');
+    expect(unknownToSafeString(s)).toBe(s.toString());
+  });
+
+  it('cobre fallback quando JSON.stringify falha', () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(unknownToSafeString(circular)).toBe('[object Object]');
+  });
+
+  it('cobre função (tipo restante)', () => {
+    expect(unknownToSafeString(() => 1)).toBe(String(() => 1));
+  });
 });
 
 describe('errorMessageFromUnknown', () => {
@@ -30,5 +45,11 @@ describe('errorMessageFromUnknown', () => {
   it('converte primitivos', () => {
     expect(errorMessageFromUnknown('oops')).toBe('oops');
     expect(errorMessageFromUnknown(42)).toBe('42');
+  });
+
+  it('cobre fallback quando JSON.stringify do erro falha', () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(errorMessageFromUnknown(circular)).toBe('[object Object]');
   });
 });
