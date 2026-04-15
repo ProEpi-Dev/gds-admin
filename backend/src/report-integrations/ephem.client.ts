@@ -109,8 +109,14 @@ export class EphemClient {
         return [];
       }
 
-      const parsed = (await response.json()) as any;
-      return parsed?._embedded?.mensagens ?? [];
+      const parsed: unknown = await response.json();
+      if (!parsed || typeof parsed !== 'object') {
+        return [];
+      }
+      const embedded = (parsed as { _embedded?: { mensagens?: unknown } })
+        ._embedded;
+      const list = embedded?.mensagens;
+      return Array.isArray(list) ? list : [];
     } finally {
       clearTimeout(timeout);
     }
@@ -177,8 +183,14 @@ export class EphemClient {
         return [];
       }
 
-      const parsed = (await response.json()) as any;
-      return parsed?._embedded?.signals ?? [];
+      const parsed: unknown = await response.json();
+      if (!parsed || typeof parsed !== 'object') {
+        return [];
+      }
+      const embedded = (parsed as { _embedded?: { signals?: unknown } })
+        ._embedded;
+      const list = embedded?.signals;
+      return Array.isArray(list) ? list : [];
     } finally {
       clearTimeout(timeout);
     }

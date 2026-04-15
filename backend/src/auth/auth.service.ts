@@ -351,27 +351,21 @@ export class AuthService {
         'Se existir uma conta pendente de confirmação neste email, enviámos as instruções.',
     };
 
-    if (!user || !user.active) {
-      return generic;
+    let shouldSend = false;
+    if (user?.active && !user.email_verified_at) {
+      const active = await this.pickActiveParticipationForUser(user.id);
+      if (active) {
+        const requires = await this.contextRequiresEmailVerification(
+          active.context.id,
+        );
+        shouldSend = !!requires;
+      }
     }
 
-    if (user.email_verified_at) {
-      return generic;
+    if (shouldSend && user) {
+      await this.issueEmailVerificationTokenAndSend(user.id);
     }
 
-    const active = await this.pickActiveParticipationForUser(user.id);
-    if (!active) {
-      return generic;
-    }
-
-    const requires = await this.contextRequiresEmailVerification(
-      active.context.id,
-    );
-    if (!requires) {
-      return generic;
-    }
-
-    await this.issueEmailVerificationTokenAndSend(user.id);
     return generic;
   }
 

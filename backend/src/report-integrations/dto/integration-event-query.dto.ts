@@ -13,7 +13,7 @@ export class IntegrationEventQueryDto extends PaginationQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }) => (value === undefined ? undefined : Number(value)))
   @IsInt()
   @Min(1)
   contextId?: number;

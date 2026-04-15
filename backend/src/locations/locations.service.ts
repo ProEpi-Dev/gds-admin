@@ -180,6 +180,31 @@ export class LocationsService {
     return this.mapToResponseDto(location);
   }
 
+  private async assertParentIdAllowedForUpdate(
+    id: number,
+    parentId: number | null | undefined,
+  ): Promise<void> {
+    if (parentId === undefined) {
+      return;
+    }
+    if (parentId === id) {
+      throw new BadRequestException(
+        'Uma localização não pode ser pai de si mesma',
+      );
+    }
+    if (parentId === null) {
+      return;
+    }
+    const parent = await this.prisma.location.findUnique({
+      where: { id: parentId },
+    });
+    if (!parent) {
+      throw new BadRequestException(
+        `Localização pai com ID ${parentId} não encontrada`,
+      );
+    }
+  }
+
   async update(
     id: number,
     updateLocationDto: UpdateLocationDto,
@@ -193,26 +218,7 @@ export class LocationsService {
       throw new NotFoundException(`Localização com ID ${id} não encontrada`);
     }
 
-    // Validar parent_id se fornecido
-    if (updateLocationDto.parentId !== undefined) {
-      if (updateLocationDto.parentId === id) {
-        throw new BadRequestException(
-          'Uma localização não pode ser pai de si mesma',
-        );
-      }
-
-      if (updateLocationDto.parentId !== null) {
-        const parent = await this.prisma.location.findUnique({
-          where: { id: updateLocationDto.parentId },
-        });
-
-        if (!parent) {
-          throw new BadRequestException(
-            `Localização pai com ID ${updateLocationDto.parentId} não encontrada`,
-          );
-        }
-      }
-    }
+    await this.assertParentIdAllowedForUpdate(id, updateLocationDto.parentId);
 
     // Preparar dados de atualização
     const updateData: any = {};

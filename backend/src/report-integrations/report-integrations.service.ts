@@ -20,8 +20,30 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import {
+  extractFieldMetaFromDefinition,
+  type SignalFieldMeta,
+} from './signal-field-meta.helper';
+import {
+  extractLocationIdsRequiringLookup,
+  getLocationLevelMappings,
+  isNonEmptyString,
+} from './integration-location.helper';
 
 const DEFAULT_TEMPLATE_ID = '/1';
+
+function authTokenFromIntegrationConfig(authConfig: unknown): string {
+  if (
+    authConfig &&
+    typeof authConfig === 'object' &&
+    authConfig !== null &&
+    'token' in authConfig
+  ) {
+    const t = (authConfig as Record<string, unknown>).token;
+    return typeof t === 'string' ? t : '';
+  }
+  return '';
+}
 
 /** Rótulos em aditionalData para os níveis do campo location (API legada usa chaves técnicas em data). */
 const LOCATION_LEVEL_ADDITIONAL_LABELS = [
@@ -53,21 +75,6 @@ type IntegrationEnvelopeMapping = {
   eventSourceIdFieldKey: string;
   eventSourceLocationFieldKey: string;
   eventSourceLocationIdFieldKey: string;
-};
-
-type SignalFieldMeta = {
-  label: string;
-  options: Map<string, string>;
-  type?: string;
-  locationConfig?: {
-    maxLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
-    countryKey?: string;
-    countryNameKey?: string;
-    stateDistrictKey?: string;
-    stateDistrictNameKey?: string;
-    cityCouncilKey?: string;
-    cityCouncilNameKey?: string;
-  };
 };
 
 @Injectable()
@@ -230,7 +237,7 @@ export class ReportIntegrationsService {
     const payload = await this.buildPayload(report, envelopeMapping);
 
     try {
-      const authToken = (config.auth_config as any)?.token ?? '';
+      const authToken = authTokenFromIntegrationConfig(config.auth_config);
       const response = await this.ephemClient.createEvent(
         { baseUrl, authToken, timeoutMs: config.timeout_ms },
         payload,
@@ -278,96 +285,25 @@ export class ReportIntegrationsService {
     return currentAttempt < maxRetries;
   }
 
-  private extractFieldMetaFromDefinition(
-    definition: unknown,
-  ): Record<string, SignalFieldMeta> {
-    const map: Record<string, SignalFieldMeta> = {};
-    if (!definition) return map;
-
-    const parsed =
-      typeof definition === 'string'
-        ? (() => {
-            try {
-              return JSON.parse(definition);
-            } catch {
-              return null;
-            }
-          })()
-        : definition;
-
-    if (!parsed || typeof parsed !== 'object') return map;
-
-    const candidates: any[] = [];
-    const root = parsed as any;
-
-    if (Array.isArray(root)) candidates.push(...root);
-    if (Array.isArray(root.questions)) candidates.push(...root.questions);
-    if (Array.isArray(root.fields)) candidates.push(...root.fields);
-
-    for (const entry of candidates) {
-      if (!entry || typeof entry !== 'object') continue;
-      const field = entry.field ?? entry.name;
-      const label = entry.text ?? entry.label ?? field;
-      if (typeof field !== 'string' || typeof label !== 'string') continue;
-
-      const options = new Map<string, string>();
-      if (Array.isArray(entry.options)) {
-        for (const option of entry.options) {
-          const key = option?.value;
-          const optionLabel = option?.label ?? option?.text;
-          if (
-            key !== undefined &&
-            key !== null &&
-            typeof optionLabel === 'string'
-          ) {
-            options.set(String(key), optionLabel);
-          }
-        }
-      }
-
-      map[field] = {
-        label,
-        options,
-        type: typeof entry.type === 'string' ? entry.type : undefined,
-        locationConfig:
-          entry.locationConfig && typeof entry.locationConfig === 'object'
-            ? {
-                maxLevel:
-                  entry.locationConfig.maxLevel === 'COUNTRY' ||
-                  entry.locationConfig.maxLevel === 'STATE_DISTRICT' ||
-                  entry.locationConfig.maxLevel === 'CITY_COUNCIL'
-                    ? entry.locationConfig.maxLevel
-                    : undefined,
-                countryKey:
-                  typeof entry.locationConfig.countryKey === 'string'
-                    ? entry.locationConfig.countryKey
-                    : undefined,
-                countryNameKey:
-                  typeof entry.locationConfig.countryNameKey === 'string'
-                    ? entry.locationConfig.countryNameKey
-                    : undefined,
-                stateDistrictKey:
-                  typeof entry.locationConfig.stateDistrictKey === 'string'
-                    ? entry.locationConfig.stateDistrictKey
-                    : undefined,
-                stateDistrictNameKey:
-                  typeof entry.locationConfig.stateDistrictNameKey === 'string'
-                    ? entry.locationConfig.stateDistrictNameKey
-                    : undefined,
-                cityCouncilKey:
-                  typeof entry.locationConfig.cityCouncilKey === 'string'
-                    ? entry.locationConfig.cityCouncilKey
-                    : undefined,
-                cityCouncilNameKey:
-                  typeof entry.locationConfig.cityCouncilNameKey === 'string'
-                    ? entry.locationConfig.cityCouncilNameKey
-                    : undefined,
-              }
-            : undefined,
-      };
+  /** Chave estável para lookup em `meta.options` (evita "[object Object]"). */
+  private scalarKeyForSelectOptions(value: unknown): string {
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
     }
-
-    return map;
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'bigint' || typeof value === 'symbol') {
+      return String(value);
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
   }
 
   private mapFieldValueForIntegration(
@@ -378,7 +314,8 @@ export class ReportIntegrationsService {
 
     if (Array.isArray(value)) {
       return value.map((item) => {
-        const mapped = meta.options.get(String(item)) ?? item;
+        const mapped =
+          meta.options.get(this.scalarKeyForSelectOptions(item)) ?? item;
         return typeof mapped === 'string'
           ? this.normalizeUtf8MojibakeString(mapped)
           : mapped;
@@ -386,7 +323,8 @@ export class ReportIntegrationsService {
     }
 
     if (value === null || value === undefined) return value;
-    const mapped = meta.options.get(String(value)) ?? value;
+    const mapped =
+      meta.options.get(this.scalarKeyForSelectOptions(value)) ?? value;
     return typeof mapped === 'string'
       ? this.normalizeUtf8MojibakeString(mapped)
       : mapped;
@@ -419,7 +357,9 @@ export class ReportIntegrationsService {
     if (meta?.type === 'multiselect' && Array.isArray(value)) {
       const parts = value
         .map((item) =>
-          item === null || item === undefined ? '' : String(item).trim(),
+          item === null || item === undefined
+            ? ''
+            : this.scalarKeyForSelectOptions(item).trim(),
         )
         .filter((s) => s.length > 0);
       return parts.join(', ');
@@ -462,7 +402,13 @@ export class ReportIntegrationsService {
    * Integrador Ephem espera datas no formato dd-MM-yyyy (formulário costuma gravar yyyy-MM-dd).
    */
   private formatDateForIntegrationPayload(value: unknown): string {
-    const raw = String(value).trim();
+    const raw =
+      value !== null &&
+      value !== undefined &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
+        ? JSON.stringify(value)
+        : String(value).trim();
     const isoDay = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
     if (isoDay) {
       const [, y, m, d] = isoDay;
@@ -530,78 +476,6 @@ export class ReportIntegrationsService {
       .map(([field, value]) => ({ field, value }));
   }
 
-  private getLocationLevelMappings(meta?: SignalFieldMeta): Array<{
-    idKey: string;
-    nameKey?: string;
-  }> {
-    const config = meta?.locationConfig;
-    if (!config) return [];
-
-    const mappings: Array<{ idKey: string; nameKey?: string }> = [];
-    if (config.countryKey) {
-      mappings.push({ idKey: config.countryKey, nameKey: config.countryNameKey });
-    }
-    if (config.stateDistrictKey) {
-      mappings.push({
-        idKey: config.stateDistrictKey,
-        nameKey: config.stateDistrictNameKey,
-      });
-    }
-    if (config.cityCouncilKey) {
-      mappings.push({
-        idKey: config.cityCouncilKey,
-        nameKey: config.cityCouncilNameKey,
-      });
-    }
-    return mappings;
-  }
-
-  private isNonEmptyString(value: unknown): value is string {
-    return typeof value === 'string' && value.trim().length > 0;
-  }
-
-  private extractLocationIdsRequiringLookup(
-    entries: Array<{ field: string; value: unknown }>,
-    metaMap: Record<string, SignalFieldMeta>,
-  ): number[] {
-    const ids = new Set<number>();
-
-    for (const entry of entries) {
-      const meta = metaMap[entry.field];
-      if (meta?.type !== 'location') continue;
-      if (!entry.value || typeof entry.value !== 'object') continue;
-
-      const valueObj = entry.value as Record<string, unknown>;
-      const levelMappings = this.getLocationLevelMappings(meta);
-
-      if (levelMappings.length === 0) {
-        // Compatibilidade com formulários antigos sem configuração de nome.
-        for (const rawValue of Object.values(valueObj)) {
-          const parsed = Number(rawValue);
-          if (Number.isInteger(parsed) && parsed > 0) {
-            ids.add(parsed);
-          }
-        }
-        continue;
-      }
-
-      for (const mapping of levelMappings) {
-        const rawId = valueObj[mapping.idKey];
-        const parsedId = Number(rawId);
-        const rawName = mapping.nameKey ? valueObj[mapping.nameKey] : undefined;
-        if (
-          Number.isInteger(parsedId) &&
-          parsedId > 0 &&
-          !this.isNonEmptyString(rawName)
-        ) {
-          ids.add(parsedId);
-        }
-      }
-    }
-
-    return Array.from(ids);
-  }
-
   private async resolveLocationNamesByIds(
     ids: number[],
   ): Promise<Map<number, string>> {
@@ -615,7 +489,7 @@ export class ReportIntegrationsService {
     });
 
     return new Map<number, string>(
-      locations.map((location: any) => [location.id, String(location.name)]),
+      locations.map((location) => [location.id, String(location.name)]),
     );
   }
 
@@ -637,11 +511,11 @@ export class ReportIntegrationsService {
     const user = report.participation.user;
     const formResponse = report.form_response;
     const userCountryName = await this.resolveUserCountryName(user);
-    const fieldMetaMap = this.extractFieldMetaFromDefinition(
+    const fieldMetaMap = extractFieldMetaFromDefinition(
       report?.form_version?.definition,
     );
     const entries = this.normalizeFormResponseEntries(formResponse);
-    const locationIds = this.extractLocationIdsRequiringLookup(
+    const locationIds = extractLocationIdsRequiringLookup(
       entries,
       fieldMetaMap,
     );
@@ -660,7 +534,7 @@ export class ReportIntegrationsService {
         !Array.isArray(entry.value)
       ) {
         const locationObj = entry.value as Record<string, unknown>;
-        const levelMappings = this.getLocationLevelMappings(meta);
+        const levelMappings = getLocationLevelMappings(meta);
 
         if (levelMappings.length === 0) {
           for (const [locationKey, rawValue] of Object.entries(locationObj)) {
@@ -686,7 +560,7 @@ export class ReportIntegrationsService {
           const resolvedFromResponse = mapping.nameKey
             ? locationObj[mapping.nameKey]
             : undefined;
-          const resolvedValue = this.isNonEmptyString(resolvedFromResponse)
+          const resolvedValue = isNonEmptyString(resolvedFromResponse)
             ? resolvedFromResponse
             : this.mapLocationValueToName(rawId, locationNamesById);
           const outVal =
@@ -732,14 +606,17 @@ export class ReportIntegrationsService {
     } as EphemEventPayload;
   }
 
-  private async resolveUserCountryName(user: any): Promise<string | null> {
-    const explicitCountryLocationId = (user as any).country_location_id;
+  private async resolveUserCountryName(user: {
+    country_location_id?: number | null;
+    location_id?: number | null;
+  }): Promise<string | null> {
+    const explicitCountryLocationId = user.country_location_id;
     if (explicitCountryLocationId) {
       const countryLocation = await this.prisma.location.findUnique({
         where: { id: explicitCountryLocationId },
         select: { name: true },
       });
-      return countryLocation ? String((countryLocation as any).name) : null;
+      return countryLocation ? String(countryLocation.name) : null;
     }
 
     let currentId: number | null = user.location_id ?? null;
@@ -753,18 +630,18 @@ export class ReportIntegrationsService {
           name: true,
           parent_id: true,
           org_level: true,
-        } as any,
+        },
       });
 
       if (!currentLocation) {
         break;
       }
 
-      if ((currentLocation as any).org_level === 'COUNTRY') {
-        return String((currentLocation as any).name);
+      if (currentLocation.org_level === 'COUNTRY') {
+        return String(currentLocation.name);
       }
 
-      currentId = (currentLocation as any).parent_id ?? null;
+      currentId = currentLocation.parent_id ?? null;
     }
 
     return null;
@@ -801,7 +678,13 @@ export class ReportIntegrationsService {
       include: { messages: true },
     });
 
-    return this.mapEventToDto(updated!);
+    if (!updated) {
+      throw new NotFoundException(
+        `Evento de integração com ID ${eventId} não encontrado`,
+      );
+    }
+
+    return this.mapEventToDto(updated);
   }
 
   // ─── Sincronização de mensagens ──────────────────────────────
@@ -842,7 +725,7 @@ export class ReportIntegrationsService {
       : config.base_url_production;
     if (!baseUrl) return [];
 
-    const authToken = (config.auth_config as any)?.token ?? '';
+    const authToken = authTokenFromIntegrationConfig(config.auth_config);
 
     const remoteMessages = await this.ephemClient.getMessages(
       { baseUrl, authToken, timeoutMs: config.timeout_ms },
@@ -932,7 +815,7 @@ export class ReportIntegrationsService {
       );
     }
 
-    const authToken = (config.auth_config as any)?.token ?? '';
+    const authToken = authTokenFromIntegrationConfig(config.auth_config);
 
     const response = await this.ephemClient.sendMessage(
       { baseUrl, authToken, timeoutMs: config.timeout_ms },
@@ -1211,7 +1094,7 @@ export class ReportIntegrationsService {
       : config.base_url_production;
     if (!baseUrl || !String(baseUrl).trim()) return new Map();
 
-    const authToken = (config.auth_config as any)?.token ?? '';
+    const authToken = authTokenFromIntegrationConfig(config.auth_config);
     try {
       const signals = await this.ephemClient.listSignals(
         {
@@ -1222,9 +1105,10 @@ export class ReportIntegrationsService {
         ephemUserId,
       );
       return this.buildEphemStageIndexFromSignals(signals);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(
-        { err: err?.message, contextId, ephemUserId },
+        { err: message, contextId, ephemUserId },
         'Ephem listSignals falhou ao obter estágio do sinal',
       );
       return new Map();
@@ -1237,8 +1121,7 @@ export class ReportIntegrationsService {
     event: any,
     externalSignalStage?: { id: number; label: string } | null,
   ): IntegrationEventResponseDto {
-    const stage =
-      externalSignalStage === undefined ? null : externalSignalStage;
+    const stage = externalSignalStage ?? null;
     return {
       id: event.id,
       reportId: event.report_id,
@@ -1270,8 +1153,17 @@ export class ReportIntegrationsService {
 
   private mapConfigToDto(config: any): IntegrationConfigResponseDto {
     const envelopeMapping = this.resolveEnvelopeMapping(config.payload_mapping);
-    const authDisplay = config.auth_config
-      ? { type: (config.auth_config as any).type ?? 'unknown', hasToken: !!(config.auth_config as any).token }
+    const ac =
+      config.auth_config &&
+      typeof config.auth_config === 'object' &&
+      config.auth_config !== null
+        ? (config.auth_config as Record<string, unknown>)
+        : null;
+    const authDisplay = ac
+      ? {
+          type: typeof ac.type === 'string' ? ac.type : 'unknown',
+          hasToken: authTokenFromIntegrationConfig(config.auth_config) !== '',
+        }
       : null;
 
     return {

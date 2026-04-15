@@ -475,7 +475,7 @@ export class UsersService {
     }
     if (
       profileFieldRequirements.externalIdentifier &&
-      (!user.external_identifier || !user.external_identifier.trim())
+      !user.external_identifier?.trim()
     ) {
       missingFields.push('externalIdentifier');
     }
@@ -602,6 +602,52 @@ export class UsersService {
     };
   }
 
+  private async assertUpdateProfileForeignKeys(
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<void> {
+    if (updateProfileDto.genderId !== undefined) {
+      const gender = await this.prisma.gender.findUnique({
+        where: { id: updateProfileDto.genderId },
+      });
+
+      if (!gender) {
+        throw new BadRequestException(
+          `Gênero com ID ${updateProfileDto.genderId} não encontrado`,
+        );
+      }
+    }
+
+    if (updateProfileDto.locationId !== undefined) {
+      const location = await this.prisma.location.findUnique({
+        where: { id: updateProfileDto.locationId },
+      });
+
+      if (!location) {
+        throw new BadRequestException(
+          `Localização com ID ${updateProfileDto.locationId} não encontrado`,
+        );
+      }
+    }
+
+    if (updateProfileDto.countryLocationId !== undefined) {
+      const countryLocation = await this.prisma.location.findUnique({
+        where: { id: updateProfileDto.countryLocationId },
+      });
+
+      if (!countryLocation) {
+        throw new BadRequestException(
+          `País com ID ${updateProfileDto.countryLocationId} não encontrado`,
+        );
+      }
+
+      if (countryLocation.org_level !== 'COUNTRY') {
+        throw new BadRequestException(
+          `Localização com ID ${updateProfileDto.countryLocationId} não está marcada como país`,
+        );
+      }
+    }
+  }
+
   /**
    * Atualiza o perfil do usuário
    */
@@ -617,55 +663,12 @@ export class UsersService {
       throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
     }
 
-    // Validar genderId se fornecido
-    if (updateProfileDto.genderId !== undefined) {
-      const gender = await this.prisma.gender.findUnique({
-        where: { id: updateProfileDto.genderId },
-      });
-
-      if (!gender) {
-        throw new BadRequestException(
-          `Gênero com ID ${updateProfileDto.genderId} não encontrado`,
-        );
-      }
-    }
-
-    // Validar locationId se fornecido
-    if (updateProfileDto.locationId !== undefined) {
-      const location = await this.prisma.location.findUnique({
-        where: { id: updateProfileDto.locationId },
-      });
-
-      if (!location) {
-        throw new BadRequestException(
-          `Localização com ID ${updateProfileDto.locationId} não encontrado`,
-        );
-      }
-    }
-
-    // Validar countryLocationId se fornecido
-    if (updateProfileDto.countryLocationId !== undefined) {
-      const countryLocation = await this.prisma.location.findUnique({
-        where: { id: updateProfileDto.countryLocationId },
-      });
-
-      if (!countryLocation) {
-        throw new BadRequestException(
-          `País com ID ${updateProfileDto.countryLocationId} não encontrado`,
-        );
-      }
-
-      if ((countryLocation as any).org_level !== 'COUNTRY') {
-        throw new BadRequestException(
-          `Localização com ID ${updateProfileDto.countryLocationId} não está marcada como país`,
-        );
-      }
-    }
+    await this.assertUpdateProfileForeignKeys(updateProfileDto);
 
     const effectiveCountryLocationId =
-      updateProfileDto.countryLocationId !== undefined
-        ? updateProfileDto.countryLocationId
-        : ((user as any).country_location_id ?? null);
+      updateProfileDto.countryLocationId === undefined
+        ? user.country_location_id ?? null
+        : updateProfileDto.countryLocationId;
 
     if (
       updateProfileDto.locationId !== undefined &&
@@ -684,18 +687,15 @@ export class UsersService {
       }
     }
 
-    // Atualizar perfil
-    const updateData: any = {
-      gender_id: updateProfileDto.genderId,
-      location_id: updateProfileDto.locationId,
-      country_location_id: updateProfileDto.countryLocationId,
-      external_identifier: updateProfileDto.externalIdentifier,
-      phone: updateProfileDto.phone,
-    };
-
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: updateData as any,
+      data: {
+        gender_id: updateProfileDto.genderId,
+        location_id: updateProfileDto.locationId,
+        country_location_id: updateProfileDto.countryLocationId,
+        external_identifier: updateProfileDto.externalIdentifier,
+        phone: updateProfileDto.phone,
+      },
     });
 
     return this.mapToResponseDto(updatedUser);
@@ -922,9 +922,9 @@ export class UsersService {
       active: user.active,
       genderId: user.gender_id,
       locationId: user.location_id,
-      countryLocationId: (user as any).country_location_id ?? null,
+      countryLocationId: user.country_location_id ?? null,
       externalIdentifier: user.external_identifier,
-      phone: (user as any).phone ?? null,
+      phone: user.phone ?? null,
       roleId: user.role_id ?? null,
       roleName: user.role?.name ?? null,
       createdAt: user.created_at,
