@@ -56,13 +56,19 @@ export class ReportIntegrationsController {
   // ─── Evento de integração por report ──────────────────────────
 
   @Get('by-report/:reportId')
-  @ApiOperation({ summary: 'Obter evento de integração por report' })
+  @ApiOperation({
+    summary: 'Obter evento de integração por report',
+    description:
+      'Participante: só o dono do report; admin ou manager/content_manager do contexto também podem.',
+  })
   @ApiParam({ name: 'reportId', type: Number })
   @ApiResponse({ status: 200, type: IntegrationEventResponseDto })
+  @ApiResponse({ status: 403, description: 'Sem permissão para este report' })
   async findByReport(
     @Param('reportId', ParseIntPipe) reportId: number,
+    @CurrentUser() user: { userId: number },
   ): Promise<IntegrationEventResponseDto | null> {
-    return this.service.findEventByReportId(reportId);
+    return this.service.findEventByReportId(reportId, user.userId);
   }
 
   @Get('by-participation/:participationId')
@@ -100,25 +106,37 @@ export class ReportIntegrationsController {
   // ─── Mensagens do evento ──────────────────────────────────────
 
   @Get(':eventId/messages')
-  @ApiOperation({ summary: 'Buscar e sincronizar mensagens de um evento' })
+  @ApiOperation({
+    summary: 'Buscar e sincronizar mensagens de um evento',
+    description:
+      'Mesmas regras de acesso que by-report: dono do report, admin ou gestor do contexto.',
+  })
   @ApiParam({ name: 'eventId', type: Number })
   @ApiResponse({ status: 200, type: [IntegrationMessageResponseDto] })
+  @ApiResponse({ status: 403, description: 'Sem permissão para este evento' })
   async getMessages(
     @Param('eventId', ParseIntPipe) eventId: number,
+    @CurrentUser() user: { userId: number },
   ): Promise<IntegrationMessageResponseDto[]> {
-    return this.service.syncMessages(eventId);
+    return this.service.syncMessages(eventId, user.userId);
   }
 
   @Post(':eventId/messages')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Enviar mensagem para evento de integração' })
+  @ApiOperation({
+    summary: 'Enviar mensagem para evento de integração',
+    description:
+      'Mesmas regras de acesso que by-report: dono do report, admin ou gestor do contexto.',
+  })
   @ApiParam({ name: 'eventId', type: Number })
   @ApiResponse({ status: 201, type: IntegrationMessageResponseDto })
+  @ApiResponse({ status: 403, description: 'Sem permissão para este evento' })
   async sendMessage(
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() dto: SendMessageDto,
+    @CurrentUser() user: { userId: number },
   ): Promise<IntegrationMessageResponseDto> {
-    return this.service.sendMessage(eventId, dto.message);
+    return this.service.sendMessage(eventId, dto.message, user.userId);
   }
 
   // ─── Configuração de integração por contexto (admin) ─────────

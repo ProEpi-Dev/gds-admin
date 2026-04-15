@@ -30,6 +30,7 @@ import {
   getLocationLevelMappings,
   isNonEmptyString,
 } from './integration-location.helper';
+import { AuthzService } from '../authz/authz.service';
 
 const DEFAULT_TEMPLATE_ID = '/1';
 
@@ -85,7 +86,36 @@ export class ReportIntegrationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ephemClient: EphemClient,
+    private readonly authz: AuthzService,
   ) {}
+
+  /**
+   * Participante só acede a integrações do próprio report; admin global ou
+   * manager/content_manager do contexto também podem.
+   */
+  private async assertUserCanAccessParticipationIntegration(
+    userId: number,
+    participation: { context_id: number; user_id: number } | null | undefined,
+  ): Promise<void> {
+    if (!participation) {
+      throw new ForbiddenException(
+        'Sem permissão para aceder a estes dados',
+      );
+    }
+    if (participation.user_id === userId) {
+      return;
+    }
+    if (await this.authz.isAdmin(userId)) {
+      return;
+    }
+    const managed = await this.authz.getManagedContextIds(userId);
+    if (managed.includes(participation.context_id)) {
+      return;
+    }
+    throw new ForbiddenException(
+      'Sem permissão para aceder a estes dados',
+    );
+  }
 
   /**
    * Acessores para modelos adicionados na V25 que só existem no Prisma Client
@@ -757,7 +787,10 @@ export class ReportIntegrationsService {
 
   // ─── Sincronização de mensagens ──────────────────────────────
 
-  async syncMessages(eventId: number): Promise<IntegrationMessageResponseDto[]> {
+  async syncMessages(
+    eventId: number,
+    userId: number,
+  ): Promise<IntegrationMessageResponseDto[]> {
     const event = await this.integrationEvent.findUnique({
       where: { id: eventId },
       include: {
@@ -776,6 +809,11 @@ export class ReportIntegrationsService {
         `Evento de integração com ID ${eventId} não encontrado`,
       );
     }
+
+    await this.assertUserCanAccessParticipationIntegration(
+      userId,
+      event.report?.participation,
+    );
 
     if (!event.external_event_id) {
       return [];
@@ -838,6 +876,7 @@ export class ReportIntegrationsService {
   async sendMessage(
     eventId: number,
     message: string,
+    userId: number,
   ): Promise<IntegrationMessageResponseDto> {
     const event = await this.integrationEvent.findUnique({
       where: { id: eventId },
@@ -857,6 +896,11 @@ export class ReportIntegrationsService {
         `Evento de integração com ID ${eventId} não encontrado`,
       );
     }
+
+    await this.assertUserCanAccessParticipationIntegration(
+      userId,
+      event.report?.participation,
+    );
 
     if (!event.external_event_id) {
       throw new BadRequestException(
@@ -907,6 +951,7 @@ export class ReportIntegrationsService {
 
   async findEventByReportId(
     reportId: number,
+    userId: number,
   ): Promise<IntegrationEventResponseDto | null> {
     const event = await this.integrationEvent.findUnique({
       where: { report_id: reportId },
@@ -927,6 +972,11 @@ export class ReportIntegrationsService {
     });
 
     if (!event) return null;
+
+    await this.assertUserCanAccessParticipationIntegration(
+      userId,
+      event.report?.participation,
+    );
 
     const participation = event.report?.participation;
     let stage: { id: number; label: string } | null = null;

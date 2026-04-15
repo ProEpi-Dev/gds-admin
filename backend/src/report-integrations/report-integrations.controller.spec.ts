@@ -47,9 +47,9 @@ describe('ReportIntegrationsController', () => {
   });
 
   describe('findByReport', () => {
-    it('deve chamar service.findEventByReportId', async () => {
-      await controller.findByReport(42);
-      expect(service.findEventByReportId).toHaveBeenCalledWith(42);
+    it('deve chamar service.findEventByReportId com utilizador', async () => {
+      await controller.findByReport(42, { userId: 9 });
+      expect(service.findEventByReportId).toHaveBeenCalledWith(42, 9);
     });
   });
 
@@ -71,16 +71,16 @@ describe('ReportIntegrationsController', () => {
   });
 
   describe('getMessages', () => {
-    it('deve chamar service.syncMessages', async () => {
-      await controller.getMessages(7);
-      expect(service.syncMessages).toHaveBeenCalledWith(7);
+    it('deve chamar service.syncMessages com utilizador', async () => {
+      await controller.getMessages(7, { userId: 3 });
+      expect(service.syncMessages).toHaveBeenCalledWith(7, 3);
     });
   });
 
   describe('sendMessage', () => {
-    it('deve chamar service.sendMessage', async () => {
-      await controller.sendMessage(7, { message: 'hello' });
-      expect(service.sendMessage).toHaveBeenCalledWith(7, 'hello');
+    it('deve chamar service.sendMessage com utilizador', async () => {
+      await controller.sendMessage(7, { message: 'hello' }, { userId: 3 });
+      expect(service.sendMessage).toHaveBeenCalledWith(7, 'hello', 3);
     });
   });
 

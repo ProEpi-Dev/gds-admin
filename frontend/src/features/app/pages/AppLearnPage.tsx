@@ -29,9 +29,16 @@ function toDateOnly(dateIso: string): Date {
   return new Date(`${dateIso.split("T")[0]}T00:00:00`);
 }
 
+/** Meia-noite local do dia corrente (comparação inclusiva com end_date). */
+function todayDateOnly(): Date {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 function isCycleClosed(cycle: TrackCycle): boolean {
-  const today = new Date();
-  return toDateOnly(cycle.end_date) < today || cycle.status !== "active";
+  const end = toDateOnly(cycle.end_date);
+  const today = todayDateOnly();
+  return end < today || cycle.status !== "active";
 }
 
 function cycleStatusLabel(cycle: TrackCycle): string {

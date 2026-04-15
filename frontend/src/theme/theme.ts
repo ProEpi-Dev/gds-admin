@@ -31,6 +31,7 @@ export const themeOptions: ThemeOptions = {
       100: '#F5F5F5',
       200: '#E0E0E0',
       300: '#CFCFCF',
+      400: '#BDBDBD',
     },
   },
 

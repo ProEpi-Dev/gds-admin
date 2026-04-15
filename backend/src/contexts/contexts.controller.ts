@@ -12,6 +12,7 @@ import {
   HttpStatus,
   ParseIntPipe,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -222,7 +223,22 @@ export class ContextsController {
     @Param('key') key: string,
     @Body() dto: UpsertContextConfigurationDto,
   ): Promise<ContextConfigurationEntryDto> {
-    return this.contextsService.upsertConfiguration(id, key, dto.value);
+    const normalizedKey = decodeURIComponent(key);
+    const maxLen = 128;
+    if (
+      normalizedKey.length === 0 ||
+      normalizedKey.length > maxLen ||
+      !/^[a-z0-9_]+$/.test(normalizedKey)
+    ) {
+      throw new BadRequestException(
+        'Chave inválida: use apenas a-z, 0-9 e underscore (máx. 128 caracteres).',
+      );
+    }
+    return this.contextsService.upsertConfiguration(
+      id,
+      normalizedKey,
+      dto.value,
+    );
   }
 
   @Get(':id')

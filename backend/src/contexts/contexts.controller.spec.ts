@@ -177,6 +177,14 @@ describe('ContextsController', () => {
         90,
       );
     });
+
+    it('deve rejeitar chave com caracteres inválidos', async () => {
+      jest.mocked(contextsService.upsertConfiguration).mockClear();
+      await expect(
+        controller.upsertConfiguration(1, 'Invalid Key!', { value: 1 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(contextsService.upsertConfiguration).not.toHaveBeenCalled();
+    });
   });
 
   describe('findOne', () => {

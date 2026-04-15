@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReportIntegrationsService } from './report-integrations.service';
 import { EphemClient } from './ephem.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthzService } from '../authz/authz.service';
 import {
   NotFoundException,
   BadRequestException,
@@ -14,8 +15,13 @@ describe('ReportIntegrationsService', () => {
   let service: ReportIntegrationsService;
   let prisma: any;
   let ephemClient: any;
+  let authz: { isAdmin: jest.Mock; getManagedContextIds: jest.Mock };
 
   beforeEach(async () => {
+    authz = {
+      isAdmin: jest.fn().mockResolvedValue(false),
+      getManagedContextIds: jest.fn().mockResolvedValue([]),
+    };
     prisma = {
       participation: {
         findFirst: jest.fn(),
@@ -62,6 +68,7 @@ describe('ReportIntegrationsService', () => {
         ReportIntegrationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EphemClient, useValue: ephemClient },
+        { provide: AuthzService, useValue: authz },
       ],
     }).compile();
 
@@ -156,7 +163,64 @@ describe('ReportIntegrationsService', () => {
   describe('findEventByReportId', () => {
     it('deve retornar null se não existir', async () => {
       prisma.report_integration_event.findUnique.mockResolvedValue(null);
-      expect(await service.findEventByReportId(999)).toBeNull();
+      expect(await service.findEventByReportId(999, 1)).toBeNull();
+    });
+
+    it('deve lançar Forbidden quando o utilizador não pode aceder ao report', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        report_id: 10,
+        external_event_id: null,
+        status: 'pending',
+        environment: 'production',
+        attempt_count: 0,
+        last_attempt_at: null,
+        last_error: null,
+        request_payload: {},
+        response_payload: {},
+        created_at: new Date(),
+        updated_at: new Date(),
+        messages: [],
+        report: {
+          participation: {
+            context_id: 1,
+            user_id: 42,
+            integration_training_mode: false,
+          },
+        },
+      });
+      await expect(service.findEventByReportId(10, 99)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('permite admin global aceder a report de outro utilizador', async () => {
+      authz.isAdmin.mockResolvedValueOnce(true);
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        report_id: 10,
+        external_event_id: null,
+        status: 'pending',
+        environment: 'production',
+        attempt_count: 0,
+        last_attempt_at: null,
+        last_error: null,
+        request_payload: {},
+        response_payload: {},
+        created_at: new Date(),
+        updated_at: new Date(),
+        messages: [],
+        report: {
+          participation: {
+            context_id: 1,
+            user_id: 42,
+            integration_training_mode: false,
+          },
+        },
+      });
+      const result = await service.findEventByReportId(10, 99);
+      expect(result).toBeTruthy();
+      expect(result!.reportId).toBe(10);
     });
 
     it('deve retornar DTO mapeado', async () => {
@@ -197,7 +261,7 @@ describe('ReportIntegrationsService', () => {
         },
       ]);
 
-      const result = await service.findEventByReportId(10);
+      const result = await service.findEventByReportId(10, 42);
       expect(result).toBeTruthy();
       expect(result!.reportId).toBe(10);
       expect(result!.externalEventId).toBe('107');
@@ -239,7 +303,7 @@ describe('ReportIntegrationsService', () => {
       });
       ephemClient.listSignals.mockRejectedValue(new Error('network'));
 
-      const result = await service.findEventByReportId(10);
+      const result = await service.findEventByReportId(10, 42);
       expect(result!.externalSignalStageId).toBeNull();
       expect(result!.externalSignalStageLabel).toBeNull();
     });
@@ -1186,7 +1250,23 @@ describe('ReportIntegrationsService', () => {
   describe('syncMessages', () => {
     it('lança NotFound quando o evento não existe', async () => {
       prisma.report_integration_event.findUnique.mockResolvedValue(null);
-      await expect(service.syncMessages(1)).rejects.toThrow(NotFoundException);
+      await expect(service.syncMessages(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('lança Forbidden quando o utilizador não pode aceder ao evento', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: 'x',
+        environment: 'production',
+        report: {
+          participation: { context_id: 1, user_id: 50 },
+        },
+      });
+      await expect(service.syncMessages(1, 99)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('retorna lista vazia quando não há external_event_id', async () => {
@@ -1194,10 +1274,10 @@ describe('ReportIntegrationsService', () => {
         id: 1,
         external_event_id: null,
         report: {
-          participation: { context_id: 1 },
+          participation: { context_id: 1, user_id: 1 },
         },
       });
-      await expect(service.syncMessages(1)).resolves.toEqual([]);
+      await expect(service.syncMessages(1, 1)).resolves.toEqual([]);
     });
 
     it('retorna lista vazia sem config ativa', async () => {
@@ -1206,11 +1286,11 @@ describe('ReportIntegrationsService', () => {
         external_event_id: '99',
         environment: 'production',
         report: {
-          participation: { context_id: 1 },
+          participation: { context_id: 1, user_id: 1 },
         },
       });
       prisma.integration_config.findFirst.mockResolvedValue(null);
-      await expect(service.syncMessages(1)).resolves.toEqual([]);
+      await expect(service.syncMessages(1, 1)).resolves.toEqual([]);
     });
 
     it('retorna lista vazia quando URL do ambiente não está definida', async () => {
@@ -1219,7 +1299,7 @@ describe('ReportIntegrationsService', () => {
         external_event_id: '99',
         environment: 'homologation',
         report: {
-          participation: { context_id: 1 },
+          participation: { context_id: 1, user_id: 1 },
         },
       });
       prisma.integration_config.findFirst.mockResolvedValue({
@@ -1228,7 +1308,7 @@ describe('ReportIntegrationsService', () => {
         auth_config: { token: 't' },
         timeout_ms: 5000,
       });
-      await expect(service.syncMessages(1)).resolves.toEqual([]);
+      await expect(service.syncMessages(1, 1)).resolves.toEqual([]);
     });
 
     it('persiste mensagens recebidas da Ephem', async () => {
@@ -1237,7 +1317,7 @@ describe('ReportIntegrationsService', () => {
         external_event_id: 'ext-1',
         environment: 'production',
         report: {
-          participation: { context_id: 5 },
+          participation: { context_id: 5, user_id: 88 },
         },
       });
       prisma.integration_config.findFirst.mockResolvedValue({
@@ -1268,7 +1348,7 @@ describe('ReportIntegrationsService', () => {
         },
       ]);
 
-      const rows = await service.syncMessages(3);
+      const rows = await service.syncMessages(3, 88);
       expect(rows).toHaveLength(1);
       expect(rows[0].body).toBe('ola');
       expect(ephemClient.getMessages).toHaveBeenCalled();
@@ -1278,8 +1358,20 @@ describe('ReportIntegrationsService', () => {
   describe('sendMessage', () => {
     it('lança NotFound quando o evento não existe', async () => {
       prisma.report_integration_event.findUnique.mockResolvedValue(null);
-      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+      await expect(service.sendMessage(1, 'oi', 1)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('lança Forbidden quando o utilizador não pode aceder ao evento', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: 'e1',
+        environment: 'production',
+        report: { participation: { context_id: 1, user_id: 50 } },
+      });
+      await expect(service.sendMessage(1, 'oi', 99)).rejects.toThrow(
+        ForbiddenException,
       );
     });
 
@@ -1287,9 +1379,9 @@ describe('ReportIntegrationsService', () => {
       prisma.report_integration_event.findUnique.mockResolvedValue({
         id: 1,
         external_event_id: null,
-        report: { participation: { context_id: 1 } },
+        report: { participation: { context_id: 1, user_id: 1 } },
       });
-      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+      await expect(service.sendMessage(1, 'oi', 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -1299,10 +1391,10 @@ describe('ReportIntegrationsService', () => {
         id: 1,
         external_event_id: 'e1',
         environment: 'production',
-        report: { participation: { context_id: 1 } },
+        report: { participation: { context_id: 1, user_id: 1 } },
       });
       prisma.integration_config.findFirst.mockResolvedValue(null);
-      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+      await expect(service.sendMessage(1, 'oi', 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -1312,7 +1404,7 @@ describe('ReportIntegrationsService', () => {
         id: 1,
         external_event_id: 'e1',
         environment: 'production',
-        report: { participation: { context_id: 1 } },
+        report: { participation: { context_id: 1, user_id: 1 } },
       });
       prisma.integration_config.findFirst.mockResolvedValue({
         base_url_production: null,
@@ -1320,7 +1412,7 @@ describe('ReportIntegrationsService', () => {
         auth_config: {},
         timeout_ms: 3000,
       });
-      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+      await expect(service.sendMessage(1, 'oi', 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -1330,7 +1422,7 @@ describe('ReportIntegrationsService', () => {
         id: 2,
         external_event_id: 'e9',
         environment: 'production',
-        report: { participation: { context_id: 3 } },
+        report: { participation: { context_id: 3, user_id: 3 } },
       });
       prisma.integration_config.findFirst.mockResolvedValue({
         base_url_production: 'https://api',
@@ -1349,7 +1441,7 @@ describe('ReportIntegrationsService', () => {
         created_at: new Date(),
       });
 
-      const dto = await service.sendMessage(2, 'texto');
+      const dto = await service.sendMessage(2, 'texto', 3);
       expect(dto.body).toBe('texto');
       expect(ephemClient.sendMessage).toHaveBeenCalled();
     });
