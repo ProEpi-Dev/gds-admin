@@ -666,9 +666,9 @@ export class UsersService {
     await this.assertUpdateProfileForeignKeys(updateProfileDto);
 
     const effectiveCountryLocationId =
-      updateProfileDto.countryLocationId === undefined
-        ? user.country_location_id ?? null
-        : updateProfileDto.countryLocationId;
+      updateProfileDto.countryLocationId !== undefined
+        ? updateProfileDto.countryLocationId
+        : user.country_location_id ?? null;
 
     if (
       updateProfileDto.locationId !== undefined &&

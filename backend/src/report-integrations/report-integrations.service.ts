@@ -20,6 +20,7 @@ import {
   createPaginationMeta,
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
+import { errorMessageFromUnknown, unknownToSafeString } from '../common/http/unknown-to-string';
 import {
   extractFieldMetaFromDefinition,
   type SignalFieldMeta,
@@ -303,7 +304,7 @@ export class ReportIntegrationsService {
     if (typeof value === 'object') {
       return JSON.stringify(value);
     }
-    return String(value);
+    return unknownToSafeString(value);
   }
 
   private mapFieldValueForIntegration(
@@ -399,16 +400,26 @@ export class ReportIntegrationsService {
   }
 
   /**
+   * Texto bruto para parsing de data (evita String em objetos arbitrários).
+   */
+  private rawStringForDateIntegration(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.map((item) => unknownToSafeString(item)).join(',');
+      }
+      return JSON.stringify(value);
+    }
+    return String(value).trim();
+  }
+
+  /**
    * Integrador Ephem espera datas no formato dd-MM-yyyy (formulário costuma gravar yyyy-MM-dd).
    */
   private formatDateForIntegrationPayload(value: unknown): string {
-    const raw =
-      value !== null &&
-      value !== undefined &&
-      typeof value === 'object' &&
-      !Array.isArray(value)
-        ? JSON.stringify(value)
-        : String(value).trim();
+    const raw = this.rawStringForDateIntegration(value);
     const isoDay = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
     if (isoDay) {
       const [, y, m, d] = isoDay;
@@ -504,6 +515,73 @@ export class ReportIntegrationsService {
     return locationNamesById.get(parsed) ?? value;
   }
 
+  private appendLocationEntryToPayloadMaps(
+    meta: SignalFieldMeta,
+    locationObj: Record<string, unknown>,
+    locationNamesById: Map<number, string>,
+    dataMap: Record<string, unknown>,
+    additionalDataMap: Record<string, unknown>,
+  ): void {
+    const levelMappings = getLocationLevelMappings(meta);
+
+    if (levelMappings.length === 0) {
+      for (const [locationKey, rawValue] of Object.entries(locationObj)) {
+        const resolvedValue = this.mapLocationValueToName(
+          rawValue,
+          locationNamesById,
+        );
+        const outVal =
+          typeof resolvedValue === 'string'
+            ? this.normalizeUtf8MojibakeString(resolvedValue)
+            : resolvedValue;
+        dataMap[locationKey] = outVal;
+        additionalDataMap[locationKey] = outVal;
+      }
+      return;
+    }
+
+    for (let i = 0; i < levelMappings.length; i++) {
+      const mapping = levelMappings[i];
+      const rawId = locationObj[mapping.idKey];
+      if (rawId === undefined || rawId === null || rawId === '') continue;
+
+      const resolvedFromResponse = mapping.nameKey
+        ? locationObj[mapping.nameKey]
+        : undefined;
+      const resolvedValue = isNonEmptyString(resolvedFromResponse)
+        ? resolvedFromResponse
+        : this.mapLocationValueToName(rawId, locationNamesById);
+      const outVal =
+        typeof resolvedValue === 'string'
+          ? this.normalizeUtf8MojibakeString(String(resolvedValue))
+          : resolvedValue;
+      const dataPayloadKey =
+        mapping.nameKey && mapping.nameKey.trim().length > 0
+          ? mapping.nameKey
+          : mapping.idKey;
+      dataMap[dataPayloadKey] = outVal;
+      additionalDataMap[this.locationLevelAdditionalLabel(i)] = outVal;
+    }
+  }
+
+  private appendStandardFieldToPayloadMaps(
+    entry: { field: string; value: unknown },
+    meta: SignalFieldMeta | undefined,
+    dataMap: Record<string, unknown>,
+    additionalDataMap: Record<string, unknown>,
+  ): void {
+    const mapped = this.mapFieldValueForIntegration(entry.value, meta);
+    let formatted = this.formatValueForIntegrationPayload(mapped, meta);
+    if (typeof formatted === 'string') {
+      formatted = this.normalizeUtf8MojibakeString(formatted);
+    }
+    dataMap[entry.field] = formatted;
+    const additionalKey = this.normalizeUtf8MojibakeString(
+      meta?.label ?? entry.field,
+    );
+    additionalDataMap[additionalKey] = formatted;
+  }
+
   private async buildPayload(
     report: any,
     envelopeMapping: IntegrationEnvelopeMapping,
@@ -533,62 +611,22 @@ export class ReportIntegrationsService {
         typeof entry.value === 'object' &&
         !Array.isArray(entry.value)
       ) {
-        const locationObj = entry.value as Record<string, unknown>;
-        const levelMappings = getLocationLevelMappings(meta);
-
-        if (levelMappings.length === 0) {
-          for (const [locationKey, rawValue] of Object.entries(locationObj)) {
-            const resolvedValue = this.mapLocationValueToName(
-              rawValue,
-              locationNamesById,
-            );
-            const outVal =
-              typeof resolvedValue === 'string'
-                ? this.normalizeUtf8MojibakeString(resolvedValue)
-                : resolvedValue;
-            dataMap[locationKey] = outVal;
-            additionalDataMap[locationKey] = outVal;
-          }
-          continue;
-        }
-
-        for (let i = 0; i < levelMappings.length; i++) {
-          const mapping = levelMappings[i];
-          const rawId = locationObj[mapping.idKey];
-          if (rawId === undefined || rawId === null || rawId === '') continue;
-
-          const resolvedFromResponse = mapping.nameKey
-            ? locationObj[mapping.nameKey]
-            : undefined;
-          const resolvedValue = isNonEmptyString(resolvedFromResponse)
-            ? resolvedFromResponse
-            : this.mapLocationValueToName(rawId, locationNamesById);
-          const outVal =
-            typeof resolvedValue === 'string'
-              ? this.normalizeUtf8MojibakeString(String(resolvedValue))
-              : resolvedValue;
-          // Valor é sempre nome: em data usar a chave de nome do formulário quando existir
-          // (evita chaves *_id com valor textual).
-          const dataPayloadKey =
-            mapping.nameKey && mapping.nameKey.trim().length > 0
-              ? mapping.nameKey
-              : mapping.idKey;
-          dataMap[dataPayloadKey] = outVal;
-          additionalDataMap[this.locationLevelAdditionalLabel(i)] = outVal;
-        }
+        this.appendLocationEntryToPayloadMaps(
+          meta,
+          entry.value as Record<string, unknown>,
+          locationNamesById,
+          dataMap,
+          additionalDataMap,
+        );
         continue;
       }
 
-      const mapped = this.mapFieldValueForIntegration(entry.value, meta);
-      let formatted = this.formatValueForIntegrationPayload(mapped, meta);
-      if (typeof formatted === 'string') {
-        formatted = this.normalizeUtf8MojibakeString(formatted);
-      }
-      dataMap[entry.field] = formatted;
-      const additionalKey = this.normalizeUtf8MojibakeString(
-        meta?.label ?? entry.field,
+      this.appendStandardFieldToPayloadMaps(
+        entry,
+        meta,
+        dataMap,
+        additionalDataMap,
       );
-      additionalDataMap[additionalKey] = formatted;
     }
 
     return {
@@ -1106,7 +1144,7 @@ export class ReportIntegrationsService {
       );
       return this.buildEphemStageIndexFromSignals(signals);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessageFromUnknown(err);
       this.logger.warn(
         { err: message, contextId, ephemUserId },
         'Ephem listSignals falhou ao obter estágio do sinal',
@@ -1119,9 +1157,8 @@ export class ReportIntegrationsService {
 
   private mapEventToDto(
     event: any,
-    externalSignalStage?: { id: number; label: string } | null,
+    externalSignalStage: { id: number; label: string } | null = null,
   ): IntegrationEventResponseDto {
-    const stage = externalSignalStage ?? null;
     return {
       id: event.id,
       reportId: event.report_id,
@@ -1131,8 +1168,8 @@ export class ReportIntegrationsService {
       attemptCount: event.attempt_count,
       lastAttemptAt: event.last_attempt_at,
       lastError: event.last_error,
-      externalSignalStageId: stage?.id ?? null,
-      externalSignalStageLabel: stage?.label ?? null,
+      externalSignalStageId: externalSignalStage?.id ?? null,
+      externalSignalStageLabel: externalSignalStage?.label ?? null,
       createdAt: event.created_at,
       updatedAt: event.updated_at,
       messages: event.messages?.map((m: any) => this.mapMessageToDto(m)),

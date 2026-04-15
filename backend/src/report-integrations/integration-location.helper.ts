@@ -32,6 +32,38 @@ export function getLocationLevelMappings(meta?: SignalFieldMeta): Array<{
   return mappings;
 }
 
+function collectLegacyLocationNumericIds(
+  valueObj: Record<string, unknown>,
+): number[] {
+  const out: number[] = [];
+  for (const rawValue of Object.values(valueObj)) {
+    const parsed = Number(rawValue);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      out.push(parsed);
+    }
+  }
+  return out;
+}
+
+function addIdsFromMappedLevels(
+  valueObj: Record<string, unknown>,
+  levelMappings: Array<{ idKey: string; nameKey?: string }>,
+  ids: Set<number>,
+): void {
+  for (const mapping of levelMappings) {
+    const rawId = valueObj[mapping.idKey];
+    const parsedId = Number(rawId);
+    const rawName = mapping.nameKey ? valueObj[mapping.nameKey] : undefined;
+    if (
+      Number.isInteger(parsedId) &&
+      parsedId > 0 &&
+      !isNonEmptyString(rawName)
+    ) {
+      ids.add(parsedId);
+    }
+  }
+}
+
 export function extractLocationIdsRequiringLookup(
   entries: Array<{ field: string; value: unknown }>,
   metaMap: Record<string, SignalFieldMeta>,
@@ -51,27 +83,13 @@ export function extractLocationIdsRequiringLookup(
     const levelMappings = getLocationLevelMappings(meta);
 
     if (levelMappings.length === 0) {
-      for (const rawValue of Object.values(valueObj)) {
-        const parsed = Number(rawValue);
-        if (Number.isInteger(parsed) && parsed > 0) {
-          ids.add(parsed);
-        }
+      for (const id of collectLegacyLocationNumericIds(valueObj)) {
+        ids.add(id);
       }
       continue;
     }
 
-    for (const mapping of levelMappings) {
-      const rawId = valueObj[mapping.idKey];
-      const parsedId = Number(rawId);
-      const rawName = mapping.nameKey ? valueObj[mapping.nameKey] : undefined;
-      if (
-        Number.isInteger(parsedId) &&
-        parsedId > 0 &&
-        !isNonEmptyString(rawName)
-      ) {
-        ids.add(parsedId);
-      }
-    }
+    addIdsFromMappedLevels(valueObj, levelMappings, ids);
   }
 
   return Array.from(ids);

@@ -40,6 +40,20 @@ function collectCandidates(root: object): unknown[] {
   return candidates;
 }
 
+function optionValueToMapKey(key: unknown): string {
+  if (key === null || key === undefined) {
+    return '';
+  }
+  if (typeof key === 'object') {
+    try {
+      return JSON.stringify(key);
+    } catch {
+      return '';
+    }
+  }
+  return String(key);
+}
+
 function buildLocationConfig(
   locationConfig: Record<string, unknown>,
 ): SignalFieldMeta['locationConfig'] | undefined {
@@ -77,6 +91,50 @@ function buildLocationConfig(
   };
 }
 
+function buildOptionsMapFromEntry(
+  e: Record<string, unknown>,
+): Map<string, string> {
+  const options = new Map<string, string>();
+  if (!Array.isArray(e.options)) {
+    return options;
+  }
+  for (const option of e.options as Array<Record<string, unknown>>) {
+    const key = option?.value;
+    const optionLabel = option?.label ?? option?.text;
+    if (
+      key !== undefined &&
+      key !== null &&
+      typeof optionLabel === 'string'
+    ) {
+      options.set(optionValueToMapKey(key), optionLabel);
+    }
+  }
+  return options;
+}
+
+function assignFieldMetaFromEntry(
+  map: Record<string, SignalFieldMeta>,
+  e: Record<string, unknown>,
+): void {
+  const field = e.field ?? e.name;
+  const label = e.text ?? e.label ?? field;
+  if (typeof field !== 'string' || typeof label !== 'string') {
+    return;
+  }
+
+  const lc =
+    e.locationConfig && typeof e.locationConfig === 'object'
+      ? buildLocationConfig(e.locationConfig as Record<string, unknown>)
+      : undefined;
+
+  map[field] = {
+    label,
+    options: buildOptionsMapFromEntry(e),
+    type: typeof e.type === 'string' ? e.type : undefined,
+    locationConfig: lc,
+  };
+}
+
 export function extractFieldMetaFromDefinition(
   definition: unknown,
 ): Record<string, SignalFieldMeta> {
@@ -101,39 +159,7 @@ export function extractFieldMetaFromDefinition(
     if (!entry || typeof entry !== 'object') {
       continue;
     }
-    const e = entry as Record<string, unknown>;
-    const field = e.field ?? e.name;
-    const label = e.text ?? e.label ?? field;
-    if (typeof field !== 'string' || typeof label !== 'string') {
-      continue;
-    }
-
-    const options = new Map<string, string>();
-    if (Array.isArray(e.options)) {
-      for (const option of e.options as Array<Record<string, unknown>>) {
-        const key = option?.value;
-        const optionLabel = option?.label ?? option?.text;
-        if (
-          key !== undefined &&
-          key !== null &&
-          typeof optionLabel === 'string'
-        ) {
-          options.set(String(key), optionLabel);
-        }
-      }
-    }
-
-    const lc =
-      e.locationConfig && typeof e.locationConfig === 'object'
-        ? buildLocationConfig(e.locationConfig as Record<string, unknown>)
-        : undefined;
-
-    map[field] = {
-      label,
-      options,
-      type: typeof e.type === 'string' ? e.type : undefined,
-      locationConfig: lc,
-    };
+    assignFieldMetaFromEntry(map, entry as Record<string, unknown>);
   }
 
   return map;
