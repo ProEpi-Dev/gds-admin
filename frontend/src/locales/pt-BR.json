@@ -337,6 +337,7 @@
     "createdAt": "Criado em",
     "updatedAt": "Atualizado em",
     "integrationTraining": "Treinamento (integração)",
+    "integrationTrainingTooltip": "Para Vigilância baseada em eventos, indica para qual ambiente os dados gerados pelo participante serão integrados com o ePHEM",
     "integrationTrainingOn": "Homologação",
     "integrationTrainingOff": "Produção"
   },

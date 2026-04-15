@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Accordion,
   AccordionDetails,
@@ -27,7 +29,28 @@ import UserLayout from "../../../components/layout/UserLayout";
 import { useAuth } from "../../../contexts/AuthContext";
 import { TrackProgressService } from "../../../api/services/track-progress.service";
 import { TrackCyclesService } from "../../../api/services/track-cycles.service";
-import { ProgressStatus } from "../../../types/track-progress.types";
+import type { TrackCycle } from "../../../types/track-cycle.types";
+import { ProgressStatus, type TrackProgress } from "../../../types/track-progress.types";
+
+function toDateOnly(dateIso: string): Date {
+  return new Date(`${dateIso.split("T")[0]}T00:00:00`);
+}
+
+function todayDateOnly(): Date {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isCycleClosed(cycle: TrackCycle): boolean {
+  const end = toDateOnly(cycle.end_date);
+  const today = todayDateOnly();
+  return end < today || cycle.status !== "active";
+}
+
+type CycleProgressPayload = {
+  progress: TrackProgress | null;
+  cycle: TrackCycle;
+};
 
 type SectionLike = {
   id: number;
@@ -74,9 +97,12 @@ export default function AppLearnCyclePage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["app-learn", "cycle-progress", participationId, parsedCycleId],
-    queryFn: async () => {
+    queryFn: async (): Promise<CycleProgressPayload | null> => {
       if (!participationId || !parsedCycleId) return null;
-      const ensureProgress = async () => {
+      const cycleRes = await TrackCyclesService.get(parsedCycleId);
+      const cycle = cycleRes.data;
+
+      const ensureProgress = async (): Promise<CycleProgressPayload> => {
         await TrackProgressService.start({
           participationId,
           trackCycleId: parsedCycleId,
@@ -85,20 +111,27 @@ export default function AppLearnCyclePage() {
           participationId,
           parsedCycleId,
         );
-        return created.data;
+        return { progress: created.data, cycle };
       };
+
       try {
         const found = await TrackProgressService.getByParticipationAndCycle(
           participationId,
           parsedCycleId,
         );
-        // Em alguns fluxos o backend pode retornar 200 com `null` antes de existir progresso.
-        if (!found.data) {
-          return ensureProgress();
+        if (found.data) {
+          return { progress: found.data, cycle };
         }
-        return found.data;
+        // Sem registro de progresso: só inicia automaticamente se o ciclo ainda permitir.
+        if (isCycleClosed(cycle)) {
+          return { progress: null, cycle };
+        }
+        return ensureProgress();
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 404) {
+          if (isCycleClosed(cycle)) {
+            return { progress: null, cycle };
+          }
           return ensureProgress();
         }
         throw err;
@@ -107,29 +140,38 @@ export default function AppLearnCyclePage() {
     enabled: Boolean(participationId && parsedCycleId),
   });
 
-  const { data: cycleDetail } = useQuery({
-    queryKey: ["app-learn", "cycle-detail", parsedCycleId],
-    queryFn: async () => {
-      if (!parsedCycleId) return null;
-      const res = await TrackCyclesService.get(parsedCycleId);
-      return res.data;
-    },
-    enabled: Boolean(parsedCycleId),
-  });
+  const progress = data?.progress ?? null;
+  const cycleDetail = data?.cycle ?? null;
+  const readOnlyClosedWithoutProgress = Boolean(
+    cycleDetail && isCycleClosed(cycleDetail) && !progress,
+  );
+
+  const displayTitle = useMemo(
+    () => progress?.track_cycle?.name ?? cycleDetail?.name ?? "Trilha",
+    [progress?.track_cycle?.name, cycleDetail?.name],
+  );
 
   const sections = useMemo(() => {
-    const track = (data?.track_cycle?.track as { section?: SectionLike[] }) ?? {};
-    const source = Array.isArray(track.section) ? track.section : [];
-    return [...source].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [data]);
+    const fromProgress = (progress?.track_cycle?.track as { section?: SectionLike[] }) ?? {};
+    const fromProgressSections = Array.isArray(fromProgress.section)
+      ? fromProgress.section
+      : [];
+    if (fromProgressSections.length > 0) {
+      return [...fromProgressSections].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0),
+      );
+    }
+    const fromCycle = cycleDetail?.track?.section ?? [];
+    return [...fromCycle].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [progress, cycleDetail]);
 
   const sequenceStatus = useMemo(() => {
     const map = new Map<number, string>();
-    (data?.sequence_progress ?? []).forEach((row) => {
+    (progress?.sequence_progress ?? []).forEach((row) => {
       map.set(row.sequence_id, row.status);
     });
     return map;
-  }, [data]);
+  }, [progress]);
 
   const sequenceLabelById = useMemo(() => {
     const map = new Map<number, string>();
@@ -151,10 +193,10 @@ export default function AppLearnCyclePage() {
   }, [cycleDetail?.track?.section]);
 
   const getScheduleInfo = (sequenceId: number, status: string) => {
-    const locked = data?.sequence_locked?.[sequenceId] ?? false;
-    const orderLocked = data?.sequence_order_locked?.[sequenceId] ?? false;
-    const scheduleState = data?.sequence_schedule_state?.[sequenceId];
-    const scheduleWindow = data?.sequence_schedule_window?.[sequenceId];
+    const locked = progress?.sequence_locked?.[sequenceId] ?? false;
+    const orderLocked = progress?.sequence_order_locked?.[sequenceId] ?? false;
+    const scheduleState = progress?.sequence_schedule_state?.[sequenceId];
+    const scheduleWindow = progress?.sequence_schedule_window?.[sequenceId];
     const from = scheduleWindow?.start
       ? formatScheduleDayBr(scheduleWindow.start)
       : null;
@@ -225,24 +267,41 @@ export default function AppLearnCyclePage() {
           </Alert>
         )}
 
-        {!isLoading && !error && !data && (
+        {!isLoading && !error && readOnlyClosedWithoutProgress && cycleDetail && (
+          <Alert severity="info">
+            Este ciclo já foi encerrado
+            {cycleDetail.end_date
+              ? ` (término em ${format(toDateOnly(cycleDetail.end_date), "dd/MM/yyyy", { locale: ptBR })}).`
+              : "."}{" "}
+            Como não havia progresso iniciado, os conteúdos desta trilha não podem ser
+            abertos.
+          </Alert>
+        )}
+
+        {!isLoading && !error && data && !progress && cycleDetail && !readOnlyClosedWithoutProgress && (
           <Alert severity="warning">
             Não encontramos progresso para esta trilha no momento.
           </Alert>
         )}
 
-        {data && (
+        {(progress || readOnlyClosedWithoutProgress) && (
           <Paper sx={{ p: 2 }}>
             <Typography variant="h5" gutterBottom>
-              {data.track_cycle?.name ?? "Trilha"}
+              {displayTitle}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Progresso geral: {(data.progress_percentage ?? 0).toFixed(0)}%
-            </Typography>
+            {progress ? (
+              <Typography variant="body2" color="text.secondary">
+                Progresso geral: {(progress.progress_percentage ?? 0).toFixed(0)}%
+              </Typography>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Ciclo encerrado — sem progresso registrado.
+              </Typography>
+            )}
           </Paper>
         )}
 
-        {data && sections.length === 0 && (
+        {(progress || cycleDetail) && sections.length === 0 && (
           <Alert severity="info">Esta trilha ainda não possui seções ativas.</Alert>
         )}
 
@@ -269,9 +328,22 @@ export default function AppLearnCyclePage() {
                       sequenceLabelById.get(sequence.id) ?? fallbackLabel;
                     const status =
                       sequenceStatus.get(sequence.id) ?? ProgressStatus.NOT_STARTED;
-                    const scheduleInfo = getScheduleInfo(sequence.id, status);
+                    const scheduleInfo = readOnlyClosedWithoutProgress
+                      ? {
+                          chip: (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label="Encerrado"
+                            />
+                          ),
+                          secondary:
+                            "Este ciclo foi encerrado antes de haver progresso iniciado.",
+                        }
+                      : getScheduleInfo(sequence.id, status);
                     const locked =
-                      data?.sequence_locked?.[sequence.id] ?? false;
+                      (progress?.sequence_locked?.[sequence.id] ?? false) ||
+                      readOnlyClosedWithoutProgress;
                     const isContent = Boolean(sequence.content_id);
                     const isQuiz = Boolean(sequence.form_id);
                     return (
