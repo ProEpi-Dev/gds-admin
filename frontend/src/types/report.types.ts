@@ -23,6 +23,8 @@ export interface ReportPoint {
 export interface ReportsPointsQuery {
   contextId?: number;
   formId?: number;
+  /** Omisso = teto do backend (10k). */
+  limit?: number;
   startDate: string;
   endDate: string;
 }

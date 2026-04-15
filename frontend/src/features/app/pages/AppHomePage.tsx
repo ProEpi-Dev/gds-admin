@@ -147,13 +147,27 @@ export default function AppHomePage() {
   const communityRangeStart = format(communityMonthStart, "yyyy-MM-dd");
   const communityRangeEnd = format(communityMonthEnd, "yyyy-MM-dd");
 
-  /** Janela do mapa de reports (self_health): 1 semana para limitar payload /points. */
+  /** Janela do mapa de reports (self_health): 1 semana; poucos pontos no mapa inicial para aliviar payload e render. */
   const startDate = useMemo(() => format(subDays(new Date(), 7), "yyyy-MM-dd"), []);
   const endDate = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const homeMapPointsLimit = 500;
 
   const { data: points = [], isLoading: pointsLoading } = useQuery({
-    queryKey: ["app-home", "report-points", contextId, startDate, endDate],
-    queryFn: () => reportsService.findPoints({ contextId, startDate, endDate }),
+    queryKey: [
+      "app-home",
+      "report-points",
+      contextId,
+      startDate,
+      endDate,
+      homeMapPointsLimit,
+    ],
+    queryFn: () =>
+      reportsService.findPoints({
+        contextId,
+        startDate,
+        endDate,
+        limit: homeMapPointsLimit,
+      }),
     enabled: Boolean(participationId && contextId && showSelfHealthMap),
   });
 
