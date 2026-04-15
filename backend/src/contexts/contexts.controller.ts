@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -33,6 +34,8 @@ import { ReportStreakQueryDto } from '../reports/dto/report-streak-query.dto';
 import { ReportStreakSummaryResponseDto } from '../reports/dto/report-streak-summary-response.dto';
 import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-report-streak-query.dto';
 import { ParticipationReportStreakResponseDto } from '../reports/dto/participation-report-streak-response.dto';
+import { ContextConfigurationEntryDto } from './dto/context-configuration-entry.dto';
+import { UpsertContextConfigurationDto } from './dto/upsert-context-configuration.dto';
 
 @ApiTags('Contexts')
 @ApiBearerAuth('bearerAuth')
@@ -170,6 +173,56 @@ export class ContextsController {
       query,
       user.userId,
     );
+  }
+
+  @Get(':id/configuration')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Listar configurações do contexto',
+    description:
+      'Retorna pares chave/valor (JSON) da tabela context_configuration. Apenas admin.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID do contexto' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de entradas de configuração',
+    type: [ContextConfigurationEntryDto],
+  })
+  @ApiResponse({ status: 404, description: 'Contexto não encontrado' })
+  async findConfiguration(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ContextConfigurationEntryDto[]> {
+    return this.contextsService.findConfiguration(id);
+  }
+
+  @Put(':id/configuration/:key')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Criar ou atualizar uma configuração',
+    description:
+      'Faz upsert de uma chave para o contexto. A chave na URL deve usar apenas a-z, 0-9 e underscore.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID do contexto' })
+  @ApiParam({
+    name: 'key',
+    type: String,
+    description: 'Chave (ex.: negative_report_dedup_window_min)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Entrada salva',
+    type: ContextConfigurationEntryDto,
+  })
+  @ApiResponse({ status: 400, description: 'Chave ou valor inválido' })
+  @ApiResponse({ status: 404, description: 'Contexto não encontrado' })
+  async upsertConfiguration(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('key') key: string,
+    @Body() dto: UpsertContextConfigurationDto,
+  ): Promise<ContextConfigurationEntryDto> {
+    return this.contextsService.upsertConfiguration(id, key, dto.value);
   }
 
   @Get(':id')

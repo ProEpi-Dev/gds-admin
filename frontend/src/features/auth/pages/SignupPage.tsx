@@ -16,6 +16,8 @@ import SelectPublicContext from '../../../components/common/SelectPublicContext'
 import LegalDocumentsAcceptance from '../../../components/auth/LegalDocumentsAcceptance';
 import type { SignupDto } from '../../../types/auth.types';
 
+const SIGNUP_LOGO_SRC = '/logo_gds.svg';
+
 const signupSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
@@ -61,6 +63,14 @@ export default function SignupPage() {
       return response;
     },
     onSuccess: (data) => {
+      if (data.emailVerificationRequired || !data.accessToken || !data.refreshToken) {
+        snackbar.showInfo(t('signup.pendingEmailVerification'));
+        navigate(
+          `/verify-email?email=${encodeURIComponent(data.user.email)}`,
+          { replace: true },
+        );
+        return;
+      }
       login(
         data.accessToken,
         { ...data.user, participation: data.participation },
@@ -110,6 +120,25 @@ export default function SignupPage() {
         }}
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box
+              role="img"
+              aria-label={t('layout.appTitle')}
+              sx={(theme) => ({
+                width: 'min(208px, 40%)',
+                aspectRatio: '1',
+                maxWidth: '100%',
+                flexShrink: 0,
+                overflow: 'hidden',
+                borderRadius: '22%',
+                boxShadow: '0 10px 28px rgba(15, 111, 115, 0.32)',
+                backgroundImage: `url(${SIGNUP_LOGO_SRC}), linear-gradient(180deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.light} 100%)`,
+                backgroundSize: '88% auto, cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              })}
+            />
+          </Box>
           <Typography variant="h4" component="h1" gutterBottom align="center">
             {t('signup.title')}
           </Typography>

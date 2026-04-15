@@ -119,7 +119,9 @@
       ".*current-user\\.decorator\\.ts$",
       ".*public\\.decorator\\.ts$",
       ".*roles\\.decorator\\.ts$",
-      ".*require-permission\\.decorator\\.ts$"
+      ".*require-permission\\.decorator\\.ts$",
+      "\\.d\\.ts$",
+      "mail\\.service\\.ts$"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [

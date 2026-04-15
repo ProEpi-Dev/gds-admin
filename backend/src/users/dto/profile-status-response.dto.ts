@@ -1,5 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class ProfileFieldRequirementsDto {
+  @ApiProperty({ description: 'Exige gênero para perfil completo' })
+  gender: boolean;
+
+  @ApiProperty({ description: 'Exige país (country_location_id) para perfil completo' })
+  country: boolean;
+
+  @ApiProperty({ description: 'Exige localização (location_id) para perfil completo' })
+  location: boolean;
+
+  @ApiProperty({
+    description: 'Exige identificador externo para perfil completo',
+  })
+  externalIdentifier: boolean;
+
+  @ApiProperty({ description: 'Exige telefone para perfil completo' })
+  phone: boolean;
+}
+
 class ProfileDataDto {
   @ApiProperty({
     description: 'ID do gênero',
@@ -47,7 +66,13 @@ export class ProfileStatusResponseDto {
 
   @ApiProperty({
     description: 'Lista de campos faltantes',
-    example: ['genderId', 'locationId', 'externalIdentifier'],
+    example: [
+      'genderId',
+      'countryLocationId',
+      'locationId',
+      'externalIdentifier',
+      'phone',
+    ],
     type: [String],
   })
   missingFields: string[];
@@ -57,6 +82,13 @@ export class ProfileStatusResponseDto {
     type: ProfileDataDto,
   })
   profile: ProfileDataDto;
+
+  @ApiProperty({
+    description:
+      'Quais campos do perfil são obrigatórios para completude, conforme context_configuration da participação ativa (ou padrão quando não há participação)',
+    type: ProfileFieldRequirementsDto,
+  })
+  profileFieldRequirements: ProfileFieldRequirementsDto;
 
   @ApiProperty({
     description:

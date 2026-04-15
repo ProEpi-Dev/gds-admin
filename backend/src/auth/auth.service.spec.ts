@@ -106,6 +106,9 @@ describe('AuthService', () => {
             context: {
               findUnique: jest.fn(),
             },
+            context_configuration: {
+              findFirst: jest.fn().mockResolvedValue(null),
+            },
             user_refresh_token: {
               create: jest.fn().mockResolvedValue({ id: 1 }),
               findFirst: jest.fn(),
@@ -370,6 +373,9 @@ describe('AuthService', () => {
       jest
         .spyOn(prismaService.participation, 'findMany')
         .mockResolvedValue([activeParticipation] as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue(null);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
 
       const result = await service.login(loginDto);
@@ -466,6 +472,9 @@ describe('AuthService', () => {
       jest
         .spyOn(prismaService.participation, 'findMany')
         .mockResolvedValue([participationWithEnd] as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue(null);
       jest.spyOn(prismaService.form, 'findMany').mockResolvedValue([]);
 
       const result = await service.login(loginDto);
@@ -682,6 +691,11 @@ describe('AuthService', () => {
             },
           });
         });
+
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue(null);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockNewUser as any);
 
       const result = await service.signup(signupDto);
 
@@ -911,6 +925,7 @@ describe('AuthService', () => {
         .spyOn(prismaService.user_refresh_token, 'create')
         .mockResolvedValue({ id: 2 } as any);
       jest.spyOn(jwtService, 'sign').mockReturnValue('newAccess');
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([]);
 
       const result = await service.refreshAccessToken('raw-refresh-token');
 

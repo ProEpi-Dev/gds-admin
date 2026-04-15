@@ -26,6 +26,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import { useTranslation } from '../../../hooks/useTranslation';
 import ContextManagersList from '../../context-managers/components/ContextManagersList';
 import ContextManagerCreate from '../../context-managers/components/ContextManagerCreate';
+import ContextConfigurationTab from '../components/ContextConfigurationTab';
 
 export default function ContextViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -231,6 +232,7 @@ export default function ContextViewPage() {
           <Tab label={t('contexts.tabNewManager')} />
           <Tab label={t('contexts.tabParticipations')} />
           <Tab label={t('contexts.tabForms')} />
+          <Tab label={t('contexts.tabConfiguration')} />
         </Tabs>
 
         {activeTab === 0 && <ContextManagersList contextId={contextId} />}
@@ -249,6 +251,9 @@ export default function ContextViewPage() {
           <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
             {t('contexts.formsComingSoon')}
           </Typography>
+        )}
+        {activeTab === 4 && contextId != null && (
+          <ContextConfigurationTab contextId={contextId} />
         )}
       </Paper>
 

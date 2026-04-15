@@ -120,6 +120,30 @@ describe('otel-error-logs', () => {
 
       expect(() => emitPinoErrorLogToOtel(50, ['x'])).not.toThrow();
     });
+
+    it('formata null, boolean, bigint, symbol e função nomeada no corpo', () => {
+      const emit = jest.fn();
+      jest.spyOn(logs, 'getLogger').mockReturnValue({
+        emit,
+      } as any);
+
+      emitPinoErrorLogToOtel(50, [
+        null,
+        true,
+        BigInt(7),
+        Symbol('s'),
+        function namedFn() {
+          return 0;
+        },
+      ]);
+
+      const body = emit.mock.calls[0][0].body as string;
+      expect(body).toContain('null');
+      expect(body).toContain('true');
+      expect(body).toMatch(/7/);
+      expect(body).toContain('Symbol');
+      expect(body).toContain('[Function: namedFn]');
+    });
   });
 
   describe('buildPinoOtelErrorHooks', () => {

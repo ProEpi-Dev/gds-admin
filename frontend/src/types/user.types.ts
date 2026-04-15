@@ -59,6 +59,14 @@ export interface UpdateProfileDto {
   phone?: string;
 }
 
+export interface ProfileFieldRequirements {
+  gender: boolean;
+  country: boolean;
+  location: boolean;
+  externalIdentifier: boolean;
+  phone: boolean;
+}
+
 export interface ProfileStatusResponse {
   isComplete: boolean;
   missingFields: string[];
@@ -69,6 +77,7 @@ export interface ProfileStatusResponse {
     externalIdentifier: string | null;
     phone: string | null;
   };
+  profileFieldRequirements: ProfileFieldRequirements;
   profileExtraRequired: boolean;
   profileExtraComplete: boolean;
 }

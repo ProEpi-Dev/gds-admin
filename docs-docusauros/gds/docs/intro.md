@@ -8,9 +8,9 @@ Bem-vindo à documentação técnica da **aplicação de administração** do **
 
 :::info Sobre esta Documentação
 
-Esta documentação é destinada à **aplicação web de administração** do Guardiões da Saúde, utilizada por administradores, gestores e profissionais de saúde para gerenciar o sistema.
+Esta documentação cobre sobretudo a **aplicação web de administração** do Guardiões da Saúde, utilizada por administradores, gestores e profissionais de saúde para gerenciar o sistema.
 
-Os **usuários finais** (cidadãos) interagem com o sistema através do **aplicativo móvel** (Android e iOS), que possui sua própria documentação e interface.
+Os **usuários finais** (cidadãos) utilizam principalmente o **aplicativo móvel** (Android e iOS). A **área web do participante** (rotas `/app`, autenticação, trilhas, etc.) no mesmo frontend React é resumida em **[Funcionalidades — área web do participante](/funcionalidades-app-web-participante)**.
 
 :::
 
@@ -18,9 +18,10 @@ Os **usuários finais** (cidadãos) interagem com o sistema através do **aplica
 
 O **Guardiões da Saúde** é uma estratégia de vigilância participativa em saúde pública que envolve cidadãos no registro de informações sobre sua saúde, com o objetivo de **detectar precocemente surtos, epidemias e eventos de risco à saúde**.
 
-O sistema possui duas interfaces principais:
+O sistema possui interfaces principais:
 - **Aplicativo Móvel**: Utilizado pelos cidadãos para reportar sintomas e informações de saúde
-- **Aplicação Web de Administração** (esta documentação): Utilizada por administradores e profissionais de saúde para gerenciar o sistema, criar formulários, visualizar relatórios e configurar o sistema
+- **Área web do participante** (SPA React, rotas `/app`): cadastro, login, confirmação de e-mail, início (vigilância), trilhas de aprendizagem, perfil, conteúdos — ver [Funcionalidades — área web do participante](/funcionalidades-app-web-participante)
+- **Aplicação Web de Administração**: Utilizada por administradores e profissionais de saúde para gerenciar o sistema, criar formulários, visualizar relatórios e configurar o sistema
 
 ### Funcionalidades da Aplicação de Administração
 
@@ -68,6 +69,7 @@ O sistema tem sido utilizado desde 2007 em diferentes contextos de vigilância, 
 Esta documentação está organizada em seções:
 
 - **Arquitetura**: Modelo de banco de dados, estrutura de APIs e organização do código
+- **[Configuração de contexto e integrações](/arquitetura/configuracao-contexto-e-integracoes)**: Módulos do contexto, chaves `context_configuration` (perfil, e-mail, regras de reports) e `integration_config` (integração externa de sinais)
 - **Guias de Desenvolvimento**: Padrões, convenções e boas práticas
 - **API Reference**: Documentação completa dos endpoints
 
@@ -76,8 +78,9 @@ Esta documentação está organizada em seções:
 Para começar a explorar a documentação, recomendamos:
 
 1. Ver o [Modelo de Banco de Dados](/arquitetura/modelagem-banco-dados/modelo-banco-dados) para entender a estrutura de dados
-2. Explorar a seção de Arquitetura para entender a organização do sistema
-3. Consultar os guias de desenvolvimento para padrões e convenções
+2. Para a **área do cidadão na web**, ver [Funcionalidades — área web do participante](/funcionalidades-app-web-participante)
+3. Explorar a seção de Arquitetura para entender a organização do sistema
+4. Consultar os guias de desenvolvimento para padrões e convenções
 
 ---
 

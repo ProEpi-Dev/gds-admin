@@ -18,7 +18,7 @@ import { useTranslation } from '../../../hooks/useTranslation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../../api/client';
 import { API_ENDPOINTS } from '../../../api/endpoints';
-import { getErrorMessage } from '../../../utils/errorHandler';
+import { getErrorCode, getErrorMessage } from '../../../utils/errorHandler';
 import { useSnackbar } from '../../../hooks/useSnackbar';
 import type { LoginDto, LoginResponse } from '../../../types/auth.types';
 
@@ -28,6 +28,17 @@ const loginSchema = z.object({
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
+
+function mapLoginApiMessageToLocale(
+  raw: string,
+  t: (key: string) => string,
+): string {
+  const n = raw.trim().toLowerCase();
+  if (n === "invalid credentials") {
+    return t("auth.invalidCredentials");
+  }
+  return raw;
+}
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -65,12 +76,19 @@ export default function LoginForm() {
       // Invalida caches de role/perfil para garantir dados frescos após troca de usuário
       queryClient.invalidateQueries({ queryKey: ['user-role'] });
       queryClient.invalidateQueries({ queryKey: ['profile-status'] });
-      snackbar.showSuccess('Login realizado com sucesso');
+      snackbar.showSuccess(t("auth.loginSuccess"));
       navigate('/');
     },
-    onError: (err: unknown) => {
-      const errorMessage = getErrorMessage(err, 'Erro ao fazer login');
-      snackbar.showError(errorMessage);
+    onError: (err: unknown, variables: LoginFormData) => {
+      if (getErrorCode(err) === 'EMAIL_VERIFICATION_REQUIRED') {
+        snackbar.showInfo(t('auth.emailVerificationRequired'));
+        navigate(
+          `/verify-email?email=${encodeURIComponent(variables.email.trim())}`,
+        );
+        return;
+      }
+      const raw = getErrorMessage(err, t("auth.loginError"));
+      snackbar.showError(mapLoginApiMessageToLocale(raw, t));
     },
   });
 
@@ -131,7 +149,7 @@ export default function LoginForm() {
         sx={{ mt: 3, mb: 2 }}
         disabled={loginMutation.isPending}
       >
-        {loginMutation.isPending ? <CircularProgress size={24} /> : 'Entrar'}
+        {loginMutation.isPending ? <CircularProgress size={24} /> : t("auth.login")}
       </Button>
     </Box>
   );

@@ -10,6 +10,8 @@ import LoginPage from "../features/auth/pages/LoginPage";
 import SignupPage from "../features/auth/pages/SignupPage";
 import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
+import VerifyEmailPage from "../features/auth/pages/VerifyEmailPage";
+import EmailVerifiedPage from "../features/auth/pages/EmailVerifiedPage";
 import ChangePasswordPage from "../features/auth/pages/ChangePasswordPage";
 import CompleteProfilePage from "../features/app/pages/CompleteProfilePage";
 import UserProfilePage from "../features/app/pages/UserProfilePage";
@@ -142,6 +144,8 @@ export default function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/email-verified" element={<EmailVerifiedPage />} />
       <Route path="/setup" element={<SetupPage />} />
 
       {/* Rotas da Área do App (Usuários Comuns) */}

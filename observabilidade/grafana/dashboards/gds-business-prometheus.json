@@ -22,7 +22,7 @@
       }
     ]
   },
-  "description": "Seis contadores de negócio emitidos pelo backend Nest via OTLP (BusinessMetricsService). Nomes no Prometheus costumam ter sufixo _total. Confirme em Explore → Metrics com job=~gds-backend.",
+  "description": "Seis contadores de negócio emitidos pelo backend Nest via OTLP (BusinessMetricsService). Nomes no Prometheus costumam ter sufixo _total. Os gráficos são em barras com increase() no $__interval (contagem por bucket de tempo; o intervalo muda com o zoom). Confirme em Explore → Metrics com job=~gds-backend.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -34,7 +34,7 @@
       "id": 1,
       "options": {
         "code": { "language": "markdown", "showLineNumbers": false, "showMiniMap": false },
-        "content": "# GDS — métricas de negócio (OpenTelemetry)\n\n| Métrica | Significado |\n|---------|-------------|\n| `gds_participation_created_total` | Participação criada pela API (não inclui signup) |\n| `gds_auth_signup_total` | Cadastro concluído |\n| `gds_track_progress_started_total` | Início de progresso num ciclo de trilha |\n| `gds_auth_login_total{outcome}` | Login sucesso vs falha |\n| `gds_report_created_total{report_type}` | Relatório de vigilância criado |\n| `gds_quiz_submission_created_total{completed,passed}` | Submissão de quiz |\n\n**Filtro `job`:** normalmente o valor de `OTEL_SERVICE_NAME` (ex.: `gds-backend`). Se um painel estiver vazio, em **Explore** procure o prefixo `gds_` nos nomes de métrica.",
+        "content": "# GDS — métricas de negócio (OpenTelemetry)\n\n| Métrica | Significado |\n|---------|-------------|\n| `gds_participation_created_total` | Participação criada pela API (não inclui signup) |\n| `gds_auth_signup_total` | Cadastro concluído |\n| `gds_track_progress_started_total` | Início de progresso num ciclo de trilha |\n| `gds_auth_login_total{outcome}` | Login sucesso vs falha |\n| `gds_report_created_total{report_type}` | Reporte de vigilância criado |\n| `gds_quiz_submission_created_total{completed,passed}` | Submissão de quiz |\n\n**Filtro `job`:** normalmente o valor de `OTEL_SERVICE_NAME` (ex.: `gds-backend`). Se um painel estiver vazio, em **Explore** procure o prefixo `gds_` nos nomes de métrica.\n\nOs gráficos usam **barras** e `increase(...[$__interval])`: em cada instante mostram quantos eventos ocorreram **no bucket** (largura = `$__interval`, calculado pelo Grafana). Não é taxa/s nem total desde sempre; reinício do processo pode distorcer `increase`.",
         "mode": "markdown"
       },
       "title": "",
@@ -59,15 +59,18 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
@@ -79,13 +82,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_participation_created_total{job=~\"$otel_service\"}[$__rate_interval]))",
-          "legendFormat": "participações/s",
+          "expr": "sum(increase(gds_participation_created_total{job=~\"$otel_service\"}[$__interval]))",
+          "legendFormat": "participações",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Participações criadas (taxa)",
+      "title": "Participações criadas (barras / intervalo)",
       "type": "timeseries"
     },
     {
@@ -98,15 +101,18 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
@@ -118,13 +124,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_auth_signup_total{job=~\"$otel_service\"}[$__rate_interval]))",
-          "legendFormat": "signups/s",
+          "expr": "sum(increase(gds_auth_signup_total{job=~\"$otel_service\"}[$__interval]))",
+          "legendFormat": "cadastros",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Cadastros concluídos (taxa)",
+      "title": "Cadastros concluídos (barras / intervalo)",
       "type": "timeseries"
     },
     {
@@ -137,15 +143,18 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
@@ -157,13 +166,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_track_progress_started_total{job=~\"$otel_service\"}[$__rate_interval]))",
-          "legendFormat": "inícios trilha/s",
+          "expr": "sum(increase(gds_track_progress_started_total{job=~\"$otel_service\"}[$__interval]))",
+          "legendFormat": "inícios trilha",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Trilha — início de progresso (taxa)",
+      "title": "Trilha — início de progresso (barras / intervalo)",
       "type": "timeseries"
     },
     {
@@ -171,7 +180,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "id": 10,
       "panels": [],
-      "title": "Autenticação, relatórios e quizzes",
+      "title": "Autenticação, reportes e quizzes",
       "type": "row"
     },
     {
@@ -184,33 +193,36 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
       "id": 6,
-      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"], "width": 220 }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["sum", "max"], "width": 220 }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_auth_login_total{job=~\"$otel_service\"}[$__rate_interval])) by (outcome)",
+          "expr": "sum(increase(gds_auth_login_total{job=~\"$otel_service\"}[$__interval])) by (outcome)",
           "legendFormat": "{{outcome}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Login — sucesso vs falha (taxa)",
+      "title": "Login — sucesso vs falha (barras / intervalo)",
       "type": "timeseries"
     },
     {
@@ -223,33 +235,36 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "id": 7,
-      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"], "width": 200 }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["sum", "max"], "width": 200 }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_report_created_total{job=~\"$otel_service\"}[$__rate_interval])) by (report_type)",
+          "expr": "sum(increase(gds_report_created_total{job=~\"$otel_service\"}[$__interval])) by (report_type)",
           "legendFormat": "{{report_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Relatórios criados por tipo (taxa)",
+      "title": "Reportes criados por tipo (barras / intervalo)",
       "type": "timeseries"
     },
     {
@@ -262,33 +277,36 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
-            "fillOpacity": 25,
-            "gradientMode": "opacity",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineWidth": 2,
+            "lineWidth": 1,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }
           },
-          "unit": "ops",
+          "unit": "short",
           "unitScale": true
         },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 23 },
       "id": 8,
-      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"], "width": 280 }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["sum", "max"], "width": 280 }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(gds_quiz_submission_created_total{job=~\"$otel_service\"}[$__rate_interval])) by (completed, passed)",
+          "expr": "sum(increase(gds_quiz_submission_created_total{job=~\"$otel_service\"}[$__interval])) by (completed, passed)",
           "legendFormat": "completed={{completed}} passed={{passed}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Submissões de quiz (taxa por completed / passed)",
+      "title": "Submissões de quiz (barras / intervalo; completed / passed)",
       "type": "timeseries"
     }
   ],
@@ -319,6 +337,6 @@
   "timezone": "browser",
   "title": "GDS — Negócio (OTel)",
   "uid": "gds-business-prometheus",
-  "version": 1,
+  "version": 4,
   "weekStart": ""
 }

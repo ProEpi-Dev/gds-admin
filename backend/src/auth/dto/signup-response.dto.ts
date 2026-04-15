@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 import { ParticipationLoginDto } from './participation-login.dto';
 
@@ -9,17 +9,23 @@ export class SignupResponseDto {
   })
   user: UserResponseDto;
 
-  @ApiProperty({
-    description: 'Token de acesso JWT',
+  @ApiPropertyOptional({
+    description:
+      'Quando true, o contexto exige confirmação de email; accessToken e refreshToken não são emitidos até a verificação.',
+  })
+  emailVerificationRequired?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Token de acesso JWT (omitido se emailVerificationRequired)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
-  accessToken: string;
+  accessToken?: string;
 
-  @ApiProperty({
-    description: 'Refresh token opaco',
+  @ApiPropertyOptional({
+    description: 'Refresh token opaco (omitido se emailVerificationRequired)',
     example: 'a1b2c3d4e5f6...',
   })
-  refreshToken: string;
+  refreshToken?: string;
 
   @ApiProperty({
     description:

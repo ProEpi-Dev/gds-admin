@@ -74,6 +74,9 @@ describe('ReportsService', () => {
       form_version: {
         findUnique: jest.fn(),
       },
+      context_configuration: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       participation_report_day: {
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
@@ -486,6 +489,83 @@ describe('ReportsService', () => {
       await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('deve ignorar NEGATIVE duplicado dentro da janela de idempotência', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+      };
+
+      const recentNegative = {
+        ...mockReport,
+        id: 91,
+        report_type: 'NEGATIVE',
+        created_at: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 60 },
+          { key: 'negative_block_if_positive_within_min', value: 60 },
+        ] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([recentNegative] as any);
+
+      const result = await service.create(createDto, 1);
+
+      expect(result.id).toBe(91);
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+      expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
+    });
+
+    it('deve ignorar NEGATIVE quando houver POSITIVE recente na janela configurada', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+      };
+
+      const recentPositive = {
+        ...mockReport,
+        id: 92,
+        report_type: 'POSITIVE',
+        created_at: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 60 },
+          { key: 'negative_block_if_positive_within_min', value: 60 },
+        ] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([recentPositive] as any);
+
+      const result = await service.create(createDto, 1);
+
+      expect(result.id).toBe(92);
+      expect(result.reportType).toBe('POSITIVE');
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+      expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
     });
   });
 

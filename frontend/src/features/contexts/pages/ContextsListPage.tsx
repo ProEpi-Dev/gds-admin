@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -7,26 +7,25 @@ import {
   Chip,
   IconButton,
   Stack,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
-import SelectLocation from '../../../components/common/SelectLocation';
 import { useContexts, useDeleteContext } from '../hooks/useContexts';
 import { useTranslation } from '../../../hooks/useTranslation';
-import type { Context, ContextAccessType } from '../../../types/context.types';
+import { useDebounce } from '../../../hooks/useDebounce';
+import type { Context } from '../../../types/context.types';
 
 export default function ContextsListPage() {
   const navigate = useNavigate();
@@ -34,19 +33,21 @@ export default function ContextsListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
-  const [locationFilter, setLocationFilter] = useState<number | undefined>(undefined);
-  const [accessTypeFilter, setAccessTypeFilter] = useState<ContextAccessType | undefined>(
-    undefined,
-  );
+  const [searchTerm, setSearchTerm] = useState('');
   const [contextToDelete, setContextToDelete] = useState<Context | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const debouncedSearch = useDebounce(searchTerm, 400);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const { data, isLoading, error } = useContexts({
     page,
     pageSize,
     active: activeFilter,
-    locationId: locationFilter,
-    accessType: accessTypeFilter,
+    search: debouncedSearch.trim() || undefined,
   });
 
   const deleteMutation = useDeleteContext();
@@ -173,24 +174,12 @@ export default function ContextsListPage() {
           },
         ]
       : []),
-    ...(locationFilter !== undefined
+    ...(searchTerm.trim()
       ? [
           {
-            label: t('contexts.location'),
-            value: `#${locationFilter}`,
-            onDelete: () => setLocationFilter(undefined),
-          },
-        ]
-      : []),
-    ...(accessTypeFilter !== undefined
-      ? [
-          {
-            label: t('contexts.accessType'),
-            value:
-              accessTypeFilter === 'PUBLIC'
-                ? t('contexts.accessTypePublic')
-                : t('contexts.accessTypePrivate'),
-            onDelete: () => setAccessTypeFilter(undefined),
+            label: t('contexts.searchByName'),
+            value: searchTerm.trim(),
+            onDelete: () => setSearchTerm(''),
           },
         ]
       : []),
@@ -234,34 +223,21 @@ export default function ContextsListPage() {
             alignItems: 'center',
           }}
         >
-          <Box sx={{ minWidth: 220, flexGrow: 1 }}>
-            <SelectLocation
-              value={locationFilter || null}
-              onChange={(id) => setLocationFilter(id || undefined)}
-              label={t('contexts.filterByLocation')}
-              activeOnly={false}
-            />
-          </Box>
-
-          <FormControl sx={{ minWidth: 160 }}>
-            <InputLabel>{t('contexts.filterByAccessType')}</InputLabel>
-            <Select
-              value={accessTypeFilter ?? ''}
-              label={t('contexts.filterByAccessType')}
-              onChange={(event) => {
-                const value = event.target.value as string;
-                setAccessTypeFilter(
-                  value === '' || value === undefined ? undefined : (value as ContextAccessType),
-                );
-              }}
-            >
-              <MenuItem value="">
-                <em>{t('common.clear')}</em>
-              </MenuItem>
-              <MenuItem value="PUBLIC">{t('contexts.accessTypePublic')}</MenuItem>
-              <MenuItem value="PRIVATE">{t('contexts.accessTypePrivate')}</MenuItem>
-            </Select>
-          </FormControl>
+          <TextField
+            size="small"
+            label={t('contexts.searchByName')}
+            placeholder={t('contexts.searchByNamePlaceholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ minWidth: 260, flexGrow: 1, maxWidth: 480 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
 
           <Button
             variant={activeFilter === true ? 'contained' : 'outlined'}
@@ -283,8 +259,7 @@ export default function ContextsListPage() {
           filters={filters}
           onClearAll={() => {
             setActiveFilter(undefined);
-            setLocationFilter(undefined);
-            setAccessTypeFilter(undefined);
+            setSearchTerm('');
           }}
         />
 
@@ -315,5 +290,3 @@ export default function ContextsListPage() {
     </>
   );
 }
-
-

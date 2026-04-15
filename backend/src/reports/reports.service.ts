@@ -41,6 +41,8 @@ type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
  * precisar de recálculo (backfill) se o produto exigir consistência retroativa.
  */
 export const REPORT_STREAK_AGGREGATION_TZ = 'America/Sao_Paulo' as const;
+const DEFAULT_NEGATIVE_REPORT_DEDUP_WINDOW_MIN = 60;
+const DEFAULT_NEGATIVE_BLOCK_IF_POSITIVE_WITHIN_MIN = 60;
 
 @Injectable()
 export class ReportsService {
@@ -125,6 +127,54 @@ export class ReportsService {
 
   private normalizeReportChannel(channel?: string): 'web' | 'app' {
     return channel?.toLowerCase() === 'web' ? 'web' : 'app';
+  }
+
+  private asPositiveIntOrDefault(value: unknown, fallback: number): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return fallback;
+    }
+    const normalized = Math.floor(value);
+    return normalized > 0 ? normalized : fallback;
+  }
+
+  private subtractMinutes(base: Date, minutes: number): Date {
+    return new Date(base.getTime() - minutes * 60 * 1000);
+  }
+
+  private async getContextReportRules(contextId: number): Promise<{
+    negativeDedupWindowMin: number;
+    negativeBlockIfPositiveWithinMin: number;
+  }> {
+    const rows = await this.prisma.context_configuration.findMany({
+      where: {
+        context_id: contextId,
+        key: {
+          in: [
+            'negative_report_dedup_window_min',
+            'negative_block_if_positive_within_min',
+          ],
+        },
+      },
+      select: {
+        key: true,
+        value: true,
+      },
+    });
+
+    const entries = new Map(rows.map((row) => [row.key, row.value as unknown]));
+    const negativeDedupWindowMin = this.asPositiveIntOrDefault(
+      entries.get('negative_report_dedup_window_min'),
+      DEFAULT_NEGATIVE_REPORT_DEDUP_WINDOW_MIN,
+    );
+    const negativeBlockIfPositiveWithinMin = this.asPositiveIntOrDefault(
+      entries.get('negative_block_if_positive_within_min'),
+      DEFAULT_NEGATIVE_BLOCK_IF_POSITIVE_WITHIN_MIN,
+    );
+
+    return {
+      negativeDedupWindowMin,
+      negativeBlockIfPositiveWithinMin,
+    };
   }
 
   private formatDateOnly(value?: Date | null): string | null {
@@ -369,6 +419,76 @@ export class ReportsService {
       throw new BadRequestException(
         `Versão do formulário com ID ${createReportDto.formVersionId} não encontrada`,
       );
+    }
+
+    // Idempotência para NEGATIVE:
+    // 1) ignora clique sequencial recente de NEGATIVE
+    // 2) ignora NEGATIVE se houve POSITIVE recente (regra configurável por contexto)
+    if (createReportDto.reportType === report_type_enum.NEGATIVE) {
+      const now = new Date();
+      const {
+        negativeDedupWindowMin,
+        negativeBlockIfPositiveWithinMin,
+      } = await this.getContextReportRules(participation.context_id);
+
+      const biggestWindow = Math.max(
+        negativeDedupWindowMin,
+        negativeBlockIfPositiveWithinMin,
+      );
+      const lookupStart = this.subtractMinutes(now, biggestWindow);
+      const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
+      const positiveBlockStart = this.subtractMinutes(
+        now,
+        negativeBlockIfPositiveWithinMin,
+      );
+
+      const recentReports = await this.prisma.report.findMany({
+        where: {
+          participation_id: createReportDto.participationId,
+          active: true,
+          created_at: {
+            gte: lookupStart,
+          },
+          report_type: {
+            in: [report_type_enum.NEGATIVE, report_type_enum.POSITIVE],
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      const recentNegative = recentReports.find(
+        (report) =>
+          report.report_type === report_type_enum.NEGATIVE &&
+          report.created_at >= dedupStart,
+      );
+      if (recentNegative) {
+        this.logger.debug(
+          {
+            participationId: createReportDto.participationId,
+            reportId: recentNegative.id,
+            dedupWindowMin: negativeDedupWindowMin,
+          },
+          'Report NEGATIVE ignorado por idempotência na janela temporal',
+        );
+        return this.mapToResponseDto(recentNegative);
+      }
+
+      const recentPositive = recentReports.find(
+        (report) =>
+          report.report_type === report_type_enum.POSITIVE &&
+          report.created_at >= positiveBlockStart,
+      );
+      if (recentPositive) {
+        this.logger.debug(
+          {
+            participationId: createReportDto.participationId,
+            positiveReportId: recentPositive.id,
+            blockWindowMin: negativeBlockIfPositiveWithinMin,
+          },
+          'Report NEGATIVE ignorado por existência de POSITIVE recente',
+        );
+        return this.mapToResponseDto(recentPositive);
+      }
     }
 
     // Preparar dados

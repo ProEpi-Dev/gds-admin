@@ -35,6 +35,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserRole } from '../../hooks/useUserRole';
 import { useTranslation } from '../../hooks/useTranslation';
 import { hasModule, resolveEnabledModules } from '../../features/app/utils/contextModules';
+import LogoGds from '../common/LogoGds';
 
 function getRoleLabel(
   isAdmin: boolean,
@@ -113,7 +114,11 @@ export default function UserLayout({ children }: UserLayoutProps) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="fixed">
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{ boxShadow: 'none' }}
+      >
         <Toolbar>
           <IconButton
             color="inherit"
@@ -124,9 +129,12 @@ export default function UserLayout({ children }: UserLayoutProps) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            Guardiões da Saúde
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexGrow: 1, minWidth: 0 }}>
+            <LogoGds height={30} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }} noWrap component="span">
+              Guardiões da Saúde
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -149,6 +157,24 @@ export default function UserLayout({ children }: UserLayoutProps) {
             <Skeleton variant="rounded" width={100} height={22} />
           ) : (
             <Chip label={roleLabel} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+          )}
+          {user?.participation?.context?.name && (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ fontWeight: 600, mb: 0.25 }}
+              >
+                {t('userLayout.context')}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ lineHeight: 1.35, wordBreak: 'break-word' }}
+              >
+                {user.participation.context.name}
+              </Typography>
+            </Box>
           )}
         </Box>
         <Divider />

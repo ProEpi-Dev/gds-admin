@@ -25,6 +25,7 @@ describe('UsersService', () => {
   let prismaService: PrismaService;
   let legalDocumentsService: LegalDocumentsService;
   let getProfileExtraCompletionMock: jest.Mock;
+  let getActiveParticipationContextIdMock: jest.Mock;
 
   const mockUser = {
     id: 1,
@@ -32,8 +33,10 @@ describe('UsersService', () => {
     email: 'test@example.com',
     password: 'hashedPassword',
     gender_id: null,
+    country_location_id: null,
     location_id: null,
     external_identifier: null,
+    phone: null,
     active: true,
     created_at: new Date('2024-01-01'),
     updated_at: new Date('2024-01-01'),
@@ -43,6 +46,9 @@ describe('UsersService', () => {
     getProfileExtraCompletionMock = jest
       .fn()
       .mockResolvedValue({ required: false, complete: true });
+    getActiveParticipationContextIdMock = jest
+      .fn()
+      .mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -78,6 +84,9 @@ describe('UsersService', () => {
             context: {
               findMany: jest.fn(),
             },
+            context_configuration: {
+              findMany: jest.fn().mockResolvedValue([]),
+            },
           },
         },
         {
@@ -99,6 +108,8 @@ describe('UsersService', () => {
           useValue: {
             getProfileExtraCompletion: (...args: unknown[]) =>
               getProfileExtraCompletionMock(...args),
+            getActiveParticipationContextId: (...args: unknown[]) =>
+              getActiveParticipationContextIdMock(...args),
           },
         },
       ],
@@ -764,8 +775,13 @@ describe('UsersService', () => {
 
       expect(result.isComplete).toBe(false);
       expect(result.missingFields).toContain('genderId');
+      expect(result.missingFields).not.toContain('countryLocationId');
+      expect(result.missingFields).not.toContain('phone');
       expect(result.missingFields).toContain('locationId');
       expect(result.missingFields).toContain('externalIdentifier');
+      expect(result.profileFieldRequirements.gender).toBe(true);
+      expect(result.profileFieldRequirements.country).toBe(false);
+      expect(result.profileFieldRequirements.phone).toBe(false);
       expect(result.profileExtraRequired).toBe(false);
       expect(result.profileExtraComplete).toBe(true);
     });
@@ -790,6 +806,36 @@ describe('UsersService', () => {
       expect(result.profile.externalIdentifier).toBe('12345678900');
       expect(result.profileExtraRequired).toBe(false);
       expect(result.profileExtraComplete).toBe(true);
+      expect(result.profileFieldRequirements.country).toBe(false);
+    });
+
+    it('deve exigir país e telefone quando context_configuration exigir', async () => {
+      getActiveParticipationContextIdMock.mockResolvedValue(99);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'profile_require_country', value: true },
+          { key: 'profile_require_phone', value: true },
+        ] as any);
+      const userPartial = {
+        ...mockUser,
+        gender_id: 1,
+        location_id: 150,
+        external_identifier: '12345678900',
+        country_location_id: null,
+        phone: null,
+      };
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(userPartial as any);
+
+      const result = await service.getProfileStatus(1);
+
+      expect(result.profileFieldRequirements.country).toBe(true);
+      expect(result.profileFieldRequirements.phone).toBe(true);
+      expect(result.missingFields).toContain('countryLocationId');
+      expect(result.missingFields).toContain('phone');
+      expect(result.isComplete).toBe(false);
     });
 
     it('deve lançar NotFoundException quando usuário não existe', async () => {

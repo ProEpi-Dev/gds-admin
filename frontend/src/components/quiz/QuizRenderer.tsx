@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box, Button, Paper, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import FormRenderer, { type FormRendererHandle } from '../form-renderer/FormRenderer';
 import QuizTimer from './QuizTimer';
 import QuizAttempts from './QuizAttempts';
@@ -32,6 +32,7 @@ export default function QuizRenderer({
   const [isCompleted, setIsCompleted] = useState(false);
   const [currentSubmission, setCurrentSubmission] =
     useState<QuizSubmission | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const quizFormRef = useRef<FormRendererHandle>(null);
 
   const timeLimitMinutes = metadata?.timeLimitMinutes ?? null;
@@ -84,9 +85,16 @@ export default function QuizRenderer({
     };
 
     if (onSubmit) {
-      const submission = await onSubmit(submissionData);
-      setCurrentSubmission(submission);
-      setIsCompleted(true);
+      setIsSubmitting(true);
+      try {
+        const submission = await onSubmit(submissionData);
+        setCurrentSubmission(submission);
+        setIsCompleted(true);
+      } catch {
+        // Erro tratado pelo componente pai (ex.: snackbar)
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -196,8 +204,15 @@ export default function QuizRenderer({
             variant="contained"
             color="primary"
             onClick={handleSubmit}
+            disabled={isSubmitting}
+            startIcon={
+              isSubmitting ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : undefined
+            }
+            sx={{ minWidth: 200 }}
           >
-            Finalizar Quiz
+            {isSubmitting ? 'Carregando...' : 'Finalizar Quiz'}
           </Button>
         </Box>
       )}

@@ -2,7 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReportIntegrationsService } from './report-integrations.service';
 import { EphemClient } from './ephem.client';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { IntegrationEventQueryDto } from './dto/integration-event-query.dto';
+import { UpsertIntegrationConfigDto } from './dto/upsert-integration-config.dto';
 
 describe('ReportIntegrationsService', () => {
   let service: ReportIntegrationsService;
@@ -749,6 +755,756 @@ describe('ReportIntegrationsService', () => {
 
       const payload = ephemClient.createEvent.mock.calls[0][1];
       expect(payload.aditionalData['Quem são os afetados?']).toBe('ok');
+    });
+
+    it('retorna cedo quando o report não é elegível', async () => {
+      prisma.report.findUnique.mockResolvedValue({
+        id: 1,
+        report_type: 'NEGATIVE',
+        form_version: { form: { type: 'signal' } },
+        participation: {
+          context: {
+            context_module: [{ module_code: 'community_signal' }],
+          },
+        },
+      });
+      await service.dispatchIntegrationEvent(1);
+      expect(prisma.integration_config.findFirst).not.toHaveBeenCalled();
+      expect(ephemClient.createEvent).not.toHaveBeenCalled();
+    });
+
+    it('retorna cedo quando não há configuração ativa', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 2,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 2,
+          form_response: {},
+          participation: {
+            context_id: 9,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'A',
+              phone: null,
+              location_id: null,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: { form: { type: 'signal' }, definition: null },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue(null);
+      await service.dispatchIntegrationEvent(2);
+      expect(ephemClient.createEvent).not.toHaveBeenCalled();
+    });
+
+    it('retorna cedo quando a URL do ambiente não está configurada', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 3,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 3,
+          form_response: {},
+          participation: {
+            context_id: 9,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'A',
+              phone: null,
+              location_id: null,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: { form: { type: 'signal' }, definition: null },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 9,
+        base_url_production: null,
+        base_url_homologation: null,
+        auth_config: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      await service.dispatchIntegrationEvent(3);
+      expect(ephemClient.createEvent).not.toHaveBeenCalled();
+    });
+
+    it('usa base de homologação em modo treinamento', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 4,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 4,
+          form_response: { f: 'x' },
+          participation: {
+            context_id: 9,
+            integration_training_mode: true,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'A',
+              phone: null,
+              location_id: null,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: {
+            form: { type: 'signal' },
+            definition: { fields: [{ name: 'f', label: 'F', type: 'text' }] },
+          },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 9,
+        base_url_production: 'https://prod',
+        base_url_homologation: 'https://homolog',
+        auth_config: { token: 't' },
+        payload_mapping: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      prisma.report_integration_event.upsert.mockResolvedValue({
+        id: 1,
+        attempt_count: 0,
+      });
+      ephemClient.createEvent.mockResolvedValue({ id: 'h1' });
+      await service.dispatchIntegrationEvent(4);
+      expect(ephemClient.createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: 'https://homolog' }),
+        expect.anything(),
+      );
+    });
+
+    it('marca evento como pending quando Ephem falha e ainda há retries', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 5,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 5,
+          form_response: {},
+          participation: {
+            context_id: 9,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'A',
+              phone: null,
+              location_id: null,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: { form: { type: 'signal' }, definition: null },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 9,
+        base_url_production: 'https://prod',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        payload_mapping: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      prisma.report_integration_event.upsert.mockResolvedValue({
+        id: 10,
+        attempt_count: 0,
+      });
+      ephemClient.createEvent.mockRejectedValue(new Error('timeout'));
+      await service.dispatchIntegrationEvent(5);
+      expect(prisma.report_integration_event.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'pending' }),
+        }),
+      );
+    });
+
+    it('resolve país subindo hierarquia de location até org_level COUNTRY', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 201,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 201,
+          form_response: { f: 'y' },
+          participation: {
+            context_id: 2,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'U',
+              phone: null,
+              location_id: 50,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: {
+            form: { type: 'signal' },
+            definition: {
+              fields: [{ name: 'f', label: 'F', type: 'text' }],
+            },
+          },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 2,
+        base_url_production: 'https://prod',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        payload_mapping: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      prisma.report_integration_event.upsert.mockResolvedValue({
+        id: 1,
+        attempt_count: 0,
+      });
+      prisma.location.findUnique
+        .mockResolvedValueOnce({
+          id: 50,
+          name: 'Cidade',
+          parent_id: 60,
+          org_level: 'CITY_COUNCIL',
+        })
+        .mockResolvedValueOnce({
+          id: 60,
+          name: 'Nação Teste',
+          parent_id: null,
+          org_level: 'COUNTRY',
+        });
+      ephemClient.createEvent.mockResolvedValue({ id: 'ok' });
+
+      await service.dispatchIntegrationEvent(201);
+
+      const payload = ephemClient.createEvent.mock.calls[0][1];
+      expect(payload.userCountry).toBe('Nação Teste');
+    });
+
+    it('preenche país do usuário via country_location_id no payload', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 200,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 200,
+          form_response: { titulo: 'x' },
+          participation: {
+            context_id: 2,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'Nome',
+              phone: null,
+              location_id: null,
+              country_location_id: 900,
+            },
+            context: {},
+          },
+          form_version: {
+            form: { type: 'signal' },
+            definition: {
+              fields: [{ name: 'titulo', label: 'Título', type: 'text' }],
+            },
+          },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 2,
+        base_url_production: 'https://prod',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        payload_mapping: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      prisma.report_integration_event.upsert.mockResolvedValue({
+        id: 1,
+        attempt_count: 0,
+      });
+      prisma.location.findUnique.mockResolvedValue({
+        name: 'País X',
+      });
+      ephemClient.createEvent.mockResolvedValue({ id: 'ok' });
+
+      await service.dispatchIntegrationEvent(200);
+
+      const payload = ephemClient.createEvent.mock.calls[0][1];
+      expect(payload.userCountry).toBe('País X');
+      expect(prisma.location.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 900 } }),
+      );
+    });
+
+    it('marca evento como failed quando Ephem falha sem retries restantes', async () => {
+      prisma.report.findUnique
+        .mockResolvedValueOnce({
+          id: 6,
+          report_type: 'POSITIVE',
+          form_version: { form: { type: 'signal' } },
+          participation: {
+            context: {
+              context_module: [{ module_code: 'community_signal' }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          id: 6,
+          form_response: {},
+          participation: {
+            context_id: 9,
+            integration_training_mode: false,
+            user: {
+              id: 1,
+              email: 'a@b.c',
+              name: 'A',
+              phone: null,
+              location_id: null,
+              country_location_id: null,
+            },
+            context: {},
+          },
+          form_version: { form: { type: 'signal' }, definition: null },
+        });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 1,
+        context_id: 9,
+        base_url_production: 'https://prod',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        payload_mapping: {},
+        timeout_ms: 30000,
+        max_retries: 3,
+      });
+      prisma.report_integration_event.upsert.mockResolvedValue({
+        id: 11,
+        attempt_count: 2,
+      });
+      ephemClient.createEvent.mockRejectedValue(new Error('fatal'));
+      await service.dispatchIntegrationEvent(6);
+      expect(prisma.report_integration_event.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'failed' }),
+        }),
+      );
+    });
+  });
+
+  describe('retryIntegration', () => {
+    it('deve reenviar e retornar evento atualizado', async () => {
+      const dispatchSpy = jest
+        .spyOn(service, 'dispatchIntegrationEvent')
+        .mockResolvedValue(undefined);
+
+      prisma.report_integration_event.findUnique
+        .mockResolvedValueOnce({
+          id: 20,
+          status: 'failed',
+          report_id: 77,
+        })
+        .mockResolvedValueOnce({
+          id: 20,
+          report_id: 77,
+          external_event_id: 'ext-77',
+          status: 'sent',
+          environment: 'production',
+          attempt_count: 1,
+          last_attempt_at: new Date(),
+          last_error: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          messages: [],
+        });
+
+      prisma.report_integration_event.update.mockResolvedValue({});
+
+      const result = await service.retryIntegration(20);
+
+      expect(dispatchSpy).toHaveBeenCalledWith(77);
+      expect(result.reportId).toBe(77);
+      expect(result.status).toBe('sent');
+      dispatchSpy.mockRestore();
+    });
+  });
+
+  describe('syncMessages', () => {
+    it('lança NotFound quando o evento não existe', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue(null);
+      await expect(service.syncMessages(1)).rejects.toThrow(NotFoundException);
+    });
+
+    it('retorna lista vazia quando não há external_event_id', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: null,
+        report: {
+          participation: { context_id: 1 },
+        },
+      });
+      await expect(service.syncMessages(1)).resolves.toEqual([]);
+    });
+
+    it('retorna lista vazia sem config ativa', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: '99',
+        environment: 'production',
+        report: {
+          participation: { context_id: 1 },
+        },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue(null);
+      await expect(service.syncMessages(1)).resolves.toEqual([]);
+    });
+
+    it('retorna lista vazia quando URL do ambiente não está definida', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: '99',
+        environment: 'homologation',
+        report: {
+          participation: { context_id: 1 },
+        },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: 'https://p',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        timeout_ms: 5000,
+      });
+      await expect(service.syncMessages(1)).resolves.toEqual([]);
+    });
+
+    it('persiste mensagens recebidas da Ephem', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 3,
+        external_event_id: 'ext-1',
+        environment: 'production',
+        report: {
+          participation: { context_id: 5 },
+        },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: 'https://api.test',
+        base_url_homologation: null,
+        auth_config: { token: 'tok' },
+        timeout_ms: 8000,
+      });
+      ephemClient.getMessages.mockResolvedValue([
+        {
+          id: 'm-ext',
+          message: 'ola',
+          author: 'suporte',
+          createdAt: '2024-06-01T12:00:00.000Z',
+        },
+      ]);
+      prisma.report_integration_message.upsert.mockResolvedValue({});
+      const createdAt = new Date('2024-06-01T12:00:00.000Z');
+      prisma.report_integration_message.findMany.mockResolvedValue([
+        {
+          id: 100,
+          external_message_id: 'm-ext',
+          direction: 'inbound',
+          body: 'ola',
+          author: 'suporte',
+          remote_created_at: createdAt,
+          created_at: createdAt,
+        },
+      ]);
+
+      const rows = await service.syncMessages(3);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].body).toBe('ola');
+      expect(ephemClient.getMessages).toHaveBeenCalled();
+    });
+  });
+
+  describe('sendMessage', () => {
+    it('lança NotFound quando o evento não existe', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue(null);
+      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('lança BadRequest quando o evento ainda não foi integrado', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: null,
+        report: { participation: { context_id: 1 } },
+      });
+      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('lança BadRequest quando não há config', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: 'e1',
+        environment: 'production',
+        report: { participation: { context_id: 1 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue(null);
+      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('lança BadRequest quando falta URL do ambiente', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: 'e1',
+        environment: 'production',
+        report: { participation: { context_id: 1 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: null,
+        base_url_homologation: null,
+        auth_config: {},
+        timeout_ms: 3000,
+      });
+      await expect(service.sendMessage(1, 'oi')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('envia mensagem e persiste resposta', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 2,
+        external_event_id: 'e9',
+        environment: 'production',
+        report: { participation: { context_id: 3 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: 'https://api',
+        base_url_homologation: null,
+        auth_config: { token: 't' },
+        timeout_ms: 3000,
+      });
+      ephemClient.sendMessage.mockResolvedValue({ id: 'out-1' });
+      prisma.report_integration_message.create.mockResolvedValue({
+        id: 50,
+        external_message_id: 'out-1',
+        direction: 'outbound',
+        body: 'texto',
+        author: null,
+        remote_created_at: null,
+        created_at: new Date(),
+      });
+
+      const dto = await service.sendMessage(2, 'texto');
+      expect(dto.body).toBe('texto');
+      expect(ephemClient.sendMessage).toHaveBeenCalled();
+    });
+  });
+
+  describe('findEvents', () => {
+    it('retorna lista paginada e meta', async () => {
+      prisma.report_integration_event.findMany.mockResolvedValue([
+        {
+          id: 1,
+          report_id: 10,
+          external_event_id: null,
+          status: 'pending',
+          environment: 'production',
+          attempt_count: 0,
+          last_attempt_at: null,
+          last_error: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          messages: [],
+        },
+      ]);
+      prisma.report_integration_event.count.mockResolvedValue(1);
+
+      const q = Object.assign(new IntegrationEventQueryDto(), {
+        page: 1,
+        pageSize: 20,
+        status: 'pending',
+        contextId: 7,
+      });
+
+      const res = await service.findEvents(q);
+      expect(res.data).toHaveLength(1);
+      expect(res.meta.page).toBe(1);
+      expect(res.meta.totalItems).toBe(1);
+      expect(res.links.first).toContain('/v1/report-integrations');
+    });
+  });
+
+  describe('findEventsByParticipationForUser', () => {
+    it('lança Forbidden quando participação não pertence ao usuário', async () => {
+      prisma.participation.findFirst.mockResolvedValue(null);
+      await expect(service.findEventsByParticipationForUser(9, 1)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('lista eventos com estágio quando Ephem responde', async () => {
+      prisma.participation.findFirst.mockResolvedValue({
+        id: 3,
+        context_id: 2,
+        user_id: 8,
+        integration_training_mode: false,
+      });
+      prisma.report_integration_event.findMany.mockResolvedValue([
+        {
+          id: 30,
+          report_id: 100,
+          external_event_id: '200',
+          status: 'sent',
+          environment: 'production',
+          attempt_count: 0,
+          last_attempt_at: null,
+          last_error: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ]);
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: 'https://ephem',
+        base_url_homologation: null,
+        auth_config: { token: 'x' },
+        timeout_ms: 10000,
+      });
+      ephemClient.listSignals.mockResolvedValue([
+        { eventId: 200, dados: { signal_stage_state_id: [4, 'Fechado'] } },
+      ]);
+
+      const list = await service.findEventsByParticipationForUser(3, 8);
+      expect(list).toHaveLength(1);
+      expect(list[0].externalSignalStageId).toBe(4);
+      expect(list[0].externalSignalStageLabel).toBe('Fechado');
+    });
+  });
+
+  describe('upsertConfig', () => {
+    it('cria primeira versão quando não existe config', async () => {
+      prisma.integration_config.findFirst.mockResolvedValue(null);
+      const now = new Date();
+      prisma.integration_config.create.mockResolvedValue({
+        id: 1,
+        context_id: 10,
+        version: 1,
+        is_active: true,
+        base_url_production: 'https://prod',
+        base_url_homologation: 'https://hom',
+        auth_config: { type: 'static_token', token: 'sec' },
+        payload_mapping: { templateId: '/1' },
+        timeout_ms: 15000,
+        max_retries: 5,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const dto = Object.assign(new UpsertIntegrationConfigDto(), {
+        isActive: true,
+        baseUrlProduction: 'https://prod',
+        baseUrlHomologation: 'https://hom',
+        authConfig: { type: 'static_token', token: 'sec' },
+        timeoutMs: 15000,
+        maxRetries: 5,
+      });
+
+      const res = await service.upsertConfig(10, dto);
+      expect(res.version).toBe(1);
+      expect(prisma.integration_config.create).toHaveBeenCalled();
+    });
+
+    it('desativa config anterior e incrementa versão', async () => {
+      prisma.integration_config.findFirst.mockResolvedValue({
+        id: 5,
+        version: 3,
+        is_active: true,
+        auth_config: { token: 'old' },
+        payload_mapping: {
+          templateId: '/1',
+          templateFieldKey: 'eventoIntegracaoTemplate',
+        },
+      });
+      prisma.integration_config.update.mockResolvedValue({});
+      const now = new Date();
+      prisma.integration_config.create.mockResolvedValue({
+        id: 6,
+        context_id: 10,
+        version: 4,
+        is_active: true,
+        base_url_production: 'https://new',
+        base_url_homologation: null,
+        auth_config: { token: 'new' },
+        payload_mapping: { templateId: '/2' },
+        timeout_ms: 30000,
+        max_retries: 3,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const dto = Object.assign(new UpsertIntegrationConfigDto(), {
+        templateId: '/2',
+        baseUrlProduction: 'https://new',
+      });
+
+      const res = await service.upsertConfig(10, dto);
+      expect(prisma.integration_config.update).toHaveBeenCalled();
+      expect(res.version).toBe(4);
+      expect(res.templateId).toBe('/2');
     });
   });
 });

@@ -200,7 +200,7 @@ export default function QuizFormsListPage() {
             </IconButton>
             <IconButton
               size="small"
-              onClick={() => navigate(`/form-builder?formId=${row.id}`)}
+              onClick={() => navigate(`/forms/${row.id}`)}
               title={t("common.edit")}
               color="primary"
             >

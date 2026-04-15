@@ -5,6 +5,7 @@ import type {
   UpdateContextDto,
   ContextQuery,
   Context,
+  ContextConfigurationEntry,
 } from "../../types/context.types";
 import type { ListResponse } from "../../types/api.types";
 
@@ -27,6 +28,8 @@ export const contextsService = {
     if (query?.locationId)
       params.append("locationId", query.locationId.toString());
     if (query?.accessType) params.append("accessType", query.accessType);
+    if (query?.search?.trim())
+      params.append("search", query.search.trim());
 
     const response = await apiClient.get(
       `${API_ENDPOINTS.CONTEXTS.LIST_ADMIN}?${params.toString()}`
@@ -55,6 +58,27 @@ export const contextsService = {
 
   async findOne(id: number): Promise<Context> {
     const response = await apiClient.get(API_ENDPOINTS.CONTEXTS.DETAIL(id));
+    return response.data;
+  },
+
+  async getConfiguration(
+    contextId: number,
+  ): Promise<ContextConfigurationEntry[]> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.CONTEXTS.CONFIGURATION(contextId),
+    );
+    return response.data;
+  },
+
+  async upsertConfiguration(
+    contextId: number,
+    key: string,
+    value: unknown,
+  ): Promise<ContextConfigurationEntry> {
+    const response = await apiClient.put(
+      API_ENDPOINTS.CONTEXTS.CONFIGURATION_KEY(contextId, key),
+      { value },
+    );
     return response.data;
   },
 

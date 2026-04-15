@@ -4,6 +4,8 @@ import {
   type IntegrationEventQuery,
   type UpsertIntegrationConfigDto,
 } from '../../../api/services/report-integrations.service';
+import { useSnackbar } from '../../../hooks/useSnackbar';
+import { getErrorMessage } from '../../../utils/errorHandler';
 
 export function useIntegrationEvents(query: IntegrationEventQuery) {
   return useQuery({
@@ -53,6 +55,7 @@ export function useIntegrationMessages(eventId: number | null) {
 
 export function useSendIntegrationMessage() {
   const queryClient = useQueryClient();
+  const { showError } = useSnackbar();
   return useMutation({
     mutationFn: ({ eventId, message }: { eventId: number; message: string }) =>
       reportIntegrationsService.sendMessage(eventId, message),
@@ -63,6 +66,20 @@ export function useSendIntegrationMessage() {
       queryClient.invalidateQueries({
         queryKey: ['integration-events-by-participation'],
       });
+    },
+    onError: (error) => {
+      const detail = getErrorMessage(
+        error,
+        'Não foi possível enviar a mensagem.',
+      );
+      const generic =
+        /^internal server error$/i.test(detail.trim()) ||
+        /^request failed with status code 5\d\d$/i.test(detail.trim());
+      showError(
+        generic
+          ? 'Não foi possível enviar a mensagem. Tente novamente em instantes.'
+          : detail,
+      );
     },
   });
 }

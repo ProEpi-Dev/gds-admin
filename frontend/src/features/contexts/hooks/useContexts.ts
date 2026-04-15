@@ -4,6 +4,7 @@ import type {
   CreateContextDto,
   UpdateContextDto,
   ContextQuery,
+  ContextConfigurationEntry,
 } from '../../../types/context.types';
 
 export function useContexts(query?: ContextQuery) {
@@ -52,6 +53,31 @@ export function useDeleteContext() {
     mutationFn: (id: number) => contextsService.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contexts'] });
+    },
+  });
+}
+
+export function useContextConfiguration(contextId: number | null) {
+  return useQuery({
+    queryKey: ['context-configuration', contextId],
+    queryFn: () =>
+      contextId != null
+        ? contextsService.getConfiguration(contextId)
+        : Promise.resolve([] as ContextConfigurationEntry[]),
+    enabled: contextId != null,
+  });
+}
+
+export function useUpsertContextConfiguration(contextId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ key, value }: { key: string; value: unknown }) =>
+      contextsService.upsertConfiguration(contextId, key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['context-configuration', contextId],
+      });
     },
   });
 }

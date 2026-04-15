@@ -79,8 +79,9 @@ export interface SignupDto {
 }
 
 export interface SignupResponse {
-  accessToken: string;
-  refreshToken: string;
+  emailVerificationRequired?: boolean;
+  accessToken?: string;
+  refreshToken?: string;
   user: {
     id: number;
     name: string;

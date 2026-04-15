@@ -190,9 +190,15 @@ export default function AppLearnContentPage() {
                   variant="contained"
                   disabled={completeContentMutation.isPending}
                   onClick={() => completeContentMutation.mutate()}
+                  startIcon={
+                    completeContentMutation.isPending ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : undefined
+                  }
+                  sx={{ minWidth: 220, alignSelf: "flex-start" }}
                 >
                   {completeContentMutation.isPending
-                    ? "Salvando..."
+                    ? "Carregando..."
                     : "Marcar como concluído"}
                 </Button>
               </Stack>

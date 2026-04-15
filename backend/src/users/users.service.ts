@@ -455,16 +455,34 @@ export class UsersService {
       throw new NotFoundException(`Usuário com ID ${userId} não encontrado`);
     }
 
+    const contextId =
+      await this.participationProfileExtraService.getActiveParticipationContextId(
+        userId,
+      );
+    const profileFieldRequirements =
+      await this.resolveProfileFieldRequirements(contextId);
+
     const missingFields: string[] = [];
 
-    if (!user.gender_id) {
+    if (profileFieldRequirements.gender && !user.gender_id) {
       missingFields.push('genderId');
     }
-    if (!user.location_id) {
+    if (profileFieldRequirements.country && !user.country_location_id) {
+      missingFields.push('countryLocationId');
+    }
+    if (profileFieldRequirements.location && !user.location_id) {
       missingFields.push('locationId');
     }
-    if (!user.external_identifier) {
+    if (
+      profileFieldRequirements.externalIdentifier &&
+      (!user.external_identifier || !user.external_identifier.trim())
+    ) {
       missingFields.push('externalIdentifier');
+    }
+    const phoneOk =
+      typeof user.phone === 'string' && user.phone.trim().length > 0;
+    if (profileFieldRequirements.phone && !phoneOk) {
+      missingFields.push('phone');
     }
 
     const { required: profileExtraRequired, complete: profileExtraComplete } =
@@ -476,10 +494,8 @@ export class UsersService {
       missingFields.push('profileExtra');
     }
 
-    const baseComplete =
-      !missingFields.includes('genderId') &&
-      !missingFields.includes('locationId') &&
-      !missingFields.includes('externalIdentifier');
+    const baseMissing = missingFields.filter((f) => f !== 'profileExtra');
+    const baseComplete = baseMissing.length === 0;
 
     const isComplete =
       baseComplete && (!profileExtraRequired || profileExtraComplete);
@@ -490,12 +506,99 @@ export class UsersService {
       profile: {
         genderId: user.gender_id,
         locationId: user.location_id,
-        countryLocationId: (user as any).country_location_id ?? null,
+        countryLocationId: user.country_location_id ?? null,
         externalIdentifier: user.external_identifier,
-        phone: (user as any).phone ?? null,
+        phone: user.phone ?? null,
       },
+      profileFieldRequirements,
       profileExtraRequired,
       profileExtraComplete,
+    };
+  }
+
+  /**
+   * Padrões quando não há participação ativa (sem contexto): gênero, localização e
+   * identificador obrigatórios; país e telefone opcionais.
+   * Com participação: lê `context_configuration` (chaves profile_require_*).
+   */
+  private defaultProfileFieldRequirements(): {
+    gender: boolean;
+    country: boolean;
+    location: boolean;
+    externalIdentifier: boolean;
+    phone: boolean;
+  } {
+    return {
+      gender: true,
+      country: false,
+      location: true,
+      externalIdentifier: true,
+      phone: false,
+    };
+  }
+
+  private parseProfileRequireBool(
+    raw: Prisma.JsonValue | undefined,
+    defaultValue: boolean,
+  ): boolean {
+    if (raw === undefined || raw === null) {
+      return defaultValue;
+    }
+    if (typeof raw === 'boolean') {
+      return raw;
+    }
+    return defaultValue;
+  }
+
+  private async resolveProfileFieldRequirements(
+    contextId: number | null,
+  ): Promise<{
+    gender: boolean;
+    country: boolean;
+    location: boolean;
+    externalIdentifier: boolean;
+    phone: boolean;
+  }> {
+    const defaults = this.defaultProfileFieldRequirements();
+    if (contextId == null) {
+      return defaults;
+    }
+
+    const keys = [
+      'profile_require_gender',
+      'profile_require_country',
+      'profile_require_location',
+      'profile_require_external_identifier',
+      'profile_require_phone',
+    ] as const;
+
+    const rows = await this.prisma.context_configuration.findMany({
+      where: { context_id: contextId, key: { in: [...keys] } },
+      select: { key: true, value: true },
+    });
+    const byKey = new Map(rows.map((r) => [r.key, r.value]));
+
+    return {
+      gender: this.parseProfileRequireBool(
+        byKey.get('profile_require_gender'),
+        defaults.gender,
+      ),
+      country: this.parseProfileRequireBool(
+        byKey.get('profile_require_country'),
+        defaults.country,
+      ),
+      location: this.parseProfileRequireBool(
+        byKey.get('profile_require_location'),
+        defaults.location,
+      ),
+      externalIdentifier: this.parseProfileRequireBool(
+        byKey.get('profile_require_external_identifier'),
+        defaults.externalIdentifier,
+      ),
+      phone: this.parseProfileRequireBool(
+        byKey.get('profile_require_phone'),
+        defaults.phone,
+      ),
     };
   }
 

@@ -36,9 +36,19 @@ export interface UpdateContextDto {
   modules?: ContextModuleCode[];
 }
 
+export interface ContextConfigurationEntry {
+  id: number;
+  key: string;
+  value: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ContextQuery extends PaginationQuery {
   active?: boolean;
   locationId?: number;
   accessType?: ContextAccessType;
+  /** Busca parcial no nome (backend: query param `search`) */
+  search?: string;
 }
 

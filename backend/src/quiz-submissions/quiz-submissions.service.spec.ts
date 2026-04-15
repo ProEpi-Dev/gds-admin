@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { QuizSubmissionsService } from './quiz-submissions.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +11,7 @@ import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 
 describe('QuizSubmissionsService', () => {
   let service: QuizSubmissionsService;
+  let moduleRef: TestingModule;
   let prismaService: PrismaService;
   let businessMetrics: BusinessMetricsService;
 
@@ -147,10 +148,15 @@ describe('QuizSubmissionsService', () => {
       ],
     }).compile();
 
+    moduleRef = module;
     service = module.get<QuizSubmissionsService>(QuizSubmissionsService);
     prismaService = module.get<PrismaService>(PrismaService);
     businessMetrics = module.get<BusinessMetricsService>(BusinessMetricsService);
     jest.clearAllMocks();
+    const authz = moduleRef.get(AuthzService);
+    (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+    (authz.getManagedContextIds as jest.Mock).mockResolvedValue([1]);
+    (authz.resolveListContextId as jest.Mock).mockResolvedValue(1);
   });
 
   describe('create', () => {
@@ -686,6 +692,57 @@ describe('QuizSubmissionsService', () => {
             completed_at: expect.objectContaining({
               gte: expect.any(Date),
               lte: expect.any(Date),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('admin não restringe listagem ao user_id mesmo com getManagedContextIds vazio', async () => {
+      const authz = moduleRef.get(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(true);
+      (authz.getManagedContextIds as jest.Mock).mockResolvedValue([]);
+
+      const query: QuizSubmissionQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+
+      jest
+        .spyOn(prismaService.quiz_submission, 'findMany')
+        .mockResolvedValue([] as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+
+      await service.findAll(query, 99);
+
+      const findArgs = (prismaService.quiz_submission.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(findArgs.where.participation).toEqual({ context_id: 1 });
+    });
+
+    it('participante sem contexto gerenciado só vê submissões do próprio usuário', async () => {
+      const authz = moduleRef.get(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.getManagedContextIds as jest.Mock).mockResolvedValue([]);
+
+      const query: QuizSubmissionQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+
+      jest
+        .spyOn(prismaService.quiz_submission, 'findMany')
+        .mockResolvedValue([] as any);
+      jest.spyOn(prismaService.quiz_submission, 'count').mockResolvedValue(0);
+
+      await service.findAll(query, 42);
+
+      expect(prismaService.quiz_submission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            participation: expect.objectContaining({
+              context_id: 1,
+              user_id: 42,
             }),
           }),
         }),

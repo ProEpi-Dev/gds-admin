@@ -56,6 +56,7 @@ import FormRenderer, {
 } from "../../../components/form-renderer/FormRenderer";
 import { hasModule, resolveEnabledModules } from "../utils/contextModules";
 import { useUserRole } from "../../../hooks/useUserRole";
+import { useTranslation } from "../../../hooks/useTranslation";
 
 function getRoleLabel(
   isAdmin: boolean,
@@ -79,7 +80,42 @@ const SYMPTOMS = [
   "Tosse",
 ];
 
+/** Paleta dos botões de humor / sinal (referência visual do app) */
+const APP_MOOD_BLUE = "#4299C8";
+const APP_MOOD_BLUE_HOVER = "#3a87b0";
+const APP_MOOD_ORANGE = "#E1930D";
+const APP_MOOD_ORANGE_HOVER = "#c9850b";
+
+const moodButtonBaseSx = {
+  py: 1.75,
+  borderRadius: 2.5,
+  fontWeight: 700,
+  fontSize: "0.95rem",
+  letterSpacing: 0.4,
+  color: "#FFFFFF",
+  boxShadow: "none",
+  textTransform: "uppercase" as const,
+  "&:hover": { boxShadow: "none" },
+  "&.Mui-disabled": {
+    opacity: 0.55,
+    color: "#FFFFFF",
+  },
+};
+
+const moodBlueButtonSx = {
+  ...moodButtonBaseSx,
+  bgcolor: APP_MOOD_BLUE,
+  "&:hover": { bgcolor: APP_MOOD_BLUE_HOVER, boxShadow: "none" },
+};
+
+const moodOrangeButtonSx = {
+  ...moodButtonBaseSx,
+  bgcolor: APP_MOOD_ORANGE,
+  "&:hover": { bgcolor: APP_MOOD_ORANGE_HOVER, boxShadow: "none" },
+};
+
 export default function AppHomePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
     useUserRole();
@@ -120,7 +156,7 @@ export default function AppHomePage() {
     enabled: Boolean(participationId && contextId && showSelfHealthMap),
   });
 
-  const { data: formsData } = useQuery({
+  const { data: formsData, isPending: signalFormsLoading } = useQuery({
     queryKey: ["app-home", "signal-forms", contextId],
     queryFn: () =>
       formsService.findAll({
@@ -219,9 +255,6 @@ export default function AppHomePage() {
     return next;
   }, [communityMonthStart, communityMonthEnd]);
   const informedDaysCount = communityStreak?.reportedDaysInRangeCount ?? 0;
-  const noSignalDaysCount = (communityStreak?.reportedDays ?? []).filter(
-    (row) => row.positiveCount === 0 && row.negativeCount > 0,
-  ).length;
 
   const createReportMutation = useMutation({
     mutationFn: (payload: CreateReportDto) => reportsService.create(payload),
@@ -241,6 +274,8 @@ export default function AppHomePage() {
   });
 
   const canSubmit = Boolean(participationId && signalFormVersionId);
+  /** Evita alerta falso e botões cinza enquanto a lista de formulários ainda carrega. */
+  const signalFormsReady = !contextId || !signalFormsLoading;
 
   const submitReport = (
     reportType: "POSITIVE" | "NEGATIVE",
@@ -300,7 +335,8 @@ export default function AppHomePage() {
   return (
     <UserLayout>
       <Stack spacing={0}>
-        {(!participationId || (participationId && !signalFormVersionId)) && (
+        {(!participationId ||
+          (participationId && signalFormsReady && !signalFormVersionId)) && (
           <Box sx={{ px: 2, pt: 1, pb: 1 }}>
             <Stack spacing={2}>
               {!participationId && (
@@ -308,7 +344,7 @@ export default function AppHomePage() {
                   Sua conta não possui participação ativa para registrar reports.
                 </Alert>
               )}
-              {!signalFormVersionId && participationId && (
+              {!signalFormVersionId && participationId && signalFormsReady && (
                 <Alert severity="warning">
                   Não encontramos formulário de report ativo para seu contexto.
                 </Alert>
@@ -368,7 +404,7 @@ export default function AppHomePage() {
               mt: -3.5,
               position: "relative",
               zIndex: 1,
-              borderRadius: 2,
+              borderRadius: 3,
               p: 2,
             }}
           >
@@ -404,30 +440,59 @@ export default function AppHomePage() {
                 <Typography variant="h6" sx={{ mb: 1.5 }} textAlign="center">
                   Como está se sentindo hoje?
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 6 }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      disabled={!canSubmit || createReportMutation.isPending}
-                      onClick={() => submitSelfHealthReport("NEGATIVE")}
-                      startIcon={<SentimentSatisfiedAltOutlinedIcon />}
-                    >
-                      BEM
-                    </Button>
+                {signalFormsLoading ? (
+                  <Box
+                    sx={{
+                      py: 4,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <CircularProgress size={32} />
+                    <Typography variant="body2" color="text.secondary">
+                      Carregando formulário…
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 6 }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        disabled={!canSubmit || createReportMutation.isPending}
+                        onClick={() => submitSelfHealthReport("NEGATIVE")}
+                        startIcon={
+                          <SentimentSatisfiedAltOutlinedIcon sx={{ color: "inherit" }} />
+                        }
+                        sx={{
+                          ...moodBlueButtonSx,
+                          "& .MuiButton-startIcon": { color: "inherit" },
+                        }}
+                      >
+                        BEM
+                      </Button>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        disabled={!canSubmit || createReportMutation.isPending}
+                        onClick={() => setOpenDialog(true)}
+                        startIcon={
+                          <SentimentDissatisfiedOutlinedIcon sx={{ color: "inherit" }} />
+                        }
+                        sx={{
+                          ...moodOrangeButtonSx,
+                          "& .MuiButton-startIcon": { color: "inherit" },
+                        }}
+                      >
+                        MAL
+                      </Button>
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      disabled={!canSubmit || createReportMutation.isPending}
-                      onClick={() => setOpenDialog(true)}
-                      startIcon={<SentimentDissatisfiedOutlinedIcon />}
-                    >
-                      MAL
-                    </Button>
-                  </Grid>
-                </Grid>
+                )}
               </>
             )}
 
@@ -436,28 +501,47 @@ export default function AppHomePage() {
                 <Typography variant="h6" sx={{ mb: 1.5 }} textAlign="center">
                   Quer informar um sinal de alerta?
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 6 }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      disabled={!canSubmit || createReportMutation.isPending}
-                      onClick={() => submitReport("NEGATIVE", null)}
-                    >
-                      Nada ocorreu
-                    </Button>
+                {signalFormsLoading ? (
+                  <Box
+                    sx={{
+                      py: 4,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <CircularProgress size={32} />
+                    <Typography variant="body2" color="text.secondary">
+                      Carregando formulário…
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 6 }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        disabled={!canSubmit || createReportMutation.isPending}
+                        onClick={() => submitReport("NEGATIVE", null)}
+                        sx={moodBlueButtonSx}
+                      >
+                        Nada ocorreu
+                      </Button>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        disabled={!canSubmit || createReportMutation.isPending}
+                        onClick={() => setOpenSignalDialog(true)}
+                        sx={moodOrangeButtonSx}
+                      >
+                        Informar
+                      </Button>
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      disabled={!canSubmit || createReportMutation.isPending}
-                      onClick={() => setOpenSignalDialog(true)}
-                    >
-                      Informar
-                    </Button>
-                  </Grid>
-                </Grid>
+                )}
               </>
             )}
           </Paper>
@@ -523,25 +607,11 @@ export default function AppHomePage() {
               <Typography variant="h6" sx={{ mb: 1 }}>
                 Seus sinais e frequência
               </Typography>
-              <Stack spacing={1.25} sx={{ mb: 2 }}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  flexWrap="wrap"
-                  useFlexGap
-                  sx={{ width: "100%" }}
-                >
-                  <Chip
-                    color="primary"
-                    label={`${informedDaysCount} dia(s) com registro no mês`}
-                  />
-                  <Chip
-                    color="success"
-                    variant="outlined"
-                    label={`${noSignalDaysCount} dia(s) sem sinal`}
-                  />
-                </Stack>
-              </Stack>
+              <Chip
+                color="primary"
+                label={`${informedDaysCount} dia(s) com registro no mês`}
+                sx={{ mb: 2 }}
+              />
 
               <Stack
                 direction="row"
@@ -573,62 +643,113 @@ export default function AppHomePage() {
                   <CircularProgress size={24} />
                 </Box>
               ) : (
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                    gap: 1,
-                    mb: 2,
-                  }}
-                >
-                  {["D", "S", "T", "Q", "Q", "S", "S"].map((label, index) => (
-                    <Typography
-                      key={`${label}-${index}`}
-                      variant="caption"
-                      color="primary.main"
-                      align="center"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {label}
-                    </Typography>
-                  ))}
-                  {communityCalendarDays.map((day) => {
-                    const iso = format(day, "yyyy-MM-dd");
-                    const inMonth = isSameMonth(day, communityCalendarMonth);
-                    const marked = communityReportedDaySet.has(iso);
-                    const positiveDay = communityPositiveDaySet.has(iso);
-                    const isToday = isSameDay(day, new Date());
-                    return (
-                      <Box
-                        key={iso}
-                        sx={{
-                          minHeight: 40,
-                          borderRadius: 1,
-                          border: 1,
-                          borderColor: positiveDay
-                            ? "error.main"
-                            : marked
-                              ? "success.main"
-                              : isToday
-                                ? "primary.main"
-                                : "divider",
-                          bgcolor: positiveDay
-                            ? "error.light"
-                            : marked
-                              ? "success.light"
-                              : "background.paper",
-                          color: inMonth ? "text.primary" : "text.disabled",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: marked || isToday ? 700 : 500,
-                          opacity: inMonth ? 1 : 0.6,
-                        }}
+                <Box>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                      gap: 1,
+                      mb: 2,
+                    }}
+                  >
+                    {["D", "S", "T", "Q", "Q", "S", "S"].map((label, index) => (
+                      <Typography
+                        key={`${label}-${index}`}
+                        variant="caption"
+                        color="primary.main"
+                        align="center"
+                        sx={{ fontWeight: 700 }}
                       >
-                        {format(day, "d")}
-                      </Box>
-                    );
-                  })}
+                        {label}
+                      </Typography>
+                    ))}
+                    {communityCalendarDays.map((day) => {
+                      const iso = format(day, "yyyy-MM-dd");
+                      const inMonth = isSameMonth(day, communityCalendarMonth);
+                      const marked = communityReportedDaySet.has(iso);
+                      const positiveDay = communityPositiveDaySet.has(iso);
+                      const isToday = isSameDay(day, new Date());
+                      return (
+                        <Box
+                          key={iso}
+                          sx={{
+                            minHeight: 40,
+                            borderRadius: 1,
+                            border: 1,
+                            borderColor: positiveDay
+                              ? "error.main"
+                              : marked
+                                ? "success.main"
+                                : isToday
+                                  ? "primary.main"
+                                  : "divider",
+                            bgcolor: positiveDay
+                              ? "error.main"
+                              : marked
+                                ? "success.main"
+                                : "background.paper",
+                            color:
+                              positiveDay || marked
+                                ? "common.white"
+                                : inMonth
+                                  ? "text.primary"
+                                  : "text.disabled",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: marked || positiveDay || isToday ? 700 : 500,
+                            opacity: inMonth ? 1 : 0.6,
+                          }}
+                        >
+                          {format(day, "d")}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    gap={2}
+                    justifyContent="center"
+                    alignItems="center"
+                    sx={{
+                      pt: 1.5,
+                      mt: 0.5,
+                      borderTop: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <Box
+                        sx={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: 0.75,
+                          bgcolor: "error.main",
+                          flexShrink: 0,
+                          boxShadow: 1,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {t("appHome.communityCalendarLegendSignal")}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <Box
+                        sx={{
+                          width: 11,
+                          height: 11,
+                          borderRadius: 0.75,
+                          bgcolor: "success.main",
+                          flexShrink: 0,
+                          boxShadow: 1,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {t("appHome.communityCalendarLegendNothingOccurred")}
+                      </Typography>
+                    </Stack>
+                  </Stack>
                 </Box>
               )}
             </Paper>

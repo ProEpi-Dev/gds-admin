@@ -165,8 +165,8 @@ export default function AppContentsPage() {
                 )}
               </Stack>
 
-              <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                {content.thumbnail_url ? (
+              {content.thumbnail_url ? (
+                <Stack direction="row" spacing={1.5} alignItems="flex-start">
                   <Box
                     component="img"
                     src={content.thumbnail_url}
@@ -181,41 +181,23 @@ export default function AppContentsPage() {
                       borderColor: "divider",
                     }}
                   />
-                ) : (
-                  <Box
-                    sx={{
-                      width: 84,
-                      height: 84,
-                      borderRadius: 1.5,
-                      bgcolor: "grey.100",
-                      color: "text.secondary",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      border: "1px dashed",
-                      borderColor: "divider",
-                      px: 1,
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ textAlign: "center", lineHeight: 1.2 }}
-                    >
-                      Sem imagem
-                    </Typography>
-                  </Box>
-                )}
-
-                <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
                   {resolveDescription(content) && (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
                       {resolveDescription(content)}
                     </Typography>
                   )}
                 </Stack>
-              </Stack>
+              ) : (
+                resolveDescription(content) && (
+                  <Typography variant="body2" color="text.secondary">
+                    {resolveDescription(content)}
+                  </Typography>
+                )
+              )}
 
               <Button
                 variant="contained"

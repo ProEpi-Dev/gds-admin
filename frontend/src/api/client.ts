@@ -16,7 +16,7 @@ function clearSessionAndMaybeRedirect() {
   localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.USER);
-  const publicRoutes = ['/login', '/signup', '/setup'];
+  const publicRoutes = ['/login', '/signup', '/setup', '/verify-email', '/email-verified'];
   const currentPath = window.location.pathname;
   const isPublicRoute = publicRoutes.some((route) =>
     currentPath.startsWith(route),

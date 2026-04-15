@@ -39,6 +39,7 @@ import {
   useSendIntegrationMessage,
 } from "../../report-integrations/hooks/useReportIntegrations";
 import type { IntegrationEvent } from "../../../api/services/report-integrations.service";
+import { filterEchoInboundMessages } from "../../report-integrations/utils/filterEchoInboundMessages";
 
 type SignalFieldMeta = {
   label: string;
@@ -212,21 +213,6 @@ function summarizeSignalResponse(
     .join(" · ");
 }
 
-function integrationListChip(
-  status: IntegrationEvent["status"],
-): { label: string; color: "success" | "error" | "warning" | "default" } {
-  switch (status) {
-    case "sent":
-      return { label: "Enviado (integração)", color: "success" };
-    case "failed":
-      return { label: "Falha no envio", color: "error" };
-    case "processing":
-      return { label: "Processando envio", color: "warning" };
-    default:
-      return { label: "Envio pendente", color: "default" };
-  }
-}
-
 export default function AppSignalsPage() {
   const { user } = useAuth();
   const participation = user?.participation;
@@ -247,6 +233,10 @@ export default function AppSignalsPage() {
     );
   const { data: integrationMessages, isLoading: messagesLoading } =
     useIntegrationMessages(integrationEvent?.id ?? null);
+  const visibleIntegrationMessages = useMemo(
+    () => filterEchoInboundMessages(integrationMessages ?? []),
+    [integrationMessages],
+  );
   const sendMessageMutation = useSendIntegrationMessage();
 
   const handleSendMessage = () => {
@@ -378,7 +368,6 @@ export default function AppSignalsPage() {
                   signal.reportType === "POSITIVE"
                     ? integrationEventByReportId.get(signal.id)
                     : undefined;
-                const integChip = integ ? integrationListChip(integ.status) : null;
                 return (
                   <Paper
                     key={signal.id}
@@ -406,14 +395,6 @@ export default function AppSignalsPage() {
                             signal.reportType === "POSITIVE" ? "Com sinal" : "Nada ocorreu"
                           }
                         />
-                        {integChip && (
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            color={integChip.color}
-                            label={integChip.label}
-                          />
-                        )}
                         {integ?.externalSignalStageLabel ? (
                           <Chip
                             size="small"
@@ -467,15 +448,6 @@ export default function AppSignalsPage() {
                   }
                   sx={{ width: "fit-content" }}
                 />
-                {integrationEvent && (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    sx={{ width: "fit-content" }}
-                    color={integrationListChip(integrationEvent.status).color}
-                    label={integrationListChip(integrationEvent.status).label}
-                  />
-                )}
                 {integrationEvent?.externalSignalStageLabel ? (
                   <Chip
                     size="small"
@@ -546,13 +518,13 @@ export default function AppSignalsPage() {
                       </Typography>
                       {messagesLoading ? (
                         <CircularProgress size={20} />
-                      ) : !integrationMessages || integrationMessages.length === 0 ? (
+                      ) : visibleIntegrationMessages.length === 0 ? (
                         <Typography variant="body2" color="text.secondary">
                           Nenhuma mensagem ainda.
                         </Typography>
                       ) : (
                         <Stack spacing={0.5}>
-                          {integrationMessages.map((msg) => (
+                          {visibleIntegrationMessages.map((msg) => (
                             <Paper
                               key={msg.id}
                               variant="outlined"

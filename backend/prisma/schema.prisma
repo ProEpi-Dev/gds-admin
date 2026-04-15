@@ -21,6 +21,7 @@ model context {
   content            content[]
   location           location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
   form               form[]
+  context_configuration context_configuration[]
   context_module     context_module[]
   integration_config integration_config[]
   participation      participation[]
@@ -40,6 +41,20 @@ model context_module {
 
   @@unique([context_id, module_code], map: "uq_context_module_unique")
   @@index([context_id], map: "idx_context_module_context_id")
+}
+
+model context_configuration {
+  id         Int      @id @default(autoincrement())
+  context_id Int
+  key        String   @db.VarChar(100)
+  value      Json
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  context    context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, key], map: "uq_context_configuration_context_key")
+  @@index([context_id], map: "idx_context_configuration_context_id")
+  @@index([key], map: "idx_context_configuration_key")
 }
 
 
@@ -234,6 +249,7 @@ model report {
 
   @@index([form_version_id], map: "idx_report_form_version_id")
   @@index([participation_id], map: "idx_report_participation_id")
+  @@index([participation_id, report_type, active, created_at(sort: Desc)], map: "idx_report_participation_type_active_created_desc")
 }
 
 model participation_report_day {
@@ -280,6 +296,9 @@ model user {
   created_at            DateTime                @default(now()) @db.Timestamp(6)
   updated_at            DateTime                @default(now()) @db.Timestamp(6)
   active                    Boolean                 @default(true)
+  email_verified_at         DateTime?               @db.Timestamp(6)
+  email_verification_token  String?                 @db.VarChar(255)
+  email_verification_expires DateTime?              @db.Timestamp(6)
   password_reset_token      String?                 @db.VarChar(255)
   password_reset_expires    DateTime?               @db.Timestamp(6)
   content                   content[]

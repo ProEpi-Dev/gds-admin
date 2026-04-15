@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Typography,
@@ -45,6 +45,7 @@ import {
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import { formatDateTimeFromApi } from '../../../utils/formatDateOnlyFromApi';
 import type { IntegrationEvent } from '../../../api/services/report-integrations.service';
+import { filterEchoInboundMessages } from '../utils/filterEchoInboundMessages';
 
 const STATUS_COLOR: Record<string, 'warning' | 'info' | 'success' | 'error'> = {
   pending: 'warning',
@@ -82,6 +83,11 @@ export default function IntegrationEventsPage() {
     data: messages,
     isLoading: messagesLoading,
   } = useIntegrationMessages(selectedEvent?.id ?? null);
+
+  const visibleMessages = useMemo(
+    () => filterEchoInboundMessages(messages ?? []),
+    [messages],
+  );
 
   const sendMessageMutation = useSendIntegrationMessage();
 
@@ -248,11 +254,11 @@ export default function IntegrationEventsPage() {
             <CircularProgress />
           ) : (
             <>
-              {(!messages || messages.length === 0) && (
+              {visibleMessages.length === 0 && (
                 <Alert severity="info">Nenhuma mensagem ainda</Alert>
               )}
               <List dense>
-                {messages?.map((msg, idx) => (
+                {visibleMessages.map((msg, idx) => (
                   <Box key={msg.id}>
                     {idx > 0 && <Divider />}
                     <ListItem>

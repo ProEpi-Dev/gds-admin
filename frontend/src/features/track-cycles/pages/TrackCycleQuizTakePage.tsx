@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Box, Button, Typography, Paper, Alert } from "@mui/material";
@@ -18,6 +18,7 @@ import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import ErrorAlert from "../../../components/common/ErrorAlert";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { useAuth } from "../../../contexts/AuthContext";
+import UserLayout from "../../../components/layout/UserLayout";
 import type {
   QuizDefinition,
   FormVersionQuizMetadata,
@@ -110,6 +111,10 @@ export default function TrackCycleQuizTakePage() {
       ? `/app/aprenda/ciclo/${cycleId}`
       : `/admin/track-cycles/${cycleId}/participation/${participationId}/trilha`;
 
+  /** Mesmo shell das outras telas do app (AppBar + menu + bottom nav). */
+  const withAppShell = (content: ReactNode) =>
+    isAppRoute ? <UserLayout>{content}</UserLayout> : content;
+
   const handleSubmit = async (submissionData: any): Promise<QuizSubmission> => {
     if (
       !participationIdFromProgress ||
@@ -155,11 +160,11 @@ export default function TrackCycleQuizTakePage() {
   };
 
   if (progressLoading || (formId && quizLoading)) {
-    return <LoadingSpinner />;
+    return withAppShell(<LoadingSpinner />);
   }
 
   if (progressError) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3 }}>
         <ErrorAlert
           message={
@@ -173,12 +178,12 @@ export default function TrackCycleQuizTakePage() {
         >
           Voltar
         </Button>
-      </Box>
+      </Box>,
     );
   }
 
   if (!progress) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3 }}>
         <ErrorAlert message="Progresso não encontrado" />
         <Button
@@ -188,12 +193,12 @@ export default function TrackCycleQuizTakePage() {
         >
           Voltar
         </Button>
-      </Box>
+      </Box>,
     );
   }
 
   if (!sequenceWithForm) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3 }}>
         <ErrorAlert message="Sequência de quiz não encontrada neste ciclo" />
         <Button
@@ -203,12 +208,12 @@ export default function TrackCycleQuizTakePage() {
         >
           Voltar
         </Button>
-      </Box>
+      </Box>,
     );
   }
 
   if (quizError || !quiz || !formVersion) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3 }}>
         <ErrorAlert message="Quiz não encontrado" />
         <Button
@@ -218,12 +223,12 @@ export default function TrackCycleQuizTakePage() {
         >
           Voltar
         </Button>
-      </Box>
+      </Box>,
     );
   }
 
   if (!quizDefinition) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3 }}>
         <ErrorAlert message="Definição do quiz não encontrada" />
         <Button
@@ -233,7 +238,7 @@ export default function TrackCycleQuizTakePage() {
         >
           Voltar
         </Button>
-      </Box>
+      </Box>,
     );
   }
 
@@ -245,7 +250,7 @@ export default function TrackCycleQuizTakePage() {
       (quizMetadata.maxAttempts ?? 0);
 
   if (!canAttempt && existingSubmissions.length > 0) {
-    return (
+    return withAppShell(
       <Box sx={{ p: 3, maxWidth: 1200, mx: "auto" }}>
         <Button
           startIcon={<ArrowBackIcon />}
@@ -268,11 +273,11 @@ export default function TrackCycleQuizTakePage() {
           existingSubmissions={existingSubmissions}
           readOnly
         />
-      </Box>
+      </Box>,
     );
   }
 
-  return (
+  return withAppShell(
     <Box sx={{ p: 3, maxWidth: 1200, mx: "auto" }}>
       <Button
         startIcon={<ArrowBackIcon />}
@@ -285,11 +290,6 @@ export default function TrackCycleQuizTakePage() {
       <Typography variant="h4" gutterBottom>
         {quiz.title}
       </Typography>
-
-      <Alert severity="info" sx={{ mb: 2 }}>
-        Quiz no contexto do ciclo de trilha. A submissão ficará associada ao
-        progresso da sequência.
-      </Alert>
 
       {existingSubmissions.length > 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -343,6 +343,6 @@ export default function TrackCycleQuizTakePage() {
           readOnly={false}
         />
       )}
-    </Box>
+    </Box>,
   );
 }

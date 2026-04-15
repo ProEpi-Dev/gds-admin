@@ -109,6 +109,14 @@ export class ParticipationProfileExtraService {
     });
   }
 
+  /** Contexto da participação ativa (datas + active), se houver. Usado em regras de perfil por contexto. */
+  async getActiveParticipationContextId(
+    userId: number,
+  ): Promise<number | null> {
+    const participation = await this.findActiveParticipationForUser(userId);
+    return participation?.context_id ?? null;
+  }
+
   async getProfileExtraCompletion(
     userId: number,
   ): Promise<{ required: boolean; complete: boolean }> {
