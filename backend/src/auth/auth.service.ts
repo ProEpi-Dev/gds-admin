@@ -25,6 +25,7 @@ import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 @Injectable()
 export class AuthService {
   private readonly resetTokenExpiryHours = 1;
+  private readonly emailVerificationTokenExpiryHours = 48;
 
   private hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
@@ -100,67 +101,27 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const activeParticipation = await this.pickActiveParticipationForUser(user.id);
+
+    if (
+      !user.email_verified_at &&
+      activeParticipation &&
+      (await this.contextRequiresEmailVerification(activeParticipation.context.id))
+    ) {
+      this.logger.warn(
+        { event: 'LOGIN_BLOCKED_EMAIL', userId: user.id },
+        'Email não verificado para contexto que exige confirmação',
+      );
+      this.businessMetrics.recordAuthLogin('failure');
+      throw new ForbiddenException({
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message:
+          'Confirme o seu email antes de entrar. Verifique a caixa de entrada ou solicite um novo link.',
+      });
+    }
+
     const token = this.generateToken(user);
     const refreshToken = await this.issueRefreshToken(user.id);
-
-    // Buscar participação ativa do usuário
-    // Uma participação está ativa se:
-    // - active = true
-    // - start_date <= hoje
-    // - end_date é null OU end_date >= hoje
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    today.setMinutes(0);
-    today.setSeconds(0);
-    today.setMilliseconds(0);
-
-    // Buscar todas as participações ativas do usuário e filtrar por data
-    // Incluir o contexto relacionado para retornar id e name
-    const participations = await this.prisma.participation.findMany({
-      where: {
-        user_id: user.id,
-        active: true,
-      },
-      include: {
-        context: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-
-    // Filtrar em JavaScript para validar as datas (evita problemas de timezone)
-    const activeParticipation = participations.find((participation) => {
-      const startDate = new Date(participation.start_date);
-      startDate.setHours(0, 0, 0, 0);
-      startDate.setMinutes(0);
-      startDate.setSeconds(0);
-      startDate.setMilliseconds(0);
-
-      // Verificar se start_date <= hoje
-      if (startDate > today) {
-        return false;
-      }
-
-      // Se end_date é null, a participação está ativa
-      if (!participation.end_date) {
-        return true;
-      }
-
-      // Se end_date existe, verificar se é >= hoje
-      const endDate = new Date(participation.end_date);
-      endDate.setHours(0, 0, 0, 0);
-      endDate.setMinutes(0);
-      endDate.setSeconds(0);
-      endDate.setMilliseconds(0);
-
-      return endDate >= today;
-    });
 
     // Buscar formulários padrão
     const defaultForms = await this.getDefaultForms();
@@ -184,6 +145,9 @@ export class AuthService {
             context: {
               id: activeParticipation.context.id,
               name: activeParticipation.context.name,
+              modules: (activeParticipation.context.context_module ?? []).map(
+                (item) => item.module_code,
+              ),
             },
             startDate: activeParticipation.start_date,
             endDate: activeParticipation.end_date,
@@ -234,6 +198,175 @@ export class AuthService {
           updatedAt: form.form_version[0].updated_at,
         },
       }));
+  }
+
+  private async contextRequiresEmailVerification(
+    contextId: number,
+  ): Promise<boolean> {
+    const row = await this.prisma.context_configuration.findFirst({
+      where: { context_id: contextId, key: 'require_email_verification' },
+    });
+    if (!row) return false;
+    const v = row.value;
+    return v === true || v === 'true';
+  }
+
+  /** Participação ativa por datas + contexto (mesma regra do login). */
+  private async pickActiveParticipationForUser(userId: number) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    today.setMinutes(0);
+    today.setSeconds(0);
+    today.setMilliseconds(0);
+
+    const participations = await this.prisma.participation.findMany({
+      where: {
+        user_id: userId,
+        active: true,
+      },
+      include: {
+        context: {
+          select: {
+            id: true,
+            name: true,
+            context_module: {
+              select: {
+                module_code: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return participations.find((participation) => {
+      const startDate = new Date(participation.start_date);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setMinutes(0);
+      startDate.setSeconds(0);
+      startDate.setMilliseconds(0);
+
+      if (startDate > today) {
+        return false;
+      }
+
+      if (!participation.end_date) {
+        return true;
+      }
+
+      const endDate = new Date(participation.end_date);
+      endDate.setHours(0, 0, 0, 0);
+      endDate.setMinutes(0);
+      endDate.setSeconds(0);
+      endDate.setMilliseconds(0);
+
+      return endDate >= today;
+    });
+  }
+
+  private async issueEmailVerificationTokenAndSend(userId: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return;
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(
+      expiresAt.getHours() + this.emailVerificationTokenExpiryHours,
+    );
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email_verification_token: token,
+        email_verification_expires: expiresAt,
+      },
+    });
+
+    if (!this.mailService.isConfigured()) {
+      this.logger.warn(
+        { event: 'EMAIL_VERIFICATION_MAIL_SKIPPED', userId },
+        'Mailer não configurado; token de verificação gravado apenas na base.',
+      );
+      return;
+    }
+
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('APP_URL') ||
+      'http://localhost:5173';
+    const verifyUrl = `${frontendUrl.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+
+    await this.mailService.sendMail({
+      to: user.email,
+      subject: 'Confirme seu email - Guardiões da Saúde',
+      html: `
+          <p>Olá, ${user.name}</p>
+          <p>Para ativar o acesso ao aplicativo no seu contexto, confirme o endereço de email clicando no link abaixo (válido por ${this.emailVerificationTokenExpiryHours}h):</p>
+          <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+          <p>Se você não criou esta conta, ignore este email.</p>
+        `,
+    });
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email_verification_token: token,
+        email_verification_expires: { gt: new Date() },
+        active: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException(
+        'Link inválido ou expirado. Solicite um novo email de verificação.',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email_verified_at: new Date(),
+        email_verification_token: null,
+        email_verification_expires: null,
+      },
+    });
+
+    return { message: 'Email confirmado com sucesso.' };
+  }
+
+  async requestEmailVerificationPublic(
+    email: string,
+  ): Promise<{ message: string }> {
+    const normalized = email.toLowerCase().trim();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+
+    const generic = {
+      message:
+        'Se existir uma conta pendente de confirmação neste email, enviámos as instruções.',
+    };
+
+    let shouldSend = false;
+    if (user?.active && !user.email_verified_at) {
+      const active = await this.pickActiveParticipationForUser(user.id);
+      if (active) {
+        const requires = await this.contextRequiresEmailVerification(
+          active.context.id,
+        );
+        shouldSend = !!requires;
+      }
+    }
+
+    if (shouldSend && user) {
+      await this.issueEmailVerificationTokenAndSend(user.id);
+    }
+
+    return generic;
   }
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -352,6 +485,13 @@ export class AuthService {
     // 2. Validar contexto existe e é PUBLIC
     const context = await this.prisma.context.findUnique({
       where: { id: signupDto.contextId },
+      include: {
+        context_module: {
+          select: {
+            module_code: true,
+          },
+        },
+      },
     });
 
     if (!context) {
@@ -440,35 +580,56 @@ export class AuthService {
 
     this.businessMetrics.recordAuthSignupCompleted();
 
-    // 6. Gerar JWT e refresh token
+    const userDto = {
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      active: result.user.active,
+      createdAt: result.user.created_at,
+      updatedAt: result.user.updated_at,
+    };
+
+    const participationDto = {
+      id: result.participation.id,
+      userId: result.user.id,
+      context: {
+        id: context.id,
+        name: context.name,
+        modules: (context.context_module ?? []).map((item) => item.module_code),
+      },
+      startDate: result.participation.start_date,
+      endDate: result.participation.end_date,
+      active: result.participation.active,
+      createdAt: result.participation.created_at,
+      updatedAt: result.participation.updated_at,
+    };
+
+    const requireEmail = await this.contextRequiresEmailVerification(
+      signupDto.contextId,
+    );
+
+    if (requireEmail) {
+      await this.issueEmailVerificationTokenAndSend(result.user.id);
+      return {
+        user: userDto,
+        participation: participationDto,
+        emailVerificationRequired: true,
+      };
+    }
+
+    await this.prisma.user.update({
+      where: { id: result.user.id },
+      data: { email_verified_at: new Date() },
+    });
+
     const accessToken = this.generateToken(result.user);
     const refreshToken = await this.issueRefreshToken(result.user.id);
 
-    // 7. Retornar resposta
     return {
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        active: result.user.active,
-        createdAt: result.user.created_at,
-        updatedAt: result.user.updated_at,
-      },
+      user: userDto,
       accessToken,
       refreshToken,
-      participation: {
-        id: result.participation.id,
-        userId: result.user.id,
-        context: {
-          id: context.id,
-          name: context.name,
-        },
-        startDate: result.participation.start_date,
-        endDate: result.participation.end_date,
-        active: result.participation.active,
-        createdAt: result.participation.created_at,
-        updatedAt: result.participation.updated_at,
-      },
+      participation: participationDto,
     };
   }
 
@@ -492,6 +653,19 @@ export class AuthService {
 
     if (!row || !row.user.active) {
       throw new UnauthorizedException('Refresh token inválido ou expirado');
+    }
+
+    const active = await this.pickActiveParticipationForUser(row.user_id);
+    if (
+      !row.user.email_verified_at &&
+      active &&
+      (await this.contextRequiresEmailVerification(active.context.id))
+    ) {
+      throw new UnauthorizedException({
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message:
+          'Confirme o seu email antes de continuar. Faça login novamente após verificar.',
+      });
     }
 
     await this.prisma.user_refresh_token.update({

@@ -14,6 +14,8 @@
     "search": "Search",
     "filter": "Filter",
     "clear": "Clear",
+    "yes": "Yes",
+    "no": "No",
     "itemsPerPage": "Items per page",
     "of": "of",
     "noResults": "No records found",
@@ -23,7 +25,12 @@
   },
   "userLayout": {
     "home": "Home",
-    "goHomeAria": "Go to app home"
+    "goHomeAria": "Go to app home",
+    "context": "Context"
+  },
+  "appHome": {
+    "communityCalendarLegendSignal": "Alert signal",
+    "communityCalendarLegendNothingOccurred": "Nothing occurred"
   },
   "layout": {
     "menu": "Menu",
@@ -33,6 +40,36 @@
   "dashboard": {
     "title": "Dashboard",
     "quickActions": "Quick Actions"
+  },
+  "profile": {
+    "title": "Complete your profile",
+    "subtitle": "Fill in your profile to continue",
+    "gender": "Gender",
+    "country": "Country",
+    "phone": "Phone",
+    "location": "Location",
+    "locationSelectCountryFirst": "Select a country to list locations",
+    "externalIdentifier": "External identifier",
+    "externalIdentifierHelper": "National ID, employee ID, or similar",
+    "submit": "Save profile",
+    "myProfile": "My profile",
+    "editProfile": "Edit profile",
+    "profileComplete": "Profile complete",
+    "profileIncomplete": "Profile incomplete",
+    "missingFields": "Missing fields",
+    "errors": {
+      "genderRequired": "Gender is required",
+      "countryRequired": "Country is required",
+      "locationRequired": "Location is required",
+      "externalIdentifierRequired": "External identifier is required",
+      "phoneRequired": "Phone is required"
+    },
+    "success": "Profile updated successfully!",
+    "profileExtraTitle": "Additional data",
+    "profileExtraSubtitle": "Extra fields defined by your participation context.",
+    "profileExtraInvalid": "Fill all required fields in additional data.",
+    "profileExtraSave": "Save additional data",
+    "profileExtraSaved": "Additional data saved successfully!"
   },
   "forms": {
     "title": "Forms",
@@ -62,7 +99,9 @@
       "boolean": "Boolean",
       "select": "Single Select",
       "multiselect": "Multi Select",
-      "date": "Date"
+      "date": "Date",
+      "location": "Location",
+      "mapPoint": "Map point"
     }
   },
   "navigation": {
@@ -156,7 +195,27 @@
     "requestNewReset": "Request new password reset",
     "resetPasswordSubmit": "Reset password",
     "redirectingToLogin": "Redirecting to login...",
-    "forgotPasswordLink": "Forgot my password"
+    "forgotPasswordLink": "Forgot my password",
+    "invalidCredentials": "Invalid email or password.",
+    "loginSuccess": "Signed in successfully",
+    "loginError": "Could not sign in. Please try again.",
+    "emailVerificationRequired": "This context requires email confirmation. Check your inbox or resend the link.",
+    "verifyEmailTitle": "Confirm email",
+    "verifyEmailSubtitle": "Enter your account email to receive the confirmation link again.",
+    "verifyEmailConfirming": "Confirming your email…",
+    "verifyEmailFailedHint": "This link could not confirm your email. You can request a new message below.",
+    "verifyEmailSuccess": "Email confirmed. You can sign in now.",
+    "verifyEmailError": "Could not confirm email. The link may have expired.",
+    "verifyEmailResendButton": "Resend confirmation email",
+    "verifyEmailResendGeneric": "If there is a pending account, we sent instructions to the email provided.",
+    "verifyEmailResendError": "Could not send. Please try again.",
+    "emailVerifiedTitle": "Email confirmed",
+    "emailVerifiedSubtitle": "Continue in the mobile app or on the web.",
+    "emailVerifiedPlayStore": "Open in Google Play",
+    "emailVerifiedWebLogin": "Sign in on the web"
+  },
+  "signup": {
+    "pendingEmailVerification": "We sent a confirmation email. Open the link to enable access before signing in."
   },
   "participations": {
     "title": "Participations",
@@ -185,7 +244,10 @@
     "sortStartDateAsc": "Enrollment: oldest first",
     "sortStartDateDesc": "Enrollment: newest first",
     "createdAt": "Created at",
-    "updatedAt": "Updated at"
+    "updatedAt": "Updated at",
+    "integrationTraining": "Integration training",
+    "integrationTrainingOn": "Staging",
+    "integrationTrainingOff": "Production"
   },
   "users": {
     "title": "Users",
@@ -215,6 +277,10 @@
     "newLocation": "New Location",
     "name": "Name",
     "parent": "Parent Location",
+    "orgLevel": "Organizational level",
+    "orgLevelCountry": "Country",
+    "orgLevelStateDistrict": "State/District",
+    "orgLevelCityCouncil": "City/Council",
     "coordinates": "Coordinates",
     "latitude": "Latitude",
     "longitude": "Longitude",
@@ -254,6 +320,8 @@
     "inactive": "Inactive",
     "filterByLocation": "Filter by Location",
     "filterByAccessType": "Filter by Access Type",
+    "searchByName": "Search by name",
+    "searchByNamePlaceholder": "Context name…",
     "description": "Description",
     "type": "Type",
     "createdAt": "Created At",
@@ -269,7 +337,33 @@
     "tabParticipations": "Participations",
     "tabForms": "Forms",
     "participationsComingSoon": "Participations list coming soon",
-    "formsComingSoon": "Forms list coming soon"
+    "formsComingSoon": "Forms list coming soon",
+    "tabConfiguration": "Settings",
+    "configIntro": "Per-context technical parameters (e.g. report idempotency and signup policies). Change with care.",
+    "configEmpty": "No configuration rows found for this context.",
+    "configLoadError": "Could not load configuration.",
+    "configSave": "Save",
+    "configSaveError": "Could not save configuration.",
+    "configMinutesLabel": "Minutes",
+    "configDomainsLabel": "Allowed email domains",
+    "configJsonLabel": "Value (JSON)",
+    "configJsonHelper": "Enter valid JSON.",
+    "configInvalidPositiveInt": "Use an integer greater than or equal to 1.",
+    "configInvalidDomains": "Domains must be a comma-separated list.",
+    "configInvalidBoolean": "Invalid value for toggle.",
+    "configInvalidJson": "Invalid or incomplete JSON.",
+    "configKeyHelp": {
+      "negative_report_dedup_window_min": "Window in minutes to deduplicate consecutive \"nothing happened\" reports.",
+      "negative_block_if_positive_within_min": "Blocks a new negative report if a positive report exists within this many minutes.",
+      "allowed_email_domains": "Email domain suffixes allowed at signup. Empty = no restriction.",
+      "social_sso_enabled": "Allow social login when the integration is available.",
+      "profile_require_gender": "If true, gender is required for profile completeness (app / profile-status).",
+      "profile_require_country": "If true, country is required for profile completeness.",
+      "profile_require_location": "If true, location is required for profile completeness.",
+      "profile_require_external_identifier": "If true, external identifier is required for profile completeness.",
+      "profile_require_phone": "If true, phone is required for profile completeness.",
+      "require_email_verification": "If true, users with an active participation in this context must confirm email before login and session refresh."
+    }
   },
   "contents": {
     "title": "Contents",

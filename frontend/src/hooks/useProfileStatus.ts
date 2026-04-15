@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { usersService } from '../api/services/users.service';
-import type { ProfileStatusResponse } from '../types/user.types';
+import type {
+  ProfileFieldRequirements,
+  ProfileStatusResponse,
+} from '../types/user.types';
+
+const defaultProfileFieldRequirements: ProfileFieldRequirements = {
+  gender: true,
+  country: false,
+  location: true,
+  externalIdentifier: true,
+  phone: false,
+};
 
 export function useProfileStatus(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery<ProfileStatusResponse>({
@@ -14,7 +25,15 @@ export function useProfileStatus(enabled = true) {
   return {
     isComplete: data?.isComplete ?? false,
     missingFields: data?.missingFields ?? [],
-    profile: data?.profile ?? { genderId: null, locationId: null, externalIdentifier: null },
+    profile: data?.profile ?? {
+      genderId: null,
+      locationId: null,
+      countryLocationId: null,
+      externalIdentifier: null,
+      phone: null,
+    },
+    profileFieldRequirements:
+      data?.profileFieldRequirements ?? defaultProfileFieldRequirements,
     profileExtraRequired: data?.profileExtraRequired ?? false,
     profileExtraComplete: data?.profileExtraComplete ?? true,
     isLoading,

@@ -12,12 +12,10 @@ import {
 import {
   Quiz as QuizIcon,
   Book as BookIcon,
-  CheckCircle as CheckCircleIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { useContentQuizzes } from '../../content-quiz/hooks/useContentQuiz';
 import { useForms } from '../../forms/hooks/useForms';
-import { useQuizSubmissions } from '../hooks/useQuizSubmissions';
-import { useAuth } from '../../../contexts/AuthContext';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 
@@ -25,14 +23,11 @@ interface QuizWithContent {
   quiz: any;
   content: any;
   contentQuiz: any;
-  submissions: any[];
 }
 
 export default function QuizzesListPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { currentContext } = useCurrentContext();
-  const participation = user?.participation || null;
 
   // Backend exige contextId: listar apenas quizzes do contexto atual
   const { data: formsData, isLoading: formsLoading } = useForms(
@@ -55,21 +50,7 @@ export default function QuizzesListPage() {
       contextId: currentContext?.id,
     });
 
-  // Buscar submissões do usuário atual (só do contexto selecionado)
-  const { data: submissionsData, isLoading: submissionsLoading } =
-    useQuizSubmissions(
-      participation
-        ? {
-            participationId: participation.id,
-            page: 1,
-            pageSize: 100,
-            contextId: currentContext?.id,
-          }
-        : undefined
-    );
-
-  const isLoading =
-    formsLoading || contentQuizzesLoading || submissionsLoading;
+  const isLoading = formsLoading || contentQuizzesLoading;
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -77,7 +58,6 @@ export default function QuizzesListPage() {
 
   const quizes = formsData?.data || [];
   const contentQuizzes = contentQuizzesData?.data || [];
-  const submissions = submissionsData?.data || [];
 
   // Se temos content-quizzes mas não temos o quiz na lista, precisamos buscar o quiz individualmente
   // Criar um mapa de quizes por ID para busca rápida
@@ -116,11 +96,6 @@ export default function QuizzesListPage() {
         quiz,
         content: cq.content,
         contentQuiz: cq,
-        submissions: submissions.filter(
-          (s) =>
-            s.formVersionId === quiz.latestVersion?.id &&
-            s.participationId === participation?.id
-        ),
       };
     })
     .filter((item): item is QuizWithContent => item !== null); // Remover nulls
@@ -129,7 +104,7 @@ export default function QuizzesListPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          Quizes Disponíveis
+          Quizes no contexto
         </Typography>
         <Alert severity="info" sx={{ mt: 2 }}>
           Nenhum quiz disponível no momento. Os quizes aparecerão aqui quando
@@ -139,54 +114,17 @@ export default function QuizzesListPage() {
     );
   }
 
-  const getQuizStatus = (item: QuizWithContent) => {
-    const latestSubmission = item.submissions
-      .filter((s) => s.completedAt)
-      .sort(
-        (a, b) =>
-          new Date(b.completedAt!).getTime() -
-          new Date(a.completedAt!).getTime()
-      )[0];
-
-    if (!latestSubmission) {
-      return { label: 'Não iniciado', color: 'default' as const };
-    }
-
-    if (latestSubmission.isPassed) {
-      return { label: 'Aprovado', color: 'success' as const };
-    }
-
-    return { label: 'Reprovado', color: 'error' as const };
-  };
-
-  const canAttempt = (item: QuizWithContent) => {
-    const formVersion = item.quiz.latestVersion;
-    if (!formVersion) return false;
-
-    const maxAttempts = formVersion.maxAttempts;
-    if (maxAttempts === null || maxAttempts === undefined) return true;
-
-    const completedAttempts = item.submissions.filter(
-      (s) => s.completedAt !== null
-    ).length;
-
-    return completedAttempts < maxAttempts;
-  };
-
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Quizes Disponíveis
+        Quizes no contexto
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Leia o conteúdo e responda os quizes associados
+        Lista de quizes vinculados a conteúdos neste contexto. Para associá-los a conteúdos, use a seção de Conteúdos.
       </Typography>
 
       <Stack spacing={3}>
         {quizesWithContent.map((item) => {
-          const status = getQuizStatus(item);
-          const canStart = canAttempt(item);
-
           return (
             <Box key={`${item.quiz.id}-${item.content.id}`}>
               <Card
@@ -231,48 +169,30 @@ export default function QuizzesListPage() {
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end', minWidth: '200px' }}>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <Chip
-                          label={status.label}
-                          color={status.color}
-                          size="small"
-                          icon={status.color === 'success' ? <CheckCircleIcon /> : undefined}
-                        />
                         {item.contentQuiz.isRequired && (
                           <Chip label="Obrigatório" color="error" size="small" />
                         )}
-                        {item.submissions.length > 0 && (
-                          <Chip
-                            label={`${item.submissions.length} tentativa(s)`}
-                            size="small"
-                          />
-                        )}
                       </Box>
 
-                      {item.submissions.length > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          Última tentativa:{' '}
-                          {item.submissions[0].score !== null
-                            ? `${item.submissions[0].score.toFixed(1)}%`
-                            : 'Em andamento'}
-                        </Typography>
-                      )}
-
-                      <Button
-                        variant="contained"
-                        onClick={() =>
-                          navigate(
-                            `/quizzes/${item.quiz.id}/content/${item.content.id}`
-                          )
-                        }
-                        disabled={false}
-                        sx={{ minWidth: '180px' }}
-                      >
-                        {item.submissions.length === 0
-                          ? 'Iniciar Quiz'
-                          : canStart
-                            ? 'Refazer Quiz'
-                            : 'Visualizar Resultado'}
-                      </Button>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
+                        <Button
+                          variant="contained"
+                          onClick={() => navigate(`/quizzes/${item.quiz.id}`)}
+                          sx={{ minWidth: '160px' }}
+                        >
+                          Ver detalhes do quiz
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          startIcon={<EditIcon />}
+                          onClick={() =>
+                            navigate(`/contents/${item.content.id}/edit`)
+                          }
+                          sx={{ minWidth: '160px' }}
+                        >
+                          Editar conteúdo
+                        </Button>
+                      </Stack>
                     </Box>
                   </Box>
                 </CardContent>

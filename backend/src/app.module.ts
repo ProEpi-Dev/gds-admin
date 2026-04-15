@@ -30,6 +30,7 @@ import { MailModule } from './mail/mail.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { AuthzModule } from './authz/authz.module';
 import { RolesModule } from './roles/roles.module';
+import { ReportIntegrationsModule } from './report-integrations/report-integrations.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -91,6 +92,7 @@ const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
     GendersModule,
     MailModule,
     RolesModule,
+    ReportIntegrationsModule,
   ],
   controllers: [AppController],
   providers: [

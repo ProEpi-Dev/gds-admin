@@ -5,8 +5,11 @@ import type {
   UpdateContextDto,
   ContextQuery,
   Context,
+  ContextConfigurationEntry,
 } from "../../types/context.types";
 import type { ListResponse } from "../../types/api.types";
+
+const MAX_PAGE_SIZE = 100;
 
 export const contextsService = {
   /** Lista contextos públicos para signup (não requer autenticação). */
@@ -25,6 +28,8 @@ export const contextsService = {
     if (query?.locationId)
       params.append("locationId", query.locationId.toString());
     if (query?.accessType) params.append("accessType", query.accessType);
+    if (query?.search?.trim())
+      params.append("search", query.search.trim());
 
     const response = await apiClient.get(
       `${API_ENDPOINTS.CONTEXTS.LIST_ADMIN}?${params.toString()}`
@@ -32,8 +37,48 @@ export const contextsService = {
     return response.data;
   },
 
+  /** Todas as páginas concatenadas (admin / listagens que precisam do conjunto completo). */
+  async findAllAllPages(
+    query?: Omit<ContextQuery, "page" | "pageSize">,
+  ): Promise<Context[]> {
+    const pageSize = MAX_PAGE_SIZE;
+    const merged: Context[] = [];
+    let page = 1;
+    const maxPages = 200;
+
+    while (page <= maxPages) {
+      const res = await this.findAll({ ...query, page, pageSize });
+      merged.push(...res.data);
+      if (res.data.length < pageSize) break;
+      page += 1;
+    }
+
+    return merged;
+  },
+
   async findOne(id: number): Promise<Context> {
     const response = await apiClient.get(API_ENDPOINTS.CONTEXTS.DETAIL(id));
+    return response.data;
+  },
+
+  async getConfiguration(
+    contextId: number,
+  ): Promise<ContextConfigurationEntry[]> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.CONTEXTS.CONFIGURATION(contextId),
+    );
+    return response.data;
+  },
+
+  async upsertConfiguration(
+    contextId: number,
+    key: string,
+    value: unknown,
+  ): Promise<ContextConfigurationEntry> {
+    const response = await apiClient.put(
+      API_ENDPOINTS.CONTEXTS.CONFIGURATION_KEY(contextId, key),
+      { value },
+    );
     return response.data;
   },
 

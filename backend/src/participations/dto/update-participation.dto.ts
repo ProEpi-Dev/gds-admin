@@ -48,4 +48,12 @@ export class UpdateParticipationDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Modo treinamento para integração externa (homologação vs produção)',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  integrationTrainingMode?: boolean;
 }

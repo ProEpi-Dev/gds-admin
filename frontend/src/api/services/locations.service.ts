@@ -3,6 +3,9 @@ import { API_ENDPOINTS } from '../endpoints';
 import type { CreateLocationDto, UpdateLocationDto, LocationQuery, Location } from '../../types/location.types';
 import type { ListResponse } from '../../types/api.types';
 
+/** Limite máximo do backend (PaginationQueryDto). */
+const MAX_PAGE_SIZE = 100;
+
 export const locationsService = {
   async findAll(query?: LocationQuery): Promise<ListResponse<Location>> {
     const params = new URLSearchParams();
@@ -10,9 +13,31 @@ export const locationsService = {
     if (query?.pageSize) params.append('pageSize', query.pageSize.toString());
     if (query?.active !== undefined) params.append('active', query.active.toString());
     if (query?.parentId) params.append('parentId', query.parentId.toString());
+    if (query?.orgLevel) params.append('orgLevel', query.orgLevel);
 
     const response = await apiClient.get(`${API_ENDPOINTS.LOCATIONS.LIST}?${params.toString()}`);
     return response.data;
+  },
+
+  /**
+   * Busca todas as páginas e concatena `data` (útil quando a lista pode passar de 100 itens).
+   */
+  async findAllAllPages(
+    query?: Omit<LocationQuery, 'page' | 'pageSize'>,
+  ): Promise<Location[]> {
+    const pageSize = MAX_PAGE_SIZE;
+    const merged: Location[] = [];
+    let page = 1;
+    const maxPages = 200;
+
+    while (page <= maxPages) {
+      const res = await this.findAll({ ...query, page, pageSize });
+      merged.push(...res.data);
+      if (res.data.length < pageSize) break;
+      page += 1;
+    }
+
+    return merged;
   },
 
   async findOne(id: number): Promise<Location> {

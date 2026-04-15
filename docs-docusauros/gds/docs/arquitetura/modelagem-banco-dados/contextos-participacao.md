@@ -1,5 +1,11 @@
 # Contextos e Participação
 
+:::tip Configuração operacional
+
+Para **chaves de `context_configuration`**, **módulos** e **integração de reports** por contexto, veja [Configuração de contexto e integrações de reports](../configuracao-contexto-e-integracoes).
+
+:::
+
 Esta seção detalha o modelo de dados relacionado a contextos de trabalho/comunidade e participação de usuários. O controle de **quem gerencia** um contexto é feito via **papéis e permissões (RBAC)**: veja [Papéis e Permissões (RBAC)](papeis-permissoes-rbac).
 
 ## Diagrama

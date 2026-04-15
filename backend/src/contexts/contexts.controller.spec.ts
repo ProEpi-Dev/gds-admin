@@ -25,6 +25,7 @@ describe('ContextsController', () => {
     active: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    modules: ['self_health'],
   };
 
   const mockListResponse: ListResponseDto<ContextResponseDto> = {
@@ -58,6 +59,8 @@ describe('ContextsController', () => {
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
+            findConfiguration: jest.fn(),
+            upsertConfiguration: jest.fn(),
           },
         },
       ],
@@ -125,6 +128,62 @@ describe('ContextsController', () => {
       await controller.findAll();
 
       expect(contextsService.findPublicForSignup).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('findConfiguration', () => {
+    it('deve delegar ao serviço', async () => {
+      const rows = [
+        {
+          id: 1,
+          key: 'negative_report_dedup_window_min',
+          value: 60,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      jest
+        .spyOn(contextsService, 'findConfiguration')
+        .mockResolvedValue(rows as any);
+
+      const result = await controller.findConfiguration(1);
+
+      expect(result).toEqual(rows);
+      expect(contextsService.findConfiguration).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('upsertConfiguration', () => {
+    it('deve delegar ao serviço', async () => {
+      const entry = {
+        id: 1,
+        key: 'negative_report_dedup_window_min',
+        value: 90,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      jest
+        .spyOn(contextsService, 'upsertConfiguration')
+        .mockResolvedValue(entry as any);
+
+      const result = await controller.upsertConfiguration(1, 'negative_report_dedup_window_min', {
+        value: 90,
+      });
+
+      expect(result).toEqual(entry);
+      expect(contextsService.upsertConfiguration).toHaveBeenCalledWith(
+        1,
+        'negative_report_dedup_window_min',
+        90,
+      );
+    });
+
+    it('deve rejeitar chave com caracteres inválidos', async () => {
+      jest.mocked(contextsService.upsertConfiguration).mockClear();
+      await expect(
+        controller.upsertConfiguration(1, 'Invalid Key!', { value: 1 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(contextsService.upsertConfiguration).not.toHaveBeenCalled();
     });
   });
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Paper, Typography, Stack } from '@mui/material';
-import FormFieldRenderer from './FormFieldRenderer';
+import FormFieldRenderer, { shouldShowField } from './FormFieldRenderer';
 import type { FormBuilderDefinition } from '../../types/form-builder.types';
 
 interface FormPreviewProps {
@@ -27,10 +27,52 @@ export default function FormPreview({ definition }: FormPreviewProps) {
     const newErrors: Record<string, string> = {};
 
     definition.fields.forEach((field) => {
+      // Campos ocultos por condição não entram na validação
+      if (!shouldShowField(field, values, definition.fields)) {
+        return;
+      }
+
       const value = values[field.name];
 
       if (field.required) {
         if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+          newErrors[field.name] = `${field.label} é obrigatório`;
+        }
+      }
+
+      if (field.type === 'location' && field.required) {
+        const locationValue =
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
+        const config = field.locationConfig ?? {
+          maxLevel: 'CITY_COUNCIL' as const,
+          countryKey: 'countryLocationId',
+          stateDistrictKey: 'stateDistrictLocationId',
+          cityCouncilKey: 'cityCouncilLocationId',
+        };
+        const hasCountry = !!locationValue[config.countryKey];
+        const hasState =
+          config.maxLevel === 'COUNTRY'
+            ? true
+            : !!locationValue[config.stateDistrictKey ?? ''];
+        const hasCity =
+          config.maxLevel === 'CITY_COUNCIL'
+            ? !!locationValue[config.cityCouncilKey ?? '']
+            : true;
+        if (!hasCountry || !hasState || !hasCity) {
+          newErrors[field.name] = `${field.label} é obrigatório`;
+        }
+      }
+
+      if (field.type === 'mapPoint' && field.required) {
+        const pointValue =
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
+        const hasLatitude = typeof pointValue.latitude === 'number';
+        const hasLongitude = typeof pointValue.longitude === 'number';
+        if (!hasLatitude || !hasLongitude) {
           newErrors[field.name] = `${field.label} é obrigatório`;
         }
       }

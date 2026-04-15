@@ -81,6 +81,30 @@ export default function FormDataDictionary({ definition }: FormDataDictionaryPro
     if ((field.type === 'select' || field.type === 'multiselect') && field.options) {
       return field.options.map((opt) => `${opt.label} (${opt.value})`).join(', ');
     }
+    if (field.type === 'location' && field.locationConfig) {
+      const parts = [
+        `Nível: ${field.locationConfig.maxLevel}`,
+        `País ID: ${field.locationConfig.countryKey}`,
+        `País Nome: ${field.locationConfig.countryNameKey ?? '-'}`,
+      ];
+      if (field.locationConfig.maxLevel !== 'COUNTRY') {
+        parts.push(
+          `Estado/Distrito ID: ${field.locationConfig.stateDistrictKey ?? '-'}`,
+        );
+        parts.push(
+          `Estado/Distrito Nome: ${field.locationConfig.stateDistrictNameKey ?? '-'}`,
+        );
+      }
+      if (field.locationConfig.maxLevel === 'CITY_COUNCIL') {
+        parts.push(
+          `Cidade/Conselho ID: ${field.locationConfig.cityCouncilKey ?? '-'}`,
+        );
+        parts.push(
+          `Cidade/Conselho Nome: ${field.locationConfig.cityCouncilNameKey ?? '-'}`,
+        );
+      }
+      return parts.join(' | ');
+    }
     return '-';
   };
 

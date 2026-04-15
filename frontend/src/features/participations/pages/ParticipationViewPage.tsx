@@ -221,6 +221,25 @@ export default function ParticipationViewPage() {
 
           <Box>
             <Typography variant="caption" color="text.secondary">
+              Modo treinamento (integração)
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <Chip
+                label={
+                  participation.integrationTrainingMode
+                    ? "Treinamento (homologação)"
+                    : "Produção"
+                }
+                color={participation.integrationTrainingMode ? "warning" : "success"}
+                size="small"
+              />
+            </Box>
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Typography variant="caption" color="text.secondary">
               {t("participations.createdAt")}
             </Typography>
             <Typography variant="body1">

@@ -80,14 +80,18 @@ function StatCard({
         >
           <Box
             sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 2,
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              flexShrink: 0,
               bgcolor: `${color}.light`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: `${color}.main`,
+              "& .MuiSvgIcon-root": {
+                fontSize: 28,
+              },
             }}
           >
             {icon}

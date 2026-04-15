@@ -10,10 +10,19 @@ import LoginPage from "../features/auth/pages/LoginPage";
 import SignupPage from "../features/auth/pages/SignupPage";
 import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
+import VerifyEmailPage from "../features/auth/pages/VerifyEmailPage";
+import EmailVerifiedPage from "../features/auth/pages/EmailVerifiedPage";
 import ChangePasswordPage from "../features/auth/pages/ChangePasswordPage";
-import WelcomePage from "../features/app/pages/WelcomePage";
 import CompleteProfilePage from "../features/app/pages/CompleteProfilePage";
 import UserProfilePage from "../features/app/pages/UserProfilePage";
+import AppHomePage from "../features/app/pages/AppHomePage";
+import AppDaysPage from "../features/app/pages/AppDaysPage";
+import AppLearnPage from "../features/app/pages/AppLearnPage";
+import AppLearnCyclePage from "../features/app/pages/AppLearnCyclePage";
+import AppLearnContentPage from "../features/app/pages/AppLearnContentPage";
+import AppContentsPage from "../features/app/pages/AppContentsPage";
+import AppContentViewPage from "../features/app/pages/AppContentViewPage";
+import AppSignalsPage from "../features/app/pages/AppSignalsPage";
 import SetupPage from "../features/setup/pages/SetupPage";
 import FormBuilderPage from "../features/forms/pages/FormBuilderPage";
 import FormsListPage from "../features/forms/pages/FormsListPage";
@@ -71,6 +80,9 @@ import RolesListPage from "../features/roles/pages/RolesListPage";
 import RolePermissionsPage from "../features/roles/pages/RolePermissionsPage";
 import AdminOnlyRoute from "./AdminOnlyRoute";
 import AdminsListPage from "../features/admins/pages/AdminsListPage";
+import IntegrationEventsPage from "../features/report-integrations/pages/IntegrationEventsPage";
+import IntegrationConfigPage from "../features/report-integrations/pages/IntegrationConfigPage";
+import { hasModule, resolveEnabledModules } from "../features/app/utils/contextModules";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -103,7 +115,25 @@ function RootRedirect() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <Navigate to="/app/welcome" replace />;
+  return <Navigate to="/app/inicio" replace />;
+}
+
+function AppDaysRoute() {
+  const { user } = useAuth();
+  const modules = resolveEnabledModules(user?.participation?.context.modules);
+  if (!hasModule(modules, "self_health")) {
+    return <Navigate to="/app/inicio" replace />;
+  }
+  return <AppDaysPage />;
+}
+
+function AppSignalsRoute() {
+  const { user } = useAuth();
+  const modules = resolveEnabledModules(user?.participation?.context.modules);
+  if (!hasModule(modules, "community_signal")) {
+    return <Navigate to="/app/inicio" replace />;
+  }
+  return <AppSignalsPage />;
 }
 
 export default function AppRoutes() {
@@ -114,6 +144,8 @@ export default function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/email-verified" element={<EmailVerifiedPage />} />
       <Route path="/setup" element={<SetupPage />} />
 
       {/* Rotas da Área do App (Usuários Comuns) */}
@@ -126,10 +158,82 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/app/inicio"
+        element={
+          <UserRoute>
+            <AppHomePage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/dias"
+        element={
+          <UserRoute>
+            <AppDaysRoute />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/aprenda"
+        element={
+          <UserRoute>
+            <AppLearnPage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/sinais"
+        element={
+          <UserRoute>
+            <AppSignalsRoute />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/aprenda/ciclo/:cycleId"
+        element={
+          <UserRoute>
+            <AppLearnCyclePage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/aprenda/ciclo/:cycleId/conteudo/:sequenceId/:contentId"
+        element={
+          <UserRoute>
+            <AppLearnContentPage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/aprenda/ciclo/:id/quiz/:sequenceId"
+        element={
+          <UserRoute>
+            <TrackCycleQuizTakePage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/conteudos"
+        element={
+          <UserRoute>
+            <AppContentsPage />
+          </UserRoute>
+        }
+      />
+      <Route
+        path="/app/conteudos/:contentId"
+        element={
+          <UserRoute>
+            <AppContentViewPage />
+          </UserRoute>
+        }
+      />
+      <Route
         path="/app/welcome"
         element={
           <UserRoute>
-            <WelcomePage />
+            <Navigate to="/app/inicio" replace />
           </UserRoute>
         }
       />
@@ -141,7 +245,7 @@ export default function AppRoutes() {
           </UserRoute>
         }
       />
-      <Route path="/app" element={<Navigate to="/app/welcome" replace />} />
+      <Route path="/app" element={<Navigate to="/app/inicio" replace />} />
 
       {/* Rota Raiz - Redireciona baseado no role */}
       <Route path="/" element={<RootRedirect />} />
@@ -611,6 +715,27 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <LegalDocumentTypeFormPage />
+          </AdminRoute>
+        }
+      />
+      {/* Integração externa */}
+      <Route
+        path="/admin/integrations"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <IntegrationEventsPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/integrations/config"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <IntegrationConfigPage />
+            </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }
       />

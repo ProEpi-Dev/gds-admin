@@ -16,7 +16,7 @@ function clearSessionAndMaybeRedirect() {
   localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.USER);
-  const publicRoutes = ['/login', '/signup', '/setup'];
+  const publicRoutes = ['/login', '/signup', '/setup', '/verify-email', '/email-verified'];
   const currentPath = window.location.pathname;
   const isPublicRoute = publicRoutes.some((route) =>
     currentPath.startsWith(route),
@@ -47,7 +47,12 @@ async function refreshAccessToken(): Promise<{ token: string; refreshToken: stri
   }>(
     `${API_BASE_URL}/auth/refresh`,
     { refreshToken },
-    { headers: { 'Content-Type': 'application/json' } },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-gds-channel': 'web',
+      },
+    },
   );
   localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token);
   localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
@@ -57,6 +62,9 @@ async function refreshAccessToken(): Promise<{ token: string; refreshToken: stri
 // Request interceptor para adicionar token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.headers) {
+      config.headers['x-gds-channel'] = 'web';
+    }
     const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;

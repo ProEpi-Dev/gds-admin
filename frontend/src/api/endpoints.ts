@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: "/auth/forgot-password",
     RESET_PASSWORD: "/auth/reset-password",
     SIGNUP: "/auth/signup",
+    VERIFY_EMAIL: "/auth/verify-email",
+    REQUEST_EMAIL_VERIFICATION: "/auth/request-email-verification",
   },
 
   // Setup
@@ -56,6 +58,9 @@ export const API_ENDPOINTS = {
     CREATE: "/contexts",
     UPDATE: (id: number) => `/contexts/${id}`,
     DELETE: (id: number) => `/contexts/${id}`,
+    CONFIGURATION: (id: number) => `/contexts/${id}/configuration`,
+    CONFIGURATION_KEY: (id: number, key: string) =>
+      `/contexts/${id}/configuration/${encodeURIComponent(key)}`,
   },
 
   // Context Managers

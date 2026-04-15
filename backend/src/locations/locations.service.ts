@@ -41,6 +41,7 @@ export class LocationsService {
     const data: any = {
       name: createLocationDto.name,
       active: createLocationDto.active ?? true,
+      org_level: createLocationDto.orgLevel ?? 'CITY_COUNCIL',
     };
 
     if (createLocationDto.parentId !== undefined) {
@@ -86,6 +87,10 @@ export class LocationsService {
       where.parent_id = query.parentId;
     }
 
+    if (query.orgLevel !== undefined) {
+      where.org_level = query.orgLevel;
+    }
+
     // Buscar localizações e total
     const [locations, totalItems] = await Promise.all([
       this.prisma.location.findMany({
@@ -122,6 +127,7 @@ export class LocationsService {
     const queryParams: Record<string, any> = {};
     if (query.active !== undefined) queryParams.active = query.active;
     if (query.parentId !== undefined) queryParams.parentId = query.parentId;
+    if (query.orgLevel !== undefined) queryParams.orgLevel = query.orgLevel;
 
     return {
       data: locations.map((location) => this.mapToResponseDto(location)),
@@ -174,6 +180,31 @@ export class LocationsService {
     return this.mapToResponseDto(location);
   }
 
+  private async assertParentIdAllowedForUpdate(
+    id: number,
+    parentId: number | null | undefined,
+  ): Promise<void> {
+    if (parentId === undefined) {
+      return;
+    }
+    if (parentId === id) {
+      throw new BadRequestException(
+        'Uma localização não pode ser pai de si mesma',
+      );
+    }
+    if (parentId === null) {
+      return;
+    }
+    const parent = await this.prisma.location.findUnique({
+      where: { id: parentId },
+    });
+    if (!parent) {
+      throw new BadRequestException(
+        `Localização pai com ID ${parentId} não encontrada`,
+      );
+    }
+  }
+
   async update(
     id: number,
     updateLocationDto: UpdateLocationDto,
@@ -187,26 +218,7 @@ export class LocationsService {
       throw new NotFoundException(`Localização com ID ${id} não encontrada`);
     }
 
-    // Validar parent_id se fornecido
-    if (updateLocationDto.parentId !== undefined) {
-      if (updateLocationDto.parentId === id) {
-        throw new BadRequestException(
-          'Uma localização não pode ser pai de si mesma',
-        );
-      }
-
-      if (updateLocationDto.parentId !== null) {
-        const parent = await this.prisma.location.findUnique({
-          where: { id: updateLocationDto.parentId },
-        });
-
-        if (!parent) {
-          throw new BadRequestException(
-            `Localização pai com ID ${updateLocationDto.parentId} não encontrada`,
-          );
-        }
-      }
-    }
+    await this.assertParentIdAllowedForUpdate(id, updateLocationDto.parentId);
 
     // Preparar dados de atualização
     const updateData: any = {};
@@ -233,6 +245,10 @@ export class LocationsService {
 
     if (updateLocationDto.active !== undefined) {
       updateData.active = updateLocationDto.active;
+    }
+
+    if (updateLocationDto.orgLevel !== undefined) {
+      updateData.org_level = updateLocationDto.orgLevel;
     }
 
     // Atualizar localização
@@ -280,6 +296,7 @@ export class LocationsService {
         ? this.mapParentLocation(location.location, 1)
         : undefined,
       name: location.name,
+      orgLevel: location.org_level,
       latitude: location.latitude ? Number(location.latitude) : null,
       longitude: location.longitude ? Number(location.longitude) : null,
       polygons: location.polygons,

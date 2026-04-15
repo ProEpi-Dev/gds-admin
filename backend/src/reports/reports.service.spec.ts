@@ -16,6 +16,7 @@ import {
   REPORTS_POINTS_DEFAULT_LIMIT,
 } from './dto/reports-points-query.dto';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -73,6 +74,9 @@ describe('ReportsService', () => {
       form_version: {
         findUnique: jest.fn(),
       },
+      context_configuration: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       participation_report_day: {
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
@@ -108,6 +112,10 @@ describe('ReportsService', () => {
           provide: BusinessMetricsService,
           useValue: { recordReportCreated: jest.fn() },
         },
+        {
+          provide: ReportIntegrationsService,
+          useValue: { dispatchIntegrationEvent: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -140,7 +148,7 @@ describe('ReportsService', () => {
       const result = await service.create(createDto, 1);
 
       expect(result).toHaveProperty('id', 1);
-      expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE');
+      expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE', 'app');
     });
 
     it('deve validar participation e formVersion', async () => {
@@ -482,6 +490,83 @@ describe('ReportsService', () => {
         BadRequestException,
       );
     });
+
+    it('deve ignorar NEGATIVE duplicado dentro da janela de idempotência', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+      };
+
+      const recentNegative = {
+        ...mockReport,
+        id: 91,
+        report_type: 'NEGATIVE',
+        created_at: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 60 },
+          { key: 'negative_block_if_positive_within_min', value: 60 },
+        ] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([recentNegative] as any);
+
+      const result = await service.create(createDto, 1);
+
+      expect(result.id).toBe(91);
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+      expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
+    });
+
+    it('deve ignorar NEGATIVE quando houver POSITIVE recente na janela configurada', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+      };
+
+      const recentPositive = {
+        ...mockReport,
+        id: 92,
+        report_type: 'POSITIVE',
+        created_at: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 60 },
+          { key: 'negative_block_if_positive_within_min', value: 60 },
+        ] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([recentPositive] as any);
+
+      const result = await service.create(createDto, 1);
+
+      expect(result.id).toBe(92);
+      expect(result.reportType).toBe('POSITIVE');
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+      expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -584,6 +669,38 @@ describe('ReportsService', () => {
           skip: 0,
           take: 20,
         }),
+      );
+    });
+
+    it('deve restringir participante aos próprios reports', async () => {
+      const query: ReportQueryDto = {
+        page: 1,
+        pageSize: 20,
+      };
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
+
+      await service.findAll(query, 1);
+
+      expect(prismaService.report.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            participation: expect.objectContaining({
+              context_id: 1,
+              user_id: 1,
+            }),
+          }),
+        }),
+      );
+      expect(authz.resolveListContextId).toHaveBeenCalledWith(
+        1,
+        undefined,
+        'GET /reports',
+        { allowParticipantContext: true },
       );
     });
   });

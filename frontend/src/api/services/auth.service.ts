@@ -36,6 +36,23 @@ export const authService = {
     return response.data;
   },
 
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, {
+      token,
+    });
+    return response.data;
+  },
+
+  async requestEmailVerification(
+    email: string,
+  ): Promise<{ message: string }> {
+    const response = await apiClient.post(
+      API_ENDPOINTS.AUTH.REQUEST_EMAIL_VERIFICATION,
+      { email },
+    );
+    return response.data;
+  },
+
   /** Revoga o refresh token no servidor (axios direto para evitar interceptor). */
   async revokeRefreshToken(refreshToken: string | null): Promise<void> {
     if (!refreshToken) return;

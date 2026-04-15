@@ -30,6 +30,7 @@ import { useStartTrackProgress } from '../../track-progress/hooks/useTrackProgre
 import { ProgressStatus } from '../../../types/track-progress.types';
 import type { StudentProgress } from '../../../types/track-cycle.types';
 import type { Participation } from '../../../types/participation.types';
+import { getDisplayProgressPercentage } from '../../track-progress/utils/progressDisplay';
 
 const STATUS_LABELS: Record<string, string> = {
   [ProgressStatus.NOT_STARTED]: 'Não Iniciado',
@@ -108,20 +109,23 @@ export default function TrackCycleStudentsPage() {
       label: 'Progresso',
       minWidth: 200,
       mobileLabel: 'Progresso',
-      render: (row) => (
-        <Stack spacing={0.5}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LinearProgress
-              variant="determinate"
-              value={row.progress_percentage ?? 0}
-              sx={{ flex: 1, height: 8, borderRadius: 1 }}
-            />
-            <Typography variant="body2" fontWeight="medium">
-              {(row.progress_percentage ?? 0).toFixed(0)}%
-            </Typography>
-          </Box>
-        </Stack>
-      ),
+      render: (row) => {
+        const progress = getDisplayProgressPercentage(row);
+        return (
+          <Stack spacing={0.5}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LinearProgress
+                variant="determinate"
+                value={progress}
+                sx={{ flex: 1, height: 8, borderRadius: 1 }}
+              />
+              <Typography variant="body2" fontWeight="medium">
+                {progress.toFixed(0)}%
+              </Typography>
+            </Box>
+          </Stack>
+        );
+      },
     },
     {
       id: 'started_at',

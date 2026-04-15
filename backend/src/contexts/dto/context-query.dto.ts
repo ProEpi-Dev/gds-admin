@@ -1,6 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsEnum, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  Max,
+  Min,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { context_access_type } from '@prisma/client';
 
@@ -48,4 +57,18 @@ export class ContextQueryDto extends PaginationQueryDto {
   @IsEnum(context_access_type)
   @IsOptional()
   accessType?: context_access_type;
+
+  @ApiPropertyOptional({
+    description: 'Busca parcial no nome do contexto (case-insensitive)',
+    example: 'Cabo',
+  })
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    const s = String(value).trim();
+    return s === '' ? undefined : s;
+  })
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  search?: string;
 }

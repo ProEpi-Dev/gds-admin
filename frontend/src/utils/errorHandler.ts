@@ -77,3 +77,13 @@ export function getErrorMessage(
 
   return defaultMessage;
 }
+
+type ApiErrorBody = { error?: { code?: string; message?: string } };
+
+/** Código de negócio em `error.code` (ex.: EMAIL_VERIFICATION_REQUIRED). */
+export function getErrorCode(error: unknown): string | null {
+  if (!isAxiosError(error)) return null;
+  const data = error.response?.data as ApiErrorBody | undefined;
+  const code = data?.error?.code;
+  return typeof code === "string" ? code : null;
+}

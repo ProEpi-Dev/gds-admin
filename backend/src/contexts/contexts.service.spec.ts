@@ -24,6 +24,7 @@ describe('ContextsService', () => {
     active: true,
     created_at: new Date('2024-01-01'),
     updated_at: new Date('2024-01-01'),
+    context_module: [{ module_code: 'self_health' }],
   };
 
   beforeEach(async () => {
@@ -48,6 +49,12 @@ describe('ContextsService', () => {
             },
             form: {
               count: jest.fn(),
+            },
+            context_configuration: {
+              findMany: jest.fn(),
+              findFirst: jest.fn(),
+              create: jest.fn(),
+              update: jest.fn(),
             },
           },
         },
@@ -97,11 +104,13 @@ describe('ContextsService', () => {
 
       await service.create(createContextDto);
 
-      expect(prismaService.context.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          description: 'Test Description',
+      expect(prismaService.context.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            description: 'Test Description',
+          }),
         }),
-      });
+      );
     });
 
     it('deve incluir type quando fornecido', async () => {
@@ -117,11 +126,13 @@ describe('ContextsService', () => {
 
       await service.create(createContextDto);
 
-      expect(prismaService.context.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          type: 'TEST',
+      expect(prismaService.context.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'TEST',
+          }),
         }),
-      });
+      );
     });
 
     it('deve validar location_id quando fornecido', async () => {
@@ -206,6 +217,164 @@ describe('ContextsService', () => {
         }),
       );
     });
+
+    it('deve aplicar busca por nome', async () => {
+      const query: ContextQueryDto = {
+        page: 1,
+        pageSize: 20,
+        active: true,
+        search: 'Cabo',
+      };
+
+      jest
+        .spyOn(prismaService.context, 'findMany')
+        .mockResolvedValue([] as any);
+      jest.spyOn(prismaService.context, 'count').mockResolvedValue(0);
+
+      await service.findAll(query);
+
+      expect(prismaService.context.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: { contains: 'Cabo', mode: 'insensitive' },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findConfiguration', () => {
+    it('deve lançar NotFoundException se o contexto não existe', async () => {
+      jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
+
+      await expect(service.findConfiguration(999)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('deve retornar entradas ordenadas por chave', async () => {
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue({ id: 1 } as any);
+      const rows = [
+        {
+          id: 1,
+          key: 'a_key',
+          value: 0,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          id: 2,
+          key: 'b_key',
+          value: 1,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ];
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue(rows as any);
+
+      const result = await service.findConfiguration(1);
+
+      expect(prismaService.context_configuration.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { context_id: 1 },
+          orderBy: { key: 'asc' },
+        }),
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        id: 1,
+        key: 'a_key',
+        value: 0,
+      });
+    });
+  });
+
+  describe('upsertConfiguration', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue({ id: 1 } as any);
+    });
+
+    it('deve criar quando não existe', async () => {
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue(null);
+      const created = {
+        id: 10,
+        key: 'negative_report_dedup_window_min',
+        value: 90,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      jest
+        .spyOn(prismaService.context_configuration, 'create')
+        .mockResolvedValue(created as any);
+
+      const result = await service.upsertConfiguration(
+        1,
+        'negative_report_dedup_window_min',
+        90,
+      );
+
+      expect(prismaService.context_configuration.create).toHaveBeenCalled();
+      expect(result.key).toBe('negative_report_dedup_window_min');
+      expect(result.value).toBe(90);
+    });
+
+    it('deve atualizar quando já existe', async () => {
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue({ id: 5 } as any);
+      const updated = {
+        id: 5,
+        key: 'negative_report_dedup_window_min',
+        value: 120,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      jest
+        .spyOn(prismaService.context_configuration, 'update')
+        .mockResolvedValue(updated as any);
+
+      const result = await service.upsertConfiguration(
+        1,
+        'negative_report_dedup_window_min',
+        120,
+      );
+
+      expect(prismaService.context_configuration.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 5 },
+          data: expect.objectContaining({ value: 120 }),
+        }),
+      );
+      expect(result.value).toBe(120);
+    });
+
+    it('deve rejeitar chave com caracteres inválidos', async () => {
+      await expect(service.upsertConfiguration(1, 'BAD-KEY', 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve rejeitar valor numérico inválido para janela de dedup', async () => {
+      jest
+        .spyOn(prismaService.context_configuration, 'findFirst')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.upsertConfiguration(
+          1,
+          'negative_report_dedup_window_min',
+          0,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('findOne', () => {
@@ -259,10 +428,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { access_type: 'PRIVATE' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { access_type: 'PRIVATE' },
+        }),
+      );
     });
 
     it('deve atualizar description quando fornecido', async () => {
@@ -279,10 +450,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { description: 'Updated Description' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { description: 'Updated Description' },
+        }),
+      );
     });
 
     it('deve atualizar type quando fornecido', async () => {
@@ -299,10 +472,12 @@ describe('ContextsService', () => {
 
       await service.update(1, updateContextDto);
 
-      expect(prismaService.context.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { type: 'UPDATED' },
-      });
+      expect(prismaService.context.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { type: 'UPDATED' },
+        }),
+      );
     });
 
     it('deve validar location_id quando fornecido', async () => {

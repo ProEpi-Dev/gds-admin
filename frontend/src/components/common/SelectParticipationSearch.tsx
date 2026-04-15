@@ -67,8 +67,12 @@ export default function SelectParticipationSearch({
         options={options}
         getOptionLabel={(opt: Participation) =>
           opt.userName
-            ? `${opt.userName} (#${opt.id})`
-            : `Participação #${opt.id}`
+            ? opt.userEmail
+              ? `${opt.userName} (${opt.userEmail})`
+              : `${opt.userName} (#${opt.id})`
+            : opt.userEmail
+              ? opt.userEmail
+              : `Participação #${opt.id}`
         }
         value={displayValue}
         onInputChange={(_, v) => setInputValue(v)}

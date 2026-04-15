@@ -30,6 +30,7 @@ const formSchema = z.object({
   startDate: z.string().min(1, 'Data de início é obrigatória').optional(),
   endDate: z.string().optional().nullable(),
   active: z.boolean().optional(),
+  integrationTrainingMode: z.boolean().optional(),
 }).refine((data) => {
   if (data.endDate && data.startDate) {
     return new Date(data.endDate) >= new Date(data.startDate);
@@ -65,15 +66,17 @@ export default function ParticipationEditPage() {
   const userId = watch('userId');
   const contextId = watch('contextId');
   const active = watch('active');
+  const integrationTrainingMode = watch('integrationTrainingMode');
 
   useEffect(() => {
     if (participation) {
       reset({
         userId: participation.userId,
         contextId: participation.contextId,
-        startDate: participation.startDate.split('T')[0], // Formato YYYY-MM-DD
+        startDate: participation.startDate.split('T')[0],
         endDate: participation.endDate ? participation.endDate.split('T')[0] : '',
         active: participation.active,
+        integrationTrainingMode: participation.integrationTrainingMode ?? false,
       });
     }
   }, [participation, reset]);
@@ -105,6 +108,10 @@ export default function ParticipationEditPage() {
 
     if (data.active !== undefined) {
       updateData.active = data.active;
+    }
+
+    if (data.integrationTrainingMode !== undefined) {
+      updateData.integrationTrainingMode = data.integrationTrainingMode;
     }
 
     updateMutation.mutate(
@@ -189,6 +196,16 @@ export default function ParticipationEditPage() {
                 />
               }
               label={t('participations.status')}
+            />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={integrationTrainingMode ?? false}
+                  onChange={(e) => setValue('integrationTrainingMode', e.target.checked)}
+                />
+              }
+              label="Modo treinamento (integração para homologação)"
             />
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>

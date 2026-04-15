@@ -1,6 +1,7 @@
 import type { PaginationQuery } from './api.types';
 
 export type ContextAccessType = 'PUBLIC' | 'PRIVATE';
+export type ContextModuleCode = 'self_health' | 'community_signal';
 
 export interface Context {
   id: number;
@@ -12,6 +13,7 @@ export interface Context {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  modules: ContextModuleCode[];
 }
 
 export interface CreateContextDto {
@@ -21,6 +23,7 @@ export interface CreateContextDto {
   description?: string;
   type?: string;
   active?: boolean;
+  modules?: ContextModuleCode[];
 }
 
 export interface UpdateContextDto {
@@ -30,11 +33,22 @@ export interface UpdateContextDto {
   description?: string;
   type?: string;
   active?: boolean;
+  modules?: ContextModuleCode[];
+}
+
+export interface ContextConfigurationEntry {
+  id: number;
+  key: string;
+  value: unknown;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ContextQuery extends PaginationQuery {
   active?: boolean;
   locationId?: number;
   accessType?: ContextAccessType;
+  /** Busca parcial no nome (backend: query param `search`) */
+  search?: string;
 }
 

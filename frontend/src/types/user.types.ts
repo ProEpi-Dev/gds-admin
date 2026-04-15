@@ -3,6 +3,8 @@ export interface User {
   name: string;
   email: string;
   active: boolean;
+  phone?: string | null;
+  countryLocationId?: number | null;
   roleId?: number | null;
   roleName?: string | null;
   createdAt: string;
@@ -52,7 +54,17 @@ export interface UserRoleResponse {
 export interface UpdateProfileDto {
   genderId?: number;
   locationId?: number;
+  countryLocationId?: number;
   externalIdentifier?: string;
+  phone?: string;
+}
+
+export interface ProfileFieldRequirements {
+  gender: boolean;
+  country: boolean;
+  location: boolean;
+  externalIdentifier: boolean;
+  phone: boolean;
 }
 
 export interface ProfileStatusResponse {
@@ -61,8 +73,11 @@ export interface ProfileStatusResponse {
   profile: {
     genderId: number | null;
     locationId: number | null;
+    countryLocationId: number | null;
     externalIdentifier: string | null;
+    phone: string | null;
   };
+  profileFieldRequirements: ProfileFieldRequirements;
   profileExtraRequired: boolean;
   profileExtraComplete: boolean;
 }

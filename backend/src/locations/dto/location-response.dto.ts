@@ -30,6 +30,13 @@ export class LocationResponseDto {
   @ApiProperty({ description: 'Nome da localização', example: 'São Paulo' })
   name: string;
 
+  @ApiProperty({
+    description: 'Nível organizacional da localização',
+    example: 'CITY_COUNCIL',
+    enum: ['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL'],
+  })
+  orgLevel: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+
   @ApiPropertyOptional({ description: 'Latitude', example: -23.5505 })
   latitude: number | null;
 

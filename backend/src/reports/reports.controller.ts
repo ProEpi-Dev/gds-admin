@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentChannel } from '../common/decorators/current-channel.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -55,13 +56,14 @@ export class ReportsController {
   async create(
     @Body() createReportDto: CreateReportDto,
     @CurrentUser() user: any,
+    @CurrentChannel() channel: 'web' | 'app',
   ): Promise<ReportResponseDto> {
-    return this.reportsService.create(createReportDto, user.userId);
+    return this.reportsService.create(createReportDto, user.userId, channel);
   }
 
   @Get()
   @UseGuards(RolesGuard)
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'participant')
   @ApiOperation({
     summary: 'Listar reports',
     description: 'Retorna lista paginada de reports com filtros opcionais',

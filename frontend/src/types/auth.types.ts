@@ -1,4 +1,5 @@
 import type { FormVersion } from './form-version.types';
+import type { ContextModuleCode } from './context.types';
 
 export interface LoginDto {
   email: string;
@@ -25,6 +26,7 @@ export interface ParticipationLogin {
   context: {
     id: number;
     name: string;
+    modules?: ContextModuleCode[];
   };
   startDate: string;
   endDate: string | null;
@@ -77,8 +79,9 @@ export interface SignupDto {
 }
 
 export interface SignupResponse {
-  accessToken: string;
-  refreshToken: string;
+  emailVerificationRequired?: boolean;
+  accessToken?: string;
+  refreshToken?: string;
   user: {
     id: number;
     name: string;

@@ -37,8 +37,10 @@ export class CreateReportDto {
   @ApiProperty({
     description: 'Resposta do formulário (JSON)',
     example: { campo1: 'valor1', campo2: 'valor2' },
+    nullable: true,
   })
   @IsObject()
+  @IsOptional()
   formResponse: any;
 
   @ApiPropertyOptional({

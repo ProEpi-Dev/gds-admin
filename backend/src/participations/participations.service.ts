@@ -378,6 +378,11 @@ export class ParticipationsService {
       updateData.active = updateParticipationDto.active;
     }
 
+    if (updateParticipationDto.integrationTrainingMode !== undefined) {
+      updateData.integration_training_mode =
+        updateParticipationDto.integrationTrainingMode;
+    }
+
     // Atualizar participação
     const participation = await this.prisma.participation.update({
       where: { id },
@@ -525,6 +530,8 @@ export class ParticipationsService {
       startDate: participation.start_date,
       endDate: participation.end_date,
       active: participation.active,
+      integrationTrainingMode:
+        participation.integration_training_mode ?? false,
       createdAt: participation.created_at,
       updatedAt: participation.updated_at,
     };

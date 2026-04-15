@@ -300,10 +300,15 @@ export class QuizSubmissionsService {
       participation: { context_id: filterContextId },
     };
 
-    // Participant: só pode ver as próprias submissões
-    const managedIds = await this.authz.getManagedContextIds(userId);
-    if (managedIds.length === 0) {
-      where.participation.user_id = userId;
+    // Participante (sem papel de manager/content_manager na participação):
+    // só vê as próprias submissões. Admin global não entra em getManagedContextIds
+    // (papéis ficam em user.role), então não pode usar "managedIds vazio" como proxy.
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      const managedIds = await this.authz.getManagedContextIds(userId);
+      if (managedIds.length === 0) {
+        where.participation.user_id = userId;
+      }
     }
 
     if (query.active !== undefined) {
@@ -334,10 +339,17 @@ export class QuizSubmissionsService {
     if (query.startDate !== undefined || query.endDate !== undefined) {
       where.completed_at = {};
       if (query.startDate !== undefined) {
-        where.completed_at.gte = new Date(query.startDate);
+        const sd = query.startDate.trim();
+        where.completed_at.gte = /^\d{4}-\d{2}-\d{2}$/.test(sd)
+          ? new Date(`${sd}T00:00:00.000Z`)
+          : new Date(query.startDate);
       }
       if (query.endDate !== undefined) {
-        where.completed_at.lte = new Date(query.endDate);
+        const ed = query.endDate.trim();
+        // Data só com yyyy-MM-dd: incluir o dia inteiro em UTC (evita cortar o último dia).
+        where.completed_at.lte = /^\d{4}-\d{2}-\d{2}$/.test(ed)
+          ? new Date(`${ed}T23:59:59.999Z`)
+          : new Date(query.endDate);
       }
     }
 

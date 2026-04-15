@@ -34,6 +34,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserRole } from '../../hooks/useUserRole';
 import { useCurrentContext } from '../../contexts/CurrentContextContext';
+import LogoGds from '../common/LogoGds';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -118,9 +119,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <MenuIcon />
         </IconButton>
 
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
-          {t('layout.appTitle')}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexGrow: 0, mr: 2, minWidth: 0 }}>
+          <LogoGds height={30} withDarkBackdrop />
+          <Typography variant="h6" component="div" noWrap>
+            {t('layout.appTitle')}
+          </Typography>
+        </Box>
 
         {/* Seletor de contexto */}
         {!roleLoading && currentContext && (

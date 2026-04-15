@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Box, Typography, TextField, Button, CircularProgress, Paper, Chip, Divider, Alert } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Box, Typography, TextField, Button, CircularProgress, Paper, Chip, Divider, Alert, Autocomplete } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,19 +11,34 @@ import { useSnackbar } from '../../../hooks/useSnackbar';
 import { getErrorMessage } from '../../../utils/errorHandler';
 import { useTranslation } from '../../../hooks/useTranslation';
 import SelectGender from '../../../components/common/SelectGender';
-import SelectLocation from '../../../components/common/SelectLocation';
 import UserLayout from '../../../components/layout/UserLayout';
 import ProfileExtraFormSection from '../components/ProfileExtraFormSection';
 import { resolveProfileExtraPayload } from '../utils/profileExtraPayload';
-import type { UpdateProfileDto } from '../../../types/user.types';
+import type {
+  UpdateProfileDto,
+  ProfileFieldRequirements,
+} from '../../../types/user.types';
+import { locationsService } from '../../../api/services/locations.service';
+import type { FormRendererHandle } from '../../../components/form-renderer/FormRenderer';
+import { isLocationDescendantOfCountry } from '../../../utils/locationHierarchy';
 
 const profileSchema = z.object({
   genderId: z.number().optional(),
+  countryLocationId: z.number().optional(),
   locationId: z.number().optional(),
   externalIdentifier: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+
+const DEFAULT_PROFILE_FIELD_REQUIREMENTS: ProfileFieldRequirements = {
+  gender: true,
+  country: false,
+  location: true,
+  externalIdentifier: true,
+  phone: false,
+};
 
 export default function UserProfilePage() {
   const { user } = useAuth();
@@ -32,6 +47,7 @@ export default function UserProfilePage() {
   const queryClient = useQueryClient();
   const [extraValues, setExtraValues] = useState<Record<string, unknown>>({});
   const [extraError, setExtraError] = useState<string | null>(null);
+  const profileExtraFormRef = useRef<FormRendererHandle>(null);
 
   const { data: profileStatus, isLoading: statusLoading, refetch } = useQuery({
     queryKey: ['profile-status'],
@@ -47,15 +63,74 @@ export default function UserProfilePage() {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
+    watch,
+    setValue,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       genderId: profileStatus?.profile.genderId ?? undefined,
+      countryLocationId: profileStatus?.profile.countryLocationId ?? undefined,
       locationId: profileStatus?.profile.locationId ?? undefined,
       externalIdentifier: profileStatus?.profile.externalIdentifier || '',
+      phone: profileStatus?.profile.phone || '',
     },
   });
+
+  const selectedCountryLocationId = watch('countryLocationId');
+  const selectedLocationId = watch('locationId');
+
+  const { data: countries = [], isLoading: countriesLoading } = useQuery({
+    queryKey: ['locations', 'countries', 'all-pages'],
+    queryFn: () =>
+      locationsService.findAllAllPages({
+        active: true,
+        orgLevel: 'COUNTRY',
+      }),
+  });
+
+  const { data: allLocations = [], isLoading: locationsLoading } = useQuery({
+    queryKey: ['locations', 'all-active', 'all-pages'],
+    queryFn: () =>
+      locationsService.findAllAllPages({
+        active: true,
+      }),
+  });
+
+  useEffect(() => {
+    if (!profileStatus?.profile) return;
+    reset({
+      genderId: profileStatus.profile.genderId ?? undefined,
+      countryLocationId: profileStatus.profile.countryLocationId ?? undefined,
+      locationId: profileStatus.profile.locationId ?? undefined,
+      externalIdentifier: profileStatus.profile.externalIdentifier || '',
+      phone: profileStatus.profile.phone || '',
+    });
+  }, [profileStatus, reset]);
+
+  useEffect(() => {
+    if (!selectedLocationId || !selectedCountryLocationId) {
+      return;
+    }
+
+    const currentLocation = allLocations.find(
+      (location) => location.id === selectedLocationId,
+    );
+
+    if (!currentLocation) {
+      return;
+    }
+
+    const isChild = isLocationDescendantOfCountry(
+      currentLocation,
+      selectedCountryLocationId,
+    );
+
+    if (!isChild) {
+      setValue('locationId', undefined);
+    }
+  }, [selectedCountryLocationId, selectedLocationId, allLocations, setValue]);
 
   const saveProfileExtraMutation = useMutation({
     mutationFn: async () => {
@@ -103,7 +178,7 @@ export default function UserProfilePage() {
     updateProfileMutation.mutate(data);
   };
 
-  if (statusLoading) {
+  if (statusLoading || !profileStatus) {
     return (
       <UserLayout>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -113,6 +188,21 @@ export default function UserProfilePage() {
     );
   }
 
+  const profileReq =
+    profileStatus.profileFieldRequirements ?? DEFAULT_PROFILE_FIELD_REQUIREMENTS;
+
+  const selectedCountry =
+    countries.find((item) => item.id === selectedCountryLocationId) ?? null;
+
+  const locationsByCountry =
+    profileReq.country && selectedCountryLocationId
+      ? allLocations.filter((location) =>
+          isLocationDescendantOfCountry(location, selectedCountryLocationId),
+        )
+      : profileReq.country
+        ? []
+        : allLocations;
+
   return (
     <UserLayout>
       <Paper elevation={3} sx={{ p: 4, maxWidth: 700, mx: 'auto', mt: 4 }}>
@@ -121,11 +211,16 @@ export default function UserProfilePage() {
         </Typography>
 
         <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            component="div"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+          >
             Status do Perfil:{' '}
             <Chip
-              label={profileStatus?.isComplete ? t('profile.profileComplete') : t('profile.profileIncomplete')}
-              color={profileStatus?.isComplete ? 'success' : 'warning'}
+              label={profileStatus.isComplete ? t('profile.profileComplete') : t('profile.profileIncomplete')}
+              color={profileStatus.isComplete ? 'success' : 'warning'}
               size="small"
             />
           </Typography>
@@ -177,17 +272,68 @@ export default function UserProfilePage() {
             />
           </Box>
 
+          {profileReq.country ? (
+            <Box sx={{ mb: 2 }}>
+              <Controller
+                name="countryLocationId"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    value={
+                      countries.find((country) => country.id === field.value) ??
+                      null
+                    }
+                    onChange={(_, newValue) =>
+                      field.onChange(newValue?.id ?? undefined)
+                    }
+                    options={countries}
+                    getOptionLabel={(option) => option.name}
+                    loading={countriesLoading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label={t('profile.country')}
+                        error={!!errors.countryLocationId}
+                        helperText={errors.countryLocationId?.message}
+                      />
+                    )}
+                  />
+                )}
+              />
+            </Box>
+          ) : null}
+
           <Box sx={{ mb: 2 }}>
             <Controller
               name="locationId"
               control={control}
               render={({ field }) => (
-                <SelectLocation
-                  value={field.value || null}
-                  onChange={field.onChange}
-                  error={!!errors.locationId}
-                  helperText={errors.locationId?.message}
-                  label={t('profile.location')}
+                <Autocomplete
+                  value={
+                    locationsByCountry.find(
+                      (location) => location.id === field.value,
+                    ) ?? null
+                  }
+                  onChange={(_, newValue) =>
+                    field.onChange(newValue?.id ?? undefined)
+                  }
+                  options={locationsByCountry}
+                  getOptionLabel={(option) => option.name}
+                  loading={locationsLoading}
+                  disabled={profileReq.country && !selectedCountry}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={t('profile.location')}
+                      error={!!errors.locationId}
+                      helperText={
+                        errors.locationId?.message ??
+                        (profileReq.country && !selectedCountry
+                          ? t('profile.locationSelectCountryFirst')
+                          : undefined)
+                      }
+                    />
+                  )}
                 />
               )}
             />
@@ -202,6 +348,15 @@ export default function UserProfilePage() {
             helperText={errors.externalIdentifier?.message || t('profile.externalIdentifierHelper')}
           />
 
+          <TextField
+            {...register('phone')}
+            label={t('profile.phone')}
+            fullWidth
+            margin="normal"
+            error={!!errors.phone}
+            helperText={errors.phone?.message}
+          />
+
           <Button
             type="submit"
             fullWidth
@@ -214,7 +369,15 @@ export default function UserProfilePage() {
           </Button>
         </Box>
 
-        <ProfileExtraFormSection onValuesChange={setExtraValues} />
+        <ProfileExtraFormSection
+          ref={profileExtraFormRef}
+          onValuesChange={setExtraValues}
+          participantCountryLocationId={
+            watch('countryLocationId') ??
+            profileStatus.profile.countryLocationId ??
+            null
+          }
+        />
 
         {profileExtraMe?.form && (
           <Box sx={{ mt: 2 }}>
@@ -232,6 +395,9 @@ export default function UserProfilePage() {
                 setExtraError(null);
                 const resolved = resolveProfileExtraPayload(profileExtraMe, extraValues);
                 if ('error' in resolved) {
+                  if (resolved.error === 'invalid') {
+                    profileExtraFormRef.current?.revealFieldErrors();
+                  }
                   setExtraError(t('profile.profileExtraInvalid'));
                   return;
                 }

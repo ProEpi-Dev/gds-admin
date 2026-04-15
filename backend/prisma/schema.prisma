@@ -18,14 +18,43 @@ model context {
   created_at      DateTime            @default(now()) @db.Timestamp(6)
   updated_at      DateTime            @default(now()) @db.Timestamp(6)
   active          Boolean             @default(true)
-  content         content[]
-  location        location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
-  form            form[]
-  participation   participation[]
-  track           track[]
-  track_cycle     track_cycle[]
+  content            content[]
+  location           location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  form               form[]
+  context_configuration context_configuration[]
+  context_module     context_module[]
+  integration_config integration_config[]
+  participation      participation[]
+  track              track[]
+  track_cycle        track_cycle[]
 
   @@index([location_id], map: "idx_context_location_id")
+}
+
+model context_module {
+  id          Int                 @id @default(autoincrement())
+  context_id  Int
+  module_code context_module_code
+  created_at  DateTime            @default(now()) @db.Timestamp(6)
+  updated_at  DateTime            @default(now()) @db.Timestamp(6)
+  context     context             @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, module_code], map: "uq_context_module_unique")
+  @@index([context_id], map: "idx_context_module_context_id")
+}
+
+model context_configuration {
+  id         Int      @id @default(autoincrement())
+  context_id Int
+  key        String   @db.VarChar(100)
+  value      Json
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  context    context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, key], map: "uq_context_configuration_context_key")
+  @@index([context_id], map: "idx_context_configuration_context_id")
+  @@index([key], map: "idx_context_configuration_key")
 }
 
 
@@ -90,6 +119,7 @@ model location {
   id             Int        @id @default(autoincrement())
   parent_id      Int?
   name           String     @db.VarChar(255)
+  org_level      location_org_level @default(CITY_COUNCIL)
   latitude       Decimal?   @db.Decimal(10, 8)
   longitude      Decimal?   @db.Decimal(11, 8)
   polygons       Json?
@@ -99,9 +129,17 @@ model location {
   context        context[]
   location       location?  @relation("locationTolocation", fields: [parent_id], references: [id], onUpdate: NoAction)
   other_location location[] @relation("locationTolocation")
-  user           user[]
+  users_by_location         user[] @relation("userLocation")
+  users_by_country_location user[] @relation("userCountryLocation")
 
   @@index([parent_id], map: "idx_location_parent_id")
+  @@index([org_level], map: "idx_location_org_level")
+}
+
+enum location_org_level {
+  COUNTRY
+  STATE_DISTRICT
+  CITY_COUNCIL
 }
 
 model role {
@@ -145,18 +183,19 @@ model role_permission {
 }
 
 model participation {
-  id              Int               @id @default(autoincrement())
-  user_id         Int
-  context_id       Int
-  start_date       DateTime          @db.Date
-  end_date         DateTime?         @db.Date
-  active           Boolean           @default(true)
-  created_at       DateTime          @default(now()) @db.Timestamp(6)
-  updated_at       DateTime          @default(now()) @db.Timestamp(6)
-  context          context           @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user             user              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  participation_role participation_role[]
-  report           report[]
+  id                          Int               @id @default(autoincrement())
+  user_id                     Int
+  context_id                  Int
+  start_date                  DateTime          @db.Date
+  end_date                    DateTime?         @db.Date
+  active                      Boolean           @default(true)
+  integration_training_mode   Boolean           @default(false)
+  created_at                  DateTime          @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime          @default(now()) @db.Timestamp(6)
+  context                     context           @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                        user              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  participation_role          participation_role[]
+  report                      report[]
   participation_report_day    participation_report_day[]
   participation_report_streak participation_report_streak?
   quiz_submission             quiz_submission[]
@@ -195,20 +234,22 @@ model participation_role {
 }
 
 model report {
-  id                  Int              @id @default(autoincrement())
-  participation_id    Int
-  report_type         report_type_enum
-  occurrence_location Json?
-  form_version_id     Int
-  form_response       Json
-  created_at          DateTime         @default(now()) @db.Timestamp(6)
-  updated_at          DateTime         @default(now()) @db.Timestamp(6)
-  active              Boolean          @default(true)
-  form_version        form_version     @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
-  participation       participation    @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                          Int                        @id @default(autoincrement())
+  participation_id            Int
+  report_type                 report_type_enum
+  occurrence_location         Json?
+  form_version_id             Int
+  form_response               Json
+  created_at                  DateTime                   @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime                   @default(now()) @db.Timestamp(6)
+  active                      Boolean                    @default(true)
+  form_version                form_version               @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
+  participation               participation              @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report_integration_event    report_integration_event?
 
   @@index([form_version_id], map: "idx_report_form_version_id")
   @@index([participation_id], map: "idx_report_participation_id")
+  @@index([participation_id, report_type, active, created_at(sort: Desc)], map: "idx_report_participation_type_active_created_desc")
 }
 
 model participation_report_day {
@@ -246,19 +287,25 @@ model user {
   name                  String                  @db.VarChar(255)
   email                 String                  @unique @db.VarChar(255)
   password              String                  @db.VarChar(255)
+  phone                 String?                 @db.VarChar(30)
   gender_id             Int?
   location_id           Int?
+  country_location_id   Int?
   role_id               Int?
   external_identifier   String?                 @db.VarChar(100)
   created_at            DateTime                @default(now()) @db.Timestamp(6)
   updated_at            DateTime                @default(now()) @db.Timestamp(6)
   active                    Boolean                 @default(true)
+  email_verified_at         DateTime?               @db.Timestamp(6)
+  email_verification_token  String?                 @db.VarChar(255)
+  email_verification_expires DateTime?              @db.Timestamp(6)
   password_reset_token      String?                 @db.VarChar(255)
   password_reset_expires    DateTime?               @db.Timestamp(6)
   content                   content[]
   participation             participation[]
   gender                    gender?                 @relation(fields: [gender_id], references: [id], onUpdate: NoAction)
-  location                  location?               @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  location                  location?               @relation("userLocation", fields: [location_id], references: [id], onUpdate: NoAction)
+  country_location          location?               @relation("userCountryLocation", fields: [country_location_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   role                      role?                   @relation(fields: [role_id], references: [id], onUpdate: NoAction)
   user_legal_acceptance     user_legal_acceptance[]
   user_refresh_token        user_refresh_token[]
@@ -266,8 +313,10 @@ model user {
   @@index([email], map: "idx_user_email")
   @@index([gender_id], map: "idx_user_gender_id")
   @@index([location_id], map: "idx_user_location_id")
+  @@index([country_location_id], map: "idx_user_country_location_id")
   @@index([role_id], map: "idx_user_role_id")
   @@index([external_identifier], map: "idx_user_external_identifier")
+  @@index([phone], map: "idx_user_phone")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -348,6 +397,11 @@ model tag {
 enum context_access_type {
   PUBLIC
   PRIVATE
+}
+
+enum context_module_code {
+  self_health
+  community_signal
 }
 
 enum form_type_enum {
@@ -664,4 +718,75 @@ model sequence_progress {
   @@index([sequence_id], map: "idx_sequence_progress_sequence")
   @@index([status], map: "idx_sequence_progress_status")
   @@index([completed_at], map: "idx_sequence_progress_completed_at")
+}
+
+// ─── Integration enums & models ────────────────────────────────
+
+enum integration_event_status {
+  pending
+  processing
+  sent
+  failed
+}
+
+enum integration_message_direction {
+  inbound
+  outbound
+}
+
+model report_integration_event {
+  id                Int                            @id @default(autoincrement())
+  report_id         Int                            @unique(map: "uq_report_integration_event_report")
+  external_event_id String?                        @db.VarChar(255)
+  status            integration_event_status       @default(pending)
+  environment       String                         @default("production") @db.VarChar(20)
+  attempt_count     Int                            @default(0)
+  last_attempt_at   DateTime?                      @db.Timestamp(6)
+  last_error        String?
+  request_payload   Json?
+  response_payload  Json?
+  created_at        DateTime                       @default(now()) @db.Timestamp(6)
+  updated_at        DateTime                       @default(now()) @db.Timestamp(6)
+  report            report                         @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages          report_integration_message[]
+
+  @@index([report_id], map: "idx_rie_report_id")
+  @@index([status], map: "idx_rie_status")
+  @@index([external_event_id], map: "idx_rie_external_event_id")
+}
+
+model report_integration_message {
+  id                   Int                            @id @default(autoincrement())
+  integration_event_id Int
+  external_message_id  String?                        @db.VarChar(255)
+  direction            integration_message_direction
+  body                 String
+  author               String?                        @db.VarChar(255)
+  remote_created_at    DateTime?                      @db.Timestamp(6)
+  created_at           DateTime                       @default(now()) @db.Timestamp(6)
+  updated_at           DateTime                       @default(now()) @db.Timestamp(6)
+  integration_event    report_integration_event       @relation(fields: [integration_event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([integration_event_id, external_message_id], map: "uq_rim_external_message")
+  @@index([integration_event_id], map: "idx_rim_event_id")
+}
+
+model integration_config {
+  id                    Int      @id @default(autoincrement())
+  context_id            Int
+  version               Int      @default(1)
+  is_active             Boolean  @default(true)
+  base_url_production   String?  @db.VarChar(500)
+  base_url_homologation String?  @db.VarChar(500)
+  auth_config           Json?
+  payload_mapping       Json     @default("{}")
+  timeout_ms            Int      @default(30000)
+  max_retries           Int      @default(3)
+  created_at            DateTime @default(now()) @db.Timestamp(6)
+  updated_at            DateTime @default(now()) @db.Timestamp(6)
+  context               context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, version], map: "uq_integration_config_version")
+  @@index([context_id], map: "idx_ic_context_id")
+  @@index([is_active], map: "idx_ic_active")
 }

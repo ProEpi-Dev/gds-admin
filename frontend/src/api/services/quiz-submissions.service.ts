@@ -21,6 +21,9 @@ export const quizSubmissionsService = {
       params.append('participationId', query.participationId.toString());
     if (query?.formVersionId)
       params.append('formVersionId', query.formVersionId.toString());
+    if (query?.formId != null) {
+      params.append('formId', query.formId.toString());
+    }
     if (query?.active !== undefined) {
       params.append('active', query.active ? 'true' : 'false');
     }

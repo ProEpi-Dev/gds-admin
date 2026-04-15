@@ -26,18 +26,16 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 import SelectParticipationSearch from '../../../components/common/SelectParticipationSearch';
 import type { QuizSubmission } from '../../../types/quiz-submission.types';
 
-const STORAGE_KEY = 'quiz-submissions-filters';
+/** v2: padrão sem intervalo de datas (evita lista vazia quando o BD tem submissões antigas). */
+const STORAGE_KEY = 'quiz-submissions-filters-v2';
 
-const DAYS_DEFAULT_RANGE = 15;
-
-function getDefaultDateRange(): { startDate: string; endDate: string } {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - (DAYS_DEFAULT_RANGE - 1));
-  return {
-    startDate: start.toISOString().split('T')[0],
-    endDate: end.toISOString().split('T')[0],
-  };
+/** Evita deslocamento de um dia ao exibir yyyy-MM-dd (new Date('yyyy-MM-dd') é interpretado como UTC). */
+function formatIsoDateOnlyPtBR(value: string): string {
+  const trimmed = value.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!m) return new Date(trimmed).toLocaleDateString('pt-BR');
+  const [, y, mo, d] = m;
+  return `${d}/${mo}/${y}`;
 }
 
 interface SavedFilters {
@@ -90,12 +88,11 @@ export default function QuizSubmissionsListPage() {
   const [formId, setFormId] = useState<number | undefined>(
     stateFormId || savedFilters?.formId
   );
-  const defaultRange = getDefaultDateRange();
   const [startDate, setStartDate] = useState<string>(
-    savedFilters?.startDate?.trim() || defaultRange.startDate
+    savedFilters?.startDate?.trim() ?? '',
   );
   const [endDate, setEndDate] = useState<string>(
-    savedFilters?.endDate?.trim() || defaultRange.endDate
+    savedFilters?.endDate?.trim() ?? '',
   );
 
   // Salvar filtros no localStorage sempre que mudarem
@@ -267,14 +264,14 @@ export default function QuizSubmissionsListPage() {
     if (startDate) {
       filterList.push({
         label: 'De',
-        value: new Date(startDate).toLocaleDateString('pt-BR'),
+        value: formatIsoDateOnlyPtBR(startDate),
         onDelete: () => setStartDate(''),
       });
     }
     if (endDate) {
       filterList.push({
         label: 'Até',
-        value: new Date(endDate).toLocaleDateString('pt-BR'),
+        value: formatIsoDateOnlyPtBR(endDate),
         onDelete: () => setEndDate(''),
       });
     }
@@ -343,6 +340,7 @@ export default function QuizSubmissionsListPage() {
                 onChange={(e) => setStartDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 180 }}
+                helperText="Conclusão do quiz; vazio = sem filtro"
               />
 
               <TextField
@@ -352,6 +350,7 @@ export default function QuizSubmissionsListPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 180 }}
+                helperText="Conclusão do quiz; vazio = sem filtro"
               />
             </Box>
           </Stack>
@@ -366,6 +365,7 @@ export default function QuizSubmissionsListPage() {
             setEndDate('');
             setPage(1);
             localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('quiz-submissions-filters');
           }}
         />
 

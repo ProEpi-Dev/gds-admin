@@ -23,6 +23,8 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 import { RefreshTokenBodyDto } from './dto/refresh-token.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -204,4 +206,32 @@ export class AuthController {
     return this.authService.signup(signupDto, ipAddress, userAgent);
   }
 
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirmar email com token recebido por email' })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({ status: 200, description: 'Email confirmado' })
+  @ApiResponse({ status: 400, description: 'Token inválido ou expirado' })
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+  ): Promise<{ message: string }> {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  @Public()
+  @Post('request-email-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Solicitar reenvio do email de confirmação',
+    description:
+      'Resposta genérica por segurança. Só envia email se existir conta pendente num contexto que exige verificação.',
+  })
+  @ApiBody({ type: RequestEmailVerificationDto })
+  @ApiResponse({ status: 200 })
+  async requestEmailVerification(
+    @Body() dto: RequestEmailVerificationDto,
+  ): Promise<{ message: string }> {
+    return this.authService.requestEmailVerificationPublic(dto.email);
+  }
 }

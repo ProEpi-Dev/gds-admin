@@ -88,10 +88,10 @@ describe('ReportsController', () => {
 
       jest.spyOn(reportsService, 'create').mockResolvedValue(mockReport);
 
-      const result = await controller.create(createDto, { userId: 1 });
+      const result = await controller.create(createDto, { userId: 1 }, 'app');
 
       expect(result).toEqual(mockReport);
-      expect(reportsService.create).toHaveBeenCalledWith(createDto, 1);
+      expect(reportsService.create).toHaveBeenCalledWith(createDto, 1, 'app');
     });
 
     it('deve lançar BadRequestException quando participation não existe', async () => {
@@ -108,7 +108,9 @@ describe('ReportsController', () => {
           new BadRequestException('Participação não encontrada'),
         );
 
-      await expect(controller.create(createDto, { userId: 1 })).rejects.toThrow(
+      await expect(
+        controller.create(createDto, { userId: 1 }, 'app'),
+      ).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -127,7 +129,9 @@ describe('ReportsController', () => {
           new BadRequestException('Versão do formulário não encontrada'),
         );
 
-      await expect(controller.create(createDto, { userId: 1 })).rejects.toThrow(
+      await expect(
+        controller.create(createDto, { userId: 1 }, 'app'),
+      ).rejects.toThrow(
         BadRequestException,
       );
     });

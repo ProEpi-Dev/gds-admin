@@ -59,8 +59,14 @@ export class BusinessMetricsService {
     });
   }
 
-  recordReportCreated(reportType: string): void {
-    this.reportCreated.add(1, { report_type: reportType });
+  recordReportCreated(
+    reportType: string,
+    channel?: 'web' | 'app',
+  ): void {
+    this.reportCreated.add(1, {
+      report_type: reportType,
+      ...(channel ? { channel } : {}),
+    });
   }
 
   recordAuthLogin(outcome: 'success' | 'failure'): void {

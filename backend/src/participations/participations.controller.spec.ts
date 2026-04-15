@@ -20,6 +20,7 @@ describe('ParticipationsController', () => {
     startDate: new Date('2024-01-01'),
     endDate: null,
     active: true,
+    integrationTrainingMode: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

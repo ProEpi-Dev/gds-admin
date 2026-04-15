@@ -14,6 +14,8 @@
     "search": "Buscar",
     "filter": "Filtrar",
     "clear": "Limpar",
+    "yes": "Sim",
+    "no": "Não",
     "create": "Criar",
     "actions": "Ações",
     "itemsPerPage": "Itens por página",
@@ -61,12 +63,19 @@
       "boolean": "Booleano",
       "select": "Seleção Única",
       "multiselect": "Seleção Múltipla",
-      "date": "Data"
+      "date": "Data",
+      "location": "Localização",
+      "mapPoint": "Ponto no mapa"
     }
   },
   "userLayout": {
     "home": "Início",
-    "goHomeAria": "Ir para a página inicial do aplicativo"
+    "goHomeAria": "Ir para a página inicial do aplicativo",
+    "context": "Contexto"
+  },
+  "appHome": {
+    "communityCalendarLegendSignal": "Sinal de alerta",
+    "communityCalendarLegendNothingOccurred": "Nada ocorreu"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -159,7 +168,24 @@
     "requestNewReset": "Solicitar nova redefinição de senha",
     "resetPasswordSubmit": "Redefinir senha",
     "redirectingToLogin": "Redirecionando para o login...",
-    "forgotPasswordLink": "Esqueci minha senha"
+    "forgotPasswordLink": "Esqueci minha senha",
+    "invalidCredentials": "E-mail ou senha incorretos.",
+    "loginSuccess": "Login realizado com sucesso",
+    "loginError": "Erro ao fazer login. Tente novamente.",
+    "emailVerificationRequired": "Este contexto exige confirmação de email. Verifique a sua caixa de entrada ou reenvie o link.",
+    "verifyEmailTitle": "Confirmar email",
+    "verifyEmailSubtitle": "Informe o email da sua conta para receber novamente o link de confirmação.",
+    "verifyEmailConfirming": "A confirmar o seu email…",
+    "verifyEmailFailedHint": "Não foi possível confirmar com este link. Pode pedir um novo email abaixo.",
+    "verifyEmailSuccess": "Email confirmado. Já pode iniciar sessão.",
+    "verifyEmailError": "Não foi possível confirmar o email. O link pode ter expirado.",
+    "verifyEmailResendButton": "Reenviar email de confirmação",
+    "verifyEmailResendGeneric": "Se existir conta pendente, enviámos as instruções para o email indicado.",
+    "verifyEmailResendError": "Não foi possível enviar. Tente novamente.",
+    "emailVerifiedTitle": "Email confirmado",
+    "emailVerifiedSubtitle": "Pode continuar na app móvel ou na versão web.",
+    "emailVerifiedPlayStore": "Abrir na Google Play",
+    "emailVerifiedWebLogin": "Entrar na versão web"
   },
   "signup": {
     "title": "Cadastre-se",
@@ -180,13 +206,17 @@
       "invalidEmail": "Email inválido",
       "passwordTooShort": "A senha deve ter pelo menos 8 caracteres"
     },
-    "success": "Cadastro realizado com sucesso! Redirecionando..."
+    "success": "Cadastro realizado com sucesso! Redirecionando...",
+    "pendingEmailVerification": "Enviamos um email de confirmação. Abra o link para ativar o acesso antes de iniciar sessão."
   },
   "profile": {
     "title": "Completar Perfil",
     "subtitle": "Complete seu perfil para continuar",
     "gender": "Gênero",
+    "country": "País",
+    "phone": "Telefone",
     "location": "Localização",
+    "locationSelectCountryFirst": "Selecione um país para listar as localizações",
     "externalIdentifier": "Identificador Externo",
     "externalIdentifierHelper": "CPF, Matrícula ou outro identificador",
     "submit": "Salvar perfil",
@@ -197,8 +227,10 @@
     "missingFields": "Campos faltando",
     "errors": {
       "genderRequired": "Gênero é obrigatório",
+      "countryRequired": "País é obrigatório",
       "locationRequired": "Localização é obrigatória",
-      "externalIdentifierRequired": "Identificador externo é obrigatório"
+      "externalIdentifierRequired": "Identificador externo é obrigatório",
+      "phoneRequired": "Telefone é obrigatório"
     },
     "success": "Perfil atualizado com sucesso!",
     "profileExtraTitle": "Dados adicionais",
@@ -303,7 +335,10 @@
     "sortStartDateAsc": "Inscrição: mais antiga primeiro",
     "sortStartDateDesc": "Inscrição: mais recente primeiro",
     "createdAt": "Criado em",
-    "updatedAt": "Atualizado em"
+    "updatedAt": "Atualizado em",
+    "integrationTraining": "Treinamento (integração)",
+    "integrationTrainingOn": "Homologação",
+    "integrationTrainingOff": "Produção"
   },
   "users": {
     "title": "Usuários",
@@ -333,6 +368,10 @@
     "newLocation": "Nova Localização",
     "name": "Nome",
     "parent": "Localização Pai",
+    "orgLevel": "Nível organizacional",
+    "orgLevelCountry": "País",
+    "orgLevelStateDistrict": "Estado/Distrito",
+    "orgLevelCityCouncil": "Cidade/Conselho",
     "coordinates": "Coordenadas",
     "latitude": "Latitude",
     "longitude": "Longitude",
@@ -372,6 +411,8 @@
     "inactive": "Inativo",
     "filterByLocation": "Filtrar por Localização",
     "filterByAccessType": "Filtrar por Tipo de Acesso",
+    "searchByName": "Buscar por nome",
+    "searchByNamePlaceholder": "Nome do contexto…",
     "description": "Descrição",
     "type": "Tipo",
     "createdAt": "Data de Criação",
@@ -387,7 +428,33 @@
     "tabParticipations": "Participações",
     "tabForms": "Formulários",
     "participationsComingSoon": "Lista de participações em breve",
-    "formsComingSoon": "Lista de formulários em breve"
+    "formsComingSoon": "Lista de formulários em breve",
+    "tabConfiguration": "Configurações",
+    "configIntro": "Parâmetros técnicos por contexto (ex.: idempotência de reports e políticas de cadastro). Altere com cuidado.",
+    "configEmpty": "Nenhuma configuração encontrada para este contexto.",
+    "configLoadError": "Não foi possível carregar as configurações.",
+    "configSave": "Salvar",
+    "configSaveError": "Não foi possível salvar a configuração.",
+    "configMinutesLabel": "Minutos",
+    "configDomainsLabel": "Domínios de e-mail permitidos",
+    "configJsonLabel": "Valor (JSON)",
+    "configJsonHelper": "Informe JSON válido.",
+    "configInvalidPositiveInt": "Use um número inteiro maior ou igual a 1.",
+    "configInvalidDomains": "A lista de domínios deve ser um texto separado por vírgulas.",
+    "configInvalidBoolean": "Valor inválido para alternância.",
+    "configInvalidJson": "JSON inválido ou incompleto.",
+    "configKeyHelp": {
+      "negative_report_dedup_window_min": "Janela em minutos para evitar reports \"nada ocorreu\" duplicados (idempotência).",
+      "negative_block_if_positive_within_min": "Bloqueia novo report negativo se houve report positivo neste intervalo (minutos).",
+      "allowed_email_domains": "Sufixos de e-mail permitidos no cadastro. Vazio = sem restrição.",
+      "social_sso_enabled": "Permite login com redes sociais quando a integração estiver disponível.",
+      "profile_require_gender": "Se verdadeiro, o gênero é obrigatório para considerar o cadastro completo (app / profile-status).",
+      "profile_require_country": "Se verdadeiro, o país é obrigatório para completude do perfil.",
+      "profile_require_location": "Se verdadeiro, a localização é obrigatória para completude do perfil.",
+      "profile_require_external_identifier": "Se verdadeiro, o identificador externo é obrigatório para completude do perfil.",
+      "profile_require_phone": "Se verdadeiro, o telefone é obrigatório para completude do perfil.",
+      "require_email_verification": "Se verdadeiro, participantes com participação ativa neste contexto devem confirmar o email antes do login e renovação de sessão."
+    }
   },
   "contents": {
     "title": "Conteúdos",

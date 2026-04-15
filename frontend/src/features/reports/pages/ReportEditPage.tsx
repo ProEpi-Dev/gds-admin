@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,7 +25,9 @@ import { useTranslation } from '../../../hooks/useTranslation';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
 import SelectParticipationSearch from '../../../components/common/SelectParticipationSearch';
 import SelectFormVersion from '../../../components/common/SelectFormVersion';
-import FormRenderer from '../../../components/form-renderer/FormRenderer';
+import FormRenderer, {
+  type FormRendererHandle,
+} from '../../../components/form-renderer/FormRenderer';
 import LocationPicker from '../../../components/common/LocationPicker';
 import { formsService } from '../../../api/services/forms.service';
 import type { UpdateReportDto } from '../../../types/report.types';
@@ -46,6 +48,7 @@ export default function ReportEditPage() {
   const { currentContext } = useCurrentContext();
   const [error, setError] = useState<string | null>(null);
   const [formResponse, setFormResponse] = useState<Record<string, any>>({});
+  const reportFormRef = useRef<FormRendererHandle>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const reportId = id ? parseInt(id, 10) : null;
@@ -103,6 +106,7 @@ export default function ReportEditPage() {
     // Validar se o formulário foi preenchido (se houver definição)
     if (selectedFormVersion?.definition) {
       if (Object.keys(formResponse).length === 0 || formResponse._isValid === false) {
+        reportFormRef.current?.revealFieldErrors();
         setError('Preencha todos os campos obrigatórios do formulário');
         return;
       }
@@ -216,6 +220,7 @@ export default function ReportEditPage() {
                   Preencha o Formulário
                 </Typography>
                 <FormRenderer
+                  ref={reportFormRef}
                   definition={selectedFormVersion.definition}
                   initialValues={formResponse}
                   onChange={setFormResponse}

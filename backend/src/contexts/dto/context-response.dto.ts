@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { context_access_type } from '@prisma/client';
+import { context_access_type, context_module_code } from '@prisma/client';
 
 export class ContextResponseDto {
   @ApiProperty({ description: 'ID do contexto', example: 1 })
@@ -47,4 +47,12 @@ export class ContextResponseDto {
     example: '2024-01-01T00:00:00.000Z',
   })
   updatedAt: Date;
+
+  @ApiProperty({
+    description: 'Módulos habilitados no contexto',
+    enum: context_module_code,
+    isArray: true,
+    example: ['self_health'],
+  })
+  modules: context_module_code[];
 }

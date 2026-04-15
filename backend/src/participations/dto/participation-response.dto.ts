@@ -30,6 +30,13 @@ export class ParticipationResponseDto {
   active: boolean;
 
   @ApiProperty({
+    description: 'Modo treinamento para integração (roteamento para ambiente de homologação)',
+    example: false,
+    default: false,
+  })
+  integrationTrainingMode: boolean;
+
+  @ApiProperty({
     description: 'Data de criação',
     example: '2024-01-01T00:00:00.000Z',
   })

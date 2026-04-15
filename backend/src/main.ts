@@ -6,6 +6,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import * as bodyParser from 'body-parser';
+import { applyGdsChannelMiddleware } from './common/http/gds-channel.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -31,7 +32,7 @@ async function bootstrap() {
       'https://www.api.dev.gds.proepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-gds-channel'],
     credentials: true,
   });
 
@@ -72,6 +73,7 @@ async function bootstrap() {
 
   app.use(bodyParser.json({ limit: '10mb' }));
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  app.use(applyGdsChannelMiddleware);
 
   await app.listen(3000);
   console.log('Application is running on: http://localhost:3000');

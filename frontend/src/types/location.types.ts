@@ -11,6 +11,7 @@ export interface Location {
   parentId: number | null;
   parent?: ParentLocation; // Hierarquia até 3 níveis
   name: string;
+  orgLevel: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
   latitude: number | null;
   longitude: number | null;
   polygons: any | null;
@@ -22,6 +23,7 @@ export interface Location {
 export interface CreateLocationDto {
   name: string;
   parentId?: number;
+  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
   latitude?: number;
   longitude?: number;
   polygons?: any;
@@ -31,6 +33,7 @@ export interface CreateLocationDto {
 export interface UpdateLocationDto {
   name?: string;
   parentId?: number;
+  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
   longitude?: number;
   latitude?: number;
   polygons?: any;
@@ -40,5 +43,6 @@ export interface UpdateLocationDto {
 export interface LocationQuery extends PaginationQuery {
   active?: boolean;
   parentId?: number;
+  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
 }
 

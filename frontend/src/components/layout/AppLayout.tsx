@@ -41,15 +41,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { isAdmin, contexts } = useUserRole();
 
   // Admin precisa de todos os contextos do sistema para poder trocar entre eles
-  const { data: allContextsData } = useQuery({
-    queryKey: ['contexts', { active: true, pageSize: 500 }],
-    queryFn: () => contextsService.findAll({ active: true, pageSize: 500 }),
+  const { data: allContextsList } = useQuery({
+    queryKey: ['contexts', { active: true, allPages: true }],
+    queryFn: () => contextsService.findAllAllPages({ active: true }),
     enabled: isAdmin,
     staleTime: 5 * 60 * 1000,
   });
 
   const availableContexts: ContextInfo[] = isAdmin
-    ? (allContextsData?.data ?? []).map((c) => ({ id: c.id, name: c.name }))
+    ? (allContextsList ?? []).map((c) => ({ id: c.id, name: c.name }))
     : [
         ...contexts.asManager,
         ...contexts.asParticipant.filter(
