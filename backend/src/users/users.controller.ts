@@ -37,6 +37,7 @@ import { UserRoleResponseDto } from './dto/user-role-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Request } from 'express';
+import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
 @ApiTags('Users')
 @ApiBearerAuth('bearerAuth')
@@ -149,8 +150,14 @@ export class UsersController {
     @CurrentUser() currentUser: { userId: number },
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
+    @Req() req: Request,
   ): Promise<UserResponseDto> {
-    return this.usersService.update(id, updateUserDto, currentUser.userId);
+    return this.usersService.update(
+      id,
+      updateUserDto,
+      currentUser.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Delete(':id')

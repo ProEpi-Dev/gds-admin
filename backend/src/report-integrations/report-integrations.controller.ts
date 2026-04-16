@@ -10,6 +10,7 @@ import {
   HttpStatus,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,6 +32,8 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { IntegrationConfigResponseDto } from './dto/integration-config-response.dto';
 import { UpsertIntegrationConfigDto } from './dto/upsert-integration-config.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { Request } from 'express';
+import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
 @ApiTags('Report Integrations')
 @ApiBearerAuth('bearerAuth')
@@ -162,7 +165,14 @@ export class ReportIntegrationsController {
   async upsertConfig(
     @Param('contextId', ParseIntPipe) contextId: number,
     @Body() dto: UpsertIntegrationConfigDto,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<IntegrationConfigResponseDto> {
-    return this.service.upsertConfig(contextId, dto);
+    return this.service.upsertConfig(
+      contextId,
+      dto,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 }

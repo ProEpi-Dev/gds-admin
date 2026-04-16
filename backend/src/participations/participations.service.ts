@@ -21,6 +21,10 @@ import {
 } from '../common/helpers/pagination.helper';
 import { Prisma } from '@prisma/client';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import {
+  AuditLogService,
+  AuditRequestContext,
+} from '../audit-log/audit-log.service';
 
 function participationListOrderBy(
   sort?: string,
@@ -47,6 +51,7 @@ export class ParticipationsService {
     private prisma: PrismaService,
     private authz: AuthzService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async create(
@@ -297,6 +302,8 @@ export class ParticipationsService {
   async update(
     id: number,
     updateParticipationDto: UpdateParticipationDto,
+    actorUserId?: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<ParticipationResponseDto> {
     // Verificar se participação existe
     const existingParticipation = await this.prisma.participation.findUnique({
@@ -383,16 +390,54 @@ export class ParticipationsService {
         updateParticipationDto.integrationTrainingMode;
     }
 
+    const isReactivation =
+      updateParticipationDto.active === true && existingParticipation.active === false;
+    const isSoftDeleteViaUpdate =
+      updateParticipationDto.active === false && existingParticipation.active === true;
+
     // Atualizar participação
-    const participation = await this.prisma.participation.update({
-      where: { id },
-      data: updateData,
-    });
+    let participation: any;
+    if (actorUserId && (isReactivation || isSoftDeleteViaUpdate)) {
+      participation = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.participation.update({
+          where: { id },
+          data: updateData,
+        });
+
+        await this.auditLogService.recordWithTx(tx, {
+          action: isReactivation
+            ? 'PARTICIPATION_REACTIVATE'
+            : 'PARTICIPATION_SOFT_DELETE',
+          targetEntityType: 'participation',
+          targetEntityId: updated.id,
+          actor: { userId: actorUserId },
+          contextId: updated.context_id,
+          targetUserId: updated.user_id,
+          request: auditRequest ?? null,
+          metadata: {
+            source: 'update',
+            previousActive: existingParticipation.active,
+            newActive: updated.active,
+          },
+        });
+
+        return updated;
+      });
+    } else {
+      participation = await this.prisma.participation.update({
+        where: { id },
+        data: updateData,
+      });
+    }
 
     return this.mapToResponseDto(participation);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(
+    id: number,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
+  ): Promise<void> {
     // Verificar se participação existe
     const participation = await this.prisma.participation.findUnique({
       where: { id },
@@ -402,21 +447,67 @@ export class ParticipationsService {
       throw new NotFoundException(`Participação com ID ${id} não encontrada`);
     }
 
-    // Verificar se há reports associados
-    const reports = await this.prisma.report.count({
-      where: { participation_id: id },
+    // Soft delete - apenas desativar
+    await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.participation.update({
+        where: { id },
+        data: { active: false },
+      });
+
+      await this.auditLogService.recordWithTx(tx, {
+        action: 'PARTICIPATION_SOFT_DELETE',
+        targetEntityType: 'participation',
+        targetEntityId: updated.id,
+        actor: { userId: actorUserId },
+        contextId: updated.context_id,
+        targetUserId: updated.user_id,
+        request: auditRequest ?? null,
+        metadata: {
+          source: 'remove',
+          previousActive: participation.active,
+          newActive: false,
+        },
+      });
+    });
+  }
+
+  async permanentRemove(
+    id: number,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
+  ): Promise<void> {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id },
     });
 
-    if (reports > 0) {
+    if (!participation) {
+      throw new NotFoundException(`Participação com ID ${id} não encontrada`);
+    }
+
+    if (participation.active) {
       throw new BadRequestException(
-        `Não é possível deletar participação com ${reports} report(s) associado(s)`,
+        'Não é possível excluir permanentemente uma participação ativa. Desative-a antes.',
       );
     }
 
-    // Soft delete - apenas desativar
-    await this.prisma.participation.update({
-      where: { id },
-      data: { active: false },
+    await this.prisma.$transaction(async (tx) => {
+      await this.auditLogService.recordWithTx(tx, {
+        action: 'PARTICIPATION_PERMANENT_DELETE',
+        targetEntityType: 'participation',
+        targetEntityId: participation.id,
+        actor: { userId: actorUserId },
+        contextId: participation.context_id,
+        targetUserId: participation.user_id,
+        request: auditRequest ?? null,
+        metadata: {
+          previousActive: participation.active,
+          endDate: participation.end_date,
+        },
+      });
+
+      await tx.participation.delete({
+        where: { id: participation.id },
+      });
     });
   }
 
@@ -448,6 +539,8 @@ export class ParticipationsService {
   async addRole(
     participationId: number,
     roleId: number,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<RoleResponseDto[]> {
     const participation = await this.prisma.participation.findUnique({
       where: { id: participationId },
@@ -486,13 +579,39 @@ export class ParticipationsService {
       data: { participation_id: participationId, role_id: roleId },
     });
 
+    await this.auditLogService.record({
+      action: 'PARTICIPATION_ROLE_ADD',
+      targetEntityType: 'participation',
+      targetEntityId: participationId,
+      actor: { userId: actorUserId },
+      contextId: participation.context_id,
+      targetUserId: participation.user_id,
+      request: auditRequest ?? null,
+      metadata: {
+        roleId: role.id,
+        roleCode: role.code,
+        roleName: role.name,
+      },
+    });
+
     return this.findRoles(participationId);
   }
 
   async removeRole(
     participationId: number,
     roleId: number,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<RoleResponseDto[]> {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id: participationId },
+    });
+    if (!participation) {
+      throw new NotFoundException(
+        `Participação com ID ${participationId} não encontrada`,
+      );
+    }
+
     const existing = await this.prisma.participation_role.findUnique({
       where: {
         participation_id_role_id: {
@@ -500,6 +619,7 @@ export class ParticipationsService {
           role_id: roleId,
         },
       },
+      include: { role: true },
     });
     if (!existing) {
       throw new NotFoundException(
@@ -513,6 +633,21 @@ export class ParticipationsService {
           participation_id: participationId,
           role_id: roleId,
         },
+      },
+    });
+
+    await this.auditLogService.record({
+      action: 'PARTICIPATION_ROLE_REMOVE',
+      targetEntityType: 'participation',
+      targetEntityId: participationId,
+      actor: { userId: actorUserId },
+      contextId: participation.context_id,
+      targetUserId: participation.user_id,
+      request: auditRequest ?? null,
+      metadata: {
+        roleId: existing.role.id,
+        roleCode: existing.role.code,
+        roleName: existing.role.name,
       },
     });
 

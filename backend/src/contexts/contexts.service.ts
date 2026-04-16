@@ -20,16 +20,23 @@ import {
   createPaginationLinks,
 } from '../common/helpers/pagination.helper';
 import { ContextConfigurationEntryDto } from './dto/context-configuration-entry.dto';
+import {
+  AuditLogService,
+  AuditRequestContext,
+} from '../audit-log/audit-log.service';
 
 @Injectable()
 export class ContextsService {
   constructor(
     private prisma: PrismaService,
     private reportsService: ReportsService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async create(
     createContextDto: CreateContextDto,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<ContextResponseDto> {
     // Validar location_id se fornecido
     if (createContextDto.locationId !== undefined) {
@@ -64,6 +71,7 @@ export class ContextsService {
     }
 
     const modules = this.normalizeModules(createContextDto.modules);
+    this.assertAtMostOneDetectionModule(modules);
     if (modules.length > 0) {
       data.context_module = {
         create: modules.map((moduleCode) => ({
@@ -80,7 +88,23 @@ export class ContextsService {
       },
     });
 
-    return this.mapToResponseDto(context);
+    const dto = this.mapToResponseDto(context);
+    await this.auditLogService.record({
+      action: 'CONTEXT_CREATE',
+      targetEntityType: 'context',
+      targetEntityId: context.id,
+      actor: { userId: actorUserId },
+      contextId: context.id,
+      request: auditRequest ?? null,
+      metadata: {
+        name: context.name,
+        accessType: context.access_type,
+        active: context.active,
+        modules: dto.modules,
+      },
+    });
+
+    return dto;
   }
 
   async findAll(
@@ -227,6 +251,8 @@ export class ContextsService {
   async update(
     id: number,
     updateContextDto: UpdateContextDto,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<ContextResponseDto> {
     // Verificar se contexto existe
     const existingContext = await this.prisma.context.findUnique({
@@ -252,39 +278,48 @@ export class ContextsService {
 
     // Preparar dados de atualização
     const updateData: any = {};
+    const touchedFields: string[] = [];
 
     if (updateContextDto.name !== undefined) {
       updateData.name = updateContextDto.name;
+      touchedFields.push('name');
     }
 
     if (updateContextDto.locationId !== undefined) {
       updateData.location_id = updateContextDto.locationId;
+      touchedFields.push('locationId');
     }
 
     if (updateContextDto.accessType !== undefined) {
       updateData.access_type = updateContextDto.accessType;
+      touchedFields.push('accessType');
     }
 
     if (updateContextDto.description !== undefined) {
       updateData.description = updateContextDto.description;
+      touchedFields.push('description');
     }
 
     if (updateContextDto.type !== undefined) {
       updateData.type = updateContextDto.type;
+      touchedFields.push('type');
     }
 
     if (updateContextDto.active !== undefined) {
       updateData.active = updateContextDto.active;
+      touchedFields.push('active');
     }
 
     if (updateContextDto.modules !== undefined) {
       const modules = this.normalizeModules(updateContextDto.modules);
+      this.assertAtMostOneDetectionModule(modules);
       updateData.context_module = {
         deleteMany: {},
         create: modules.map((moduleCode) => ({
           module_code: moduleCode,
         })),
       };
+      touchedFields.push('modules');
     }
 
     // Atualizar contexto
@@ -296,10 +331,30 @@ export class ContextsService {
       },
     });
 
-    return this.mapToResponseDto(context);
+    const dto = this.mapToResponseDto(context);
+    if (touchedFields.length > 0) {
+      await this.auditLogService.record({
+        action: 'CONTEXT_UPDATE',
+        targetEntityType: 'context',
+        targetEntityId: id,
+        actor: { userId: actorUserId },
+        contextId: id,
+        request: auditRequest ?? null,
+        metadata: {
+          changedFields: touchedFields,
+          active: dto.active,
+        },
+      });
+    }
+
+    return dto;
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(
+    id: number,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
+  ): Promise<void> {
     // Verificar se contexto existe
     const context = await this.prisma.context.findUnique({
       where: { id },
@@ -336,6 +391,19 @@ export class ContextsService {
       where: { id },
       data: { active: false },
     });
+
+    await this.auditLogService.record({
+      action: 'CONTEXT_SOFT_DELETE',
+      targetEntityType: 'context',
+      targetEntityId: id,
+      actor: { userId: actorUserId },
+      contextId: id,
+      request: auditRequest ?? null,
+      metadata: {
+        previousActive: context.active,
+        name: context.name,
+      },
+    });
   }
 
   async findConfiguration(
@@ -355,6 +423,8 @@ export class ContextsService {
     contextId: number,
     rawKey: string,
     value: unknown,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<ContextConfigurationEntryDto> {
     await this.ensureContextExists(contextId);
 
@@ -389,6 +459,19 @@ export class ContextsService {
             value: jsonValue,
           },
         });
+
+    await this.auditLogService.record({
+      action: 'CONTEXT_CONFIGURATION_UPDATE',
+      targetEntityType: 'context_configuration',
+      targetEntityId: row.id,
+      actor: { userId: actorUserId },
+      contextId,
+      request: auditRequest ?? null,
+      metadata: {
+        key,
+        operation: existing ? 'update' : 'create',
+      },
+    });
 
     return this.mapConfigurationRow(row);
   }
@@ -540,5 +623,15 @@ export class ContextsService {
     const deduped = Array.from(new Set(modules));
     deduped.sort((a, b) => String(a).localeCompare(String(b)));
     return deduped as context_module_code[];
+  }
+
+  private assertAtMostOneDetectionModule(
+    modules: context_module_code[],
+  ): void {
+    if (modules.length > 1) {
+      throw new BadRequestException(
+        'Informe no máximo uma estratégia de detecção por contexto.',
+      );
+    }
   }
 }

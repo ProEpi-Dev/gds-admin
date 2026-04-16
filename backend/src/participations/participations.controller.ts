@@ -11,6 +11,7 @@ import {
   HttpStatus,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,6 +31,8 @@ import { Roles } from '../authz/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { RoleResponseDto } from '../roles/dto/role-response.dto';
 import { ParticipationRoleBodyDto } from '../roles/dto/participation-role-body.dto';
+import { Request } from 'express';
+import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
 @ApiTags('Participations')
 @ApiBearerAuth('bearerAuth')
@@ -115,8 +118,45 @@ export class ParticipationsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateParticipationDto: UpdateParticipationDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
   ): Promise<ParticipationResponseDto> {
-    return this.participationsService.update(id, updateParticipationDto);
+    return this.participationsService.update(
+      id,
+      updateParticipationDto,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
+  }
+
+  @Delete(':id/permanent')
+  @Roles('admin', 'manager')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Excluir participação permanentemente',
+    description:
+      'Exclui a participação do banco de dados de forma irreversível. Só é permitido para participações inativas.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
+  @ApiResponse({
+    status: 204,
+    description: 'Participação excluída permanentemente com sucesso',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Participação ativa não pode ser excluída permanentemente',
+  })
+  @ApiResponse({ status: 404, description: 'Participação não encontrada' })
+  async permanentRemove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ): Promise<void> {
+    return this.participationsService.permanentRemove(
+      id,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Delete(':id')
@@ -124,21 +164,24 @@ export class ParticipationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Deletar participação',
-    description:
-      'Remove uma participação (soft delete - desativa). Não permite deletar se houver reports associados.',
+    description: 'Desativa uma participação (soft delete).',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID da participação' })
   @ApiResponse({
     status: 204,
     description: 'Participação deletada com sucesso',
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Participação possui reports associados',
-  })
   @ApiResponse({ status: 404, description: 'Participação não encontrada' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.participationsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ): Promise<void> {
+    return this.participationsService.remove(
+      id,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   // ── Papéis da participação ──────────────────────────────────────────────
@@ -179,8 +222,15 @@ export class ParticipationsController {
   async addRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: ParticipationRoleBodyDto,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<RoleResponseDto[]> {
-    return this.participationsService.addRole(id, body.roleId);
+    return this.participationsService.addRole(
+      id,
+      body.roleId,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Delete(':id/roles/:roleId')
@@ -201,7 +251,14 @@ export class ParticipationsController {
   async removeRole(
     @Param('id', ParseIntPipe) id: number,
     @Param('roleId', ParseIntPipe) roleId: number,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<RoleResponseDto[]> {
-    return this.participationsService.removeRole(id, roleId);
+    return this.participationsService.removeRole(
+      id,
+      roleId,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 }

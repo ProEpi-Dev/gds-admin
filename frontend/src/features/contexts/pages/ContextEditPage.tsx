@@ -6,14 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Box,
   Button,
-  Checkbox,
+  Radio,
+  RadioGroup,
   TextField,
   Typography,
   Paper,
   Stack,
   Alert,
   CircularProgress,
-  FormGroup,
   FormControl,
   FormLabel,
   InputLabel,
@@ -28,7 +28,8 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 import SelectLocation from '../../../components/common/SelectLocation';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { getErrorMessage } from '../../../utils/errorHandler';
-import type { ContextModuleCode, UpdateContextDto } from '../../../types/context.types';
+import type { UpdateContextDto } from '../../../types/context.types';
+import { resolveDetectionStrategyForForm } from '../utils/detectionStrategy';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),
@@ -37,7 +38,7 @@ const formSchema = z.object({
   description: z.string().optional().nullable(),
   type: z.string().optional().nullable(),
   active: z.boolean().optional(),
-  modules: z.array(z.enum(['self_health', 'community_signal'])).optional(),
+  detectionStrategy: z.enum(['self_health', 'community_signal']),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -68,7 +69,6 @@ export default function ContextEditPage() {
 
   const locationId = watch('locationId');
   const active = watch('active');
-  const selectedModules = watch('modules') ?? [];
 
   useEffect(() => {
     if (context) {
@@ -79,7 +79,7 @@ export default function ContextEditPage() {
         description: context.description ?? '',
         type: context.type ?? '',
         active: context.active,
-        modules: context.modules ?? [],
+        detectionStrategy: resolveDetectionStrategyForForm(context.modules),
       });
     }
   }, [context, reset]);
@@ -117,9 +117,7 @@ export default function ContextEditPage() {
       updateData.active = data.active;
     }
 
-    if (data.modules !== undefined) {
-      updateData.modules = data.modules;
-    }
+    updateData.modules = [data.detectionStrategy];
 
     updateMutation.mutate(
       { id: contextId, data: updateData },
@@ -214,41 +212,24 @@ export default function ContextEditPage() {
             />
 
             <FormControl component="fieldset">
-              <FormLabel component="legend">Módulos habilitados</FormLabel>
-              <FormGroup>
+              <FormLabel id="detection-strategy-label-edit">
+                {t('contexts.detectionStrategiesLabel')}
+              </FormLabel>
+              <RadioGroup
+                aria-labelledby="detection-strategy-label-edit"
+                {...register('detectionStrategy')}
+              >
                 <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedModules.includes('self_health')}
-                      onChange={(_, checked) => {
-                        const next = checked
-                          ? [...selectedModules, 'self_health']
-                          : selectedModules.filter(
-                              (module) => module !== 'self_health',
-                            );
-                        setValue('modules', next as ContextModuleCode[]);
-                      }}
-                    />
-                  }
-                  label="Autoavaliação de saúde"
+                  value="self_health"
+                  control={<Radio />}
+                  label={t('contexts.moduleSelfHealth')}
                 />
                 <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedModules.includes('community_signal')}
-                      onChange={(_, checked) => {
-                        const next = checked
-                          ? [...selectedModules, 'community_signal']
-                          : selectedModules.filter(
-                              (module) => module !== 'community_signal',
-                            );
-                        setValue('modules', next as ContextModuleCode[]);
-                      }}
-                    />
-                  }
-                  label="Sinal comunitário"
+                  value="community_signal"
+                  control={<Radio />}
+                  label={t('contexts.moduleCommunitySignal')}
                 />
-              </FormGroup>
+              </RadioGroup>
             </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>

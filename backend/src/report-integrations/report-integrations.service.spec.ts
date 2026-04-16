@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { IntegrationEventQueryDto } from './dto/integration-event-query.dto';
 import { UpsertIntegrationConfigDto } from './dto/upsert-integration-config.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 describe('ReportIntegrationsService', () => {
   let service: ReportIntegrationsService;
@@ -69,6 +70,12 @@ describe('ReportIntegrationsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: EphemClient, useValue: ephemClient },
         { provide: AuthzService, useValue: authz },
+        {
+          provide: AuditLogService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -1555,7 +1562,7 @@ describe('ReportIntegrationsService', () => {
         maxRetries: 5,
       });
 
-      const res = await service.upsertConfig(10, dto);
+      const res = await service.upsertConfig(10, dto, 1);
       expect(res.version).toBe(1);
       expect(prisma.integration_config.create).toHaveBeenCalled();
     });
@@ -1593,7 +1600,7 @@ describe('ReportIntegrationsService', () => {
         baseUrlProduction: 'https://new',
       });
 
-      const res = await service.upsertConfig(10, dto);
+      const res = await service.upsertConfig(10, dto, 1);
       expect(prisma.integration_config.update).toHaveBeenCalled();
       expect(res.version).toBe(4);
       expect(res.templateId).toBe('/2');

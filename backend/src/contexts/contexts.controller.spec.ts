@@ -15,6 +15,9 @@ describe('ContextsController', () => {
   let controller: ContextsController;
   let contextsService: ContextsService;
 
+  const mockUser = { userId: 1 };
+  const mockReq = { headers: {}, ip: '127.0.0.1' } as any;
+
   const mockContext: ContextResponseDto = {
     id: 1,
     name: 'Test Context',
@@ -83,10 +86,18 @@ describe('ContextsController', () => {
 
       jest.spyOn(contextsService, 'create').mockResolvedValue(mockContext);
 
-      const result = await controller.create(createContextDto);
+      const result = await controller.create(
+        createContextDto,
+        mockUser,
+        mockReq,
+      );
 
       expect(result).toEqual(mockContext);
-      expect(contextsService.create).toHaveBeenCalledWith(createContextDto);
+      expect(contextsService.create).toHaveBeenCalledWith(
+        createContextDto,
+        1,
+        expect.any(Object),
+      );
     });
 
     it('deve lançar BadRequestException quando location não existe', async () => {
@@ -102,9 +113,9 @@ describe('ContextsController', () => {
           new BadRequestException('Localização não encontrada'),
         );
 
-      await expect(controller.create(createContextDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.create(createContextDto, mockUser, mockReq),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -166,22 +177,30 @@ describe('ContextsController', () => {
         .spyOn(contextsService, 'upsertConfiguration')
         .mockResolvedValue(entry as any);
 
-      const result = await controller.upsertConfiguration(1, 'negative_report_dedup_window_min', {
-        value: 90,
-      });
+      const result = await controller.upsertConfiguration(
+        1,
+        'negative_report_dedup_window_min',
+        {
+          value: 90,
+        },
+        mockUser,
+        mockReq,
+      );
 
       expect(result).toEqual(entry);
       expect(contextsService.upsertConfiguration).toHaveBeenCalledWith(
         1,
         'negative_report_dedup_window_min',
         90,
+        1,
+        expect.any(Object),
       );
     });
 
     it('deve rejeitar chave com caracteres inválidos', async () => {
       jest.mocked(contextsService.upsertConfiguration).mockClear();
       await expect(
-        controller.upsertConfiguration(1, 'Invalid Key!', { value: 1 }),
+        controller.upsertConfiguration(1, 'Invalid Key!', { value: 1 }, mockUser, mockReq),
       ).rejects.toThrow(BadRequestException);
       expect(contextsService.upsertConfiguration).not.toHaveBeenCalled();
     });
@@ -294,7 +313,12 @@ describe('ContextsController', () => {
       const updatedContext = { ...mockContext, name: 'Updated Context' };
       jest.spyOn(contextsService, 'update').mockResolvedValue(updatedContext);
 
-      const result = await controller.update(1, updateContextDto);
+      const result = await controller.update(
+        1,
+        updateContextDto,
+        mockUser,
+        mockReq,
+      );
 
       expect(result).toEqual(updatedContext);
     });
@@ -308,9 +332,9 @@ describe('ContextsController', () => {
         .spyOn(contextsService, 'update')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.update(999, updateContextDto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.update(999, updateContextDto, mockUser, mockReq),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando location não existe', async () => {
@@ -324,9 +348,9 @@ describe('ContextsController', () => {
           new BadRequestException('Localização não encontrada'),
         );
 
-      await expect(controller.update(1, updateContextDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.update(1, updateContextDto, mockUser, mockReq),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -334,9 +358,13 @@ describe('ContextsController', () => {
     it('deve desativar contexto', async () => {
       jest.spyOn(contextsService, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(1);
+      await controller.remove(1, mockUser, mockReq);
 
-      expect(contextsService.remove).toHaveBeenCalledWith(1);
+      expect(contextsService.remove).toHaveBeenCalledWith(
+        1,
+        1,
+        expect.any(Object),
+      );
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -344,7 +372,9 @@ describe('ContextsController', () => {
         .spyOn(contextsService, 'remove')
         .mockRejectedValue(new NotFoundException('Contexto não encontrado'));
 
-      await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.remove(999, mockUser, mockReq),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando possui participações', async () => {
@@ -354,7 +384,9 @@ describe('ContextsController', () => {
           new BadRequestException('Contexto possui participações'),
         );
 
-      await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.remove(1, mockUser, mockReq),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('deve lançar BadRequestException quando possui formulários', async () => {
@@ -364,7 +396,9 @@ describe('ContextsController', () => {
           new BadRequestException('Contexto possui formulários'),
         );
 
-      await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.remove(1, mockUser, mockReq),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

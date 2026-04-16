@@ -50,7 +50,6 @@ import { usersService } from "../../../api/services/users.service";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { TrackProgressService } from "../../../api/services/track-progress.service";
 import type { CreateReportDto } from "../../../types/report.types";
-import type { ContextModuleCode } from "../../../types/context.types";
 import FormRenderer, {
   type FormRendererHandle,
 } from "../../../components/form-renderer/FormRenderer";
@@ -130,17 +129,13 @@ export default function AppHomePage() {
     Record<string, unknown>
   >({});
   const communitySignalFormRef = useRef<FormRendererHandle>(null);
-  const [selectedModule, setSelectedModule] = useState<ContextModuleCode | null>(null);
   const participation = user?.participation;
   const contextId = participation?.context.id;
   const participationId = participation?.id;
   const enabledModules = resolveEnabledModules(participation?.context.modules);
   const selfHealthEnabled = hasModule(enabledModules, "self_health");
   const communitySignalEnabled = hasModule(enabledModules, "community_signal");
-  const activeModule =
-    selectedModule && enabledModules.includes(selectedModule)
-      ? selectedModule
-      : enabledModules[0];
+  const activeModule = enabledModules[0] ?? "self_health";
   const showSelfHealthMap = selfHealthEnabled && activeModule === "self_health";
   const communityMonthStart = startOfMonth(communityCalendarMonth);
   const communityMonthEnd = endOfMonth(communityCalendarMonth);
@@ -423,33 +418,6 @@ export default function AppHomePage() {
               p: 2,
             }}
           >
-            {enabledModules.length > 1 && (
-              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                {selfHealthEnabled && (
-                  <Button
-                    variant={activeModule === "self_health" ? "contained" : "outlined"}
-                    onClick={() => setSelectedModule("self_health")}
-                    fullWidth
-                    size="small"
-                  >
-                    Meu estado
-                  </Button>
-                )}
-                {communitySignalEnabled && (
-                  <Button
-                    variant={
-                      activeModule === "community_signal" ? "contained" : "outlined"
-                    }
-                    onClick={() => setSelectedModule("community_signal")}
-                    fullWidth
-                    size="small"
-                  >
-                    Sinal de alerta
-                  </Button>
-                )}
-              </Stack>
-            )}
-
             {activeModule === "self_health" && selfHealthEnabled && (
               <>
                 <Typography variant="h6" sx={{ mb: 1.5 }} textAlign="center">

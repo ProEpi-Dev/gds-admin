@@ -720,6 +720,28 @@ model sequence_progress {
   @@index([completed_at], map: "idx_sequence_progress_completed_at")
 }
 
+model admin_action_log {
+  id                 Int      @id @default(autoincrement())
+  action             String   @db.VarChar(80)
+  target_entity_type String   @db.VarChar(40)
+  target_entity_id   String   @db.VarChar(64)
+  actor_user_id      Int?
+  context_id         Int?
+  target_user_id     Int?
+  request_id         String?  @db.VarChar(100)
+  channel            String?  @db.VarChar(20)
+  ip_address         String?  @db.VarChar(64)
+  user_agent         String?  @db.VarChar(512)
+  metadata           Json?
+  occurred_at        DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([occurred_at(sort: Desc)], map: "idx_admin_action_log_occurred_at")
+  @@index([target_entity_type, target_entity_id], map: "idx_admin_action_log_target")
+  @@index([actor_user_id], map: "idx_admin_action_log_actor_user")
+  @@index([context_id], map: "idx_admin_action_log_context")
+  @@index([action], map: "idx_admin_action_log_action")
+}
+
 // ─── Integration enums & models ────────────────────────────────
 
 enum integration_event_status {

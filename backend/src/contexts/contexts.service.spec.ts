@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ContextsService } from './contexts.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from '../reports/reports.service';
 import { CreateContextDto } from './dto/create-context.dto';
@@ -65,6 +66,12 @@ describe('ContextsService', () => {
             findParticipationReportStreak: jest.fn(),
           },
         },
+        {
+          provide: AuditLogService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -85,7 +92,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'create')
         .mockResolvedValue(mockContext as any);
 
-      const result = await service.create(createContextDto);
+      const result = await service.create(createContextDto, 1);
 
       expect(result).toHaveProperty('id', 1);
       expect(result).toHaveProperty('name', 'Test Context');
@@ -102,7 +109,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'create')
         .mockResolvedValue(mockContext as any);
 
-      await service.create(createContextDto);
+      await service.create(createContextDto, 1);
 
       expect(prismaService.context.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -124,7 +131,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'create')
         .mockResolvedValue(mockContext as any);
 
-      await service.create(createContextDto);
+      await service.create(createContextDto, 1);
 
       expect(prismaService.context.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -150,7 +157,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'create')
         .mockResolvedValue(mockContext as any);
 
-      await service.create(createContextDto);
+      await service.create(createContextDto, 1);
 
       expect(prismaService.location.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -166,7 +173,19 @@ describe('ContextsService', () => {
 
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.create(createContextDto)).rejects.toThrow(
+      await expect(service.create(createContextDto, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve lançar BadRequestException quando mais de um módulo é informado', async () => {
+      const createContextDto: CreateContextDto = {
+        name: 'Test Context',
+        accessType: 'PUBLIC',
+        modules: ['self_health', 'community_signal'],
+      };
+
+      await expect(service.create(createContextDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -319,6 +338,7 @@ describe('ContextsService', () => {
         1,
         'negative_report_dedup_window_min',
         90,
+        1,
       );
 
       expect(prismaService.context_configuration.create).toHaveBeenCalled();
@@ -345,6 +365,7 @@ describe('ContextsService', () => {
         1,
         'negative_report_dedup_window_min',
         120,
+        1,
       );
 
       expect(prismaService.context_configuration.update).toHaveBeenCalledWith(
@@ -357,7 +378,7 @@ describe('ContextsService', () => {
     });
 
     it('deve rejeitar chave com caracteres inválidos', async () => {
-      await expect(service.upsertConfiguration(1, 'BAD-KEY', 1)).rejects.toThrow(
+      await expect(service.upsertConfiguration(1, 'BAD-KEY', 1, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -372,6 +393,7 @@ describe('ContextsService', () => {
           1,
           'negative_report_dedup_window_min',
           0,
+          1,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -409,7 +431,7 @@ describe('ContextsService', () => {
         name: 'Updated Context',
       } as any);
 
-      const result = await service.update(1, updateContextDto);
+      const result = await service.update(1, updateContextDto, 1);
 
       expect(result).toHaveProperty('name', 'Updated Context');
     });
@@ -426,7 +448,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'update')
         .mockResolvedValue(mockContext as any);
 
-      await service.update(1, updateContextDto);
+      await service.update(1, updateContextDto, 1);
 
       expect(prismaService.context.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -448,7 +470,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'update')
         .mockResolvedValue(mockContext as any);
 
-      await service.update(1, updateContextDto);
+      await service.update(1, updateContextDto, 1);
 
       expect(prismaService.context.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -470,7 +492,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'update')
         .mockResolvedValue(mockContext as any);
 
-      await service.update(1, updateContextDto);
+      await service.update(1, updateContextDto, 1);
 
       expect(prismaService.context.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -496,7 +518,7 @@ describe('ContextsService', () => {
         .spyOn(prismaService.context, 'update')
         .mockResolvedValue(mockContext as any);
 
-      await service.update(1, updateContextDto);
+      await service.update(1, updateContextDto, 1);
 
       expect(prismaService.location.findUnique).toHaveBeenCalledWith({
         where: { id: 2 },
@@ -510,7 +532,7 @@ describe('ContextsService', () => {
 
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(999, updateContextDto)).rejects.toThrow(
+      await expect(service.update(999, updateContextDto, 1)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -525,7 +547,21 @@ describe('ContextsService', () => {
         .mockResolvedValueOnce(mockContext as any);
       jest.spyOn(prismaService.location, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.update(1, updateContextDto)).rejects.toThrow(
+      await expect(service.update(1, updateContextDto, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve lançar BadRequestException ao atualizar com mais de um módulo', async () => {
+      const updateContextDto: UpdateContextDto = {
+        modules: ['self_health', 'community_signal'],
+      };
+
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue(mockContext as any);
+
+      await expect(service.update(1, updateContextDto, 1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -614,7 +650,7 @@ describe('ContextsService', () => {
         active: false,
       } as any);
 
-      await service.remove(1);
+      await service.remove(1, 1);
 
       expect(prismaService.context.update).toHaveBeenCalledWith({
         where: { id: 1 },
@@ -625,7 +661,7 @@ describe('ContextsService', () => {
     it('deve lançar NotFoundException quando não existe', async () => {
       jest.spyOn(prismaService.context, 'findUnique').mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(service.remove(999, 1)).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar BadRequestException quando possui participações', async () => {
@@ -634,7 +670,7 @@ describe('ContextsService', () => {
         .mockResolvedValue(mockContext as any);
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(2);
 
-      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(service.remove(1, 1)).rejects.toThrow(BadRequestException);
     });
 
     it('deve lançar BadRequestException quando possui formulários', async () => {
@@ -644,7 +680,7 @@ describe('ContextsService', () => {
       jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
       jest.spyOn(prismaService.form, 'count').mockResolvedValue(2);
 
-      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(service.remove(1, 1)).rejects.toThrow(BadRequestException);
     });
   });
 

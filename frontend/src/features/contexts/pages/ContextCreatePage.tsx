@@ -6,14 +6,14 @@ import { z } from 'zod';
 import {
   Box,
   Button,
-  Checkbox,
+  Radio,
+  RadioGroup,
   TextField,
   Typography,
   Paper,
   Stack,
   Alert,
   CircularProgress,
-  FormGroup,
   FormControl,
   FormLabel,
   InputLabel,
@@ -26,7 +26,7 @@ import { useCreateContext } from '../hooks/useContexts';
 import SelectLocation from '../../../components/common/SelectLocation';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { getErrorMessage } from '../../../utils/errorHandler';
-import type { ContextModuleCode, CreateContextDto } from '../../../types/context.types';
+import type { CreateContextDto } from '../../../types/context.types';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -35,7 +35,7 @@ const formSchema = z.object({
   description: z.string().optional().nullable(),
   type: z.string().optional().nullable(),
   active: z.boolean().optional(),
-  modules: z.array(z.enum(['self_health', 'community_signal'])).optional(),
+  detectionStrategy: z.enum(['self_health', 'community_signal']),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -60,13 +60,12 @@ export default function ContextCreatePage() {
       description: '',
       type: '',
       active: true,
-      modules: ['self_health'],
+      detectionStrategy: 'self_health',
     },
   });
 
   const locationId = watch('locationId');
   const active = watch('active');
-  const selectedModules = watch('modules') ?? [];
 
   const createMutation = useCreateContext();
 
@@ -80,7 +79,7 @@ export default function ContextCreatePage() {
       description: data.description?.trim() ? data.description : undefined,
       type: data.type?.trim() ? data.type : undefined,
       active: data.active,
-      modules: data.modules,
+      modules: [data.detectionStrategy],
     };
 
     createMutation.mutate(contextData, {
@@ -170,41 +169,24 @@ export default function ContextCreatePage() {
             />
 
             <FormControl component="fieldset">
-              <FormLabel component="legend">Módulos habilitados</FormLabel>
-              <FormGroup>
+              <FormLabel id="detection-strategy-label">
+                {t('contexts.detectionStrategiesLabel')}
+              </FormLabel>
+              <RadioGroup
+                aria-labelledby="detection-strategy-label"
+                {...register('detectionStrategy')}
+              >
                 <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedModules.includes('self_health')}
-                      onChange={(_, checked) => {
-                        const next = checked
-                          ? [...selectedModules, 'self_health']
-                          : selectedModules.filter(
-                              (module) => module !== 'self_health',
-                            );
-                        setValue('modules', next as ContextModuleCode[]);
-                      }}
-                    />
-                  }
-                  label="Autoavaliação de saúde"
+                  value="self_health"
+                  control={<Radio />}
+                  label={t('contexts.moduleSelfHealth')}
                 />
                 <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedModules.includes('community_signal')}
-                      onChange={(_, checked) => {
-                        const next = checked
-                          ? [...selectedModules, 'community_signal']
-                          : selectedModules.filter(
-                              (module) => module !== 'community_signal',
-                            );
-                        setValue('modules', next as ContextModuleCode[]);
-                      }}
-                    />
-                  }
-                  label="Sinal comunitário"
+                  value="community_signal"
+                  control={<Radio />}
+                  label={t('contexts.moduleCommunitySignal')}
                 />
-              </FormGroup>
+              </RadioGroup>
             </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>

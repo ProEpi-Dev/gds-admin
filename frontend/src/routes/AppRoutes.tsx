@@ -82,6 +82,7 @@ import AdminOnlyRoute from "./AdminOnlyRoute";
 import AdminsListPage from "../features/admins/pages/AdminsListPage";
 import IntegrationEventsPage from "../features/report-integrations/pages/IntegrationEventsPage";
 import IntegrationConfigPage from "../features/report-integrations/pages/IntegrationConfigPage";
+import AuditLogsListPage from "../features/audit-logs/pages/AuditLogsListPage";
 import { hasModule, resolveEnabledModules } from "../features/app/utils/contextModules";
 
 interface ProtectedRouteProps {
@@ -658,6 +659,16 @@ export default function AppRoutes() {
           <AdminRoute>
             <AdminOnlyRoute>
               <RolePermissionsPage />
+            </AdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/audit-logs"
+        element={
+          <AdminRoute>
+            <AdminOnlyRoute>
+              <AuditLogsListPage />
             </AdminOnlyRoute>
           </AdminRoute>
         }

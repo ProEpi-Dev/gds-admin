@@ -31,6 +31,10 @@ import {
   isNonEmptyString,
 } from './integration-location.helper';
 import { AuthzService } from '../authz/authz.service';
+import {
+  AuditLogService,
+  AuditRequestContext,
+} from '../audit-log/audit-log.service';
 
 const DEFAULT_TEMPLATE_ID = '/1';
 
@@ -87,6 +91,7 @@ export class ReportIntegrationsService {
     private readonly prisma: PrismaService,
     private readonly ephemClient: EphemClient,
     private readonly authz: AuthzService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -1109,8 +1114,11 @@ export class ReportIntegrationsService {
   async upsertConfig(
     contextId: number,
     dto: UpsertIntegrationConfigDto,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<IntegrationConfigResponseDto> {
     const existing = await this.getActiveConfig(contextId);
+    const previousVersion = existing?.version ?? null;
 
     if (existing) {
       await this.integrationConfig.update({
@@ -1160,6 +1168,27 @@ export class ReportIntegrationsService {
         payload_mapping: envelopeMapping,
         timeout_ms: dto.timeoutMs ?? 30000,
         max_retries: dto.maxRetries ?? 3,
+      },
+    });
+
+    await this.auditLogService.record({
+      action: 'INTEGRATION_CONFIG_UPDATE',
+      targetEntityType: 'integration_config',
+      targetEntityId: created.id,
+      actor: { userId: actorUserId },
+      contextId,
+      request: auditRequest ?? null,
+      metadata: {
+        integrationConfigId: created.id,
+        version: created.version,
+        previousVersion,
+        isActive: created.is_active,
+        authConfigProvided: dto.authConfig != null,
+        baseUrlProductionInRequest: dto.baseUrlProduction != null,
+        baseUrlHomologationInRequest: dto.baseUrlHomologation != null,
+        templateId: dto.templateId ?? null,
+        timeoutMs: created.timeout_ms,
+        maxRetries: created.max_retries,
       },
     });
 

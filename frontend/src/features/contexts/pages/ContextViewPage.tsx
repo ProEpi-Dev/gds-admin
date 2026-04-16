@@ -179,7 +179,7 @@ export default function ContextViewPage() {
           <Divider />
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Módulos habilitados
+              {t('contexts.detectionStrategiesLabel')}
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
               {(context.modules ?? []).length > 0 ? (
@@ -189,8 +189,10 @@ export default function ContextViewPage() {
                     size="small"
                     label={
                       moduleCode === 'self_health'
-                        ? 'Autoavaliação de saúde'
-                        : 'Sinal comunitário'
+                        ? t('contexts.moduleSelfHealth')
+                        : moduleCode === 'community_signal'
+                          ? t('contexts.moduleCommunitySignal')
+                          : moduleCode
                     }
                     color="primary"
                     variant="outlined"
