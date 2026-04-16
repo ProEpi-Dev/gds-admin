@@ -12,6 +12,7 @@ import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
 import { RolesGuard } from '../authz/guards/roles.guard';
 
 const mockCurrentUser = { userId: 1 };
+const mockReq = { headers: {}, ip: '127.0.0.1' } as any;
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -190,10 +191,20 @@ describe('UsersController', () => {
       const updatedUser = { ...mockUser, name: 'Updated Name' };
       jest.spyOn(usersService, 'update').mockResolvedValue(updatedUser);
 
-      const result = await controller.update(mockCurrentUser, 1, updateUserDto);
+      const result = await controller.update(
+        mockCurrentUser,
+        1,
+        updateUserDto,
+        mockReq,
+      );
 
       expect(result).toEqual(updatedUser);
-      expect(usersService.update).toHaveBeenCalledWith(1, updateUserDto, 1);
+      expect(usersService.update).toHaveBeenCalledWith(
+        1,
+        updateUserDto,
+        1,
+        expect.any(Object),
+      );
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -205,9 +216,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.update(mockCurrentUser, 999, updateUserDto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.update(mockCurrentUser, 999, updateUserDto, mockReq),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('deve lançar ConflictException quando email já está em uso', async () => {
@@ -219,9 +230,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'update')
         .mockRejectedValue(new ConflictException('Email já está em uso'));
 
-      await expect(controller.update(mockCurrentUser, 1, updateUserDto)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        controller.update(mockCurrentUser, 1, updateUserDto, mockReq),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
