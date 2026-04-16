@@ -34,5 +34,27 @@ describe('ParticipationQueryDto', () => {
       expect(instance.contextId).toBe(2);
       expect(typeof instance.contextId).toBe('number');
     });
+
+    it('mantém active quando não é string true/false', () => {
+      const instance = plainToInstance(ParticipationQueryDto, {
+        active: 1 as unknown as boolean,
+      });
+      expect(instance.active).toBe(1);
+    });
+
+    it('transforma includeUser a partir de string ou boolean', () => {
+      expect(
+        plainToInstance(ParticipationQueryDto, { includeUser: 'true' })
+          .includeUser,
+      ).toBe(true);
+      expect(
+        plainToInstance(ParticipationQueryDto, { includeUser: true })
+          .includeUser,
+      ).toBe(true);
+      expect(
+        plainToInstance(ParticipationQueryDto, { includeUser: 'false' })
+          .includeUser,
+      ).toBe(false);
+    });
   });
 });

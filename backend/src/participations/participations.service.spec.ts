@@ -14,6 +14,7 @@ import { CreateParticipationDto } from './dto/create-participation.dto';
 import { UpdateParticipationDto } from './dto/update-participation.dto';
 import { ParticipationQueryDto } from './dto/participation-query.dto';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 describe('ParticipationsService', () => {
   let service: ParticipationsService;
@@ -57,6 +58,7 @@ describe('ParticipationsService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
               count: jest.fn(),
             },
             role: {
@@ -72,17 +74,28 @@ describe('ParticipationsService', () => {
             context: {
               findUnique: jest.fn(),
             },
-            report: {
-              count: jest.fn(),
-            },
             $transaction: jest.fn((cb: (tx: any) => Promise<any>) => {
               const tx = {
-                participation: { create: jest.fn() },
+                participation: {
+                  create: jest.fn(),
+                  update: jest.fn(),
+                  delete: jest.fn(),
+                },
                 role: { findUnique: jest.fn() },
                 participation_role: { create: jest.fn() },
+                $executeRaw: jest.fn(),
               };
               return cb(tx);
             }),
+            $executeRaw: jest.fn(),
+          },
+        },
+        {
+          provide: AuditLogService,
+          useValue: {
+            record: jest.fn(),
+            recordWithTx: jest.fn().mockResolvedValue(undefined),
+            recordMany: jest.fn(),
           },
         },
         {
@@ -560,18 +573,22 @@ describe('ParticipationsService', () => {
       jest
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.report, 'count').mockResolvedValue(0);
-      jest.spyOn(prismaService.participation, 'update').mockResolvedValue({
-        ...mockParticipation,
-        active: false,
-      } as any);
-
-      await service.remove(1);
-
-      expect(prismaService.participation.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { active: false },
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            update: jest.fn().mockResolvedValue({
+              ...mockParticipation,
+              active: false,
+            }),
+          },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
       });
+
+      await service.remove(1, 123);
+
+      expect((prismaService as any).$transaction).toHaveBeenCalled();
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -579,16 +596,68 @@ describe('ParticipationsService', () => {
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(service.remove(999, 1)).rejects.toThrow(NotFoundException);
     });
 
-    it('deve lançar BadRequestException quando possui reports', async () => {
+    it('deve permitir desativar mesmo quando tiver histórico associado', async () => {
       jest
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(mockParticipation as any);
-      jest.spyOn(prismaService.report, 'count').mockResolvedValue(2);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            update: jest.fn().mockResolvedValue({
+              ...mockParticipation,
+              active: false,
+            }),
+          },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
+      });
 
-      await expect(service.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(service.remove(1, 1)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('permanentRemove', () => {
+    it('deve excluir permanentemente participação inativa', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      const deleteMock = jest.fn().mockResolvedValue(undefined);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            delete: deleteMock,
+          },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
+      });
+
+      await service.permanentRemove(1, 777);
+
+      expect(deleteMock).toHaveBeenCalledWith({ where: { id: 1 } });
+    });
+
+    it('deve lançar BadRequestException quando participação está ativa', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue({ ...mockParticipation, active: true } as any);
+
+      await expect(service.permanentRemove(1, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('deve lançar NotFoundException quando participação não existe', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue(null);
+
+      await expect(service.permanentRemove(999, 1)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

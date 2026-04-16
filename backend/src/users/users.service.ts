@@ -25,6 +25,10 @@ import { AuthzService } from '../authz/authz.service';
 import { ParticipationProfileExtraService } from '../participation-profile-extra/participation-profile-extra.service';
 import * as bcrypt from 'bcrypt';
 import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
+import {
+  AuditLogService,
+  AuditRequestContext,
+} from '../audit-log/audit-log.service';
 
 @Injectable()
 export class UsersService {
@@ -33,6 +37,7 @@ export class UsersService {
     private legalDocumentsService: LegalDocumentsService,
     private authz: AuthzService,
     private readonly participationProfileExtraService: ParticipationProfileExtraService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async create(
@@ -296,6 +301,7 @@ export class UsersService {
     id: number,
     updateUserDto: UpdateUserDto,
     currentUserId: number,
+    auditRequest?: AuditRequestContext,
   ): Promise<UserResponseDto> {
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
@@ -340,6 +346,9 @@ export class UsersService {
       }
     }
 
+    const prevGlobalRoleId = existingUser.role_id ?? null;
+    let nextGlobalRoleId: number | null | undefined = undefined;
+
     const updateData: any = {};
     if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
     if (updateUserDto.email !== undefined)
@@ -376,12 +385,31 @@ export class UsersService {
         }
       }
       updateData.role_id = newRoleId;
+      nextGlobalRoleId = newRoleId;
     }
 
     await this.prisma.user.update({
       where: { id },
       data: updateData,
     });
+
+    if (
+      nextGlobalRoleId !== undefined &&
+      prevGlobalRoleId !== nextGlobalRoleId
+    ) {
+      await this.auditLogService.record({
+        action: 'USER_ROLE_CHANGE',
+        targetEntityType: 'user',
+        targetEntityId: id,
+        actor: { userId: currentUserId },
+        targetUserId: id,
+        request: auditRequest ?? null,
+        metadata: {
+          previousRoleId: prevGlobalRoleId,
+          newRoleId: nextGlobalRoleId,
+        },
+      });
+    }
 
     return this.findOne(id, currentUserId);
   }

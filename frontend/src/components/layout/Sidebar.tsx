@@ -36,6 +36,7 @@ import {
   Autorenew as AutorenewIcon,
   AdminPanelSettings as RoleIcon,
   Security as SecurityIcon,
+  History as HistoryIcon,
   VpnKey as VpnKeyIcon,
   SyncAlt as SyncAltIcon,
   Settings as SettingsIcon,
@@ -127,6 +128,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         path: "/roles/permissions",
         label: "Permissões dos papéis",
         icon: <VpnKeyIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/audit-logs",
+        label: t("navigation.auditLogs"),
+        icon: <HistoryIcon />,
         roles: ["admin"],
       },
       {

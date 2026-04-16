@@ -82,6 +82,7 @@ export const API_ENDPOINTS = {
     CREATE: "/participations",
     UPDATE: (id: number) => `/participations/${id}`,
     DELETE: (id: number) => `/participations/${id}`,
+    PERMANENT_DELETE: (id: number) => `/participations/${id}/permanent`,
     ROLES: (id: number) => `/participations/${id}/roles`,
     REMOVE_ROLE: (id: number, roleId: number) =>
       `/participations/${id}/roles/${roleId}`,
@@ -127,6 +128,10 @@ export const API_ENDPOINTS = {
     UPDATE: (id: number) => `/reports/${id}`,
     DELETE: (id: number) => `/reports/${id}`,
     POINTS: "/reports/points",
+  },
+
+  AUDIT_LOGS: {
+    LIST: "/audit-logs",
   },
 
   // CONTENTS

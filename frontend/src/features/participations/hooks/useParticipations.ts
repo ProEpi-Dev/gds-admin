@@ -58,3 +58,14 @@ export function useDeleteParticipation() {
   });
 }
 
+export function usePermanentDeleteParticipation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => participationsService.permanentDelete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['participations'] });
+    },
+  });
+}
+

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthzService } from '../authz/authz.service';
 import { LegalDocumentsService } from '../legal-documents/legal-documents.service';
 import { ParticipationProfileExtraService } from '../participation-profile-extra/participation-profile-extra.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
@@ -110,6 +111,12 @@ describe('UsersService', () => {
               getProfileExtraCompletionMock(...args),
             getActiveParticipationContextId: (...args: unknown[]) =>
               getActiveParticipationContextIdMock(...args),
+          },
+        },
+        {
+          provide: AuditLogService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

@@ -19,17 +19,26 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
+  RestoreFromTrash as RestoreFromTrashIcon,
   Visibility as VisibilityIcon,
   Search as SearchIcon,
   InfoOutlined as InfoOutlinedIcon,
 } from '@mui/icons-material';
-import { useParticipations, useDeleteParticipation } from '../hooks/useParticipations';
+import {
+  useParticipations,
+  useDeleteParticipation,
+  usePermanentDeleteParticipation,
+  useUpdateParticipation,
+} from '../hooks/useParticipations';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
+import { getErrorMessage } from '../../../utils/errorHandler';
 import {
   formatDateOnlyFromApi,
   formatDateTimeFromApi,
@@ -57,6 +66,7 @@ const PARTICIPATION_SORT_LABEL_KEY: Record<ParticipationListSort, string> = {
 export default function ParticipationsListPage() {
   const navigate = useNavigate();
   const { t, currentLanguage } = useTranslation();
+  const snackbar = useSnackbar();
   const { currentContext } = useCurrentContext();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -65,6 +75,10 @@ export default function ParticipationsListPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [participationToDelete, setParticipationToDelete] = useState<Participation | null>(null);
+  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const [participationToReactivate, setParticipationToReactivate] = useState<Participation | null>(null);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
+  const [participationToPermanentDelete, setParticipationToPermanentDelete] = useState<Participation | null>(null);
   const [listSort, setListSort] = useState<ParticipationListSort>(DEFAULT_PARTICIPATION_LIST_SORT);
 
   useEffect(() => {
@@ -93,6 +107,8 @@ export default function ParticipationsListPage() {
   });
 
   const deleteMutation = useDeleteParticipation();
+  const updateMutation = useUpdateParticipation();
+  const permanentDeleteMutation = usePermanentDeleteParticipation();
 
   const handleDelete = (participation: Participation) => {
     setParticipationToDelete(participation);
@@ -105,9 +121,48 @@ export default function ParticipationsListPage() {
         onSuccess: () => {
           setDeleteDialogOpen(false);
           setParticipationToDelete(null);
+          snackbar.showSuccess(t('participations.deactivateSuccess'));
         },
+        onError: (err) => snackbar.showError(getErrorMessage(err)),
       });
     }
+  };
+
+  const handleReactivate = (participation: Participation) => {
+    setParticipationToReactivate(participation);
+    setReactivateDialogOpen(true);
+  };
+
+  const confirmReactivate = () => {
+    if (!participationToReactivate) return;
+    updateMutation.mutate(
+      { id: participationToReactivate.id, data: { active: true } },
+      {
+        onSuccess: () => {
+          setReactivateDialogOpen(false);
+          setParticipationToReactivate(null);
+          snackbar.showSuccess(t('participations.reactivateSuccess'));
+        },
+        onError: (err) => snackbar.showError(getErrorMessage(err)),
+      },
+    );
+  };
+
+  const handlePermanentDelete = (participation: Participation) => {
+    setParticipationToPermanentDelete(participation);
+    setPermanentDeleteDialogOpen(true);
+  };
+
+  const confirmPermanentDelete = () => {
+    if (!participationToPermanentDelete) return;
+    permanentDeleteMutation.mutate(participationToPermanentDelete.id, {
+      onSuccess: () => {
+        setPermanentDeleteDialogOpen(false);
+        setParticipationToPermanentDelete(null);
+        snackbar.showSuccess(t('participations.permanentDeleteSuccess'));
+      },
+      onError: (err) => snackbar.showError(getErrorMessage(err)),
+    });
   };
 
   const integrationTrainingLabel = (
@@ -209,14 +264,35 @@ export default function ParticipationsListPage() {
           >
             <EditIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDelete(row)}
-            color="error"
-            title={t('common.delete')}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          {row.active ? (
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(row)}
+              color="error"
+              title={t('common.delete')}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          ) : (
+            <>
+              <IconButton
+                size="small"
+                onClick={() => handleReactivate(row)}
+                color="success"
+                title={t('participations.reactivateAction')}
+              >
+                <RestoreFromTrashIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handlePermanentDelete(row)}
+                color="error"
+                title={t('participations.permanentDeleteAction')}
+              >
+                <DeleteForeverIcon fontSize="small" />
+              </IconButton>
+            </>
+          )}
         </Box>
       ),
     },
@@ -371,6 +447,32 @@ export default function ParticipationsListPage() {
           setParticipationToDelete(null);
         }}
         loading={deleteMutation.isPending}
+      />
+      <ConfirmDialog
+        open={reactivateDialogOpen}
+        title={t('participations.reactivateConfirm')}
+        message={t('participations.reactivateMessage')}
+        confirmText={t('participations.reactivateAction')}
+        cancelText={t('common.cancel')}
+        onConfirm={confirmReactivate}
+        onCancel={() => {
+          setReactivateDialogOpen(false);
+          setParticipationToReactivate(null);
+        }}
+        loading={updateMutation.isPending}
+      />
+      <ConfirmDialog
+        open={permanentDeleteDialogOpen}
+        title={t('participations.permanentDeleteConfirm')}
+        message={t('participations.permanentDeleteMessage')}
+        confirmText={t('participations.permanentDeleteAction')}
+        cancelText={t('common.cancel')}
+        onConfirm={confirmPermanentDelete}
+        onCancel={() => {
+          setPermanentDeleteDialogOpen(false);
+          setParticipationToPermanentDelete(null);
+        }}
+        loading={permanentDeleteMutation.isPending}
       />
     </>
   );

@@ -7,6 +7,9 @@ describe('ReportIntegrationsController', () => {
   let controller: ReportIntegrationsController;
   let service: any;
 
+  const mockUser = { userId: 1 };
+  const mockReq = { headers: {}, ip: '127.0.0.1' } as any;
+
   beforeEach(async () => {
     service = {
       findEvents: jest.fn().mockResolvedValue({ data: [], meta: {}, links: {} }),
@@ -94,8 +97,13 @@ describe('ReportIntegrationsController', () => {
   describe('upsertConfig', () => {
     it('deve chamar service.upsertConfig', async () => {
       const dto = { maxRetries: 3 };
-      await controller.upsertConfig(3, dto as any);
-      expect(service.upsertConfig).toHaveBeenCalledWith(3, dto);
+      await controller.upsertConfig(3, dto as any, mockUser, mockReq);
+      expect(service.upsertConfig).toHaveBeenCalledWith(
+        3,
+        dto,
+        1,
+        expect.any(Object),
+      );
     });
   });
 });

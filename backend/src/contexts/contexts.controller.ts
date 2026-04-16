@@ -13,6 +13,7 @@ import {
   ParseIntPipe,
   UseGuards,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -37,6 +38,8 @@ import { ParticipationReportStreakQueryDto } from '../reports/dto/participation-
 import { ParticipationReportStreakResponseDto } from '../reports/dto/participation-report-streak-response.dto';
 import { ContextConfigurationEntryDto } from './dto/context-configuration-entry.dto';
 import { UpsertContextConfigurationDto } from './dto/upsert-context-configuration.dto';
+import { Request } from 'express';
+import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
 @ApiTags('Contexts')
 @ApiBearerAuth('bearerAuth')
@@ -63,8 +66,14 @@ export class ContextsController {
   })
   async create(
     @Body() createContextDto: CreateContextDto,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<ContextResponseDto> {
-    return this.contextsService.create(createContextDto);
+    return this.contextsService.create(
+      createContextDto,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Get('public')
@@ -222,6 +231,8 @@ export class ContextsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('key') key: string,
     @Body() dto: UpsertContextConfigurationDto,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<ContextConfigurationEntryDto> {
     const normalizedKey = decodeURIComponent(key);
     const maxLen = 128;
@@ -238,6 +249,8 @@ export class ContextsController {
       id,
       normalizedKey,
       dto.value,
+      user.userId,
+      buildAuditRequestContext(req),
     );
   }
 
@@ -279,8 +292,15 @@ export class ContextsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateContextDto: UpdateContextDto,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
   ): Promise<ContextResponseDto> {
-    return this.contextsService.update(id, updateContextDto);
+    return this.contextsService.update(
+      id,
+      updateContextDto,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Delete(':id')
@@ -296,7 +316,15 @@ export class ContextsController {
   @ApiResponse({ status: 204, description: 'Contexto deletado com sucesso' })
   @ApiResponse({ status: 400, description: 'Contexto possui relacionamentos' })
   @ApiResponse({ status: 404, description: 'Contexto não encontrado' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.contextsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { userId: number },
+    @Req() req: Request,
+  ): Promise<void> {
+    return this.contextsService.remove(
+      id,
+      user.userId,
+      buildAuditRequestContext(req),
+    );
   }
 }

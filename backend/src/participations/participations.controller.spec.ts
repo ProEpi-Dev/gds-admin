@@ -53,6 +53,7 @@ describe('ParticipationsController', () => {
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
+            permanentRemove: jest.fn(),
           },
         },
       ],
@@ -207,15 +208,26 @@ describe('ParticipationsController', () => {
       const updateParticipationDto: UpdateParticipationDto = {
         active: false,
       };
+      const user = { userId: 10 };
+      const req = {
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'jest' },
+      } as any;
 
       const updatedParticipation = { ...mockParticipation, active: false };
       jest
         .spyOn(participationsService, 'update')
         .mockResolvedValue(updatedParticipation);
 
-      const result = await controller.update(1, updateParticipationDto);
+      const result = await controller.update(1, updateParticipationDto, user, req);
 
       expect(result).toEqual(updatedParticipation);
+      expect(participationsService.update).toHaveBeenCalledWith(
+        1,
+        updateParticipationDto,
+        10,
+        expect.objectContaining({ ipAddress: '127.0.0.1' }),
+      );
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -230,7 +242,7 @@ describe('ParticipationsController', () => {
         );
 
       await expect(
-        controller.update(999, updateParticipationDto),
+        controller.update(999, updateParticipationDto, { userId: 1 }, {} as any),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -249,7 +261,7 @@ describe('ParticipationsController', () => {
         );
 
       await expect(
-        controller.update(1, updateParticipationDto),
+        controller.update(1, updateParticipationDto, { userId: 1 }, {} as any),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -258,9 +270,13 @@ describe('ParticipationsController', () => {
     it('deve desativar participação', async () => {
       jest.spyOn(participationsService, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(1);
+      await controller.remove(1, { userId: 1 }, {} as any);
 
-      expect(participationsService.remove).toHaveBeenCalledWith(1);
+      expect(participationsService.remove).toHaveBeenCalledWith(
+        1,
+        1,
+        expect.any(Object),
+      );
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -270,17 +286,49 @@ describe('ParticipationsController', () => {
           new NotFoundException('Participação não encontrada'),
         );
 
-      await expect(controller.remove(999)).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.remove(999, { userId: 1 }, {} as any),
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('deve lançar BadRequestException quando possui reports', async () => {
+    it('deve lançar BadRequestException quando não pode desativar', async () => {
       jest
         .spyOn(participationsService, 'remove')
+        .mockRejectedValue(new BadRequestException('Falha ao desativar'));
+
+      await expect(
+        controller.remove(1, { userId: 1 }, {} as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('permanentRemove', () => {
+    it('deve excluir participação permanentemente', async () => {
+      jest
+        .spyOn(participationsService, 'permanentRemove')
+        .mockResolvedValue(undefined);
+
+      await controller.permanentRemove(1, { userId: 8 }, {} as any);
+
+      expect(participationsService.permanentRemove).toHaveBeenCalledWith(
+        1,
+        8,
+        expect.any(Object),
+      );
+    });
+
+    it('deve lançar BadRequestException quando participação está ativa', async () => {
+      jest
+        .spyOn(participationsService, 'permanentRemove')
         .mockRejectedValue(
-          new BadRequestException('Participação possui reports'),
+          new BadRequestException(
+            'Não é possível excluir permanentemente uma participação ativa',
+          ),
         );
 
-      await expect(controller.remove(1)).rejects.toThrow(BadRequestException);
+      await expect(
+        controller.permanentRemove(1, { userId: 1 }, {} as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

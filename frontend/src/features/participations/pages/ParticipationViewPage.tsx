@@ -17,6 +17,8 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
+  RestoreFromTrash as RestoreFromTrashIcon,
   ArrowBack as ArrowBackIcon,
   Add as AddIcon,
   Close as CloseIcon,
@@ -25,6 +27,8 @@ import { useState } from "react";
 import {
   useParticipation,
   useDeleteParticipation,
+  usePermanentDeleteParticipation,
+  useUpdateParticipation,
 } from "../hooks/useParticipations";
 import {
   useParticipationRoles,
@@ -60,6 +64,7 @@ export default function ParticipationViewPage() {
   const snackbar = useSnackbar();
   const { isAdmin } = useUserRole();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<number | "">("");
 
   const participationId = id ? parseInt(id, 10) : null;
@@ -82,6 +87,8 @@ export default function ParticipationViewPage() {
   const { data: allRoles } = useRoles();
 
   const deleteMutation = useDeleteParticipation();
+  const permanentDeleteMutation = usePermanentDeleteParticipation();
+  const updateMutation = useUpdateParticipation();
   const addRoleMutation = useAddParticipationRole(participationId ?? 0);
   const removeRoleMutation = useRemoveParticipationRole(participationId ?? 0);
 
@@ -95,9 +102,35 @@ export default function ParticipationViewPage() {
   const handleDelete = () => {
     if (participationId) {
       deleteMutation.mutate(participationId, {
-        onSuccess: () => navigate("/participations"),
+        onSuccess: () => {
+          snackbar.showSuccess(t("participations.deactivateSuccess"));
+          navigate("/participations");
+        },
+        onError: (err) => snackbar.showError(getErrorMessage(err)),
       });
     }
+  };
+
+  const handleReactivate = () => {
+    if (!participationId) return;
+    updateMutation.mutate(
+      { id: participationId, data: { active: true } },
+      {
+        onSuccess: () => snackbar.showSuccess(t("participations.reactivateSuccess")),
+        onError: (err) => snackbar.showError(getErrorMessage(err)),
+      },
+    );
+  };
+
+  const handlePermanentDelete = () => {
+    if (!participationId) return;
+    permanentDeleteMutation.mutate(participationId, {
+      onSuccess: () => {
+        snackbar.showSuccess(t("participations.permanentDeleteSuccess"));
+        navigate("/participations");
+      },
+      onError: (err) => snackbar.showError(getErrorMessage(err)),
+    });
   };
 
   const handleAddRole = () => {
@@ -141,14 +174,37 @@ export default function ParticipationViewPage() {
         >
           {t("common.edit")}
         </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={() => setDeleteDialogOpen(true)}
-        >
-          {t("common.delete")}
-        </Button>
+        {participation.active ? (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            {t("common.delete")}
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="outlined"
+              color="success"
+              startIcon={<RestoreFromTrashIcon />}
+              onClick={handleReactivate}
+              disabled={updateMutation.isPending}
+            >
+              {t("participations.reactivateAction")}
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteForeverIcon />}
+              onClick={() => setPermanentDeleteDialogOpen(true)}
+              disabled={permanentDeleteMutation.isPending}
+            >
+              {t("participations.permanentDeleteAction")}
+            </Button>
+          </>
+        )}
       </Box>
 
       {/* Dados gerais */}
@@ -400,6 +456,16 @@ export default function ParticipationViewPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteDialogOpen(false)}
         loading={deleteMutation.isPending}
+      />
+      <ConfirmDialog
+        open={permanentDeleteDialogOpen}
+        title={t("participations.permanentDeleteConfirm")}
+        message={t("participations.permanentDeleteMessage")}
+        confirmText={t("participations.permanentDeleteAction")}
+        cancelText={t("common.cancel")}
+        onConfirm={handlePermanentDelete}
+        onCancel={() => setPermanentDeleteDialogOpen(false)}
+        loading={permanentDeleteMutation.isPending}
       />
     </Box>
   );

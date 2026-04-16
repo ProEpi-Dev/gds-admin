@@ -37,5 +37,9 @@ export const participationsService = {
   async remove(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.PARTICIPATIONS.DELETE(id));
   },
+
+  async permanentDelete(id: number): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.PARTICIPATIONS.PERMANENT_DELETE(id));
+  },
 };
 
