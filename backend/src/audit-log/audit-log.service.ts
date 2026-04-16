@@ -102,43 +102,7 @@ export class AuditLogService {
     const offset = (page - 1) * pageSize;
     const searchTerm = query.search?.trim();
 
-    const whereConditions: Prisma.Sql[] = [];
-
-    if (query.action) {
-      whereConditions.push(Prisma.sql`a.action = ${query.action}`);
-    }
-    if (query.targetEntityType) {
-      whereConditions.push(
-        Prisma.sql`a.target_entity_type = ${query.targetEntityType}`,
-      );
-    }
-    if (query.actorUserId != null) {
-      whereConditions.push(Prisma.sql`a.actor_user_id = ${query.actorUserId}`);
-    }
-    if (query.contextId != null) {
-      whereConditions.push(Prisma.sql`a.context_id = ${query.contextId}`);
-    }
-    if (query.dateFrom) {
-      whereConditions.push(Prisma.sql`a.occurred_at >= ${new Date(query.dateFrom)}`);
-    }
-    if (query.dateTo) {
-      whereConditions.push(Prisma.sql`a.occurred_at <= ${new Date(query.dateTo)}`);
-    }
-    if (searchTerm) {
-      const like = `%${searchTerm}%`;
-      whereConditions.push(
-        Prisma.sql`(
-          a.action ILIKE ${like}
-          OR a.target_entity_type ILIKE ${like}
-          OR a.target_entity_id ILIKE ${like}
-          OR actor.name ILIKE ${like}
-          OR actor.email ILIKE ${like}
-          OR target_user.name ILIKE ${like}
-          OR target_user.email ILIKE ${like}
-        )`,
-      );
-    }
-
+    const whereConditions = this.buildAuditLogWhereSqlFragments(query, searchTerm);
     const whereSql =
       whereConditions.length > 0
         ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}`
@@ -190,15 +154,7 @@ export class AuditLogService {
     ]);
 
     const totalItems = countRows[0]?.total ?? 0;
-    const queryParams: Record<string, unknown> = {};
-    if (query.action) queryParams.action = query.action;
-    if (query.targetEntityType) queryParams.targetEntityType = query.targetEntityType;
-    if (query.actorUserId != null) queryParams.actorUserId = query.actorUserId;
-    if (query.contextId != null) queryParams.contextId = query.contextId;
-    if (query.dateFrom) queryParams.dateFrom = query.dateFrom;
-    if (query.dateTo) queryParams.dateTo = query.dateTo;
-    if (searchTerm) queryParams.search = searchTerm;
-    if (query.sortDirection) queryParams.sortDirection = query.sortDirection;
+    const queryParams = this.buildAuditLogQueryParams(query, searchTerm);
 
     return {
       data: rows.map((row) => this.mapToResponse(row)),
@@ -229,9 +185,69 @@ export class AuditLogService {
     if (input.targetEntityId === null || input.targetEntityId === undefined || input.targetEntityId === '') {
       throw new BadRequestException('AuditLog.targetEntityId é obrigatório');
     }
-    if (!input.actor || input.actor.userId === undefined) {
+    if (input.actor?.userId === undefined) {
       throw new BadRequestException('AuditLog.actor.userId é obrigatório (pode ser null para sistema)');
     }
+  }
+
+  private buildAuditLogWhereSqlFragments(
+    query: AuditLogQueryDto,
+    searchTerm: string | undefined,
+  ): Prisma.Sql[] {
+    const whereConditions: Prisma.Sql[] = [];
+
+    if (query.action) {
+      whereConditions.push(Prisma.sql`a.action = ${query.action}`);
+    }
+    if (query.targetEntityType) {
+      whereConditions.push(
+        Prisma.sql`a.target_entity_type = ${query.targetEntityType}`,
+      );
+    }
+    if (query.actorUserId != null) {
+      whereConditions.push(Prisma.sql`a.actor_user_id = ${query.actorUserId}`);
+    }
+    if (query.contextId != null) {
+      whereConditions.push(Prisma.sql`a.context_id = ${query.contextId}`);
+    }
+    if (query.dateFrom) {
+      whereConditions.push(Prisma.sql`a.occurred_at >= ${new Date(query.dateFrom)}`);
+    }
+    if (query.dateTo) {
+      whereConditions.push(Prisma.sql`a.occurred_at <= ${new Date(query.dateTo)}`);
+    }
+    if (searchTerm) {
+      const like = `%${searchTerm}%`;
+      whereConditions.push(
+        Prisma.sql`(
+          a.action ILIKE ${like}
+          OR a.target_entity_type ILIKE ${like}
+          OR a.target_entity_id ILIKE ${like}
+          OR actor.name ILIKE ${like}
+          OR actor.email ILIKE ${like}
+          OR target_user.name ILIKE ${like}
+          OR target_user.email ILIKE ${like}
+        )`,
+      );
+    }
+
+    return whereConditions;
+  }
+
+  private buildAuditLogQueryParams(
+    query: AuditLogQueryDto,
+    searchTerm: string | undefined,
+  ): Record<string, unknown> {
+    const queryParams: Record<string, unknown> = {};
+    if (query.action) queryParams.action = query.action;
+    if (query.targetEntityType) queryParams.targetEntityType = query.targetEntityType;
+    if (query.actorUserId != null) queryParams.actorUserId = query.actorUserId;
+    if (query.contextId != null) queryParams.contextId = query.contextId;
+    if (query.dateFrom) queryParams.dateFrom = query.dateFrom;
+    if (query.dateTo) queryParams.dateTo = query.dateTo;
+    if (searchTerm) queryParams.search = searchTerm;
+    if (query.sortDirection) queryParams.sortDirection = query.sortDirection;
+    return queryParams;
   }
 
   private async insert(executor: PrismaRawExecutor, input: AuditLogInput): Promise<void> {
