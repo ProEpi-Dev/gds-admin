@@ -211,6 +211,30 @@ describe('SyndromicClassificationService', () => {
       expect(metrics.recordSyndromeClassification).toHaveBeenCalled();
     });
 
+    it('valor de sintoma escalar numérico é convertido para string', async () => {
+      prisma.report.findUnique.mockResolvedValue({
+        id: 24,
+        report_type: report_type_enum.POSITIVE,
+        form_version: { id: 5, form_id: 99 },
+        form_response: { sintomas: 42 },
+      });
+      prisma.syndrome_form_config.findFirst.mockResolvedValue({
+        id: 1,
+        symptoms_field_name: 'sintomas',
+        symptoms_field_id: null,
+        symptom_onset_date_field_name: null,
+        symptom_onset_date_field_id: null,
+      });
+      prisma.form_symptom_mapping.findMany.mockResolvedValue([]);
+      prisma.symptom.findMany.mockResolvedValue([]);
+      prisma.syndrome.findMany.mockResolvedValue([]);
+      prisma.syndrome_symptom_weight.findMany.mockResolvedValue([]);
+
+      await service.classifyReport(24);
+
+      expect(metrics.recordSyndromeClassification).toHaveBeenCalled();
+    });
+
     it('sem síndromes ativas: grava linha skipped dentro da transação', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 22,

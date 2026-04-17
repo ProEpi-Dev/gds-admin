@@ -70,7 +70,20 @@ export class SyndromicClassificationService {
         return [];
       }
     }
-    return [String(value).trim()].filter((item) => item.length > 0);
+    if (typeof value === 'string') {
+      return [value.trim()].filter((item) => item.length > 0);
+    }
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    ) {
+      return [String(value)];
+    }
+    if (typeof value === 'symbol') {
+      return [value.toString()];
+    }
+    return [];
   }
 
   /**
@@ -530,11 +543,13 @@ export class SyndromicClassificationService {
       createdAt.gte = startUtc;
       return;
     }
-    const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
-      query.endDate as string,
-      query.endDate as string,
-    );
-    createdAt.lte = endInclusiveUtc;
+    if (query.endDate) {
+      const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
+        query.endDate,
+        query.endDate,
+      );
+      createdAt.lte = endInclusiveUtc;
+    }
   }
 
   private mapReportScoreListRow(row: any): ReportSyndromeScoreResponseDto {
@@ -683,7 +698,7 @@ export class SyndromicClassificationService {
     cursor: number,
   ): Record<string, unknown> {
     if (existingId !== null && existingId !== undefined && typeof existingId === 'object') {
-      return { ...(existingId as object), gt: cursor };
+      return Object.assign({}, existingId, { gt: cursor });
     }
     return { gt: cursor };
   }
@@ -698,7 +713,7 @@ export class SyndromicClassificationService {
       prevForm !== undefined &&
       typeof prevForm === 'object' &&
       !Array.isArray(prevForm)
-        ? { ...(prevForm as object) }
+        ? { ...prevForm }
         : {};
     fv.form = {
       ...formMerged,
