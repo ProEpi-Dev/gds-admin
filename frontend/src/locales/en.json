@@ -21,7 +21,8 @@
     "noResults": "No records found",
     "clearFilters": "Clear Filters",
     "createdAt": "Created At",
-    "updatedAt": "Updated At"
+    "updatedAt": "Updated At",
+    "fixFormErrors": "Fix the highlighted fields and try saving again."
   },
   "userLayout": {
     "home": "Home",

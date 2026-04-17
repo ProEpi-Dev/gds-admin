@@ -23,7 +23,8 @@
     "noResults": "Nenhum registro encontrado",
     "clearFilters": "Limpar Filtros",
     "createdAt": "Data de Criação",
-    "updatedAt": "Data de Atualização"
+    "updatedAt": "Data de Atualização",
+    "fixFormErrors": "Corrija os campos destacados e tente salvar novamente."
   },
   "layout": {
     "menu": "Menu",
