@@ -308,8 +308,10 @@ export class ReprocessSyndromicClassificationDto {
   @IsOptional()
   formId?: number;
 
-  /** @deprecated Preferir `formId`. Se informado, filtra pela versão indicada. */
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Preferir `formId`. Se informado, filtra pela versão indicada.',
+  })
   @Type(() => Number)
   @IsInt()
   @IsOptional()
@@ -379,7 +381,7 @@ export class DailySyndromeCountsQueryDto {
   @ApiPropertyOptional({ description: 'Lista de IDs de síndrome (csv ou repetição de query param).' })
   @Transform(({ value }) => {
     if (value === undefined || value === null || value === '') return undefined;
-    if (Array.isArray(value)) return value.map((item) => Number(item));
+    if (Array.isArray(value)) return value.map(Number);
     if (typeof value === 'string') {
       return value
         .split(',')

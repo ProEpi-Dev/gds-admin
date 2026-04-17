@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, report_type_enum } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { toDate } from 'date-fns-tz';
 import { AuthzService } from '../authz/authz.service';
 import { ListResponseDto } from '../common/dto/list-response.dto';
@@ -30,7 +30,6 @@ import {
   ReprocessSyndromicClassificationDto,
   ReportSyndromeScoresQueryDto,
   ReportSyndromeScoreResponseDto,
-  SyndromeWeightMatrixCellDto,
   UpdateFormSymptomMappingDto,
   UpdateSyndromeDto,
   UpdateSyndromeFormConfigDto,
@@ -46,6 +45,33 @@ export class SyndromicClassificationService {
   private readonly logger = new Logger(SyndromicClassificationService.name);
   private static readonly PROCESSING_VERSION = 'v1-weighted';
   private static readonly REPORT_DAY_TZ = 'America/Sao_Paulo';
+
+  private static toDecimalNumberOrNull(value: unknown): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    return Number(value);
+  }
+
+  private static symptomScalarToStrings(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item ?? '').trim())
+        .filter((item) => item.length > 0);
+    }
+    if (value === null || value === undefined) {
+      return [];
+    }
+    if (typeof value === 'object') {
+      try {
+        const json = JSON.stringify(value);
+        return json.length > 0 ? [json] : [];
+      } catch {
+        return [];
+      }
+    }
+    return [String(value).trim()].filter((item) => item.length > 0);
+  }
 
   /**
    * Interpreta `startDate`/`endDate` (YYYY-MM-DD) como dias civis em {@link REPORT_DAY_TZ}
@@ -352,17 +378,7 @@ export class SyndromicClassificationService {
 
     if (!selected) return [];
 
-    if (Array.isArray(selected.value)) {
-      return selected.value
-        .map((item) => String(item ?? '').trim())
-        .filter((item) => item.length > 0);
-    }
-
-    if (selected.value === null || selected.value === undefined) {
-      return [];
-    }
-
-    return [String(selected.value).trim()].filter((item) => item.length > 0);
+    return SyndromicClassificationService.symptomScalarToStrings(selected.value);
   }
 
   /**
@@ -457,17 +473,87 @@ export class SyndromicClassificationService {
       syndromeId: row.syndrome_id ?? null,
       syndromeCode: row.syndrome?.code ?? null,
       syndromeName: row.syndrome?.name ?? null,
-      score: row.score !== null && row.score !== undefined ? Number(row.score) : null,
-      thresholdScore:
-        row.threshold_score_snapshot !== null &&
-        row.threshold_score_snapshot !== undefined
-          ? Number(row.threshold_score_snapshot)
-          : null,
+      score: SyndromicClassificationService.toDecimalNumberOrNull(row.score),
+      thresholdScore: SyndromicClassificationService.toDecimalNumberOrNull(
+        row.threshold_score_snapshot,
+      ),
       isAboveThreshold: row.is_above_threshold ?? null,
       processingStatus: row.processing_status,
       processingError: row.processing_error ?? null,
       processedAt: row.processed_at,
     }));
+  }
+
+  private applyReportScoresQueryFilters(
+    query: ReportSyndromeScoresQueryDto,
+    where: Record<string, unknown>,
+  ): void {
+    if (query.onlyLatest ?? true) {
+      where.is_latest = true;
+    }
+    if (query.reportId) {
+      where.report_id = query.reportId;
+    }
+    if (query.syndromeId) {
+      where.syndrome_id = query.syndromeId;
+    }
+    if (query.processingStatus) {
+      where.processing_status = query.processingStatus;
+    }
+    if (typeof query.isAboveThreshold === 'boolean') {
+      where.is_above_threshold = query.isAboveThreshold;
+    }
+    if (!query.startDate && !query.endDate) {
+      return;
+    }
+    const reportNested = where.report as Record<string, unknown>;
+    const createdAt: Record<string, Date> = {};
+    where.report = {
+      ...reportNested,
+      created_at: createdAt,
+    };
+    if (query.startDate && query.endDate) {
+      const { startUtc, endInclusiveUtc } =
+        SyndromicClassificationService.reportCalendarDayRangeUtc(
+          query.startDate,
+          query.endDate,
+        );
+      createdAt.gte = startUtc;
+      createdAt.lte = endInclusiveUtc;
+      return;
+    }
+    if (query.startDate) {
+      const { startUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
+        query.startDate,
+        query.startDate,
+      );
+      createdAt.gte = startUtc;
+      return;
+    }
+    const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
+      query.endDate as string,
+      query.endDate as string,
+    );
+    createdAt.lte = endInclusiveUtc;
+  }
+
+  private mapReportScoreListRow(row: any): ReportSyndromeScoreResponseDto {
+    return {
+      id: row.id,
+      reportId: row.report_id,
+      occurrenceLocation: row.report?.occurrence_location ?? null,
+      syndromeId: row.syndrome_id ?? null,
+      syndromeCode: row.syndrome?.code ?? null,
+      syndromeName: row.syndrome?.name ?? null,
+      score: SyndromicClassificationService.toDecimalNumberOrNull(row.score),
+      thresholdScore: SyndromicClassificationService.toDecimalNumberOrNull(
+        row.threshold_score_snapshot,
+      ),
+      isAboveThreshold: row.is_above_threshold ?? null,
+      processingStatus: row.processing_status,
+      processingError: row.processing_error ?? null,
+      processedAt: row.processed_at,
+    };
   }
 
   async listReportScores(
@@ -485,60 +571,18 @@ export class SyndromicClassificationService {
       { allowParticipantContext: true },
     );
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       report: {
         participation: {
           context_id: contextId,
         },
       },
     };
-
-    if (query.onlyLatest ?? true) {
-      where.is_latest = true;
-    }
-    if (query.reportId) {
-      where.report_id = query.reportId;
-    }
-    if (query.syndromeId) {
-      where.syndrome_id = query.syndromeId;
-    }
-    if (query.processingStatus) {
-      where.processing_status = query.processingStatus;
-    }
-    if (typeof query.isAboveThreshold === 'boolean') {
-      where.is_above_threshold = query.isAboveThreshold;
-    }
-    if (query.startDate || query.endDate) {
-      where.report = {
-        ...where.report,
-        created_at: {},
-      };
-      if (query.startDate && query.endDate) {
-        const { startUtc, endInclusiveUtc } =
-          SyndromicClassificationService.reportCalendarDayRangeUtc(
-            query.startDate,
-            query.endDate,
-          );
-        where.report.created_at.gte = startUtc;
-        where.report.created_at.lte = endInclusiveUtc;
-      } else if (query.startDate) {
-        const { startUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
-          query.startDate,
-          query.startDate,
-        );
-        where.report.created_at.gte = startUtc;
-      } else if (query.endDate) {
-        const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
-          query.endDate,
-          query.endDate,
-        );
-        where.report.created_at.lte = endInclusiveUtc;
-      }
-    }
+    this.applyReportScoresQueryFilters(query, where);
 
     const [rows, totalItems] = await Promise.all([
       this.reportSyndromeScoreModel.findMany({
-        where,
+        where: where as any,
         skip,
         take: pageSize,
         include: {
@@ -551,7 +595,7 @@ export class SyndromicClassificationService {
         },
         orderBy: [{ processed_at: 'desc' }, { id: 'desc' }],
       }),
-      this.reportSyndromeScoreModel.count({ where }),
+      this.reportSyndromeScoreModel.count({ where: where as any }),
     ]);
 
     const queryParams: Record<string, unknown> = {};
@@ -567,23 +611,7 @@ export class SyndromicClassificationService {
     if (query.onlyLatest != null) queryParams.onlyLatest = query.onlyLatest;
 
     return {
-      data: rows.map((row: any) => ({
-        id: row.id,
-        reportId: row.report_id,
-        occurrenceLocation: row.report?.occurrence_location ?? null,
-        syndromeId: row.syndrome_id ?? null,
-        syndromeCode: row.syndrome?.code ?? null,
-        syndromeName: row.syndrome?.name ?? null,
-        score: row.score != null ? Number(row.score) : null,
-        thresholdScore:
-          row.threshold_score_snapshot != null
-            ? Number(row.threshold_score_snapshot)
-            : null,
-        isAboveThreshold: row.is_above_threshold ?? null,
-        processingStatus: row.processing_status,
-        processingError: row.processing_error ?? null,
-        processedAt: row.processed_at,
-      })),
+      data: rows.map((row: any) => this.mapReportScoreListRow(row)),
       meta: createPaginationMeta({
         page,
         pageSize,
@@ -614,6 +642,101 @@ export class SyndromicClassificationService {
     );
   }
 
+  private applyReprocessDateRangeToWhere(
+    dto: ReprocessSyndromicClassificationDto,
+    where: Record<string, unknown>,
+  ): void {
+    if (!dto.startDate && !dto.endDate) {
+      return;
+    }
+    const createdAt: Record<string, Date> = {};
+    where.created_at = createdAt;
+    if (dto.startDate && dto.endDate) {
+      const { startUtc, endInclusiveUtc } =
+        SyndromicClassificationService.reportCalendarDayRangeUtc(
+          dto.startDate,
+          dto.endDate,
+        );
+      createdAt.gte = startUtc;
+      createdAt.lte = endInclusiveUtc;
+      return;
+    }
+    if (dto.startDate) {
+      const { startUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
+        dto.startDate,
+        dto.startDate,
+      );
+      createdAt.gte = startUtc;
+      return;
+    }
+    if (dto.endDate) {
+      const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
+        dto.endDate,
+        dto.endDate,
+      );
+      createdAt.lte = endInclusiveUtc;
+    }
+  }
+
+  private mergeReportIdWithGtCursor(
+    existingId: unknown,
+    cursor: number,
+  ): Record<string, unknown> {
+    if (existingId !== null && existingId !== undefined && typeof existingId === 'object') {
+      return { ...(existingId as object), gt: cursor };
+    }
+    return { gt: cursor };
+  }
+
+  private static mergeFormVersionSyndromeConfig(
+    formVersion: Record<string, unknown> | undefined,
+  ): Record<string, unknown> {
+    const fv = formVersion ? { ...formVersion } : {};
+    const prevForm = fv.form;
+    const formMerged =
+      prevForm !== null &&
+      prevForm !== undefined &&
+      typeof prevForm === 'object' &&
+      !Array.isArray(prevForm)
+        ? { ...(prevForm as object) }
+        : {};
+    fv.form = {
+      ...formMerged,
+      syndrome_form_config: { some: { active: true } },
+    };
+    return fv;
+  }
+
+  private buildReprocessReportsWhere(
+    dto: ReprocessSyndromicClassificationDto,
+  ): Record<string, unknown> {
+    const where: Record<string, unknown> = {
+      report_type: report_type_enum.POSITIVE,
+    };
+    if (dto.onlyLatestActive ?? true) {
+      where.active = true;
+    }
+    if (dto.formId) {
+      where.form_version = { form_id: dto.formId };
+    } else if (dto.formVersionId) {
+      where.form_version_id = dto.formVersionId;
+    }
+    if (dto.reportIds?.length) {
+      where.id = { in: dto.reportIds };
+    }
+    this.applyReprocessDateRangeToWhere(dto, where);
+    if (dto.cursor) {
+      where.id = this.mergeReportIdWithGtCursor(where.id, dto.cursor);
+    }
+    where.form_version = SyndromicClassificationService.mergeFormVersionSyndromeConfig(
+      where.form_version as Record<string, unknown> | undefined,
+    );
+    if (dto.contextId != null) {
+      where.participation = { context_id: dto.contextId };
+    }
+    return where;
+  }
+
   async reprocessReports(
     dto: ReprocessSyndromicClassificationDto,
     userId: number,
@@ -631,65 +754,11 @@ export class SyndromicClassificationService {
       throw new ForbiddenException('Somente admin pode reprocessar em lote');
     }
 
-    const where: any = {
-      report_type: report_type_enum.POSITIVE,
-    };
-    if (dto.onlyLatestActive ?? true) {
-      where.active = true;
-    }
-    if (dto.formId) {
-      where.form_version = { form_id: dto.formId };
-    } else if (dto.formVersionId) {
-      where.form_version_id = dto.formVersionId;
-    }
-    if (dto.reportIds?.length) {
-      where.id = { in: dto.reportIds };
-    }
-    if (dto.startDate || dto.endDate) {
-      where.created_at = {};
-      if (dto.startDate && dto.endDate) {
-        const { startUtc, endInclusiveUtc } =
-          SyndromicClassificationService.reportCalendarDayRangeUtc(
-            dto.startDate,
-            dto.endDate,
-          );
-        where.created_at.gte = startUtc;
-        where.created_at.lte = endInclusiveUtc;
-      } else if (dto.startDate) {
-        const { startUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
-          dto.startDate,
-          dto.startDate,
-        );
-        where.created_at.gte = startUtc;
-      } else if (dto.endDate) {
-        const { endInclusiveUtc } = SyndromicClassificationService.reportCalendarDayRangeUtc(
-          dto.endDate,
-          dto.endDate,
-        );
-        where.created_at.lte = endInclusiveUtc;
-      }
-    }
-    if (dto.cursor) {
-      where.id = {
-        ...(where.id ?? {}),
-        gt: dto.cursor,
-      };
-    }
-
-    const formVersionFilter = where.form_version ?? {};
-    formVersionFilter.form = {
-      ...(formVersionFilter.form ?? {}),
-      syndrome_form_config: { some: { active: true } },
-    };
-    where.form_version = formVersionFilter;
-
-    if (dto.contextId != null) {
-      where.participation = { context_id: dto.contextId };
-    }
+    const where = this.buildReprocessReportsWhere(dto);
 
     const limit = dto.limit ?? 100;
     const reports = await this.prisma.report.findMany({
-      where,
+      where: where as any,
       orderBy: { id: 'asc' },
       take: limit,
       select: { id: true },
@@ -749,7 +818,7 @@ export class SyndromicClassificationService {
       processedCount,
       skippedCount,
       failedCount,
-      nextCursor: reports.length > 0 ? reports[reports.length - 1].id : null,
+      nextCursor: reports.length > 0 ? reports.at(-1)?.id ?? null : null,
     };
   }
 
@@ -830,7 +899,10 @@ export class SyndromicClassificationService {
       const day = new Date(row.report_day).toISOString().split('T')[0];
       const idx = indexByLabel.get(day);
       if (idx !== undefined) {
-        seriesMap.get(row.syndrome_id)!.values[idx] = Number(row.total);
+        const entry = seriesMap.get(row.syndrome_id);
+        if (entry !== undefined) {
+          entry.values[idx] = Number(row.total);
+        }
       }
     }
 
@@ -903,14 +975,22 @@ export class SyndromicClassificationService {
     if (!existing) {
       throw new NotFoundException(`Symptom ${id} não encontrado`);
     }
+    const data: Record<string, unknown> = {};
+    if (dto.code !== undefined) {
+      data.code = dto.code.trim();
+    }
+    if (dto.name !== undefined) {
+      data.name = dto.name.trim();
+    }
+    if (dto.description !== undefined) {
+      data.description = dto.description;
+    }
+    if (dto.active !== undefined) {
+      data.active = dto.active;
+    }
     const updated = await this.symptomModel.update({
       where: { id },
-      data: {
-        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+      data: data as any,
     });
     await this.recordAudit(
       'SYNDROME_CONFIG_UPDATE',
@@ -984,17 +1064,25 @@ export class SyndromicClassificationService {
     if (!existing) {
       throw new NotFoundException(`Syndrome ${id} não encontrada`);
     }
+    const syndromeData: Record<string, unknown> = {};
+    if (dto.code !== undefined) {
+      syndromeData.code = dto.code.trim();
+    }
+    if (dto.name !== undefined) {
+      syndromeData.name = dto.name.trim();
+    }
+    if (dto.description !== undefined) {
+      syndromeData.description = dto.description;
+    }
+    if (dto.thresholdScore !== undefined) {
+      syndromeData.threshold_score = dto.thresholdScore;
+    }
+    if (dto.active !== undefined) {
+      syndromeData.active = dto.active;
+    }
     const updated = await this.syndromeModel.update({
       where: { id },
-      data: {
-        ...(dto.code !== undefined ? { code: dto.code.trim() } : {}),
-        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.thresholdScore !== undefined
-          ? { threshold_score: dto.thresholdScore }
-          : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+      data: syndromeData as any,
     });
     await this.recordAudit(
       'SYNDROME_CONFIG_UPDATE',
@@ -1076,12 +1164,16 @@ export class SyndromicClassificationService {
     if (!existing) {
       throw new NotFoundException(`Peso ${id} não encontrado`);
     }
+    const weightData: Record<string, unknown> = {};
+    if (dto.weight !== undefined) {
+      weightData.weight = dto.weight;
+    }
+    if (dto.active !== undefined) {
+      weightData.active = dto.active;
+    }
     const updated = await this.syndromeSymptomWeightModel.update({
       where: { id },
-      data: {
-        ...(dto.weight !== undefined ? { weight: dto.weight } : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+      data: weightData as any,
     });
     await this.recordAudit(
       'SYNDROME_CONFIG_UPDATE',
@@ -1283,24 +1375,28 @@ export class SyndromicClassificationService {
       dto.symptomsFieldName ?? existing.symptoms_field_name,
       dto.symptomsFieldId ?? existing.symptoms_field_id,
     );
+    const formConfigData: Record<string, unknown> = {};
+    if (dto.formId !== undefined) {
+      formConfigData.form_id = dto.formId;
+    }
+    if (dto.symptomsFieldName !== undefined) {
+      formConfigData.symptoms_field_name = dto.symptomsFieldName;
+    }
+    if (dto.symptomsFieldId !== undefined) {
+      formConfigData.symptoms_field_id = dto.symptomsFieldId;
+    }
+    if (dto.symptomOnsetDateFieldName !== undefined) {
+      formConfigData.symptom_onset_date_field_name = dto.symptomOnsetDateFieldName;
+    }
+    if (dto.symptomOnsetDateFieldId !== undefined) {
+      formConfigData.symptom_onset_date_field_id = dto.symptomOnsetDateFieldId;
+    }
+    if (dto.active !== undefined) {
+      formConfigData.active = dto.active;
+    }
     const updated = await this.syndromeFormConfigModel.update({
       where: { id },
-      data: {
-        ...(dto.formId !== undefined ? { form_id: dto.formId } : {}),
-        ...(dto.symptomsFieldName !== undefined
-          ? { symptoms_field_name: dto.symptomsFieldName }
-          : {}),
-        ...(dto.symptomsFieldId !== undefined
-          ? { symptoms_field_id: dto.symptomsFieldId }
-          : {}),
-        ...(dto.symptomOnsetDateFieldName !== undefined
-          ? { symptom_onset_date_field_name: dto.symptomOnsetDateFieldName }
-          : {}),
-        ...(dto.symptomOnsetDateFieldId !== undefined
-          ? { symptom_onset_date_field_id: dto.symptomOnsetDateFieldId }
-          : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+      data: formConfigData as any,
     });
     await this.recordAudit(
       'SYNDROME_CONFIG_UPDATE',
@@ -1397,21 +1493,25 @@ export class SyndromicClassificationService {
     if (!existing) {
       throw new NotFoundException(`Mapping ${id} não encontrado`);
     }
+    const mappingData: Record<string, unknown> = {};
+    if (dto.syndromeFormConfigId !== undefined) {
+      mappingData.syndrome_form_config_id = dto.syndromeFormConfigId;
+    }
+    if (dto.formOptionValue !== undefined) {
+      mappingData.form_option_value = dto.formOptionValue;
+    }
+    if (dto.formOptionLabel !== undefined) {
+      mappingData.form_option_label = dto.formOptionLabel;
+    }
+    if (dto.symptomId !== undefined) {
+      mappingData.symptom_id = dto.symptomId;
+    }
+    if (dto.active !== undefined) {
+      mappingData.active = dto.active;
+    }
     const updated = await this.formSymptomMappingModel.update({
       where: { id },
-      data: {
-        ...(dto.syndromeFormConfigId !== undefined
-          ? { syndrome_form_config_id: dto.syndromeFormConfigId }
-          : {}),
-        ...(dto.formOptionValue !== undefined
-          ? { form_option_value: dto.formOptionValue }
-          : {}),
-        ...(dto.formOptionLabel !== undefined
-          ? { form_option_label: dto.formOptionLabel }
-          : {}),
-        ...(dto.symptomId !== undefined ? { symptom_id: dto.symptomId } : {}),
-        ...(dto.active !== undefined ? { active: dto.active } : {}),
-      },
+      data: mappingData as any,
     });
     await this.recordAudit(
       'SYNDROME_CONFIG_UPDATE',

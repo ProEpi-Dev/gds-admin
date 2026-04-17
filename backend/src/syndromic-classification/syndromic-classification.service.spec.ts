@@ -187,6 +187,30 @@ describe('SyndromicClassificationService', () => {
       expect(metrics.recordSyndromeScoreGenerated).toHaveBeenCalled();
     });
 
+    it('valor de sintoma como objeto é serializado para mapeamento', async () => {
+      prisma.report.findUnique.mockResolvedValue({
+        id: 23,
+        report_type: report_type_enum.POSITIVE,
+        form_version: { id: 5, form_id: 99 },
+        form_response: { sintomas: { codigo: 'febre' } },
+      });
+      prisma.syndrome_form_config.findFirst.mockResolvedValue({
+        id: 1,
+        symptoms_field_name: 'sintomas',
+        symptoms_field_id: null,
+        symptom_onset_date_field_name: null,
+        symptom_onset_date_field_id: null,
+      });
+      prisma.form_symptom_mapping.findMany.mockResolvedValue([]);
+      prisma.symptom.findMany.mockResolvedValue([]);
+      prisma.syndrome.findMany.mockResolvedValue([]);
+      prisma.syndrome_symptom_weight.findMany.mockResolvedValue([]);
+
+      await service.classifyReport(23);
+
+      expect(metrics.recordSyndromeClassification).toHaveBeenCalled();
+    });
+
     it('sem síndromes ativas: grava linha skipped dentro da transação', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 22,
@@ -523,6 +547,46 @@ describe('SyndromicClassificationService', () => {
       expect(out.requestedCount).toBe(0);
       expect(out.processedCount).toBe(0);
       expect(prisma.report.findMany).toHaveBeenCalled();
+    });
+
+    it('admin monta where com formVersionId, cursor e só endDate', async () => {
+      authz.isAdmin.mockResolvedValue(true);
+      prisma.report.findMany.mockResolvedValue([]);
+
+      await service.reprocessReports(
+        {
+          formVersionId: 9,
+          cursor: 50,
+          endDate: '2026-06-01',
+          limit: 10,
+        } as any,
+        1,
+      );
+
+      const where = prisma.report.findMany.mock.calls[0][0].where;
+      expect(where.form_version_id).toBe(9);
+      expect(where.id).toEqual({ gt: 50 });
+      expect(where.created_at.lte).toBeInstanceOf(Date);
+    });
+
+    it('admin combina reportIds com cursor no filtro de id', async () => {
+      authz.isAdmin.mockResolvedValue(true);
+      prisma.report.findMany.mockResolvedValue([{ id: 200 }]);
+      prisma.report_syndrome_score.findFirst.mockResolvedValue({
+        processing_status: 'skipped',
+      });
+
+      await service.reprocessReports(
+        {
+          reportIds: [1, 2, 3],
+          cursor: 10,
+          limit: 5,
+        } as any,
+        1,
+      );
+
+      const where = prisma.report.findMany.mock.calls[0][0].where;
+      expect(where.id).toEqual({ in: [1, 2, 3], gt: 10 });
     });
   });
 
