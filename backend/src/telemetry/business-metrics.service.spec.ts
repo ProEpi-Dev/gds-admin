@@ -48,4 +48,19 @@ describe('BusinessMetricsService', () => {
     expect(() => service.recordAuthSignupCompleted()).not.toThrow();
     expect(() => service.recordTrackProgressStarted()).not.toThrow();
   });
+
+  it('métricas sindrômicas não lançam', () => {
+    expect(() =>
+      service.recordSyndromeClassification('processed'),
+    ).not.toThrow();
+    expect(() => service.recordSyndromeClassification('skipped')).not.toThrow();
+    expect(() => service.recordSyndromeClassification('failed')).not.toThrow();
+    expect(() => service.recordSyndromeClassificationDuration(42)).not.toThrow();
+    expect(() =>
+      service.recordSyndromeScoreGenerated('diarreica', true),
+    ).not.toThrow();
+    expect(() =>
+      service.recordSyndromeScoreGenerated('exantematica', false),
+    ).not.toThrow();
+  });
 });

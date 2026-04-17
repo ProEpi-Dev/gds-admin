@@ -40,6 +40,10 @@ import {
   VpnKey as VpnKeyIcon,
   SyncAlt as SyncAltIcon,
   Settings as SettingsIcon,
+  Biotech as BiotechIcon,
+  Tune as TuneIcon,
+  Vaccines as VaccinesIcon,
+  QueryStats as QueryStatsIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -253,6 +257,38 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             path: "/legal-documents/types",
             label: t("navigation.legalDocumentTypes"),
             icon: <GavelIcon />,
+          },
+        ],
+      },
+      {
+        label: "Classificação Sindrômica",
+        icon: <BiotechIcon />,
+        roles: ["admin", "manager"],
+        children: [
+          {
+            path: "/admin/syndromic/symptoms",
+            label: "Sintomas",
+            icon: <AssignmentIcon />,
+          },
+          {
+            path: "/admin/syndromic/syndromes",
+            label: "Síndromes",
+            icon: <VaccinesIcon />,
+          },
+          {
+            path: "/admin/syndromic/weights",
+            label: "Matriz de pesos",
+            icon: <TableChartIcon />,
+          },
+          {
+            path: "/admin/syndromic/form-configs",
+            label: "Formulários (extração)",
+            icon: <TuneIcon />,
+          },
+          {
+            path: "/admin/syndromic/reports",
+            label: "Relatórios",
+            icon: <QueryStatsIcon />,
           },
         ],
       },

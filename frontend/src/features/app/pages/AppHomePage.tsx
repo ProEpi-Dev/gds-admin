@@ -10,20 +10,17 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
   Grid,
   IconButton,
   Paper,
   Skeleton,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import {
@@ -70,15 +67,6 @@ function getRoleLabel(
   return "Sem papel";
 }
 
-const SYMPTOMS = [
-  "Dor de cabeça",
-  "Febre",
-  "Dor no corpo",
-  "Dor de garganta",
-  "Coriza",
-  "Tosse",
-];
-
 /** Paleta dos botões de humor / sinal (referência visual do app) */
 const APP_MOOD_BLUE = "#4299C8";
 const APP_MOOD_BLUE_HOVER = "#3a87b0";
@@ -122,12 +110,14 @@ export default function AppHomePage() {
   const snackbar = useSnackbar();
   const [openDialog, setOpenDialog] = useState(false);
   const [openSignalDialog, setOpenSignalDialog] = useState(false);
-  const [sinceDate, setSinceDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [communityCalendarMonth, setCommunityCalendarMonth] = useState(new Date());
+  const [selfHealthSignalResponse, setSelfHealthSignalResponse] = useState<
+    Record<string, unknown>
+  >({});
   const [communitySignalResponse, setCommunitySignalResponse] = useState<
     Record<string, unknown>
   >({});
+  const selfHealthFormRef = useRef<FormRendererHandle>(null);
   const communitySignalFormRef = useRef<FormRendererHandle>(null);
   const participation = user?.participation;
   const contextId = participation?.context.id;
@@ -272,7 +262,7 @@ export default function AppHomePage() {
       snackbar.showSuccess("Report enviado com sucesso");
       setOpenDialog(false);
       setOpenSignalDialog(false);
-      setSelectedSymptoms([]);
+      setSelfHealthSignalResponse({});
       setCommunitySignalResponse({});
       queryClient.invalidateQueries({ queryKey: ["app-home", "report-points"] });
       queryClient.invalidateQueries({ queryKey: ["app-days-streak"] });
@@ -305,16 +295,25 @@ export default function AppHomePage() {
     createReportMutation.mutate(payload);
   };
 
-  const submitSelfHealthReport = (reportType: "POSITIVE" | "NEGATIVE") => {
-    if (reportType === "NEGATIVE") {
-      submitReport("NEGATIVE", null);
+  const submitSelfHealthNegativeReport = () => {
+    submitReport("NEGATIVE", null);
+  };
+
+  const submitSelfHealthSignal = () => {
+    const { _isValid, ...cleanFormResponse } = selfHealthSignalResponse as Record<
+      string,
+      unknown
+    >;
+    if (!cleanFormResponse || Object.keys(cleanFormResponse).length === 0) {
+      snackbar.showError("Preencha os dados do sinal antes de enviar.");
       return;
     }
-    submitReport("POSITIVE", {
-      mood: "MAL",
-      sinceDate,
-      symptoms: selectedSymptoms,
-    });
+    if (_isValid === false) {
+      selfHealthFormRef.current?.revealFieldErrors();
+      snackbar.showError("Revise os campos obrigatórios do formulário.");
+      return;
+    }
+    submitReport("POSITIVE", cleanFormResponse);
   };
 
   const submitCommunitySignal = () => {
@@ -332,14 +331,6 @@ export default function AppHomePage() {
       return;
     }
     submitReport("POSITIVE", cleanFormResponse);
-  };
-
-  const toggleSymptom = (symptom: string) => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(symptom)
-        ? prev.filter((item) => item !== symptom)
-        : [...prev, symptom],
-    );
   };
 
   return (
@@ -445,7 +436,7 @@ export default function AppHomePage() {
                         fullWidth
                         variant="contained"
                         disabled={!canSubmit || createReportMutation.isPending}
-                        onClick={() => submitSelfHealthReport("NEGATIVE")}
+                        onClick={submitSelfHealthNegativeReport}
                         startIcon={
                           <SentimentSatisfiedAltOutlinedIcon sx={{ color: "inherit" }} />
                         }
@@ -788,44 +779,43 @@ export default function AppHomePage() {
 
       <Dialog
         open={openDialog}
-        onClose={() => setOpenDialog(false)}
+        onClose={() => {
+          setOpenDialog(false);
+          selfHealthFormRef.current?.resetFieldErrors();
+        }}
         fullWidth
         maxWidth="sm"
       >
         <DialogTitle>Estou me sentindo mal</DialogTitle>
         <DialogContent dividers>
-          <Stack spacing={2}>
-            <TextField
-              type="date"
-              label="Desde quando"
-              value={sinceDate}
-              onChange={(e) => setSinceDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
+          {!signalFormDefinition ? (
+            <Alert severity="warning">
+              Formulário de sinal não disponível para o seu contexto.
+            </Alert>
+          ) : (
+            <FormRenderer
+              ref={selfHealthFormRef}
+              definition={signalFormDefinition}
+              initialValues={selfHealthSignalResponse}
+              onChange={(nextValues) =>
+                setSelfHealthSignalResponse(nextValues as Record<string, unknown>)
+              }
+              participantCountryLocationId={
+                profileStatus?.profile.countryLocationId ?? null
+              }
             />
-            <Typography variant="subtitle2">Sintomas neste momento</Typography>
-            <Box>
-              {SYMPTOMS.map((symptom) => (
-                <FormControlLabel
-                  key={symptom}
-                  control={
-                    <Checkbox
-                      checked={selectedSymptoms.includes(symptom)}
-                      onChange={() => toggleSymptom(symptom)}
-                    />
-                  }
-                  label={symptom}
-                />
-              ))}
-            </Box>
-          </Stack>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
           <Button
             variant="contained"
-            onClick={() => submitSelfHealthReport("POSITIVE")}
-            disabled={!canSubmit || createReportMutation.isPending}
+            onClick={submitSelfHealthSignal}
+            disabled={
+              !canSubmit ||
+              createReportMutation.isPending ||
+              !signalFormDefinition
+            }
           >
             Enviar
           </Button>

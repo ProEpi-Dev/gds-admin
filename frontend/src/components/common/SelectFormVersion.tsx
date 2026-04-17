@@ -5,13 +5,20 @@ import LoadingSpinner from './LoadingSpinner';
 
 interface SelectFormVersionProps {
   value?: number | null;
-  onChange: (formVersionId: number | null) => void;
+  onChange: (id: number | null) => void;
   error?: boolean;
   helperText?: string;
   required?: boolean;
   label?: string;
   /** Filtra por contexto; quando informado, só lista formulários desse contexto */
   contextId?: number | null;
+  /** Ex.: correlacionar com `form_version_id` em reports / classificação sindrômica */
+  showVersionDatabaseId?: boolean;
+  /**
+   * `versionId` (padrão): valor = id da versão (uso em reports).
+   * `formId`: valor = id do formulário — uma config cobre todas as versões do mesmo form.
+   */
+  valueSource?: 'versionId' | 'formId';
 }
 
 export default function SelectFormVersion({
@@ -22,6 +29,8 @@ export default function SelectFormVersion({
   required = false,
   label = 'Versão do Formulário',
   contextId,
+  showVersionDatabaseId = false,
+  valueSource = 'versionId',
 }: SelectFormVersionProps) {
   const { data: formsWithVersions, isLoading } = useQuery({
     queryKey: ['forms-with-versions', contextId ?? 'all'],
@@ -36,18 +45,29 @@ export default function SelectFormVersion({
     <FormControl fullWidth required={required} error={error}>
       <InputLabel>{label}</InputLabel>
       <Select
-        value={value || ''}
+        value={value ?? ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         label={label}
       >
         <MenuItem value="">
-          <em>Selecione uma versão</em>
+          <em>
+            {valueSource === 'formId' ? 'Selecione um formulário' : 'Selecione uma versão'}
+          </em>
         </MenuItem>
-        {formsWithVersions?.map((item) => (
-          <MenuItem key={item.version.id} value={item.version.id}>
-            {item.formTitle} - Versão {item.version.versionNumber}
-          </MenuItem>
-        ))}
+        {formsWithVersions?.map((item) => {
+          const optionValue =
+            valueSource === 'formId' ? item.formId : item.version.id;
+          return (
+            <MenuItem key={`${valueSource}-${optionValue}`} value={optionValue}>
+              {item.formTitle} - Versão {item.version.versionNumber}
+              {showVersionDatabaseId
+                ? valueSource === 'formId'
+                  ? ` (form #${item.formId})`
+                  : ` (#${item.version.id})`
+                : ''}
+            </MenuItem>
+          );
+        })}
       </Select>
       {helperText && (
         <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>

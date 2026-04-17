@@ -1,5 +1,6 @@
 export interface PaginationMeta {
-  currentPage: number;
+  /** Página atual (1-based), alinhado à API NestJS */
+  page: number;
   pageSize: number;
   totalItems: number;
   totalPages: number;

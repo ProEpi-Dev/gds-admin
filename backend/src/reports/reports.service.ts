@@ -29,6 +29,7 @@ import {
 } from '../common/helpers/pagination.helper';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
+import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
 import { addDays, parseISO } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
@@ -53,6 +54,7 @@ export class ReportsService {
     private authz: AuthzService,
     private readonly businessMetrics: BusinessMetricsService,
     private readonly reportIntegrations: ReportIntegrationsService,
+    private readonly syndromicClassification: SyndromicClassificationService,
   ) {}
 
   /**
@@ -538,6 +540,8 @@ export class ReportsService {
           'Falha ao disparar integração externa para report',
         ),
       );
+
+    this.syndromicClassification.triggerClassification(report.id);
 
     return this.mapToResponseDto(report);
   }

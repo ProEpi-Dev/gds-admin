@@ -32,6 +32,7 @@ import { AuthzModule } from './authz/authz.module';
 import { RolesModule } from './roles/roles.module';
 import { ReportIntegrationsModule } from './report-integrations/report-integrations.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { SyndromicClassificationModule } from './syndromic-classification/syndromic-classification.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -95,6 +96,7 @@ const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
     RolesModule,
     ReportIntegrationsModule,
     AuditLogModule,
+    SyndromicClassificationModule,
   ],
   controllers: [AppController],
   providers: [

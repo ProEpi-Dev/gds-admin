@@ -17,6 +17,7 @@ import {
 } from './dto/reports-points-query.dto';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
+import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -24,6 +25,8 @@ describe('ReportsService', () => {
   let prismaService: PrismaService;
   let prismaMock: any;
   let businessMetrics: BusinessMetricsService;
+  let syndromicClassification: SyndromicClassificationService;
+  let reportIntegrations: ReportIntegrationsService;
 
   const mockReport = {
     id: 1,
@@ -116,6 +119,10 @@ describe('ReportsService', () => {
           provide: ReportIntegrationsService,
           useValue: { dispatchIntegrationEvent: jest.fn().mockResolvedValue(undefined) },
         },
+        {
+          provide: SyndromicClassificationService,
+          useValue: { triggerClassification: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -123,6 +130,12 @@ describe('ReportsService', () => {
     service = module.get<ReportsService>(ReportsService);
     prismaService = module.get<PrismaService>(PrismaService);
     businessMetrics = module.get<BusinessMetricsService>(BusinessMetricsService);
+    syndromicClassification = module.get<SyndromicClassificationService>(
+      SyndromicClassificationService,
+    );
+    reportIntegrations = module.get<ReportIntegrationsService>(
+      ReportIntegrationsService,
+    );
   });
 
   describe('create', () => {
@@ -149,6 +162,44 @@ describe('ReportsService', () => {
 
       expect(result).toHaveProperty('id', 1);
       expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE', 'app');
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
+    });
+
+    it('registra erro quando dispatchIntegrationEvent falha', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'POSITIVE',
+        formResponse: {},
+        active: true,
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue(mockReport as any);
+
+      const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+      jest
+        .spyOn(reportIntegrations, 'dispatchIntegrationEvent')
+        .mockReturnValue(Promise.reject(new Error('integração indisponível')) as any);
+
+      await service.create(createDto, 1);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(logError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportId: 1,
+          errMessage: 'integração indisponível',
+        }),
+        'Falha ao disparar integração externa para report',
+      );
+      logError.mockRestore();
     });
 
     it('deve validar participation e formVersion', async () => {
@@ -173,6 +224,7 @@ describe('ReportsService', () => {
 
       expect(prismaService.participation.findUnique).toHaveBeenCalled();
       expect(prismaService.form_version.findUnique).toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
     });
 
     it('deve incluir occurrenceLocation quando fornecido', async () => {
@@ -201,6 +253,7 @@ describe('ReportsService', () => {
           occurrence_location: createDto.occurrenceLocation,
         }),
       });
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
     });
 
     it('deve atualizar agregados de dias e ofensiva ao criar report', async () => {
@@ -239,6 +292,7 @@ describe('ReportsService', () => {
 
       await service.create(createDto, 1);
 
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
       expect(
         prismaService.participation_report_day.upsert,
       ).toHaveBeenCalledWith(
@@ -300,6 +354,7 @@ describe('ReportsService', () => {
 
       await service.create(createDto, 1);
 
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
       expect(findManySpy).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -355,6 +410,7 @@ describe('ReportsService', () => {
 
       const result = await service.create(createDto, 1);
 
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(42);
       expect(result.id).toBe(42);
       expect(logErrorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -396,6 +452,7 @@ describe('ReportsService', () => {
 
       await service.create(createDto, 1);
 
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
       expect(prismaService.participation_report_day.deleteMany).toHaveBeenCalledWith({
         where: {
           participation_id: 1,
@@ -429,6 +486,7 @@ describe('ReportsService', () => {
       expect(prismaService.report.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ active: false }),
       });
+      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
     });
 
     it('deve lançar BadRequestException quando participation não existe', async () => {
@@ -446,6 +504,7 @@ describe('ReportsService', () => {
       await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve lançar ForbiddenException quando não-admin cria report para participação de outro e não gerencia contexto', async () => {
@@ -469,6 +528,7 @@ describe('ReportsService', () => {
       await expect(service.create(createDto, 1)).rejects.toThrow(
         ForbiddenException,
       );
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve lançar BadRequestException quando formVersion não existe', async () => {
@@ -489,6 +549,7 @@ describe('ReportsService', () => {
       await expect(service.create(createDto, 1)).rejects.toThrow(
         BadRequestException,
       );
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve ignorar NEGATIVE duplicado dentro da janela de idempotência', async () => {
@@ -527,6 +588,45 @@ describe('ReportsService', () => {
       expect(result.id).toBe(91);
       expect(prismaService.report.create).not.toHaveBeenCalled();
       expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+    });
+
+    it('deve usar defaults de janela quando valores de context_configuration são inválidos', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+      };
+
+      const recentNegative = {
+        ...mockReport,
+        id: 91,
+        report_type: 'NEGATIVE',
+        created_at: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 'não-numérico' },
+          { key: 'negative_block_if_positive_within_min', value: Number.NaN },
+        ] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([recentNegative] as any);
+
+      const result = await service.create(createDto, 1);
+
+      expect(result.id).toBe(91);
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve ignorar NEGATIVE quando houver POSITIVE recente na janela configurada', async () => {
@@ -566,6 +666,7 @@ describe('ReportsService', () => {
       expect(result.reportType).toBe('POSITIVE');
       expect(prismaService.report.create).not.toHaveBeenCalled();
       expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
   });
 
