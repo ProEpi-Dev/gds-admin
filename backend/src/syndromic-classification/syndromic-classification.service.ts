@@ -698,7 +698,7 @@ export class SyndromicClassificationService {
     cursor: number,
   ): Record<string, unknown> {
     if (existingId !== null && existingId !== undefined && typeof existingId === 'object') {
-      return Object.assign({}, existingId, { gt: cursor });
+      return { ...existingId, gt: cursor };
     }
     return { gt: cursor };
   }
