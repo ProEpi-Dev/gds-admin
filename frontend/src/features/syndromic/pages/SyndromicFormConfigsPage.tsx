@@ -104,7 +104,7 @@ export default function SyndromicFormConfigsPage() {
   const handleSave = () => {
     const built = buildPayload();
     if ("error" in built) {
-      snackbar.showError(built.error);
+      snackbar.showError(built.error ?? "Erro de validação");
       return;
     }
     const { payload } = built;
