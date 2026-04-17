@@ -136,7 +136,7 @@ describe('SyndromicClassificationService', () => {
       warn.mockRestore();
     });
 
-    it('persiste snapshot skipped quando report não é do tipo elegível (padrão NEGATIVE)', async () => {
+    it('não grava report_syndrome_score quando report não é do tipo elegível (padrão NEGATIVE)', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 7,
         report_type: report_type_enum.POSITIVE,
@@ -144,11 +144,14 @@ describe('SyndromicClassificationService', () => {
         form_response: {},
       });
       await service.classifyReport(7);
+      expect(prisma.report_syndrome_score.deleteMany).toHaveBeenCalledWith({
+        where: { report_id: 7 },
+      });
       expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('skipped');
-      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it('com SYNDROMIC_CLASSIFICATION_REPORT_TYPE=NEGATIVE, POSITIVE é ignorado', async () => {
+    it('com SYNDROMIC_CLASSIFICATION_REPORT_TYPE=NEGATIVE, POSITIVE é ignorado sem linha em report_syndrome_score', async () => {
       configGet.mockImplementation((key: string) =>
         key === 'SYNDROMIC_CLASSIFICATION_REPORT_TYPE' ? 'NEGATIVE' : undefined,
       );
@@ -159,8 +162,11 @@ describe('SyndromicClassificationService', () => {
         form_response: {},
       });
       await service.classifyReport(71);
+      expect(prisma.report_syndrome_score.deleteMany).toHaveBeenCalledWith({
+        where: { report_id: 71 },
+      });
       expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('skipped');
-      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('com SYNDROMIC_CLASSIFICATION_REPORT_TYPE=NEGATIVE, NEGATIVE segue fluxo com config', async () => {
