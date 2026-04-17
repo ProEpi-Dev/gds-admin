@@ -136,10 +136,10 @@ describe('SyndromicClassificationService', () => {
       warn.mockRestore();
     });
 
-    it('persiste snapshot skipped quando report não é do tipo elegível (padrão POSITIVE)', async () => {
+    it('persiste snapshot skipped quando report não é do tipo elegível (padrão NEGATIVE)', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 7,
-        report_type: report_type_enum.NEGATIVE,
+        report_type: report_type_enum.POSITIVE,
         form_version: { id: 1, form_id: 10 },
         form_response: {},
       });
@@ -201,7 +201,7 @@ describe('SyndromicClassificationService', () => {
     it('sem config ativa: apaga scores e métrica skipped', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 8,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 1, form_id: 10 },
         form_response: {},
       });
@@ -213,10 +213,10 @@ describe('SyndromicClassificationService', () => {
       expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('skipped');
     });
 
-    it('fluxo POSITIVE com config: grava scores e métricas processed', async () => {
+    it('fluxo do tipo elegível com config: grava scores e métricas processed', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 20,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 5, form_id: 99 },
         form_response: { sintomas: ['febre', 'tosse'] },
       });
@@ -250,7 +250,7 @@ describe('SyndromicClassificationService', () => {
     it('valor de sintoma como objeto é serializado para mapeamento', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 23,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 5, form_id: 99 },
         form_response: { sintomas: { codigo: 'febre' } },
       });
@@ -274,7 +274,7 @@ describe('SyndromicClassificationService', () => {
     it('valor de sintoma escalar numérico é convertido para string', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 24,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 5, form_id: 99 },
         form_response: { sintomas: 42 },
       });
@@ -298,7 +298,7 @@ describe('SyndromicClassificationService', () => {
     it('sem síndromes ativas: grava linha skipped dentro da transação', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 22,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 5, form_id: 99 },
         form_response: { sintomas: ['febre'] },
       });
@@ -322,7 +322,7 @@ describe('SyndromicClassificationService', () => {
     it('em erro no cálculo: snapshot failed e métrica failed', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 21,
-        report_type: report_type_enum.POSITIVE,
+        report_type: report_type_enum.NEGATIVE,
         form_version: { id: 5, form_id: 99 },
         form_response: { sintomas: ['x'] },
       });
@@ -648,7 +648,7 @@ describe('SyndromicClassificationService', () => {
       );
 
       const where = prisma.report.findMany.mock.calls[0][0].where;
-      expect(where.report_type).toBe(report_type_enum.POSITIVE);
+      expect(where.report_type).toBe(report_type_enum.NEGATIVE);
       expect(where.form_version_id).toBe(9);
       expect(where.id).toEqual({ gt: 50 });
       expect(where.created_at.lte).toBeInstanceOf(Date);
