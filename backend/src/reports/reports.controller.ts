@@ -31,12 +31,17 @@ import { ReportResponseDto } from './dto/report-response.dto';
 import { ReportsPointsQueryDto } from './dto/reports-points-query.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
+import { ReportSyndromeScoreResponseDto } from '../syndromic-classification/dto/syndromic-classification.dto';
+import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
 
 @ApiTags('Reports')
 @ApiBearerAuth('bearerAuth')
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly syndromicClassification: SyndromicClassificationService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -119,6 +124,25 @@ export class ReportsController {
     @CurrentUser() user: any,
   ): Promise<ReportResponseDto> {
     return this.reportsService.findOne(id, user.userId);
+  }
+
+  @Get(':id/syndrome-scores')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'manager', 'participant')
+  @ApiOperation({
+    summary: 'Obter scores sindrômicos mais recentes do report',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID do report' })
+  @ApiResponse({
+    status: 200,
+    description: 'Scores sindrômicos mais recentes',
+    type: [ReportSyndromeScoreResponseDto],
+  })
+  async findSyndromeScores(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ): Promise<ReportSyndromeScoreResponseDto[]> {
+    return this.syndromicClassification.getReportLatestScores(id, user.userId);
   }
 
   @Patch(':id')

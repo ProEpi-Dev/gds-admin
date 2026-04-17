@@ -20,7 +20,12 @@ export type AuditAction =
   | 'USER_ROLE_CHANGE'
   | 'PARTICIPATION_ROLE_ADD'
   | 'PARTICIPATION_ROLE_REMOVE'
-  | 'INTEGRATION_CONFIG_UPDATE';
+  | 'INTEGRATION_CONFIG_UPDATE'
+  | 'SYNDROME_CONFIG_CREATE'
+  | 'SYNDROME_CONFIG_UPDATE'
+  | 'SYNDROME_CONFIG_DELETE'
+  | 'SYNDROME_MATRIX_UPDATE'
+  | 'SYNDROME_REPROCESS_TRIGGER';
 
 export type AuditTargetEntityType =
   | 'participation'
@@ -29,6 +34,12 @@ export type AuditTargetEntityType =
   | 'context'
   | 'context_configuration'
   | 'integration_config'
+  | 'symptom'
+  | 'syndrome'
+  | 'syndrome_form_config'
+  | 'form_symptom_mapping'
+  | 'syndrome_symptom_weight'
+  | 'report_syndrome_score'
   | 'other';
 
 export interface AuditActor {

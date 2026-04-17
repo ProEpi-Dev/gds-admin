@@ -57,7 +57,7 @@ export const contentService = {
       data: response.data,
       meta: {
         totalItems: response.data.length, // Since backend doesn't paginate yet
-        currentPage: query?.page || 1,
+        page: query?.page || 1,
         totalPages: 1,
         pageSize: response.data.length,
       },

@@ -22,6 +22,14 @@ describe('gdsChannelFromExecutionContext', () => {
 
     expect(gdsChannelFromExecutionContext(ctx)).toBe('app');
   });
+
+  it('trata request indefinido', () => {
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => undefined }),
+    } as unknown as ExecutionContext;
+
+    expect(gdsChannelFromExecutionContext(ctx)).toBe('app');
+  });
 });
 
 describe('CurrentChannel', () => {

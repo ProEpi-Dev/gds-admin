@@ -84,6 +84,20 @@ describe('otel-error-logs', () => {
       expect(payload.attributes.trace_id).toBe('aa');
     });
 
+    it('não inclui trace_id/span_id quando não há span ativo', () => {
+      const emit = jest.fn();
+      jest.spyOn(logs, 'getLogger').mockReturnValue({
+        emit,
+      } as any);
+      jest.spyOn(trace, 'getSpanContext').mockReturnValue(undefined as any);
+
+      emitPinoErrorLogToOtel(50, ['sem-span']);
+
+      const payload = emit.mock.calls[0][0];
+      expect(payload.attributes.trace_id).toBeUndefined();
+      expect(payload.attributes.span_id).toBeUndefined();
+    });
+
     it('usa stringify com fallback quando JSON.stringify falha', () => {
       const emit = jest.fn();
       jest.spyOn(logs, 'getLogger').mockReturnValue({

@@ -121,7 +121,8 @@
       ".*roles\\.decorator\\.ts$",
       ".*require-permission\\.decorator\\.ts$",
       "\\.d\\.ts$",
-      "mail\\.service\\.ts$"
+      "mail\\.service\\.ts$",
+      "audit-log/dto/audit-log-response\\.dto\\.ts$"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [

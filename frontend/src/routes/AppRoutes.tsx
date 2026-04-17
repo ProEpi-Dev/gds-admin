@@ -83,6 +83,11 @@ import AdminsListPage from "../features/admins/pages/AdminsListPage";
 import IntegrationEventsPage from "../features/report-integrations/pages/IntegrationEventsPage";
 import IntegrationConfigPage from "../features/report-integrations/pages/IntegrationConfigPage";
 import AuditLogsListPage from "../features/audit-logs/pages/AuditLogsListPage";
+import SyndromicSymptomsPage from "../features/syndromic/pages/SyndromicSymptomsPage";
+import SyndromicSyndromesPage from "../features/syndromic/pages/SyndromicSyndromesPage";
+import SyndromicWeightsMatrixPage from "../features/syndromic/pages/SyndromicWeightsMatrixPage";
+import SyndromicReportsPage from "../features/syndromic/pages/SyndromicReportsPage";
+import SyndromicFormConfigsPage from "../features/syndromic/pages/SyndromicFormConfigsPage";
 import { hasModule, resolveEnabledModules } from "../features/app/utils/contextModules";
 
 interface ProtectedRouteProps {
@@ -746,6 +751,56 @@ export default function AppRoutes() {
           <AdminRoute>
             <ManagerOrAdminOnlyRoute>
               <IntegrationConfigPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/symptoms"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicSymptomsPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/syndromes"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicSyndromesPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/weights"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicWeightsMatrixPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/form-configs"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicFormConfigsPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/reports"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicReportsPage />
             </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }

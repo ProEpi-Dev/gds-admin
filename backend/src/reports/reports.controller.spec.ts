@@ -10,10 +10,12 @@ import { ReportResponseDto } from './dto/report-response.dto';
 import { ReportPointResponseDto } from './dto/report-point-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { RolesGuard } from '../authz/guards/roles.guard';
+import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
 
 describe('ReportsController', () => {
   let controller: ReportsController;
   let reportsService: ReportsService;
+  let syndromicClassification: SyndromicClassificationService;
 
   const mockReport: ReportResponseDto = {
     id: 1,
@@ -66,6 +68,12 @@ describe('ReportsController', () => {
             remove: jest.fn(),
           },
         },
+        {
+          provide: SyndromicClassificationService,
+          useValue: {
+            getReportLatestScores: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     })
       .overrideGuard(RolesGuard)
@@ -74,6 +82,9 @@ describe('ReportsController', () => {
 
     controller = module.get<ReportsController>(ReportsController);
     reportsService = module.get<ReportsService>(ReportsService);
+    syndromicClassification = module.get<SyndromicClassificationService>(
+      SyndromicClassificationService,
+    );
   });
 
   describe('create', () => {
@@ -242,6 +253,35 @@ describe('ReportsController', () => {
       await controller.findPoints(query, { userId: 1 });
 
       expect(reportsService.findPoints).toHaveBeenCalledWith(query, 1);
+    });
+  });
+
+  describe('findSyndromeScores', () => {
+    it('delega ao SyndromicClassificationService.getReportLatestScores', async () => {
+      const scores = [
+        {
+          id: 1,
+          reportId: 42,
+          occurrenceLocation: null,
+          syndromeId: 2,
+          syndromeCode: 'x',
+          syndromeName: 'X',
+          score: 0.5,
+          thresholdScore: 0.3,
+          isAboveThreshold: true,
+          processingStatus: 'processed',
+          processingError: null,
+          processedAt: new Date(),
+        },
+      ];
+      jest
+        .spyOn(syndromicClassification, 'getReportLatestScores')
+        .mockResolvedValue(scores as any);
+
+      const result = await controller.findSyndromeScores(42, { userId: 99 });
+
+      expect(syndromicClassification.getReportLatestScores).toHaveBeenCalledWith(42, 99);
+      expect(result).toEqual(scores);
     });
   });
 

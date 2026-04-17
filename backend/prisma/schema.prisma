@@ -88,6 +88,7 @@ model form {
   content_quiz                content_quiz[]
   sequence                    sequence[]
   participation_profile_extra participation_profile_extra[]
+  syndrome_form_config        syndrome_form_config[]
 
   @@index([context_id], map: "idx_form_context_id")
 }
@@ -246,10 +247,118 @@ model report {
   form_version                form_version               @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
   participation               participation              @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   report_integration_event    report_integration_event?
+  report_syndrome_score       report_syndrome_score[]
 
   @@index([form_version_id], map: "idx_report_form_version_id")
   @@index([participation_id], map: "idx_report_participation_id")
   @@index([participation_id, report_type, active, created_at(sort: Desc)], map: "idx_report_participation_type_active_created_desc")
+}
+
+model symptom {
+  id                     Int                      @id @default(autoincrement())
+  code                   String                   @unique(map: "uq_symptom_code") @db.VarChar(80)
+  name                   String                   @db.VarChar(150)
+  description            String?                  @db.VarChar(255)
+  created_at             DateTime                 @default(now()) @db.Timestamp(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamp(6)
+  active                 Boolean                  @default(true)
+  syndrome_symptom_weight syndrome_symptom_weight[]
+  form_symptom_mapping   form_symptom_mapping[]
+
+  @@index([active], map: "idx_symptom_active")
+}
+
+model syndrome {
+  id                      Int                     @id @default(autoincrement())
+  code                    String                  @unique(map: "uq_syndrome_code") @db.VarChar(80)
+  name                    String                  @db.VarChar(150)
+  description             String?                 @db.VarChar(255)
+  threshold_score         Decimal                 @default(0) @db.Decimal(5, 4)
+  created_at              DateTime                @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                @default(now()) @db.Timestamp(6)
+  active                  Boolean                 @default(true)
+  syndrome_symptom_weight syndrome_symptom_weight[]
+  report_syndrome_score   report_syndrome_score[]
+
+  @@index([active], map: "idx_syndrome_active")
+}
+
+model syndrome_symptom_weight {
+  id         Int      @id @default(autoincrement())
+  syndrome_id Int
+  symptom_id Int
+  weight     Decimal  @default(0) @db.Decimal(8, 4)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+  active     Boolean  @default(true)
+  syndrome   syndrome @relation(fields: [syndrome_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  symptom    symptom  @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([syndrome_id, symptom_id], map: "uq_syndrome_symptom_weight")
+  @@index([syndrome_id], map: "idx_ssw_syndrome_id")
+  @@index([symptom_id], map: "idx_ssw_symptom_id")
+  @@index([active], map: "idx_ssw_active")
+}
+
+model syndrome_form_config {
+  id                            Int      @id @default(autoincrement())
+  form_id                       Int      @unique(map: "uq_syndrome_form_config_form")
+  symptoms_field_name           String?  @db.VarChar(120)
+  symptoms_field_id             String?  @db.VarChar(120)
+  symptom_onset_date_field_name String?  @db.VarChar(120)
+  symptom_onset_date_field_id   String?  @db.VarChar(120)
+  created_at                    DateTime @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime @default(now()) @db.Timestamp(6)
+  active                        Boolean  @default(true)
+  form                          form     @relation(fields: [form_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  form_symptom_mapping          form_symptom_mapping[]
+
+  @@index([active], map: "idx_sfc_active")
+  @@index([form_id], map: "idx_sfc_form_id")
+}
+
+model form_symptom_mapping {
+  id                      Int      @id @default(autoincrement())
+  syndrome_form_config_id Int
+  form_option_value       String   @db.VarChar(160)
+  form_option_label       String?  @db.VarChar(255)
+  symptom_id              Int
+  created_at              DateTime @default(now()) @db.Timestamp(6)
+  updated_at              DateTime @default(now()) @db.Timestamp(6)
+  active                  Boolean  @default(true)
+  syndrome_form_config    syndrome_form_config @relation(fields: [syndrome_form_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  symptom                 symptom  @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([syndrome_form_config_id, form_option_value], map: "uq_form_symptom_mapping")
+  @@index([syndrome_form_config_id], map: "idx_fsm_config_id")
+  @@index([symptom_id], map: "idx_fsm_symptom_id")
+  @@index([active], map: "idx_fsm_active")
+}
+
+model report_syndrome_score {
+  id                       Int                        @id @default(autoincrement())
+  report_id                Int
+  syndrome_id              Int?
+  score                    Decimal?                   @db.Decimal(8, 6)
+  threshold_score_snapshot Decimal?                   @db.Decimal(8, 6)
+  is_above_threshold       Boolean?
+  present_weight_sum       Decimal?                   @db.Decimal(10, 4)
+  total_weight_sum         Decimal?                   @db.Decimal(10, 4)
+  matched_symptom_ids      Json                       @default("[]")
+  processing_version       String                     @default("v1-weighted") @db.VarChar(40)
+  processing_status        syndrome_processing_status @default(processed)
+  processing_error         String?
+  is_latest                Boolean                    @default(true)
+  processed_at             DateTime                   @default(now()) @db.Timestamp(6)
+  created_at               DateTime                   @default(now()) @db.Timestamp(6)
+  report                   report                     @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  syndrome                 syndrome?                  @relation(fields: [syndrome_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([report_id], map: "idx_rss_report_id")
+  @@index([report_id, is_latest], map: "idx_rss_report_latest")
+  @@index([syndrome_id, is_latest], map: "idx_rss_syndrome_latest")
+  @@index([processed_at(sort: Desc)], map: "idx_rss_processed_at")
+  @@index([processing_status], map: "idx_rss_processing_status")
 }
 
 model participation_report_day {
@@ -418,6 +527,12 @@ enum form_version_access_type {
 enum report_type_enum {
   POSITIVE
   NEGATIVE
+}
+
+enum syndrome_processing_status {
+  processed
+  skipped
+  failed
 }
 
 enum progress_status_enum {

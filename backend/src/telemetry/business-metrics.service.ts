@@ -37,6 +37,24 @@ export class BusinessMetricsService {
     { description: 'Inícios de progresso em ciclo de trilha.' },
   );
 
+  private readonly syndromeClassification = this.meter.createCounter(
+    'gds_syndrome_classification',
+    { description: 'Processamentos de classificação sindrômica por status.' },
+  );
+
+  private readonly syndromeClassificationDurationMs = this.meter.createHistogram(
+    'gds_syndrome_classification_duration_ms',
+    { description: 'Duração do processamento sindrômico em milissegundos.' },
+  );
+
+  private readonly syndromeScoreGenerated = this.meter.createCounter(
+    'gds_syndrome_score_generated',
+    {
+      description:
+        'Scores sindrômicos gerados por síndrome e status de limiar.',
+    },
+  );
+
   recordParticipationCreated(): void {
     this.participationCreated.add(1);
   }
@@ -79,5 +97,25 @@ export class BusinessMetricsService {
 
   recordTrackProgressStarted(): void {
     this.trackProgressStarted.add(1);
+  }
+
+  recordSyndromeClassification(
+    status: 'processed' | 'skipped' | 'failed',
+  ): void {
+    this.syndromeClassification.add(1, { status });
+  }
+
+  recordSyndromeClassificationDuration(durationMs: number): void {
+    this.syndromeClassificationDurationMs.record(durationMs);
+  }
+
+  recordSyndromeScoreGenerated(
+    syndromeCode: string,
+    aboveThreshold: boolean,
+  ): void {
+    this.syndromeScoreGenerated.add(1, {
+      syndrome_code: syndromeCode,
+      above_threshold: String(aboveThreshold),
+    });
   }
 }

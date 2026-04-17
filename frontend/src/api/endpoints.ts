@@ -134,6 +134,21 @@ export const API_ENDPOINTS = {
     LIST: "/audit-logs",
   },
 
+  SYNDROMIC: {
+    SYMPTOMS: "/syndromic-classification/symptoms",
+    SYMPTOM_DETAIL: (id: number) => `/syndromic-classification/symptoms/${id}`,
+    SYNDROMES: "/syndromic-classification/syndromes",
+    SYNDROME_DETAIL: (id: number) =>
+      `/syndromic-classification/syndromes/${id}`,
+    WEIGHTS_MATRIX: "/syndromic-classification/syndrome-symptom-weights/matrix",
+    DAILY_REPORT: "/syndromic-classification/reports/daily-syndrome-counts",
+    SCORES_REPORT: "/syndromic-classification/reports/scores",
+    REPROCESS: "/syndromic-classification/reprocess",
+    FORM_CONFIGS: "/syndromic-classification/syndrome-form-configs",
+    FORM_CONFIG_DETAIL: (id: number) =>
+      `/syndromic-classification/syndrome-form-configs/${id}`,
+  },
+
   // CONTENTS
   CONTENT: {
     LIST: "/content",
