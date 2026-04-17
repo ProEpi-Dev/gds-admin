@@ -511,7 +511,7 @@ export class ParticipationsService {
         metadata: {
           previousActive: participation.active,
           endDate: participation.end_date,
-          ...(deletedUserId != null
+          ...(typeof deletedUserId === 'number'
             ? { deletedUserIdBecauseNoParticipationsRemaining: deletedUserId }
             : {}),
         },
