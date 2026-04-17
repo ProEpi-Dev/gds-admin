@@ -193,9 +193,17 @@ export class SyndromicClassificationService {
 
     const eligibleType = this.getEligibleReportType();
     if (report.report_type !== eligibleType) {
-      await this.persistStatusSnapshot(report.id, 'skipped', {
-        processingError: `Report não elegível: apenas ${eligibleType} na V1 (SYNDROMIC_CLASSIFICATION_REPORT_TYPE)`,
+      await this.reportSyndromeScoreModel.deleteMany({
+        where: { report_id: report.id },
       });
+      this.logger.debug(
+        {
+          reportId: report.id,
+          reportType: report.report_type,
+          eligibleReportType: eligibleType,
+        },
+        'Classificação sindrômica ignorada: tipo de report fora do escopo (SYNDROMIC_CLASSIFICATION_REPORT_TYPE)',
+      );
       this.businessMetrics.recordSyndromeClassification('skipped');
       return;
     }
