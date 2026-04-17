@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, report_type_enum } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { toDate } from 'date-fns-tz';
@@ -107,7 +108,31 @@ export class SyndromicClassificationService {
     private readonly authz: AuthzService,
     private readonly auditLogService: AuditLogService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Qual `report_type` entra no motor sindrômico (V1).
+   * Produção costuma usar `NEGATIVE`; local/testes costumam omitir a env (padrão `POSITIVE`).
+   * @see SYNDROMIC_CLASSIFICATION_REPORT_TYPE
+   */
+  private getEligibleReportType(): report_type_enum {
+    const raw = this.config
+      .get<string>('SYNDROMIC_CLASSIFICATION_REPORT_TYPE')
+      ?.trim()
+      .toUpperCase();
+    if (raw === 'NEGATIVE') {
+      return report_type_enum.NEGATIVE;
+    }
+    if (raw === 'POSITIVE' || raw === undefined || raw === '') {
+      return report_type_enum.POSITIVE;
+    }
+    this.logger.warn(
+      { SYNDROMIC_CLASSIFICATION_REPORT_TYPE: raw },
+      'Valor inválido para SYNDROMIC_CLASSIFICATION_REPORT_TYPE; usando POSITIVE',
+    );
+    return report_type_enum.POSITIVE;
+  }
 
   private get symptomModel() {
     return (this.prisma as any).symptom;
@@ -162,9 +187,10 @@ export class SyndromicClassificationService {
       return;
     }
 
-    if (report.report_type !== report_type_enum.POSITIVE) {
+    const eligibleType = this.getEligibleReportType();
+    if (report.report_type !== eligibleType) {
       await this.persistStatusSnapshot(report.id, 'skipped', {
-        processingError: 'Report não elegível: apenas POSITIVE na V1',
+        processingError: `Report não elegível: apenas ${eligibleType} na V1 (SYNDROMIC_CLASSIFICATION_REPORT_TYPE)`,
       });
       this.businessMetrics.recordSyndromeClassification('skipped');
       return;
@@ -726,7 +752,7 @@ export class SyndromicClassificationService {
     dto: ReprocessSyndromicClassificationDto,
   ): Record<string, unknown> {
     const where: Record<string, unknown> = {
-      report_type: report_type_enum.POSITIVE,
+      report_type: this.getEligibleReportType(),
     };
     if (dto.onlyLatestActive ?? true) {
       where.active = true;
@@ -869,6 +895,8 @@ export class SyndromicClassificationService {
         query.endDate,
       );
 
+    const eligibleReportType = this.getEligibleReportType();
+
     const rows = await this.prisma.$queryRaw<
       Array<{
         report_day: Date;
@@ -888,7 +916,7 @@ export class SyndromicClassificationService {
       INNER JOIN syndrome s ON s.id = rss.syndrome_id
       WHERE rss.is_latest = true
         AND rss.processing_status = 'processed'
-        AND r.report_type = ${report_type_enum.POSITIVE}::report_type_enum
+        AND r.report_type = ${eligibleReportType}::report_type_enum
         AND p.context_id = ${contextId}
         AND r.created_at >= ${startUtc}
         AND r.created_at <= ${endInclusiveUtc}

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,6 +17,7 @@ import { ReportSyndromeScoresQueryDto } from './dto/syndromic-classification.dto
 describe('SyndromicClassificationService', () => {
   let service: SyndromicClassificationService;
   let prisma: any;
+  let configGet: jest.Mock;
   const auditRecord = jest.fn().mockResolvedValue(undefined);
   const metrics = {
     recordSyndromeClassification: jest.fn(),
@@ -93,6 +95,13 @@ describe('SyndromicClassificationService', () => {
       getManagedContextIds: jest.fn().mockResolvedValue([]),
     };
 
+    configGet = jest.fn().mockImplementation((key: string) => {
+      if (key === 'SYNDROMIC_CLASSIFICATION_REPORT_TYPE') {
+        return undefined;
+      }
+      return undefined;
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SyndromicClassificationService,
@@ -106,6 +115,7 @@ describe('SyndromicClassificationService', () => {
           provide: BusinessMetricsService,
           useValue: metrics,
         },
+        { provide: ConfigService, useValue: { get: configGet } },
       ],
     }).compile();
 
@@ -126,7 +136,7 @@ describe('SyndromicClassificationService', () => {
       warn.mockRestore();
     });
 
-    it('persiste snapshot skipped para report não POSITIVE', async () => {
+    it('persiste snapshot skipped quando report não é do tipo elegível (padrão POSITIVE)', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 7,
         report_type: report_type_enum.NEGATIVE,
@@ -136,6 +146,56 @@ describe('SyndromicClassificationService', () => {
       await service.classifyReport(7);
       expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('skipped');
       expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('com SYNDROMIC_CLASSIFICATION_REPORT_TYPE=NEGATIVE, POSITIVE é ignorado', async () => {
+      configGet.mockImplementation((key: string) =>
+        key === 'SYNDROMIC_CLASSIFICATION_REPORT_TYPE' ? 'NEGATIVE' : undefined,
+      );
+      prisma.report.findUnique.mockResolvedValue({
+        id: 71,
+        report_type: report_type_enum.POSITIVE,
+        form_version: { id: 1, form_id: 10 },
+        form_response: {},
+      });
+      await service.classifyReport(71);
+      expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('skipped');
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('com SYNDROMIC_CLASSIFICATION_REPORT_TYPE=NEGATIVE, NEGATIVE segue fluxo com config', async () => {
+      configGet.mockImplementation((key: string) =>
+        key === 'SYNDROMIC_CLASSIFICATION_REPORT_TYPE' ? 'NEGATIVE' : undefined,
+      );
+      prisma.report.findUnique.mockResolvedValue({
+        id: 72,
+        report_type: report_type_enum.NEGATIVE,
+        form_version: { id: 5, form_id: 99 },
+        form_response: { sintomas: ['febre', 'tosse'] },
+      });
+      prisma.syndrome_form_config.findFirst.mockResolvedValue({
+        id: 1,
+        symptoms_field_name: 'sintomas',
+        symptoms_field_id: null,
+        symptom_onset_date_field_name: null,
+        symptom_onset_date_field_id: null,
+      });
+      prisma.form_symptom_mapping.findMany.mockResolvedValue([]);
+      prisma.symptom.findMany.mockResolvedValue([
+        { id: 1, code: 'febre' },
+        { id: 2, code: 'tosse' },
+      ]);
+      prisma.syndrome.findMany.mockResolvedValue([
+        { id: 10, code: 'S', name: 'S', threshold_score: 0.2, active: true },
+      ]);
+      prisma.syndrome_symptom_weight.findMany.mockResolvedValue([
+        { syndrome_id: 10, symptom_id: 1, weight: 0.6, active: true },
+        { syndrome_id: 10, symptom_id: 2, weight: 0.4, active: true },
+      ]);
+
+      await service.classifyReport(72);
+
+      expect(metrics.recordSyndromeClassification).toHaveBeenCalledWith('processed');
     });
 
     it('sem config ativa: apaga scores e métrica skipped', async () => {
@@ -588,9 +648,23 @@ describe('SyndromicClassificationService', () => {
       );
 
       const where = prisma.report.findMany.mock.calls[0][0].where;
+      expect(where.report_type).toBe(report_type_enum.POSITIVE);
       expect(where.form_version_id).toBe(9);
       expect(where.id).toEqual({ gt: 50 });
       expect(where.created_at.lte).toBeInstanceOf(Date);
+    });
+
+    it('admin reprocess: report_type NEGATIVE quando env exige NEGATIVE', async () => {
+      configGet.mockImplementation((key: string) =>
+        key === 'SYNDROMIC_CLASSIFICATION_REPORT_TYPE' ? 'NEGATIVE' : undefined,
+      );
+      authz.isAdmin.mockResolvedValue(true);
+      prisma.report.findMany.mockResolvedValue([]);
+
+      await service.reprocessReports({ limit: 5 } as any, 1);
+
+      const where = prisma.report.findMany.mock.calls[0][0].where;
+      expect(where.report_type).toBe(report_type_enum.NEGATIVE);
     });
 
     it('admin combina reportIds com cursor no filtro de id', async () => {
