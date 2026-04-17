@@ -496,7 +496,7 @@ export default function SyndromicReportsPage() {
         startDate,
         endDate,
         onlyLatestActive: true,
-        limit: 200,
+        limit: 2000,
         ...(contextId != null ? { contextId } : {}),
       },
       {
