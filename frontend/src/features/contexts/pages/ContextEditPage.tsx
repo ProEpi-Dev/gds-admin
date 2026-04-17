@@ -28,26 +28,32 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 import SelectLocation from '../../../components/common/SelectLocation';
 import { useTranslation } from '../../../hooks/useTranslation';
 import { getErrorMessage } from '../../../utils/errorHandler';
-import type { UpdateContextDto } from '../../../types/context.types';
+import type { ContextAccessType, UpdateContextDto } from '../../../types/context.types';
 import { resolveDetectionStrategyForForm } from '../utils/detectionStrategy';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),
   locationId: z.number().optional().nullable(),
-  accessType: z.enum(['PUBLIC', 'PRIVATE']).optional(),
+  /** Select MUI pode manter `''`; normalizamos para não quebrar o enum. */
+  accessType: z
+    .union([z.enum(['PUBLIC', 'PRIVATE']), z.literal('')])
+    .optional()
+    .transform((v) => (v === undefined || v === '' ? undefined : v)),
   description: z.string().optional().nullable(),
   type: z.string().optional().nullable(),
   active: z.boolean().optional(),
   detectionStrategy: z.enum(['self_health', 'community_signal']),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type ContextEditFormIn = z.input<typeof formSchema>;
+type ContextEditFormOut = z.output<typeof formSchema>;
 
 export default function ContextEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  const [validationSummary, setValidationSummary] = useState<string | null>(null);
 
   const contextId = id ? parseInt(id, 10) : null;
   const {
@@ -63,12 +69,23 @@ export default function ContextEditPage() {
     reset,
     watch,
     setValue,
-  } = useForm<FormData>({
+  } = useForm<ContextEditFormIn, unknown, ContextEditFormOut>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      locationId: null,
+      accessType: undefined,
+      description: '',
+      type: '',
+      active: true,
+      detectionStrategy: 'self_health',
+    },
   });
 
   const locationId = watch('locationId');
   const active = watch('active');
+  const accessTypeValue = watch('accessType');
+  const detectionStrategyValue = watch('detectionStrategy');
 
   useEffect(() => {
     if (context) {
@@ -86,10 +103,11 @@ export default function ContextEditPage() {
 
   const updateMutation = useUpdateContext();
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = (data: ContextEditFormOut) => {
     if (!contextId) return;
 
     setError(null);
+    setValidationSummary(null);
 
     const updateData: UpdateContextDto = {};
 
@@ -147,7 +165,21 @@ export default function ContextEditPage() {
       </Typography>
 
       <Paper sx={{ p: 3, mt: 3 }}>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+        <Box
+          component="form"
+          onSubmit={handleSubmit(onSubmit, () =>
+            setValidationSummary(t('common.fixFormErrors')),
+          )}
+        >
+          {validationSummary && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 2 }}
+              onClose={() => setValidationSummary(null)}
+            >
+              {validationSummary}
+            </Alert>
+          )}
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
               {error}
@@ -172,7 +204,18 @@ export default function ContextEditPage() {
 
             <FormControl fullWidth error={!!errors.accessType}>
               <InputLabel>{t('contexts.accessType')}</InputLabel>
-              <Select {...register('accessType')} label={t('contexts.accessType')} defaultValue="">
+              <Select
+                label={t('contexts.accessType')}
+                value={accessTypeValue ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value as string;
+                  setValue(
+                    'accessType',
+                    raw === '' ? undefined : (raw as ContextAccessType),
+                    { shouldValidate: true, shouldDirty: true },
+                  );
+                }}
+              >
                 <MenuItem value="PUBLIC">{t('contexts.accessTypePublic')}</MenuItem>
                 <MenuItem value="PRIVATE">{t('contexts.accessTypePrivate')}</MenuItem>
               </Select>
@@ -211,13 +254,21 @@ export default function ContextEditPage() {
               label={t('contexts.status')}
             />
 
-            <FormControl component="fieldset">
+            <FormControl component="fieldset" error={!!errors.detectionStrategy}>
               <FormLabel id="detection-strategy-label-edit">
                 {t('contexts.detectionStrategiesLabel')}
               </FormLabel>
               <RadioGroup
                 aria-labelledby="detection-strategy-label-edit"
-                {...register('detectionStrategy')}
+                name="detectionStrategy"
+                value={detectionStrategyValue ?? 'self_health'}
+                onChange={(e) =>
+                  setValue(
+                    'detectionStrategy',
+                    e.target.value as 'self_health' | 'community_signal',
+                    { shouldValidate: true, shouldDirty: true },
+                  )
+                }
               >
                 <FormControlLabel
                   value="self_health"
@@ -230,6 +281,11 @@ export default function ContextEditPage() {
                   label={t('contexts.moduleCommunitySignal')}
                 />
               </RadioGroup>
+              {errors.detectionStrategy && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                  {errors.detectionStrategy.message}
+                </Typography>
+              )}
             </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
