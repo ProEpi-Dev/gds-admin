@@ -25,6 +25,23 @@ import {
   AuditRequestContext,
 } from '../audit-log/audit-log.service';
 
+/** Alinhado às migrações V28, V30 e V31 (INSERT … SELECT context). */
+const DEFAULT_CONTEXT_CONFIGURATION_ROWS: ReadonlyArray<{
+  key: string;
+  value: Prisma.InputJsonValue;
+}> = [
+  { key: 'negative_report_dedup_window_min', value: 60 },
+  { key: 'negative_block_if_positive_within_min', value: 60 },
+  { key: 'allowed_email_domains', value: [] },
+  { key: 'social_sso_enabled', value: false },
+  { key: 'profile_require_gender', value: true },
+  { key: 'profile_require_country', value: false },
+  { key: 'profile_require_location', value: false },
+  { key: 'profile_require_external_identifier', value: true },
+  { key: 'profile_require_phone', value: false },
+  { key: 'require_email_verification', value: false },
+];
+
 @Injectable()
 export class ContextsService {
   constructor(
@@ -87,6 +104,8 @@ export class ContextsService {
         context_module: true,
       },
     });
+
+    await this.seedDefaultContextConfiguration(context.id);
 
     const dto = this.mapToResponseDto(context);
     await this.auditLogService.record({
@@ -411,10 +430,18 @@ export class ContextsService {
   ): Promise<ContextConfigurationEntryDto[]> {
     await this.ensureContextExists(contextId);
 
-    const rows = await this.prisma.context_configuration.findMany({
+    let rows = await this.prisma.context_configuration.findMany({
       where: { context_id: contextId },
       orderBy: { key: 'asc' },
     });
+
+    if (rows.length === 0) {
+      await this.seedDefaultContextConfiguration(contextId);
+      rows = await this.prisma.context_configuration.findMany({
+        where: { context_id: contextId },
+        orderBy: { key: 'asc' },
+      });
+    }
 
     return rows.map((row) => this.mapConfigurationRow(row));
   }
@@ -474,6 +501,19 @@ export class ContextsService {
     });
 
     return this.mapConfigurationRow(row);
+  }
+
+  private async seedDefaultContextConfiguration(
+    contextId: number,
+  ): Promise<void> {
+    await this.prisma.context_configuration.createMany({
+      data: DEFAULT_CONTEXT_CONFIGURATION_ROWS.map((row) => ({
+        context_id: contextId,
+        key: row.key,
+        value: row.value,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   private async ensureContextExists(contextId: number): Promise<void> {

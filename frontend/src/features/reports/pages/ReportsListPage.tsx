@@ -25,6 +25,7 @@ import {
   Map as MapIcon,
   Download as DownloadIcon,
   MoreVert as MoreVertIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useReports, useDeleteReport } from '../hooks/useReports';
 import { useForms } from '../../forms/hooks/useForms';
@@ -34,16 +35,12 @@ import type { FormBuilderDefinition, FormField } from '../../../types/form-build
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import type { Report } from '../../../types/report.types';
 
-const STORAGE_KEY = 'reports-filters';
-
-interface SavedFilters {
-  page: number;
-  pageSize: number;
+/** Filtros da listagem (sem persistência em storage). */
+interface ReportListFilters {
   activeFilter: boolean | undefined;
   reportTypeFilter: string | undefined;
   formIdFilter: number | undefined;
@@ -51,60 +48,60 @@ interface SavedFilters {
   endDate: string;
 }
 
+const LEGACY_REPORTS_FILTERS_KEY = 'reports-filters';
+
+/** Rascunho: valores padrão sugeridos antes de clicar em Buscar. */
+const defaultDraftFilters = (): ReportListFilters => ({
+  activeFilter: true,
+  reportTypeFilter: 'POSITIVE',
+  formIdFilter: undefined,
+  startDate: '',
+  endDate: '',
+});
+
+/** Aplicado: só muda após Buscar (ou chips/limpar); inicia vazio para não disparar busca automática. */
+const emptyAppliedFilters = (): ReportListFilters => ({
+  activeFilter: undefined,
+  reportTypeFilter: undefined,
+  formIdFilter: undefined,
+  startDate: '',
+  endDate: '',
+});
+
 export default function ReportsListPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { currentContext } = useCurrentContext();
 
-  // Função para carregar filtros do localStorage
-  const loadFiltersFromStorage = (): SavedFilters | null => {
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar filtros do localStorage:', error);
+      localStorage.removeItem(LEGACY_REPORTS_FILTERS_KEY);
+    } catch {
+      /* ignore */
     }
-    return null;
-  };
+  }, []);
 
-  // Função para salvar filtros no localStorage
-  const saveFiltersToStorage = (filters: SavedFilters) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
-    } catch (error) {
-      console.error('Erro ao salvar filtros no localStorage:', error);
-    }
-  };
-
-  // Carregar filtros salvos ao montar o componente
-  const savedFilters = loadFiltersFromStorage();
-
-  const [page, setPage] = useState(savedFilters?.page || 1);
-  const [pageSize, setPageSize] = useState(savedFilters?.pageSize || 20);
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(savedFilters?.activeFilter);
-  const [reportTypeFilter, setReportTypeFilter] = useState<string | undefined>(savedFilters?.reportTypeFilter);
-  const [formIdFilter, setFormIdFilter] = useState<number | undefined>(savedFilters?.formIdFilter);
-  const [startDate, setStartDate] = useState<string>(savedFilters?.startDate || '');
-  const [endDate, setEndDate] = useState<string>(savedFilters?.endDate || '');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [draftFilters, setDraftFilters] = useState<ReportListFilters>(defaultDraftFilters);
+  const [appliedFilters, setAppliedFilters] = useState<ReportListFilters>(emptyAppliedFilters);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-  // Salvar filtros no localStorage sempre que mudarem
-  useEffect(() => {
-    saveFiltersToStorage({
-      page,
-      pageSize,
-      activeFilter,
-      reportTypeFilter,
-      formIdFilter,
-      startDate,
-      endDate,
-    });
-  }, [page, pageSize, activeFilter, reportTypeFilter, formIdFilter, startDate, endDate]);
+  const draftDateRangeInvalid =
+    !!draftFilters.startDate &&
+    !!draftFilters.endDate &&
+    new Date(draftFilters.startDate) > new Date(draftFilters.endDate);
+
+  const applyFiltersFromDraft = () => {
+    if (!draftFilters.formIdFilter || draftDateRangeInvalid) {
+      return;
+    }
+    setAppliedFilters({ ...draftFilters });
+    setPage(1);
+  };
 
   // Buscar formulários para o filtro (do contexto atual; sem filtro de tipo para incluir signal e quiz).
   const { data: formsData, isLoading: formsLoading } = useForms(
@@ -118,7 +115,11 @@ export default function ReportsListPage() {
   );
 
   // Buscar versões do formulário selecionado para obter a definição
-  const { data: versionsData } = useFormVersions(formIdFilter || null, { page: 1, pageSize: 50, active: true });
+  const { data: versionsData } = useFormVersions(appliedFilters.formIdFilter || null, {
+    page: 1,
+    pageSize: 50,
+    active: true,
+  });
 
   // Obter a definição do formulário (última versão ativa)
   const formDefinition: FormBuilderDefinition | null = useMemo(() => {
@@ -132,16 +133,22 @@ export default function ReportsListPage() {
     return sortedVersions[0]?.definition || null;
   }, [versionsData]);
 
-  const { data, isLoading, error } = useReports({
-    page,
-    pageSize,
-    active: activeFilter,
-    reportType: reportTypeFilter as 'POSITIVE' | 'NEGATIVE' | undefined,
-    formId: formIdFilter,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-    contextId: currentContext?.id,
-  });
+  const reportsEnabled =
+    currentContext?.id != null && appliedFilters.formIdFilter != null;
+
+  const { data, isLoading, error, isFetching } = useReports(
+    {
+      page,
+      pageSize,
+      active: appliedFilters.activeFilter,
+      reportType: appliedFilters.reportTypeFilter as 'POSITIVE' | 'NEGATIVE' | undefined,
+      formId: appliedFilters.formIdFilter,
+      startDate: appliedFilters.startDate || undefined,
+      endDate: appliedFilters.endDate || undefined,
+      contextId: currentContext?.id,
+    },
+    { enabled: reportsEnabled },
+  );
 
   const deleteMutation = useDeleteReport();
 
@@ -328,13 +335,13 @@ export default function ReportsListPage() {
   // Combinar colunas: base + formResponse + ações (sempre por último)
   const columns: Column<Report>[] = [
     ...baseColumns,
-    ...(formIdFilter && formDefinition ? getFormResponseColumns() : []),
+    ...(appliedFilters.formIdFilter && formDefinition ? getFormResponseColumns() : []),
     actionsColumn,
   ];
 
   // Função para exportar CSV
   const handleExportCSV = () => {
-    if (!data?.data || data.data.length === 0 || !formIdFilter) {
+    if (!data?.data || data.data.length === 0 || !appliedFilters.formIdFilter) {
       return;
     }
 
@@ -379,7 +386,10 @@ export default function ReportsListPage() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `reports_${formIdFilter}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `reports_${appliedFilters.formIdFilter}_${new Date().toISOString().split('T')[0]}.csv`,
+    );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -388,51 +398,83 @@ export default function ReportsListPage() {
 
   const forms = formsData?.data || [];
 
+  const syncDraftWithApplied = (next: ReportListFilters) => {
+    setAppliedFilters(next);
+    setDraftFilters(next);
+  };
+
   const filters = [
-    ...(activeFilter !== undefined
+    ...(appliedFilters.activeFilter !== undefined
       ? [
           {
             label: t('reports.status'),
-            value: activeFilter ? t('reports.active') : t('reports.inactive'),
-            onDelete: () => setActiveFilter(undefined),
+            value: appliedFilters.activeFilter ? t('reports.active') : t('reports.inactive'),
+            onDelete: () => {
+              const cleared: ReportListFilters = {
+                ...appliedFilters,
+                activeFilter: undefined,
+              };
+              syncDraftWithApplied(cleared);
+              setPage(1);
+            },
           },
         ]
       : []),
-    ...(reportTypeFilter
+    ...(appliedFilters.reportTypeFilter
       ? [
           {
             label: t('reports.type'),
-            value: reportTypeFilter === 'POSITIVE' ? t('reports.positive') : t('reports.negative'),
-            onDelete: () => setReportTypeFilter(undefined),
+            value:
+              appliedFilters.reportTypeFilter === 'POSITIVE'
+                ? t('reports.positive')
+                : t('reports.negative'),
+            onDelete: () => {
+              const cleared: ReportListFilters = {
+                ...appliedFilters,
+                reportTypeFilter: undefined,
+              };
+              syncDraftWithApplied(cleared);
+              setPage(1);
+            },
           },
         ]
       : []),
-    ...(formIdFilter
+    ...(appliedFilters.formIdFilter
       ? [
           {
             label: t('reports.form'),
-            value: forms.find((f) => f.id === formIdFilter)?.title || `#${formIdFilter}`,
-            onDelete: () => setFormIdFilter(undefined),
+            value:
+              forms.find((f) => f.id === appliedFilters.formIdFilter)?.title ||
+              `#${appliedFilters.formIdFilter}`,
+            onDelete: () => {
+              const cleared: ReportListFilters = {
+                ...appliedFilters,
+                formIdFilter: undefined,
+              };
+              syncDraftWithApplied(cleared);
+              setPage(1);
+            },
           },
         ]
       : []),
-    ...(startDate && endDate
+    ...(appliedFilters.startDate && appliedFilters.endDate
       ? [
           {
             label: t('reports.startDate'),
-            value: `${new Date(startDate).toLocaleDateString('pt-BR')} - ${new Date(endDate).toLocaleDateString('pt-BR')}`,
+            value: `${new Date(appliedFilters.startDate).toLocaleDateString('pt-BR')} - ${new Date(appliedFilters.endDate).toLocaleDateString('pt-BR')}`,
             onDelete: () => {
-              setStartDate('');
-              setEndDate('');
+              const cleared: ReportListFilters = {
+                ...appliedFilters,
+                startDate: '',
+                endDate: '',
+              };
+              syncDraftWithApplied(cleared);
+              setPage(1);
             },
           },
         ]
       : []),
   ];
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
 
   if (error) {
     return <ErrorAlert message={t('reports.errorLoading')} />;
@@ -458,7 +500,7 @@ export default function ReportsListPage() {
           >
             {t('reports.mapView')}
           </Button>
-          {formIdFilter && data?.data && data.data.length > 0 && (
+          {appliedFilters.formIdFilter && data?.data && data.data.length > 0 && (
             <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
@@ -487,11 +529,16 @@ export default function ReportsListPage() {
               <FormControl fullWidth required sx={{ minWidth: 200 }}>
                 <InputLabel>{t('reports.form')}</InputLabel>
                 <Select
-                  value={formIdFilter || ''}
+                  value={draftFilters.formIdFilter || ''}
                   label={t('reports.form')}
-                  onChange={(e) => setFormIdFilter(e.target.value ? Number(e.target.value) : undefined)}
+                  onChange={(e) =>
+                    setDraftFilters((d) => ({
+                      ...d,
+                      formIdFilter: e.target.value ? Number(e.target.value) : undefined,
+                    }))
+                  }
                   required
-                  error={!formIdFilter}
+                  error={!draftFilters.formIdFilter}
                 >
                   {formsLoading ? (
                     <MenuItem disabled>
@@ -510,8 +557,10 @@ export default function ReportsListPage() {
               <TextField
                 label={t('reports.startDate')}
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                value={draftFilters.startDate}
+                onChange={(e) =>
+                  setDraftFilters((d) => ({ ...d, startDate: e.target.value }))
+                }
                 InputLabelProps={{
                   shrink: true,
                 }}
@@ -521,8 +570,10 @@ export default function ReportsListPage() {
               <TextField
                 label={t('reports.endDate')}
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                value={draftFilters.endDate}
+                onChange={(e) =>
+                  setDraftFilters((d) => ({ ...d, endDate: e.target.value }))
+                }
                 InputLabelProps={{
                   shrink: true,
                 }}
@@ -530,7 +581,7 @@ export default function ReportsListPage() {
               />
             </Stack>
 
-            {startDate && endDate && new Date(startDate) > new Date(endDate) && (
+            {draftDateRangeInvalid && (
               <Alert severity="error">
                 {t('reports.invalidDateRange')}
               </Alert>
@@ -541,33 +592,66 @@ export default function ReportsListPage() {
                 display: 'flex',
                 gap: 1,
                 flexWrap: 'wrap',
+                alignItems: 'center',
               }}
             >
               <Button
-                variant={activeFilter === true ? 'contained' : 'outlined'}
+                variant="contained"
+                startIcon={<SearchIcon />}
+                onClick={applyFiltersFromDraft}
+                disabled={
+                  !draftFilters.formIdFilter || draftDateRangeInvalid || !currentContext?.id
+                }
+              >
+                {t('common.search')}
+              </Button>
+              <Button
+                variant={draftFilters.activeFilter === true ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
+                onClick={() =>
+                  setDraftFilters((d) => ({
+                    ...d,
+                    activeFilter: d.activeFilter === true ? undefined : true,
+                  }))
+                }
               >
                 {t('reports.active')}
               </Button>
               <Button
-                variant={activeFilter === false ? 'contained' : 'outlined'}
+                variant={draftFilters.activeFilter === false ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => setActiveFilter(activeFilter === false ? undefined : false)}
+                onClick={() =>
+                  setDraftFilters((d) => ({
+                    ...d,
+                    activeFilter: d.activeFilter === false ? undefined : false,
+                  }))
+                }
               >
                 {t('reports.inactive')}
               </Button>
               <Button
-                variant={reportTypeFilter === 'POSITIVE' ? 'contained' : 'outlined'}
+                variant={draftFilters.reportTypeFilter === 'POSITIVE' ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => setReportTypeFilter(reportTypeFilter === 'POSITIVE' ? undefined : 'POSITIVE')}
+                onClick={() =>
+                  setDraftFilters((d) => ({
+                    ...d,
+                    reportTypeFilter:
+                      d.reportTypeFilter === 'POSITIVE' ? undefined : 'POSITIVE',
+                  }))
+                }
               >
                 {t('reports.positive')}
               </Button>
               <Button
-                variant={reportTypeFilter === 'NEGATIVE' ? 'contained' : 'outlined'}
+                variant={draftFilters.reportTypeFilter === 'NEGATIVE' ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => setReportTypeFilter(reportTypeFilter === 'NEGATIVE' ? undefined : 'NEGATIVE')}
+                onClick={() =>
+                  setDraftFilters((d) => ({
+                    ...d,
+                    reportTypeFilter:
+                      d.reportTypeFilter === 'NEGATIVE' ? undefined : 'NEGATIVE',
+                  }))
+                }
               >
                 {t('reports.negative')}
               </Button>
@@ -578,18 +662,13 @@ export default function ReportsListPage() {
         <FilterChips
           filters={filters}
           onClearAll={() => {
-            setActiveFilter(undefined);
-            setReportTypeFilter(undefined);
-            setFormIdFilter(undefined);
-            setStartDate('');
-            setEndDate('');
+            setDraftFilters(defaultDraftFilters());
+            setAppliedFilters(emptyAppliedFilters());
             setPage(1);
-            // Limpar do localStorage também
-            localStorage.removeItem(STORAGE_KEY);
           }}
         />
 
-        {!formIdFilter ? (
+        {!appliedFilters.formIdFilter ? (
           <Paper sx={{ p: 3 }}>
             <Alert severity="info">
               Selecione um formulário para visualizar os reports em formato de tabela.
@@ -604,7 +683,7 @@ export default function ReportsListPage() {
             totalItems={data?.meta.totalItems || 0}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
-            loading={isLoading}
+            loading={isLoading || isFetching}
             variant="table"
           />
         )}
