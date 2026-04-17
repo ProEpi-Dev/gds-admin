@@ -113,7 +113,8 @@ export class SyndromicClassificationService {
 
   /**
    * Qual `report_type` entra no motor sindrômico (V1).
-   * Produção costuma usar `NEGATIVE`; local/testes costumam omitir a env (padrão `POSITIVE`).
+   * O fallback padrão é `NEGATIVE` quando a env estiver ausente.
+   * A env só atua como override explícito.
    * @see SYNDROMIC_CLASSIFICATION_REPORT_TYPE
    */
   private getEligibleReportType(): report_type_enum {
@@ -124,14 +125,17 @@ export class SyndromicClassificationService {
     if (raw === 'NEGATIVE') {
       return report_type_enum.NEGATIVE;
     }
-    if (raw === 'POSITIVE' || raw === undefined || raw === '') {
+    if (raw === 'POSITIVE') {
       return report_type_enum.POSITIVE;
+    }
+    if (raw === undefined || raw === '') {
+      return report_type_enum.NEGATIVE;
     }
     this.logger.warn(
       { SYNDROMIC_CLASSIFICATION_REPORT_TYPE: raw },
-      'Valor inválido para SYNDROMIC_CLASSIFICATION_REPORT_TYPE; usando POSITIVE',
+      'Valor inválido para SYNDROMIC_CLASSIFICATION_REPORT_TYPE; usando NEGATIVE',
     );
-    return report_type_enum.POSITIVE;
+    return report_type_enum.NEGATIVE;
   }
 
   private get symptomModel() {
@@ -836,6 +840,7 @@ export class SyndromicClassificationService {
       jobLikeId,
       userId,
       {
+        eligibleReportType: this.getEligibleReportType(),
         reportIds: dto.reportIds ?? null,
         formId: dto.formId ?? null,
         formVersionId: dto.formVersionId ?? null,
