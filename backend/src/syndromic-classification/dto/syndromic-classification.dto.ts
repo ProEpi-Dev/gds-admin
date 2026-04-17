@@ -347,11 +347,11 @@ export class ReprocessSyndromicClassificationDto {
   @IsOptional()
   onlyLatestActive?: boolean = true;
 
-  @ApiPropertyOptional({ default: 100, maximum: 500 })
+  @ApiPropertyOptional({ default: 100, maximum: 2000 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(500)
+  @Max(2000)
   @IsOptional()
   limit?: number = 100;
 
