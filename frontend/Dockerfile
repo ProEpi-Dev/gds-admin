@@ -3,6 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_BUILD_MODE=production
+
 # Copy package files
 COPY package.json package-lock.json* yarn.lock* ./
 
@@ -13,17 +15,16 @@ RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
 # Copy source code
 COPY . .
 
-# Build the application
-# O Vite irá usar automaticamente o arquivo .env.production se existir
-RUN echo "Building application..." && \
-    if [ -f .env.production ]; then \
-        echo "📄 Using .env.production:"; \
-        cat .env.production; \
+# Build: modo controla qual .env.* o Vite carrega (.env.production vs .env.development)
+RUN echo "Building with VITE_BUILD_MODE=${VITE_BUILD_MODE}..." && \
+    if [ "${VITE_BUILD_MODE}" = "production" ] && [ -f .env.production ]; then \
+        echo "📄 .env.production:"; cat .env.production; \
+    elif [ "${VITE_BUILD_MODE}" = "development" ] && [ -f .env.development ]; then \
+        echo "📄 .env.development:"; cat .env.development; \
     else \
-        echo "⚠️  No .env.production found, using default configuration"; \
+        echo "⚠️  Arquivo .env esperado para o modo não encontrado"; \
     fi && \
-    if [ -f yarn.lock ]; then yarn build; \
-    else npm run build; fi
+    npx tsc -b && npx vite build --mode "${VITE_BUILD_MODE}"
 
 # Production stage
 FROM nginx:alpine
@@ -47,4 +48,3 @@ EXPOSE 80
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
-
