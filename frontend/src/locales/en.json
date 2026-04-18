@@ -71,7 +71,8 @@
     "legalDocuments": "Legal Documents",
     "legalDocumentTypes": "Document Types",
     "basicTables": "Basic Tables",
-    "genders": "Genders"
+    "genders": "Sexes",
+    "raceColors": "Race/Color"
   },
   "reports": {
     "title": "Reports",
@@ -150,6 +151,29 @@
     "redirectingToLogin": "Redirecting to login...",
     "forgotPasswordLink": "Forgot my password"
   },
+  "signup": {
+    "title": "Sign up",
+    "subtitle": "Create your account to participate",
+    "fullName": "Full name",
+    "confirmPassword": "Confirm password",
+    "enrollment": "Enrollment",
+    "organizationPath": "Organization",
+    "selectContext": "Select a context",
+    "contextHelper": "Choose the public context you want to join",
+    "legalDocuments": "Legal Documents",
+    "acceptTerms": "Accept terms",
+    "submit": "Create account",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginLink": "Log in",
+    "errors": {
+      "passwordMismatch": "Passwords do not match",
+      "contextRequired": "You must select a context",
+      "legalDocumentsRequired": "You must accept all required documents",
+      "invalidEmail": "Invalid email",
+      "passwordTooShort": "Password must be at least 8 characters"
+    },
+    "success": "Registration completed successfully! Redirecting..."
+  },
   "participations": {
     "title": "Participations",
     "newParticipation": "New Participation",
@@ -175,6 +199,8 @@
     "name": "Name",
     "email": "Email",
     "password": "Password",
+    "enrollment": "Enrollment",
+    "organizationPath": "Organization",
     "status": "Status",
     "actions": "Actions",
     "active": "Active",
@@ -191,6 +217,52 @@
     "passwordHelper": "Leave blank to keep current password",
     "createdAt": "Created At",
     "updatedAt": "Updated At"
+  },
+  "profile": {
+    "title": "Complete Profile",
+    "subtitle": "Complete your profile to continue",
+    "sex": "Sex",
+    "raceColor": "Race/Color",
+    "birthDate": "Birth Date",
+    "age": "Age",
+    "enrollment": "Enrollment",
+    "organization": "Organization",
+    "location": "Location",
+    "externalIdentifier": "External Identifier",
+    "externalIdentifierHelper": "CPF, Enrollment or another identifier",
+    "submit": "Save profile",
+    "myProfile": "My Profile",
+    "editProfile": "Edit Profile",
+    "profileComplete": "Profile complete",
+    "profileIncomplete": "Profile incomplete",
+    "missingFields": "Missing fields",
+    "errors": {
+      "sexRequired": "Sex is required",
+      "locationRequired": "Location is required",
+      "raceColorRequired": "Race/Color is required",
+      "birthDateRequired": "Birth date is required",
+      "enrollmentRequired": "Enrollment is required",
+      "organizationRequired": "Organization is required",
+      "externalIdentifierRequired": "External identifier is required"
+    },
+    "success": "Profile updated successfully!"
+  },
+  "raceColors": {
+    "title": "Race/Color",
+    "newRaceColor": "New Race/Color",
+    "name": "Name",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deleteConfirm": "Confirm deletion",
+    "deleteMessage": "Are you sure you want to delete race/color \"{{name}}\"?",
+    "deleteSuccess": "Race/Color deleted successfully",
+    "deleteError": "Error deleting race/color",
+    "createSuccess": "Race/Color created successfully",
+    "errorCreating": "Error creating race/color",
+    "updateSuccess": "Race/Color updated successfully",
+    "errorUpdating": "Error updating race/color",
+    "errorLoading": "Error loading race/color"
   },
   "locations": {
     "title": "Locations",

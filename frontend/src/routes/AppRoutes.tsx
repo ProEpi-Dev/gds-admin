@@ -60,6 +60,10 @@ import GendersListPage from "../features/genders/pages/GendersListPage";
 import GenderCreatePage from "../features/genders/pages/GenderCreatePage";
 import GenderEditPage from "../features/genders/pages/GenderEditPage";
 import GenderViewPage from "../features/genders/pages/GenderViewPage";
+import RaceColorsListPage from "../features/race-colors/pages/RaceColorsListPage";
+import RaceColorCreatePage from "../features/race-colors/pages/RaceColorCreatePage";
+import RaceColorEditPage from "../features/race-colors/pages/RaceColorEditPage";
+import RaceColorViewPage from "../features/race-colors/pages/RaceColorViewPage";
 import TrackView from "../features/tracks/TrackView";
 import TrackExecutionRegistry from "../features/tracks/TrackRegister";
 import TrackCyclesListPage from "../features/track-cycles/pages/TrackCyclesListPage";
@@ -69,6 +73,10 @@ import TrackCycleProgressPage from "../features/track-cycles/pages/TrackCyclePro
 import TrackCycleQuizTakePage from "../features/track-cycles/pages/TrackCycleQuizTakePage";
 import RolesListPage from "../features/roles/pages/RolesListPage";
 import AdminsListPage from "../features/admins/pages/AdminsListPage";
+import UsersListPage from "../features/users/pages/UsersListPage";
+import UserCreatePage from "../features/users/pages/UserCreatePage";
+import UserViewPage from "../features/users/pages/UserViewPage";
+import UserEditPage from "../features/users/pages/UserEditPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -290,6 +298,46 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/users"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <UsersListPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/users/new"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <UserCreatePage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/users/:id"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <UserViewPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/users/:id/edit"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <UserEditPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
         path="/participations/new"
         element={
           <AdminRoute>
@@ -380,6 +428,38 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <GenderEditPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/race-colors"
+        element={
+          <AdminRoute>
+            <RaceColorsListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/race-colors/new"
+        element={
+          <AdminRoute>
+            <RaceColorCreatePage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/race-colors/:id"
+        element={
+          <AdminRoute>
+            <RaceColorViewPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/race-colors/:id/edit"
+        element={
+          <AdminRoute>
+            <RaceColorEditPage />
           </AdminRoute>
         }
       />

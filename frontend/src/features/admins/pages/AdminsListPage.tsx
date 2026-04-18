@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -19,46 +19,60 @@ import {
   Tab,
   TextField,
   InputAdornment,
-} from '@mui/material';
-import { Add as AddIcon, PersonOff as PersonOffIcon, Visibility, VisibilityOff } from '@mui/icons-material';
-import { useAdmins, usePromoteToAdmin, useRemoveAdmin, useCreateAdmin } from '../hooks/useAdmins';
-import { useRoles } from '../../roles/hooks/useRoles';
-import { useAuth } from '../../../contexts/AuthContext';
-import SelectUser from '../../../components/common/SelectUser';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import ErrorAlert from '../../../components/common/ErrorAlert';
-import ConfirmDialog from '../../../components/common/ConfirmDialog';
-import { getErrorMessage } from '../../../utils/errorHandler';
-import type { User } from '../../../types/user.types';
+} from "@mui/material";
+import {
+  Add as AddIcon,
+  PersonOff as PersonOffIcon,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
+import {
+  useAdmins,
+  usePromoteToAdmin,
+  useRemoveAdmin,
+  useCreateAdmin,
+} from "../hooks/useAdmins";
+import { useRoles } from "../../roles/hooks/useRoles";
+import { useAuth } from "../../../contexts/AuthContext";
+import SelectUser from "../../../components/common/SelectUser";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
+import ErrorAlert from "../../../components/common/ErrorAlert";
+import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import { getErrorMessage } from "../../../utils/errorHandler";
+import type { User } from "../../../types/user.types";
 
-type AddAdminTab = 'existing' | 'new';
+type AddAdminTab = "existing" | "new";
 
-const initialNewAdminForm = { name: '', email: '', password: '' };
+const initialNewAdminForm = { name: "", email: "", password: "" };
 
 export default function AdminsListPage() {
   const { user: currentUser } = useAuth();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addTab, setAddTab] = useState<AddAdminTab>('existing');
+  const [addTab, setAddTab] = useState<AddAdminTab>("existing");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [newAdminForm, setNewAdminForm] = useState(initialNewAdminForm);
   const [showPassword, setShowPassword] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
 
-  const { data: adminsResponse, isLoading, error } = useAdmins({ pageSize: 100 });
+  const {
+    data: adminsResponse,
+    isLoading,
+    error,
+  } = useAdmins({ pageSize: 100 });
   const { data: roles } = useRoles();
   const promoteMutation = usePromoteToAdmin();
   const createAdminMutation = useCreateAdmin();
   const removeMutation = useRemoveAdmin();
 
   const admins = adminsResponse?.data ?? [];
-  const adminRoleId = roles?.find((r) => r.code === 'admin')?.id;
+  const adminRoleId = roles?.find((r) => r.code === "admin")?.id;
   const adminIds = admins.map((a) => a.id);
 
   const handleOpenAdd = () => {
     setSelectedUserId(null);
     setNewAdminForm(initialNewAdminForm);
-    setAddTab('existing');
+    setAddTab("existing");
     setAddDialogOpen(true);
   };
 
@@ -76,12 +90,22 @@ export default function AdminsListPage() {
   };
 
   const handleCreateAdmin = () => {
-    if (!adminRoleId || !newAdminForm.name.trim() || !newAdminForm.email.trim() || !newAdminForm.password) return;
+    if (
+      !adminRoleId ||
+      !newAdminForm.name.trim() ||
+      !newAdminForm.email.trim() ||
+      !newAdminForm.password
+    )
+      return;
     createAdminMutation.mutate(
       {
         name: newAdminForm.name.trim(),
         email: newAdminForm.email.trim(),
         password: newAdminForm.password,
+        enrollment: "",
+        organizationLevel1: "UnB",
+        organizationLevel2: "Campus Darcy Ribeiro",
+        organizationLevel3: "FCS",
         roleId: adminRoleId,
       },
       {
@@ -121,17 +145,17 @@ export default function AdminsListPage() {
     <Box>
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           mb: 3,
         }}
       >
         <Box>
           <Typography variant="h4">Administradores</Typography>
           <Typography variant="body2" color="text.secondary">
-            Apenas administradores podem ser definidos aqui. Gerentes e participantes são
-            gerenciados por participação em cada contexto.
+            Apenas administradores podem ser definidos aqui. Gerentes e
+            participantes são gerenciados por participação em cada contexto.
           </Typography>
         </Box>
         <Button
@@ -185,18 +209,28 @@ export default function AdminsListPage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Adicionar administrador</DialogTitle>
         <DialogContent>
-          <Tabs value={addTab} onChange={(_, v) => setAddTab(v as AddAdminTab)} sx={{ mb: 2 }}>
+          <Tabs
+            value={addTab}
+            onChange={(_, v) => setAddTab(v as AddAdminTab)}
+            sx={{ mb: 2 }}
+          >
             <Tab label="Usuário existente" value="existing" />
             <Tab label="Novo usuário" value="new" />
           </Tabs>
 
-          {addTab === 'existing' && (
+          {addTab === "existing" && (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Selecione um usuário para conceder acesso de administrador ao sistema.
+                Selecione um usuário para conceder acesso de administrador ao
+                sistema.
               </Typography>
               <SelectUser
                 value={selectedUserId}
@@ -207,16 +241,19 @@ export default function AdminsListPage() {
             </>
           )}
 
-          {addTab === 'new' && (
+          {addTab === "new" && (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Crie um novo usuário que será apenas administrador (sem participações em contextos).
+                Crie um novo usuário que será apenas administrador (sem
+                participações em contextos).
               </Typography>
               <TextField
                 fullWidth
                 label="Nome"
                 value={newAdminForm.name}
-                onChange={(e) => setNewAdminForm((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setNewAdminForm((p) => ({ ...p, name: e.target.value }))
+                }
                 margin="normal"
                 required
               />
@@ -225,16 +262,20 @@ export default function AdminsListPage() {
                 label="E-mail"
                 type="email"
                 value={newAdminForm.email}
-                onChange={(e) => setNewAdminForm((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) =>
+                  setNewAdminForm((p) => ({ ...p, email: e.target.value }))
+                }
                 margin="normal"
                 required
               />
               <TextField
                 fullWidth
                 label="Senha"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 value={newAdminForm.password}
-                onChange={(e) => setNewAdminForm((p) => ({ ...p, password: e.target.value }))}
+                onChange={(e) =>
+                  setNewAdminForm((p) => ({ ...p, password: e.target.value }))
+                }
                 margin="normal"
                 required
                 helperText="Mínimo 6 caracteres"
@@ -244,7 +285,9 @@ export default function AdminsListPage() {
                       <IconButton
                         size="small"
                         onClick={() => setShowPassword((p) => !p)}
-                        aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                        aria-label={
+                          showPassword ? "Ocultar senha" : "Mostrar senha"
+                        }
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
@@ -258,20 +301,24 @@ export default function AdminsListPage() {
           {(promoteMutation.isError || createAdminMutation.isError) && (
             <Box sx={{ mt: 2 }}>
               <ErrorAlert
-                message={getErrorMessage(promoteMutation.error ?? createAdminMutation.error)}
+                message={getErrorMessage(
+                  promoteMutation.error ?? createAdminMutation.error,
+                )}
               />
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>Cancelar</Button>
-          {addTab === 'existing' ? (
+          {addTab === "existing" ? (
             <Button
               variant="contained"
               onClick={handlePromote}
               disabled={!selectedUserId || promoteMutation.isPending}
             >
-              {promoteMutation.isPending ? 'Salvando…' : 'Conceder administração'}
+              {promoteMutation.isPending
+                ? "Salvando…"
+                : "Conceder administração"}
             </Button>
           ) : (
             <Button
@@ -279,7 +326,9 @@ export default function AdminsListPage() {
               onClick={handleCreateAdmin}
               disabled={!canSubmitNew || createAdminMutation.isPending}
             >
-              {createAdminMutation.isPending ? 'Criando…' : 'Criar e conceder administração'}
+              {createAdminMutation.isPending
+                ? "Criando…"
+                : "Criar e conceder administração"}
             </Button>
           )}
         </DialogActions>
@@ -291,7 +340,7 @@ export default function AdminsListPage() {
         message={
           userToRemove
             ? `Remover o acesso de administrador de "${userToRemove.name}" (${userToRemove.email})? O usuário continuará no sistema e poderá ter participações em contextos.`
-            : ''
+            : ""
         }
         confirmText="Remover administração"
         cancelText="Cancelar"

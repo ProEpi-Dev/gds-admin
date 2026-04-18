@@ -1,4 +1,4 @@
-import type { FormVersion } from './form-version.types';
+import type { FormVersion } from "./form-version.types";
 
 export interface LoginDto {
   email: string;
@@ -71,6 +71,10 @@ export interface SignupDto {
   name: string;
   email: string;
   password: string;
+  enrollment?: string;
+  organizationLevel1?: string;
+  organizationLevel2?: string;
+  organizationLevel3?: string;
   contextId: number;
   acceptedLegalDocumentIds: number[];
 }

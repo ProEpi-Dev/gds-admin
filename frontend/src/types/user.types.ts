@@ -3,6 +3,10 @@ export interface User {
   name: string;
   email: string;
   active: boolean;
+  enrollment?: string | null;
+  organizationLevel1?: string | null;
+  organizationLevel2?: string | null;
+  organizationLevel3?: string | null;
   roleId?: number | null;
   roleName?: string | null;
   createdAt: string;
@@ -13,12 +17,16 @@ export interface CreateUserDto {
   name: string;
   email: string;
   password: string;
+  enrollment?: string;
+  organizationLevel1?: string;
+  organizationLevel2?: string;
+  organizationLevel3?: string;
   active?: boolean;
   /** ID do papel global (ex.: admin). Apenas admin pode definir ao criar. */
   roleId?: number;
 }
 
-import type { PaginationQuery } from './api.types';
+import type { PaginationQuery } from "./api.types";
 
 export interface UpdateUserDto {
   name?: string;
@@ -52,6 +60,12 @@ export interface UserRoleResponse {
 export interface UpdateProfileDto {
   genderId?: number;
   locationId?: number;
+  raceColorId?: number;
+  birthDate?: string;
+  enrollment?: string;
+  organizationLevel1?: string;
+  organizationLevel2?: string;
+  organizationLevel3?: string;
   externalIdentifier?: string;
 }
 
@@ -61,6 +75,12 @@ export interface ProfileStatusResponse {
   profile: {
     genderId: number | null;
     locationId: number | null;
+    raceColorId: number | null;
+    birthDate: string | null;
+    enrollment: string | null;
+    organizationLevel1: string | null;
+    organizationLevel2: string | null;
+    organizationLevel3: string | null;
     externalIdentifier: string | null;
   };
 }

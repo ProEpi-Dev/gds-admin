@@ -2,6 +2,10 @@ export interface SetupDto {
   managerName: string;
   managerEmail: string;
   managerPassword: string;
+  managerEnrollment?: string;
+  managerOrganizationLevel1?: string;
+  managerOrganizationLevel2?: string;
+  managerOrganizationLevel3?: string;
   contextName?: string;
   contextDescription?: string;
 }
@@ -20,6 +24,10 @@ export interface SetupResponse {
     name: string;
     email: string;
     active: boolean;
+    enrollment?: string | null;
+    organizationLevel1?: string | null;
+    organizationLevel2?: string | null;
+    organizationLevel3?: string | null;
     createdAt: string;
     updatedAt: string;
   };
@@ -30,4 +38,3 @@ export interface SetupResponse {
     active: boolean;
   };
 }
-

@@ -161,4 +161,13 @@ export const API_ENDPOINTS = {
     UPDATE: (id: number) => `/genders/${id}`,
     DELETE: (id: number) => `/genders/${id}`,
   },
+
+  // Race Colors
+  RACE_COLORS: {
+    LIST: "/race-colors",
+    DETAIL: (id: number) => `/race-colors/${id}`,
+    CREATE: "/race-colors",
+    UPDATE: (id: number) => `/race-colors/${id}`,
+    DELETE: (id: number) => `/race-colors/${id}`,
+  },
 };

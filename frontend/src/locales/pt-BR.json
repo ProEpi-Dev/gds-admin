@@ -73,7 +73,8 @@
     "legalDocuments": "Documentos Legais",
     "legalDocumentTypes": "Tipos de Documentos",
     "basicTables": "Tabelas Básicas",
-    "genders": "Gêneros"
+    "genders": "Sexos",
+    "raceColors": "Raça/Cor"
   },
   "reports": {
     "title": "Reports",
@@ -157,6 +158,8 @@
     "subtitle": "Crie sua conta para participar",
     "fullName": "Nome completo",
     "confirmPassword": "Confirmar senha",
+    "enrollment": "Matrícula",
+    "organizationPath": "Organização",
     "selectContext": "Selecione um contexto",
     "contextHelper": "Escolha o contexto público que você deseja participar",
     "legalDocuments": "Documentos Legais",
@@ -176,7 +179,12 @@
   "profile": {
     "title": "Completar Perfil",
     "subtitle": "Complete seu perfil para continuar",
-    "gender": "Gênero",
+    "sex": "Sexo",
+    "raceColor": "Raça/Cor",
+    "birthDate": "Data de Nascimento",
+    "age": "Idade",
+    "enrollment": "Matrícula",
+    "organization": "Organização",
     "location": "Localização",
     "externalIdentifier": "Identificador Externo",
     "externalIdentifierHelper": "CPF, Matrícula ou outro identificador",
@@ -187,11 +195,32 @@
     "profileIncomplete": "Perfil incompleto",
     "missingFields": "Campos faltando",
     "errors": {
-      "genderRequired": "Gênero é obrigatório",
+      "sexRequired": "Sexo é obrigatório",
       "locationRequired": "Localização é obrigatória",
+      "raceColorRequired": "Raça/Cor é obrigatória",
+      "birthDateRequired": "Data de nascimento é obrigatória",
+      "enrollmentRequired": "Matrícula é obrigatória",
+      "organizationRequired": "Organização é obrigatória",
       "externalIdentifierRequired": "Identificador externo é obrigatório"
     },
     "success": "Perfil atualizado com sucesso!"
+  },
+  "raceColors": {
+    "title": "Raça/Cor",
+    "newRaceColor": "Nova Raça/Cor",
+    "name": "Nome",
+    "status": "Status",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "deleteConfirm": "Confirmar exclusão",
+    "deleteMessage": "Tem certeza que deseja deletar a raça/cor \"{{name}}\"?",
+    "deleteSuccess": "Raça/Cor deletada com sucesso",
+    "deleteError": "Erro ao deletar raça/cor",
+    "createSuccess": "Raça/Cor criada com sucesso",
+    "errorCreating": "Erro ao criar raça/cor",
+    "updateSuccess": "Raça/Cor atualizada com sucesso",
+    "errorUpdating": "Erro ao atualizar raça/cor",
+    "errorLoading": "Erro ao carregar raça/cor"
   },
   "legalDocuments": {
     "title": "Documentos Legais",
@@ -286,6 +315,8 @@
     "name": "Nome",
     "email": "Email",
     "password": "Senha",
+    "enrollment": "Matrícula",
+    "organizationPath": "Organização",
     "status": "Status",
     "actions": "Ações",
     "active": "Ativo",

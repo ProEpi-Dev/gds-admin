@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { usersService } from '../api/services/users.service';
-import type { ProfileStatusResponse } from '../types/user.types';
+import { useQuery } from "@tanstack/react-query";
+import { usersService } from "../api/services/users.service";
+import type { ProfileStatusResponse } from "../types/user.types";
 
 export function useProfileStatus(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery<ProfileStatusResponse>({
-    queryKey: ['profile-status'],
+    queryKey: ["profile-status"],
     queryFn: () => usersService.getProfileStatus(),
     staleTime: 2 * 60 * 1000, // Cache por 2 minutos
     retry: 1,
@@ -14,7 +14,17 @@ export function useProfileStatus(enabled = true) {
   return {
     isComplete: data?.isComplete ?? false,
     missingFields: data?.missingFields ?? [],
-    profile: data?.profile ?? { genderId: null, locationId: null, externalIdentifier: null },
+    profile: data?.profile ?? {
+      genderId: null,
+      locationId: null,
+      raceColorId: null,
+      birthDate: null,
+      enrollment: null,
+      organizationLevel1: null,
+      organizationLevel2: null,
+      organizationLevel3: null,
+      externalIdentifier: null,
+    },
     isLoading,
     error,
     refetch,

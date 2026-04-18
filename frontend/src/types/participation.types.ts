@@ -1,4 +1,4 @@
-import type { PaginationQuery } from './api.types';
+import type { PaginationQuery } from "./api.types";
 
 export interface Participation {
   id: number;
@@ -24,6 +24,14 @@ export interface CreateParticipationDto {
   newUserEmail?: string;
   /** Senha do novo usuário (criação inline) */
   newUserPassword?: string;
+  /** Matrícula do novo usuário (criação inline) */
+  newUserEnrollment?: string;
+  /** Organização nível 1 do novo usuário (criação inline) */
+  newUserOrganizationLevel1?: string;
+  /** Organização nível 2 do novo usuário (criação inline) */
+  newUserOrganizationLevel2?: string;
+  /** Organização nível 3 do novo usuário (criação inline) */
+  newUserOrganizationLevel3?: string;
   contextId: number;
   startDate: string;
   endDate?: string;
@@ -49,4 +57,3 @@ export interface ParticipationQuery extends PaginationQuery {
   /** Buscar por nome ou email do usuário (server-side) */
   search?: string;
 }
-

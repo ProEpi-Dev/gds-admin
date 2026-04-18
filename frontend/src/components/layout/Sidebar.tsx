@@ -85,6 +85,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   }>({
     basicTables:
       location.pathname.startsWith("/genders") ||
+      location.pathname.startsWith("/race-colors") ||
       location.pathname.startsWith("/legal-documents/types"),
     quizzes:
       location.pathname.startsWith("/quizzes") ||
@@ -136,6 +137,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         path: "/participations",
         label: t("navigation.participations"),
         icon: <AssignmentIcon />,
+        roles: ["admin", "manager"],
+      },
+      {
+        path: "/users",
+        label: t("navigation.users"),
+        icon: <PeopleIcon />,
         roles: ["admin", "manager"],
       },
       {
@@ -220,6 +227,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           {
             path: "/genders",
             label: t("navigation.genders"),
+            icon: <PeopleIcon />,
+          },
+          {
+            path: "/race-colors",
+            label: t("navigation.raceColors"),
             icon: <PeopleIcon />,
           },
           {
