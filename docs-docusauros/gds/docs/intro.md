@@ -35,6 +35,7 @@ A aplicação web de administração oferece as seguintes funcionalidades para g
 - **Formulários de Vigilância**: Criação e gerenciamento de formulários para registro de sinais e sintomas
 - **Dados adicionais de perfil (`profile_extra`)**: Formulários por contexto para o app do cidadão; documentação de API e fluxo em [Dados adicionais de perfil](/arquitetura/modelagem-banco-dados/dados-adicionais-perfil)
 - **Relatórios Epidemiológicos**: Geração e análise de relatórios de saúde pública
+- **Classificação sindrômica**: Motor de score por síndrome (pesos e limiares), extração de sintomas por formulário e relatórios de vigilância — ver [Classificação sindrômica](/arquitetura/modelagem-banco-dados/classificacao-sindromica)
 - **Quizzes Educacionais**: Criação e gerenciamento de avaliações e questionários sobre saúde pública
 - **Trilhas de Aprendizado**: Estruturação de conteúdo educacional em trilhas para capacitação
 - **Documentos Legais**: Gestão de termos de uso e políticas de privacidade
