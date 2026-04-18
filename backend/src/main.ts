@@ -30,6 +30,8 @@ async function bootstrap() {
       'https://www.dev.gds.proepi.org.br',
       'https://api.dev.gds.proepi.org.br',
       'https://www.api.dev.gds.proepi.org.br',
+      'https://console.gds.proepi.org.br',
+      'https://api.gds.proepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-gds-channel'],

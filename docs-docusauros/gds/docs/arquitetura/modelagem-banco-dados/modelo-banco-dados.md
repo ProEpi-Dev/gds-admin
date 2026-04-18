@@ -12,6 +12,7 @@ O diagrama completo abaixo é extenso. Para uma visão mais detalhada de cada pa
 - [Papéis e Permissões (RBAC)](papeis-permissoes-rbac) - Controle de acesso: roles, permissions, participation_role
 - [Conteúdo e Tags](conteudo-tags) - Artigos, materiais educacionais e sistema de tags
 - [Formulários e Relatórios](formularios-relatorios) - Formulários, versões, relatórios e quizzes
+- [Classificação sindrômica](classificacao-sindromica) - Sintomas, síndromes, pesos, extração por formulário, `report_syndrome_score` e API
 - [Dados adicionais de perfil](dados-adicionais-perfil) - Formulário `profile_extra`, API e fluxo para apps (Android/iOS) e web
 - [Trilhas de Aprendizado](trilhas-aprendizado) - Trilhas, seções e sequências
 

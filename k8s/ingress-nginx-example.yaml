@@ -1,0 +1,65 @@
+# Exemplo de Ingress para clusters com Ingress NGINX (IngressClass `nginx`).
+#
+# Use este ficheiro em vez de `ingress.yaml` quando o controller ativo for o
+# ingress-nginx, não o Traefik. O manifest base (`ingress.yaml`) usa
+# anotações `traefik.ingress.kubernetes.io/*` e não define `ingressClassName`;
+# nesse cenário o NGINX ignora o recurso (CLASS fica <none>, ADDRESS vazio).
+#
+# Antes de aplicar: confirme `kubectl get ingressclass` e o nome da classe
+# (normalmente `nginx`). Ajuste hosts, TLS e ClusterIssuer conforme o ambiente.
+#
+# Legado (evite se `ingressClassName` estiver disponível):
+#   metadata.annotations.kubernetes.io/ingress.class: "nginx"
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gds-backend-ingress
+  namespace: gds
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.gds.proepi.org.br
+      secretName: gds-backend-tls
+  rules:
+    - host: api.gds.proepi.org.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gds-backend
+                port:
+                  number: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gds-frontend-ingress
+  namespace: gds
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - console.gds.proepi.org.br
+      secretName: gds-frontend-tls
+  rules:
+    - host: console.gds.proepi.org.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gds-frontend
+                port:
+                  number: 80

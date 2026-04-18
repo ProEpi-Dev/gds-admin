@@ -177,6 +177,12 @@ Relatórios gerados a partir de formulários do tipo "signal".
 - `idx_report_form_version_id` (form_version_id)
 - `idx_report_participation_id` (participation_id)
 
+:::tip Classificação sindrômica
+
+A partir das respostas em `form_response`, o backend pode calcular scores por síndrome e persistir em `report_syndrome_score`, com configuração por `form` e catálogos de sintomas/síndromes. Documentação completa: [Classificação sindrômica](classificacao-sindromica).
+
+:::
+
 ### QUIZ_SUBMISSION
 
 Submissões de quizzes com pontuação e resultados detalhados.
