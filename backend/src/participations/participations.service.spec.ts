@@ -19,6 +19,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 describe('ParticipationsService', () => {
   let service: ParticipationsService;
   let prismaService: PrismaService;
+  let auditLogService: AuditLogService;
 
   const mockParticipation = {
     id: 1,
@@ -111,6 +112,7 @@ describe('ParticipationsService', () => {
 
     service = module.get<ParticipationsService>(ParticipationsService);
     prismaService = module.get<PrismaService>(PrismaService);
+    auditLogService = module.get<AuditLogService>(AuditLogService);
   });
 
   describe('create', () => {
@@ -621,17 +623,33 @@ describe('ParticipationsService', () => {
   });
 
   describe('permanentRemove', () => {
-    it('deve excluir permanentemente participação inativa', async () => {
+    it('deve excluir permanentemente participação inativa e usuário sem outras participações', async () => {
       jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
         ...mockParticipation,
         active: false,
       } as any);
       const deleteMock = jest.fn().mockResolvedValue(undefined);
+      const participationCount = jest.fn().mockResolvedValue(0);
+      const userFindUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        role: { scope: 'context', code: 'participant' },
+      });
+      const contentCount = jest.fn().mockResolvedValue(0);
+      const userDelete = jest.fn().mockResolvedValue(undefined);
+      const recordWithTxSpy = jest
+        .spyOn(auditLogService, 'recordWithTx')
+        .mockResolvedValue(undefined);
       (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
         const tx = {
           participation: {
             delete: deleteMock,
+            count: participationCount,
           },
+          user: {
+            findUnique: userFindUnique,
+            delete: userDelete,
+          },
+          content: { count: contentCount },
           $executeRaw: jest.fn(),
         };
         return cb(tx);
@@ -640,6 +658,110 @@ describe('ParticipationsService', () => {
       await service.permanentRemove(1, 777);
 
       expect(deleteMock).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(participationCount).toHaveBeenCalledWith({ where: { user_id: 1 } });
+      expect(userDelete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(recordWithTxSpy).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          action: 'PARTICIPATION_PERMANENT_DELETE',
+          targetEntityId: 1,
+          metadata: expect.objectContaining({
+            deletedUserIdBecauseNoParticipationsRemaining: 1,
+          }),
+        }),
+      );
+      expect(deleteMock.mock.invocationCallOrder[0]).toBeLessThan(
+        recordWithTxSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('permanentRemove: não remove usuário se ainda existir outra participação', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      const participationCount = jest.fn().mockResolvedValue(1);
+      const userDelete = jest.fn();
+      jest.spyOn(auditLogService, 'recordWithTx').mockResolvedValue(undefined);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            delete: jest.fn().mockResolvedValue(undefined),
+            count: participationCount,
+          },
+          user: { findUnique: jest.fn(), delete: userDelete },
+          content: { count: jest.fn() },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
+      });
+
+      await service.permanentRemove(1, 1);
+
+      expect(userDelete).not.toHaveBeenCalled();
+    });
+
+    it('permanentRemove: não remove usuário com papel global', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      const participationCount = jest.fn().mockResolvedValue(0);
+      const userFindUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        role: { scope: 'global', code: 'admin' },
+      });
+      const userDelete = jest.fn();
+      jest.spyOn(auditLogService, 'recordWithTx').mockResolvedValue(undefined);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            delete: jest.fn().mockResolvedValue(undefined),
+            count: participationCount,
+          },
+          user: { findUnique: userFindUnique, delete: userDelete },
+          content: { count: jest.fn() },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
+      });
+
+      await service.permanentRemove(1, 1);
+
+      expect(userFindUnique).toHaveBeenCalled();
+      expect(userDelete).not.toHaveBeenCalled();
+    });
+
+    it('permanentRemove: não remove usuário que é autor de conteúdo', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as any);
+      const participationCount = jest.fn().mockResolvedValue(0);
+      const userFindUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        role: { scope: 'context', code: 'participant' },
+      });
+      const contentCount = jest.fn().mockResolvedValue(2);
+      const userDelete = jest.fn();
+      jest.spyOn(auditLogService, 'recordWithTx').mockResolvedValue(undefined);
+      (prismaService as any).$transaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => {
+        const tx = {
+          participation: {
+            delete: jest.fn().mockResolvedValue(undefined),
+            count: participationCount,
+          },
+          user: { findUnique: userFindUnique, delete: userDelete },
+          content: { count: contentCount },
+          $executeRaw: jest.fn(),
+        };
+        return cb(tx);
+      });
+
+      await service.permanentRemove(1, 1);
+
+      expect(contentCount).toHaveBeenCalledWith({ where: { author_id: 1 } });
+      expect(userDelete).not.toHaveBeenCalled();
     });
 
     it('deve lançar BadRequestException quando participação está ativa', async () => {

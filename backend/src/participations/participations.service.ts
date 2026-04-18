@@ -490,25 +490,78 @@ export class ParticipationsService {
       );
     }
 
+    const pid = participation.id;
+    const contextId = participation.context_id;
+    const targetUserId = participation.user_id;
+
     await this.prisma.$transaction(async (tx) => {
+      await tx.participation.delete({ where: { id: pid } });
+
+      const deletedUserId =
+        await this.deleteUserIfNoParticipationsRemain(tx, targetUserId);
+
       await this.auditLogService.recordWithTx(tx, {
         action: 'PARTICIPATION_PERMANENT_DELETE',
         targetEntityType: 'participation',
-        targetEntityId: participation.id,
+        targetEntityId: pid,
         actor: { userId: actorUserId },
-        contextId: participation.context_id,
-        targetUserId: participation.user_id,
+        contextId,
+        targetUserId,
         request: auditRequest ?? null,
         metadata: {
           previousActive: participation.active,
           endDate: participation.end_date,
+          ...(typeof deletedUserId === 'number'
+            ? { deletedUserIdBecauseNoParticipationsRemaining: deletedUserId }
+            : {}),
         },
       });
-
-      await tx.participation.delete({
-        where: { id: participation.id },
-      });
     });
+  }
+
+  /**
+   * Se não restar nenhuma participação para o usuário, remove o registro em `user`
+   * (evita “usuário órfão”). Não remove se houver papel global ou conteúdos como autor.
+   */
+  private async deleteUserIfNoParticipationsRemain(
+    tx: Prisma.TransactionClient,
+    userId: number,
+  ): Promise<number | null> {
+    const remaining = await tx.participation.count({
+      where: { user_id: userId },
+    });
+    if (remaining > 0) {
+      return null;
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      include: { role: { select: { scope: true, code: true } } },
+    });
+    if (!user) {
+      return null;
+    }
+    if (user.role?.scope === 'global') {
+      this.logger.warn(
+        { userId },
+        'Usuário sem participações mantido: possui papel de escopo global.',
+      );
+      return null;
+    }
+
+    const contentCount = await tx.content.count({
+      where: { author_id: userId },
+    });
+    if (contentCount > 0) {
+      this.logger.warn(
+        { userId, contentCount },
+        'Usuário sem participações mantido: existe conteúdo em que é autor.',
+      );
+      return null;
+    }
+
+    await tx.user.delete({ where: { id: userId } });
+    return userId;
   }
 
   async findRoles(participationId: number): Promise<RoleResponseDto[]> {

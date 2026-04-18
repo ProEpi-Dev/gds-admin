@@ -56,6 +56,7 @@ describe('ContextsService', () => {
               findFirst: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              createMany: jest.fn().mockResolvedValue({ count: 10 }),
             },
           },
         },
@@ -96,6 +97,17 @@ describe('ContextsService', () => {
 
       expect(result).toHaveProperty('id', 1);
       expect(result).toHaveProperty('name', 'Test Context');
+      expect(prismaService.context_configuration.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              context_id: 1,
+              key: 'negative_report_dedup_window_min',
+            }),
+          ]),
+          skipDuplicates: true,
+        }),
+      );
     });
 
     it('deve incluir description quando fornecido', async () => {
@@ -309,6 +321,40 @@ describe('ContextsService', () => {
         key: 'a_key',
         value: 0,
       });
+      expect(prismaService.context_configuration.createMany).not.toHaveBeenCalled();
+    });
+
+    it('deve semear configuração padrão quando não há linhas (contextos antigos)', async () => {
+      jest
+        .spyOn(prismaService.context, 'findUnique')
+        .mockResolvedValue({ id: 4 } as any);
+      const seeded = [
+        {
+          id: 1,
+          key: 'allowed_email_domains',
+          value: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ];
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce(seeded as any);
+
+      const result = await service.findConfiguration(4);
+
+      expect(prismaService.context_configuration.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({ context_id: 4, key: 'social_sso_enabled' }),
+          ]),
+          skipDuplicates: true,
+        }),
+      );
+      expect(prismaService.context_configuration.findMany).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('allowed_email_domains');
     });
   });
 
