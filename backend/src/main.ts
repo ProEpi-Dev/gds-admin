@@ -31,7 +31,9 @@ async function bootstrap() {
       'https://api.dev.gds.proepi.org.br',
       'https://www.api.dev.gds.proepi.org.br',
       'https://console.gds.proepi.org.br',
+      'https://console.gds.proepi.unb.br',
       'https://api.gds.proepi.org.br',
+      'https://api.gds.propepi.org.br',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-gds-channel'],
@@ -68,6 +70,7 @@ async function bootstrap() {
     )
     .addServer('http://localhost:3000', 'Local development server')
     .addServer('https://devapi.gds.proepi.org.br', 'Development server')
+    .addServer('https://api.gds.propepi.org.br', 'Production server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
