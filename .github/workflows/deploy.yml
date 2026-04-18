@@ -2,9 +2,8 @@ name: 🚀 Build and Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, develop]
     paths-ignore:
-      - "k8s/**"
       - "**/README.md"
       - "**/*.md"
   workflow_dispatch:
@@ -21,52 +20,52 @@ jobs:
       backend: ${{ steps.changes.outputs.backend }}
       frontend: ${{ steps.changes.outputs.frontend }}
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: 🔍 Detect changes
-      id: changes
-      run: |
-        # Se for workflow_dispatch, builda tudo
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "backend=true" >> $GITHUB_OUTPUT
-          echo "frontend=true" >> $GITHUB_OUTPUT
-          echo "📊 Workflow manual dispatch - building all components"
-          exit 0
-        fi
-        
-        # Para push direto, comparar com commit anterior
-        BASE_SHA=$(git rev-parse HEAD~1)
-        
-        echo "Base SHA: $BASE_SHA"
-        echo "Current SHA: ${{ github.sha }}"
-        
-        # Verificar mudanças em cada pasta
-        # git diff --quiet retorna 0 se NÃO há diferenças, então invertemos a lógica
-        if git diff --quiet $BASE_SHA..${{ github.sha }} -- backend/; then
-          echo "backend=false" >> $GITHUB_OUTPUT
-        else
-          echo "backend=true" >> $GITHUB_OUTPUT
-        fi
-        
-        if git diff --quiet $BASE_SHA..${{ github.sha }} -- frontend/; then
-          echo "frontend=false" >> $GITHUB_OUTPUT
-        else
-          echo "frontend=true" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "📊 Changes detected:"
-        echo "  Backend: $(grep backend $GITHUB_OUTPUT | cut -d= -f2)"
-        echo "  Frontend: $(grep frontend $GITHUB_OUTPUT | cut -d= -f2)"
+      - name: 🔍 Detect changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "backend=true" >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "📊 Workflow manual dispatch - building all components"
+            exit 0
+          fi
 
-    - name: 📢 Show detected changes
-      run: |
-        echo "### 📊 Change Detection Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **Backend:** ${{ steps.changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Frontend:** ${{ steps.changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            BASE_SHA=$(git rev-parse HEAD~1)
+          else
+            BASE_SHA=$(git rev-list --max-parents=0 HEAD | head -1)
+          fi
+
+          echo "Base SHA: $BASE_SHA"
+          echo "Current SHA: ${{ github.sha }}"
+
+          if git diff --quiet "$BASE_SHA"..${{ github.sha }} -- backend/; then
+            echo "backend=false" >> $GITHUB_OUTPUT
+          else
+            echo "backend=true" >> $GITHUB_OUTPUT
+          fi
+
+          if git diff --quiet "$BASE_SHA"..${{ github.sha }} -- frontend/; then
+            echo "frontend=false" >> $GITHUB_OUTPUT
+          else
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          fi
+
+          echo "📊 Changes detected:"
+          echo "  Backend: $(grep '^backend=' "$GITHUB_OUTPUT" | cut -d= -f2)"
+          echo "  Frontend: $(grep '^frontend=' "$GITHUB_OUTPUT" | cut -d= -f2)"
+
+      - name: 📢 Show detected changes
+        run: |
+          echo "### 📊 Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** ${{ steps.changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** ${{ steps.changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
 
   build-backend:
     name: 🏗️ Build Backend
@@ -104,6 +103,8 @@ jobs:
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
             type=raw,value=${{ steps.timestamp.outputs.date }}
 
       - name: 🏗️ Build and push backend image
@@ -130,6 +131,15 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
+      - name: 📝 Verificar env do frontend para o build
+        run: |
+          cd frontend
+          if [ "${{ github.ref_name }}" = "develop" ]; then
+            test -f .env.development || { echo "::error::Falta frontend/.env.development"; exit 1; }
+          else
+            test -f .env.production || { echo "::error::Falta frontend/.env.production"; exit 1; }
+          fi
+
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -139,22 +149,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 📝 Setup environment variables
-        run: |
-          cd frontend
-          
-          echo "🔧 Configurando ambiente..."
-          
-          if [ ! -f ".env.production" ]; then
-            echo "❌ Arquivo .env.production não encontrado!"
-            echo "📝 Criando arquivo com configuração padrão..."
-            echo "VITE_API_BASE_URL=https://devapi.gds.proepi.org.br/v1" > .env.production
-          fi
-          
-          echo "✅ Ambiente configurado!"
-          echo "📄 Conteúdo do .env.production:"
-          cat .env.production
 
       - name: 📅 Generate timestamp
         id: timestamp
@@ -169,6 +163,8 @@ jobs:
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
             type=raw,value=${{ steps.timestamp.outputs.date }}
 
       - name: 🏗️ Build and push frontend image
@@ -179,6 +175,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_BUILD_MODE=${{ github.ref_name == 'develop' && 'development' || 'production' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -187,219 +185,238 @@ jobs:
     needs: [detect-changes, build-backend]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       needs.detect-changes.outputs.backend == 'true' &&
       needs.build-backend.result == 'success'
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🔧 Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
+      - name: 🔧 Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
 
-    - name: 🔐 Configure kubectl
-      run: |
-        # Decode base64 to YAML
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
-        
-        # Test connection
-        export KUBECONFIG=kubeconfig.yaml
-        kubectl cluster-info
+      - name: 🔐 Configure kubectl
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "📌 Cluster: produção (secret KUBE_CONFIG_PROD)"
+            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig.yaml
+          else
+            echo "📌 Cluster: desenvolvimento (secret KUBE_CONFIG)"
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+          fi
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl cluster-info
 
-    - name: 🔄 Sync database migrations
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        # Sync migrations to ConfigMap
-        if [ -f k8s/sync-migrations.sh ]; then
-          chmod +x k8s/sync-migrations.sh
-          ./k8s/sync-migrations.sh
-        fi
+      - name: 🔄 Sync database migrations
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
 
-    - name: 🗄️ Run database migrations
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        # Apply migration job
-        kubectl apply -f k8s/database-migration-job.yaml -n gds
-        
-        # Wait for migration to complete (with timeout)
-        kubectl wait --for=condition=complete job/database-migration -n gds --timeout=300s || true
-        
-        # Show migration logs
-        kubectl logs -l job-name=database-migration -n gds --tail=50 || true
-        
-        # Clean up job
-        kubectl delete job database-migration -n gds --ignore-not-found=true
+          if [ -f k8s/sync-migrations.sh ]; then
+            chmod +x k8s/sync-migrations.sh
+            ./k8s/sync-migrations.sh
+          fi
 
-    - name: 🚀 Deploy Backend
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        # Aplica o template do Deployment (envFrom ConfigMap OTEL, OTEL_SERVICE_INSTANCE_ID, etc.)
-        kubectl apply -f k8s/backend-deployment.yaml
-        
-        echo "🔄 Restarting backend deployment..."
-        kubectl rollout restart deployment/gds-backend -n gds
-        
-        echo "⏳ Waiting for rollout to complete..."
-        kubectl rollout status deployment/gds-backend -n gds --timeout=300s
+      - name: 🗄️ Run database migrations
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
 
-    - name: ✅ Verify backend deployment
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        echo "📋 Backend pods status:"
-        kubectl get pods -l app=gds-backend -n gds
-        echo ""
-        echo "🌐 Backend service:"
-        kubectl get svc gds-backend -n gds || true
+          kubectl apply -f k8s/database-migration-job.yaml -n gds
+
+          kubectl wait --for=condition=complete job/database-migration -n gds --timeout=300s || true
+
+          kubectl logs -l job-name=database-migration -n gds --tail=50 || true
+
+          kubectl delete job database-migration -n gds --ignore-not-found=true
+
+      - name: 🚀 Deploy Backend
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          REGISTRY="${{ env.REGISTRY }}"
+          IMAGE="${{ env.IMAGE_NAME }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then TAG=prod; else TAG=develop; fi
+
+          kubectl apply -f k8s/backend-deployment.yaml
+
+          kubectl set image deployment/gds-backend \
+            backend=${REGISTRY}/${IMAGE}/backend:${TAG} -n gds
+
+          echo "⏳ Aguardando rollout..."
+          kubectl rollout status deployment/gds-backend -n gds --timeout=300s
+
+      - name: ✅ Verify backend deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          echo "📋 Backend pods status:"
+          kubectl get pods -l app=gds-backend -n gds
+          echo ""
+          echo "🌐 Backend service:"
+          kubectl get svc gds-backend -n gds || true
 
   deploy-frontend:
     name: 🎨 Deploy Frontend
     needs: [detect-changes, build-frontend]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       needs.detect-changes.outputs.frontend == 'true' &&
       needs.build-frontend.result == 'success'
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🔧 Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
+      - name: 🔧 Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
 
-    - name: 🔐 Configure kubectl
-      run: |
-        # Decode base64 to YAML
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
-        
-        # Test connection
-        export KUBECONFIG=kubeconfig.yaml
-        kubectl cluster-info
+      - name: 🔐 Configure kubectl
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "📌 Cluster: produção (secret KUBE_CONFIG_PROD)"
+            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig.yaml
+          else
+            echo "📌 Cluster: desenvolvimento (secret KUBE_CONFIG)"
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+          fi
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl cluster-info
 
-    - name: 🎨 Deploy Frontend
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        echo "🔄 Restarting frontend deployment..."
-        kubectl rollout restart deployment/gds-frontend -n gds
-        
-        echo "⏳ Waiting for rollout to complete..."
-        kubectl rollout status deployment/gds-frontend -n gds --timeout=300s
+      - name: 🎨 Deploy Frontend
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          REGISTRY="${{ env.REGISTRY }}"
+          IMAGE="${{ env.IMAGE_NAME }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then TAG=prod; else TAG=develop; fi
 
-    - name: ✅ Verify frontend deployment
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        echo "📋 Frontend pods status:"
-        kubectl get pods -l app=gds-frontend -n gds
-        echo ""
-        echo "🌐 Frontend service:"
-        kubectl get svc gds-frontend -n gds || true
+          kubectl apply -f k8s/frontend-deployment.yaml
+
+          kubectl set image deployment/gds-frontend \
+            frontend=${REGISTRY}/${IMAGE}/frontend:${TAG} -n gds
+
+          echo "⏳ Aguardando rollout..."
+          kubectl rollout status deployment/gds-frontend -n gds --timeout=300s
+
+      - name: ✅ Verify frontend deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          echo "📋 Frontend pods status:"
+          kubectl get pods -l app=gds-frontend -n gds
+          echo ""
+          echo "🌐 Frontend service:"
+          kubectl get svc gds-frontend -n gds || true
 
   verify-deployment:
     name: ✅ Verify Deployment
     needs: [deploy-backend, deploy-frontend]
     if: |
       always() &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       (needs.deploy-backend.result == 'success' || needs.deploy-frontend.result == 'success')
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🔧 Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
+      - name: 🔧 Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
 
-    - name: 🔐 Configure kubectl
-      run: |
-        # Decode base64 to YAML
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
-        
-        # Test connection
-        export KUBECONFIG=kubeconfig.yaml
-        kubectl cluster-info
+      - name: 🔐 Configure kubectl
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig.yaml
+          else
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+          fi
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl cluster-info
 
-    - name: ✅ Verify deployment
-      run: |
-        export KUBECONFIG=kubeconfig.yaml
-        
-        echo "📋 Deployment status:"
-        kubectl get pods -n gds
-        echo ""
-        echo "🌐 Services:"
-        kubectl get svc -n gds
-        echo ""
-        echo "🔗 Ingress:"
-        kubectl get ingress -n gds
+      - name: ✅ Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+
+          echo "📋 Deployment status:"
+          kubectl get pods -n gds
+          echo ""
+          echo "🌐 Services:"
+          kubectl get svc -n gds
+          echo ""
+          echo "🔗 Ingress:"
+          kubectl get ingress -n gds
 
   notify:
     name: 📢 Notify Results
     needs: [detect-changes, build-backend, build-frontend, deploy-backend, deploy-frontend, verify-deployment]
     runs-on: ubuntu-latest
     if: always()
-    
-    steps:
-    - name: 📊 Generate Summary
-      run: |
-        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "### 📊 Changes Detected" >> $GITHUB_STEP_SUMMARY
-        echo "- **Backend:** ${{ needs.detect-changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Frontend:** ${{ needs.detect-changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "### 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
-        echo "- **Backend Build:** ${{ needs.build-backend.result == 'success' && '✅ Success' || needs.build-backend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Frontend Build:** ${{ needs.build-frontend.result == 'success' && '✅ Success' || needs.build-frontend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "### 🚀 Deployment Status" >> $GITHUB_STEP_SUMMARY
-        echo "- **Backend Deploy:** ${{ needs.deploy-backend.result == 'success' && '✅ Success' || needs.deploy-backend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' || 'Not triggered' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Frontend Deploy:** ${{ needs.deploy-frontend.result == 'success' && '✅ Success' || needs.deploy-frontend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' || 'Not triggered' }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        BACKEND_DEPLOY_STATUS="${{ needs.deploy-backend.result }}"
-        FRONTEND_DEPLOY_STATUS="${{ needs.deploy-frontend.result }}"
-        
-        if [ "$BACKEND_DEPLOY_STATUS" == "success" ] || [ "$FRONTEND_DEPLOY_STATUS" == "success" ]; then
-          echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
-          if [ "$BACKEND_DEPLOY_STATUS" == "success" ]; then
-            echo "- ✅ Backend deployed successfully" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ "$FRONTEND_DEPLOY_STATUS" == "success" ]; then
-            echo "- ✅ Frontend deployed successfully" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Your changes have been deployed to the Kubernetes cluster." >> $GITHUB_STEP_SUMMARY
-        elif [ "$BACKEND_DEPLOY_STATUS" == "skipped" ] && [ "$FRONTEND_DEPLOY_STATUS" == "skipped" ]; then
-          echo "### ℹ️ Deployment Skipped" >> $GITHUB_STEP_SUMMARY
-          echo "Images built successfully but deployment was skipped (no changes detected or not on main branch)." >> $GITHUB_STEP_SUMMARY
-        else
-          echo "### ⚠️ Partial Deployment" >> $GITHUB_STEP_SUMMARY
-          if [ "$BACKEND_DEPLOY_STATUS" != "success" ] && [ "$BACKEND_DEPLOY_STATUS" != "skipped" ]; then
-            echo "- ❌ Backend deployment failed or was not triggered" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ "$FRONTEND_DEPLOY_STATUS" != "success" ] && [ "$FRONTEND_DEPLOY_STATUS" != "skipped" ]; then
-            echo "- ❌ Frontend deployment failed or was not triggered" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
-        fi
 
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "**Ambiente:** produção (DigitalOcean) — imagens \`:prod\`" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "**Ambiente:** desenvolvimento (Hostinger) — imagens \`:develop\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Branch:** ${{ github.ref_name }} (deploy só em \`main\` ou \`develop\`)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 📊 Changes Detected" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** ${{ needs.detect-changes.outputs.backend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** ${{ needs.detect-changes.outputs.frontend == 'true' && '✅ Changed' || '⏭️ No changes' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Build:** ${{ needs.build-backend.result == 'success' && '✅ Success' || needs.build-backend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Build:** ${{ needs.build-frontend.result == 'success' && '✅ Success' || needs.build-frontend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🚀 Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Deploy:** ${{ needs.deploy-backend.result == 'success' && '✅ Success' || needs.deploy-backend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Deploy:** ${{ needs.deploy-frontend.result == 'success' && '✅ Success' || needs.deploy-frontend.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          BACKEND_DEPLOY_STATUS="${{ needs.deploy-backend.result }}"
+          FRONTEND_DEPLOY_STATUS="${{ needs.deploy-frontend.result }}"
+
+          if [ "$BACKEND_DEPLOY_STATUS" = "success" ] || [ "$FRONTEND_DEPLOY_STATUS" = "success" ]; then
+            echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+            if [ "$BACKEND_DEPLOY_STATUS" = "success" ]; then
+              echo "- ✅ Backend deployed successfully" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "$FRONTEND_DEPLOY_STATUS" = "success" ]; then
+              echo "- ✅ Frontend deployed successfully" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Alterações aplicadas no cluster correspondente à branch." >> $GITHUB_STEP_SUMMARY
+          elif [ "$BACKEND_DEPLOY_STATUS" = "skipped" ] && [ "$FRONTEND_DEPLOY_STATUS" = "skipped" ]; then
+            echo "### ℹ️ Deployment Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "Build concluído ou sem alterações em backend/frontend; deploy só após push em \`main\`/\`develop\` com mudanças relevantes." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Partial Deployment" >> $GITHUB_STEP_SUMMARY
+            if [ "$BACKEND_DEPLOY_STATUS" != "success" ] && [ "$BACKEND_DEPLOY_STATUS" != "skipped" ]; then
+              echo "- ❌ Backend deployment failed or was not triggered" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "$FRONTEND_DEPLOY_STATUS" != "success" ] && [ "$FRONTEND_DEPLOY_STATUS" != "skipped" ]; then
+              echo "- ❌ Frontend deployment failed or was not triggered" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          fi
