@@ -74,8 +74,13 @@ export default function SetupForm() {
   } = useForm<SetupFormData>({
     resolver: zodResolver(setupSchema),
     defaultValues: {
+      managerName: "Admin",
+      managerEmail: "admin@example.com",
+      managerPassword: "admin123",
       managerPersonType: "communityLeader",
       managerOrganizationPath: ORGANIZATION_OPTION.value,
+      contextName: "Contexto Principal",
+      contextDescription: "Contexto padrão do sistema",
     },
   });
 

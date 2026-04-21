@@ -11,13 +11,17 @@ import {
   Divider,
   Chip,
   Skeleton,
-} from '@mui/material';
-import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { Logout as LogoutIcon, Lock as LockIcon, Person as PersonIcon } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { useUserRole } from '../../hooks/useUserRole';
+} from "@mui/material";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import {
+  Logout as LogoutIcon,
+  Lock as LockIcon,
+  Person as PersonIcon,
+} from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useUserRole } from "../../hooks/useUserRole";
 
 function getRoleLabel(
   isAdmin: boolean,
@@ -25,11 +29,11 @@ function getRoleLabel(
   isContentManager: boolean,
   isParticipant: boolean,
 ): string {
-  if (isAdmin) return 'Administrador';
-  if (isManager) return 'Gerente';
-  if (isContentManager) return 'Gerente de Conteúdo';
-  if (isParticipant) return 'Participante';
-  return 'Sem papel';
+  if (isAdmin) return "Administrador";
+  if (isManager) return "Gerente";
+  if (isContentManager) return "Gerente de Conteúdo";
+  if (isParticipant) return "Participante";
+  return "Sem papel";
 }
 
 interface UserLayoutProps {
@@ -39,8 +43,13 @@ interface UserLayoutProps {
 export default function UserLayout({ children }: UserLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
-    useUserRole();
+  const {
+    isAdmin,
+    isManager,
+    isContentManager,
+    isParticipant,
+    isLoading: roleLoading,
+  } = useUserRole();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -54,52 +63,75 @@ export default function UserLayout({ children }: UserLayoutProps) {
 
   const handleProfile = () => {
     handleClose();
-    navigate('/app/profile');
+    navigate("/app/profile");
   };
 
   const handleChangePassword = () => {
     handleClose();
-    navigate('/change-password');
+    navigate("/change-password");
   };
 
   const handleLogout = () => {
     handleClose();
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const getInitials = (name: string) =>
     name
-      .split(' ')
+      .split(" ")
       .map((n) => n[0])
-      .join('')
+      .join("")
       .toUpperCase()
       .slice(0, 2);
 
-  const roleLabel = getRoleLabel(isAdmin, isManager, isContentManager, isParticipant);
+  const roleLabel = getRoleLabel(
+    isAdmin,
+    isManager,
+    isContentManager,
+    isParticipant,
+  );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        overflowY: "scroll",
+        scrollbarGutter: "stable",
+      }}
+    >
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Guardiões da Saúde
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{ display: { xs: "none", sm: "block" } }}
+            >
               Perfil
             </Typography>
             <IconButton
               size="small"
               onClick={handleMenu}
-              aria-controls={open ? 'profile-menu' : undefined}
+              aria-controls={open ? "profile-menu" : undefined}
               aria-haspopup="true"
-              aria-expanded={open ? 'true' : undefined}
+              aria-expanded={open ? "true" : undefined}
               color="inherit"
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.contrastText', color: 'primary.main' }}>
-                {user?.name ? getInitials(user.name) : '?'}
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "primary.contrastText",
+                  color: "primary.main",
+                }}
+              >
+                {user?.name ? getInitials(user.name) : "?"}
               </Avatar>
             </IconButton>
             <Menu
@@ -110,26 +142,38 @@ export default function UserLayout({ children }: UserLayoutProps) {
               PaperProps={{
                 sx: { minWidth: 240, mt: 1.5 },
               }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              transformOrigin={{ horizontal: "right", vertical: "top" }}
             >
               <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    mb: 1.5,
+                  }}
+                >
                   <Avatar
                     sx={{
                       width: 40,
                       height: 40,
-                      bgcolor: 'primary.main',
+                      bgcolor: "primary.main",
                       fontSize: 16,
                     }}
                   >
-                    {user?.name ? getInitials(user.name) : '?'}
+                    {user?.name ? getInitials(user.name) : "?"}
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="body2" fontWeight="bold" noWrap>
                       {user?.name}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      noWrap
+                      display="block"
+                    >
                       {user?.email}
                     </Typography>
                   </Box>
@@ -137,7 +181,12 @@ export default function UserLayout({ children }: UserLayoutProps) {
                 {roleLoading ? (
                   <Skeleton variant="rounded" width={100} height={22} />
                 ) : (
-                  <Chip label={roleLabel} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                  <Chip
+                    label={roleLabel}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 11 }}
+                  />
                 )}
               </Box>
               <Divider />
@@ -163,8 +212,8 @@ export default function UserLayout({ children }: UserLayoutProps) {
         maxWidth="md"
         sx={{
           flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
+          display: "flex",
+          flexDirection: "column",
           mt: 10,
           mb: 4,
         }}
@@ -177,9 +226,9 @@ export default function UserLayout({ children }: UserLayoutProps) {
         sx={{
           py: 2,
           px: 2,
-          mt: 'auto',
+          mt: "auto",
           backgroundColor: (theme) =>
-            theme.palette.mode === 'light'
+            theme.palette.mode === "light"
               ? theme.palette.grey[200]
               : theme.palette.grey[800],
         }}

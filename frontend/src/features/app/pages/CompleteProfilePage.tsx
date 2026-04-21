@@ -169,7 +169,17 @@ export default function CompleteProfilePage() {
 
   return (
     <UserLayout>
-      <Paper elevation={3} sx={{ p: 4, maxWidth: 600, mx: "auto", mt: 4 }}>
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          width: { xs: "100%", sm: 600 },
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          mx: "auto",
+          mt: 4,
+        }}
+      >
         <Typography variant="h4" component="h1" gutterBottom align="center">
           {t("profile.title")}
         </Typography>

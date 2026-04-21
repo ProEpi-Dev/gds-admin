@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useUserRole } from "../hooks/useUserRole";
+import { useProfileStatus } from "../hooks/useProfileStatus";
 import AppLayout from "../components/layout/AppLayout";
 import AdminRoute from "./AdminRoute";
 import ManagerOrAdminOnlyRoute from "./ManagerOrAdminOnlyRoute";
@@ -95,13 +96,20 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
   const { isAdmin, isManager, isContentManager, isLoading } = useUserRole();
+  const { isComplete: isProfileComplete, isLoading: isProfileLoading } =
+    useProfileStatus();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (isLoading) {
+  if (isLoading || isProfileLoading) {
     return <div>Carregando...</div>;
+  }
+
+  // Se o perfil não está completo, redireciona para completar, independente da role
+  if (!isProfileComplete) {
+    return <Navigate to="/app/complete-profile" replace />;
   }
 
   // Admin, manager ou content_manager vão para o dashboard; demais para área do app
