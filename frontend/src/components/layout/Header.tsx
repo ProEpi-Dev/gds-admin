@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AppBar,
   Toolbar,
@@ -20,20 +20,21 @@ import {
   ListItemIcon,
   ListItemText,
   InputAdornment,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
   Lock as LockIcon,
+  Person as PersonIcon,
   Hub as ContextIcon,
   Check as CheckIcon,
   ExpandMore as ExpandMoreIcon,
   Search as SearchIcon,
-} from '@mui/icons-material';
-import { useTranslation } from '../../hooks/useTranslation';
-import { useAuth } from '../../contexts/AuthContext';
-import { useUserRole } from '../../hooks/useUserRole';
-import { useCurrentContext } from '../../contexts/CurrentContextContext';
+} from "@mui/icons-material";
+import { useTranslation } from "../../hooks/useTranslation";
+import { useAuth } from "../../contexts/AuthContext";
+import { useUserRole } from "../../hooks/useUserRole";
+import { useCurrentContext } from "../../contexts/CurrentContextContext";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -45,24 +46,34 @@ function getRoleLabel(
   isContentManager: boolean,
   isParticipant: boolean,
 ): string {
-  if (isAdmin) return 'Administrador';
-  if (isManager) return 'Gerente';
-  if (isContentManager) return 'Gerente de Conteúdo';
-  if (isParticipant) return 'Participante';
-  return 'Sem papel';
+  if (isAdmin) return "Administrador";
+  if (isManager) return "Gerente";
+  if (isContentManager) return "Gerente de Conteúdo";
+  if (isParticipant) return "Participante";
+  return "Sem papel";
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
-    useUserRole();
-  const { currentContext, setCurrentContext, availableContexts } = useCurrentContext();
+  const {
+    isAdmin,
+    isManager,
+    isContentManager,
+    isParticipant,
+    isLoading: roleLoading,
+  } = useUserRole();
+  const { currentContext, setCurrentContext, availableContexts } =
+    useCurrentContext();
 
-  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
-  const [contextAnchorEl, setContextAnchorEl] = useState<null | HTMLElement>(null);
-  const [contextSearch, setContextSearch] = useState('');
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(
+    null,
+  );
+  const [contextAnchorEl, setContextAnchorEl] = useState<null | HTMLElement>(
+    null,
+  );
+  const [contextSearch, setContextSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
   const profileOpen = Boolean(profileAnchorEl);
@@ -74,25 +85,35 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const handleContextClick = (e: React.MouseEvent<HTMLElement>) => {
     setContextAnchorEl(e.currentTarget);
-    setContextSearch('');
+    setContextSearch("");
     // Foca na busca ao abrir
     setTimeout(() => searchRef.current?.focus(), 50);
   };
   const handleContextClose = () => {
     setContextAnchorEl(null);
-    setContextSearch('');
+    setContextSearch("");
   };
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
     handleProfileClose();
   };
 
   const getInitials = (name: string) =>
-    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
 
-  const roleLabel = getRoleLabel(isAdmin, isManager, isContentManager, isParticipant);
+  const roleLabel = getRoleLabel(
+    isAdmin,
+    isManager,
+    isContentManager,
+    isParticipant,
+  );
 
   // Filtra contextos pela busca
   const filteredContexts = contextSearch.trim()
@@ -108,23 +129,30 @@ export default function Header({ onMenuClick }: HeaderProps) {
       position="fixed"
       elevation={1}
       sx={{
-        bgcolor: 'background.paper',
-        color: 'text.primary',
+        bgcolor: "background.paper",
+        color: "text.primary",
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
     >
       <Toolbar sx={{ gap: 1 }}>
-        <IconButton color="inherit" aria-label="abrir menu" edge="start" onClick={onMenuClick} sx={{ mr: 1 }}>
+        <IconButton
+          color="inherit"
+          aria-label="abrir menu"
+          edge="start"
+          onClick={onMenuClick}
+          sx={{ mr: 1 }}
+        >
           <MenuIcon />
         </IconButton>
 
         <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
-          {t('layout.appTitle')}
+          {t("layout.appTitle")}
         </Typography>
 
         {/* Seletor de contexto */}
-        {!roleLoading && currentContext && (
-          canSwitchContext ? (
+        {!roleLoading &&
+          currentContext &&
+          (canSwitchContext ? (
             <>
               <Button
                 onClick={handleContextClick}
@@ -132,7 +160,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 endIcon={<ExpandMoreIcon />}
                 size="small"
                 variant="outlined"
-                sx={{ textTransform: 'none', maxWidth: 280 }}
+                sx={{ textTransform: "none", maxWidth: 280 }}
               >
                 <Typography noWrap variant="body2" sx={{ maxWidth: 200 }}>
                   {currentContext.name}
@@ -143,12 +171,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 open={contextOpen}
                 anchorEl={contextAnchorEl}
                 onClose={handleContextClose}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                transformOrigin={{ vertical: "top", horizontal: "left" }}
                 PaperProps={{ sx: { width: 300, mt: 0.5 } }}
               >
                 {/* Campo de busca */}
-                <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
                   <TextField
                     inputRef={searchRef}
                     size="small"
@@ -167,10 +195,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </Box>
 
                 {/* Lista de contextos */}
-                <List
-                  dense
-                  sx={{ maxHeight: 320, overflowY: 'auto', py: 0.5 }}
-                >
+                <List dense sx={{ maxHeight: 320, overflowY: "auto", py: 0.5 }}>
                   {filteredContexts.length === 0 ? (
                     <Box sx={{ px: 2, py: 1.5 }}>
                       <Typography variant="body2" color="text.secondary">
@@ -194,12 +219,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
                             {isSelected ? (
                               <CheckIcon fontSize="small" color="primary" />
                             ) : (
-                              <ContextIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                              <ContextIcon
+                                fontSize="small"
+                                sx={{ color: "text.disabled" }}
+                              />
                             )}
                           </ListItemIcon>
                           <ListItemText
                             primary={ctx.name}
-                            primaryTypographyProps={{ variant: 'body2', noWrap: true }}
+                            primaryTypographyProps={{
+                              variant: "body2",
+                              noWrap: true,
+                            }}
                           />
                         </ListItemButton>
                       );
@@ -211,14 +242,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
           ) : (
             // Contexto único: exibe só o chip sem interação
             <Chip
-              icon={<ContextIcon sx={{ fontSize: '14px !important' }} />}
+              icon={<ContextIcon sx={{ fontSize: "14px !important" }} />}
               label={currentContext.name}
               size="small"
               variant="outlined"
               sx={{ fontSize: 12 }}
             />
-          )
-        )}
+          ))}
 
         <Box sx={{ flexGrow: 1 }} />
 
@@ -228,11 +258,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <IconButton
               onClick={handleProfileClick}
               size="small"
-              aria-controls={profileOpen ? 'account-menu' : undefined}
+              aria-controls={profileOpen ? "account-menu" : undefined}
               aria-haspopup="true"
-              aria-expanded={profileOpen ? 'true' : undefined}
+              aria-expanded={profileOpen ? "true" : undefined}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
                 {getInitials(user.name)}
               </Avatar>
             </IconButton>
@@ -246,36 +276,55 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 elevation: 0,
                 sx: {
                   minWidth: 240,
-                  overflow: 'visible',
-                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  overflow: "visible",
+                  filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
                   mt: 1.5,
-                  '&:before': {
+                  "&:before": {
                     content: '""',
-                    display: 'block',
-                    position: 'absolute',
+                    display: "block",
+                    position: "absolute",
                     top: 0,
                     right: 14,
                     width: 10,
                     height: 10,
-                    bgcolor: 'background.paper',
-                    transform: 'translateY(-50%) rotate(45deg)',
+                    bgcolor: "background.paper",
+                    transform: "translateY(-50%) rotate(45deg)",
                     zIndex: 0,
                   },
                 },
               }}
-              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              transformOrigin={{ horizontal: "right", vertical: "top" }}
+              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
             >
               <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                  <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', fontSize: 16 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    mb: 1.5,
+                  }}
+                >
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: "primary.main",
+                      fontSize: 16,
+                    }}
+                  >
                     {getInitials(user.name)}
                   </Avatar>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="body2" fontWeight="bold" noWrap>
                       {user.name}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      noWrap
+                      display="block"
+                    >
                       {user.email}
                     </Typography>
                   </Box>
@@ -283,19 +332,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 {roleLoading ? (
                   <Skeleton variant="rounded" width={100} height={22} />
                 ) : (
-                  <Chip label={roleLabel} size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                  <Chip
+                    label={roleLabel}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 11 }}
+                  />
                 )}
               </Box>
 
               <Divider />
 
-              <MenuItem onClick={() => navigate('/change-password')}>
+              <MenuItem onClick={() => navigate("/app/profile")}>
+                <PersonIcon sx={{ mr: 1, fontSize: 20 }} />
+                Meu Perfil
+              </MenuItem>
+              <MenuItem onClick={() => navigate("/change-password")}>
                 <LockIcon sx={{ mr: 1, fontSize: 20 }} />
-                {t('auth.changePassword')}
+                {t("auth.changePassword")}
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <LogoutIcon sx={{ mr: 1, fontSize: 20 }} />
-                {t('layout.logout')}
+                {t("layout.logout")}
               </MenuItem>
             </Menu>
           </Box>

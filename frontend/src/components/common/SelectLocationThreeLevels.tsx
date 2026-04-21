@@ -28,7 +28,7 @@ export default function SelectLocationThreeLevels({
 }: SelectLocationThreeLevelsProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["locations", "three-levels"],
-    queryFn: () => locationsService.findAll({ active: true, pageSize: 1000 }),
+    queryFn: () => locationsService.findAll({ active: true, pageSize: 100 }),
   });
 
   const allLocations = data?.data || [];

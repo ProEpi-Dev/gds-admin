@@ -16,6 +16,9 @@ export class UserResponseDto {
   @ApiPropertyOptional({ description: 'ID do gênero', example: 1 })
   genderId?: number;
 
+  @ApiPropertyOptional({ description: 'ID da raça/cor', example: 1 })
+  raceColorId?: number;
+
   @ApiPropertyOptional({ description: 'ID da localização', example: 150 })
   locationId?: number;
 
@@ -28,7 +31,10 @@ export class UserResponseDto {
   @ApiPropertyOptional({ description: 'ID do papel global', example: 1 })
   roleId?: number | null;
 
-  @ApiPropertyOptional({ description: 'Nome do papel global', example: 'Administrador' })
+  @ApiPropertyOptional({
+    description: 'Nome do papel global',
+    example: 'Administrador',
+  })
   roleName?: string | null;
 
   @ApiProperty({

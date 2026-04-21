@@ -174,9 +174,8 @@ export class UsersService {
     // Admin: todos. Manager: usuários dos contextos que gerencia. Participant: apenas o próprio quando search=seu email.
     const isAdmin = await this.authz.isAdmin(currentUserId);
     if (!isAdmin) {
-      const managedContextIds = await this.authz.getManagedContextIds(
-        currentUserId,
-      );
+      const managedContextIds =
+        await this.authz.getManagedContextIds(currentUserId);
       if (managedContextIds.length === 0) {
         // Participante: só pode buscar os próprios dados, quando search = seu email
         const currentUser = await this.prisma.user.findUnique({
@@ -442,6 +441,9 @@ export class UsersService {
     if (!user.gender_id) {
       missingFields.push('genderId');
     }
+    if (!user.race_color_id) {
+      missingFields.push('raceColorId');
+    }
     if (!user.location_id) {
       missingFields.push('locationId');
     }
@@ -454,6 +456,7 @@ export class UsersService {
       missingFields,
       profile: {
         genderId: user.gender_id,
+        raceColorId: user.race_color_id,
         locationId: user.location_id,
         externalIdentifier: user.external_identifier,
       },
@@ -501,11 +504,25 @@ export class UsersService {
       }
     }
 
+    // Validar raceColorId se fornecido
+    if (updateProfileDto.raceColorId !== undefined) {
+      const raceColor = await this.prisma.race_color.findUnique({
+        where: { id: updateProfileDto.raceColorId },
+      });
+
+      if (!raceColor) {
+        throw new BadRequestException(
+          `Raça/cor com ID ${updateProfileDto.raceColorId} não encontrada`,
+        );
+      }
+    }
+
     // Atualizar perfil
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: {
         gender_id: updateProfileDto.genderId,
+        race_color_id: updateProfileDto.raceColorId,
         location_id: updateProfileDto.locationId,
         external_identifier: updateProfileDto.externalIdentifier,
       },
@@ -734,6 +751,7 @@ export class UsersService {
       email: user.email,
       active: user.active,
       genderId: user.gender_id,
+      raceColorId: user.race_color_id,
       locationId: user.location_id,
       externalIdentifier: user.external_identifier,
       roleId: user.role_id ?? null,

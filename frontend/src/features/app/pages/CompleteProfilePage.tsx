@@ -91,7 +91,7 @@ export default function CompleteProfilePage() {
   });
 
   const birthDate = watch("birthDate");
-  const personType = watch("personType");
+  const personType = watch("personType") ?? "communityLeader";
   const age = useMemo(() => {
     if (!birthDate) return null;
     const birth = new Date(birthDate);
@@ -242,16 +242,24 @@ export default function CompleteProfilePage() {
             required
           />
 
-          <TextField
-            {...register("personType")}
-            select
-            label="Perfil"
-            fullWidth
-            margin="normal"
-          >
-            <MenuItem value="student">Aluno</MenuItem>
-            <MenuItem value="communityLeader">Líder comunitário</MenuItem>
-          </TextField>
+          <Controller
+            name="personType"
+            control={control}
+            defaultValue="communityLeader"
+            render={({ field }) => (
+              <TextField
+                select
+                label="Perfil"
+                fullWidth
+                margin="normal"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+              >
+                <MenuItem value="student">Aluno</MenuItem>
+                <MenuItem value="communityLeader">Líder comunitário</MenuItem>
+              </TextField>
+            )}
+          />
 
           {personType === "student" && (
             <>

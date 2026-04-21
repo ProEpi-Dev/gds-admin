@@ -9,6 +9,13 @@ class ProfileDataDto {
   genderId?: number;
 
   @ApiProperty({
+    description: 'ID da raça/cor',
+    example: 1,
+    required: false,
+  })
+  raceColorId?: number;
+
+  @ApiProperty({
     description: 'ID da localização',
     example: 150,
     required: false,

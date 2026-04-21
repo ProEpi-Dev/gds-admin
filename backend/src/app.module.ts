@@ -25,6 +25,7 @@ import { TrackCyclesModule } from './track-cycles/track-cycles.module';
 import { TrackProgressModule } from './track-progress/track-progress.module';
 import { LegalDocumentsModule } from './legal-documents/legal-documents.module';
 import { GendersModule } from './genders/genders.module';
+import { RaceColorsModule } from './race-colors/race-colors.module';
 import { MailModule } from './mail/mail.module';
 import { AuthzModule } from './authz/authz.module';
 import { RolesModule } from './roles/roles.module';
@@ -81,6 +82,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     TrackProgressModule,
     LegalDocumentsModule,
     GendersModule,
+    RaceColorsModule,
     MailModule,
     RolesModule,
   ],

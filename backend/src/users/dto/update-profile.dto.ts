@@ -11,6 +11,14 @@ export class UpdateProfileDto {
   genderId?: number;
 
   @ApiPropertyOptional({
+    description: 'ID da raça/cor',
+    example: 1,
+  })
+  @IsInt()
+  @IsOptional()
+  raceColorId?: number;
+
+  @ApiPropertyOptional({
     description: 'ID da localização',
     example: 150,
   })
