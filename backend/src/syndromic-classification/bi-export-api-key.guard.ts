@@ -16,8 +16,16 @@ export class BiExportApiKeyGuard implements CanActivate {
       biExportKeyContextId?: number;
     }>();
     const raw = req.headers['x-api-key'] ?? req.headers['X-Api-Key'];
+    let apiKeyHeader: string | undefined;
+    if (typeof raw === 'string') {
+      apiKeyHeader = raw;
+    } else if (Array.isArray(raw)) {
+      apiKeyHeader = raw[0];
+    } else {
+      apiKeyHeader = undefined;
+    }
     const result = await this.biExportApiKeyService.validateApiKeyHeader(
-      typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : undefined,
+      apiKeyHeader,
     );
     if (!result) {
       throw new UnauthorizedException(

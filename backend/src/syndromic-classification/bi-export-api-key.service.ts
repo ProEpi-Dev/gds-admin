@@ -135,12 +135,12 @@ export class BiExportApiKeyService {
   async validateApiKeyHeader(rawHeader: string | undefined): Promise<{
     contextId: number;
   } | null> {
-    const trimmed =
-      typeof rawHeader === 'string'
-        ? rawHeader.trim()
-        : Array.isArray(rawHeader)
-          ? String(rawHeader[0] ?? '').trim()
-          : '';
+    let trimmed = '';
+    if (typeof rawHeader === 'string') {
+      trimmed = rawHeader.trim();
+    } else if (Array.isArray(rawHeader)) {
+      trimmed = String(rawHeader[0] ?? '').trim();
+    }
     if (!trimmed) {
       return null;
     }
@@ -173,13 +173,22 @@ export class BiExportApiKeyService {
       return null;
     }
 
-    void this.keyModel
-      .update({
-        where: { public_id: publicId },
-        data: { last_used_at: new Date() },
-      })
-      .catch(() => undefined);
+    this.scheduleTouchApiKeyLastUsed(publicId);
 
     return { contextId: row.context_id };
+  }
+
+  /** Atualiza `last_used_at` em segundo plano; falhas são ignoradas. */
+  private scheduleTouchApiKeyLastUsed(publicId: string): void {
+    (async () => {
+      try {
+        await this.keyModel.update({
+          where: { public_id: publicId },
+          data: { last_used_at: new Date() },
+        });
+      } catch {
+        /* best-effort */
+      }
+    })();
   }
 }
