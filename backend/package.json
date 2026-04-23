@@ -51,6 +51,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^17.2.3",
+    "h3-js": "^4.4.0",
     "nestjs-pino": "^4.6.0",
     "nodemailer": "^8.0.0",
     "passport": "^0.7.0",

@@ -3,6 +3,7 @@ import { Request } from 'express';
 import { SyndromicClassificationController } from './syndromic-classification.controller';
 import { SyndromicClassificationService } from './syndromic-classification.service';
 import { RolesGuard } from '../authz/guards/roles.guard';
+import { BiExportApiKeyGuard } from './bi-export-api-key.guard';
 
 describe('SyndromicClassificationController', () => {
   let controller: SyndromicClassificationController;
@@ -51,6 +52,8 @@ describe('SyndromicClassificationController', () => {
       ],
     })
       .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
+      .overrideGuard(BiExportApiKeyGuard)
       .useValue({ canActivate: jest.fn().mockResolvedValue(true) })
       .compile();
 

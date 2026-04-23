@@ -35,7 +35,7 @@ A aplicação web de administração oferece as seguintes funcionalidades para g
 - **Formulários de Vigilância**: Criação e gerenciamento de formulários para registro de sinais e sintomas
 - **Dados adicionais de perfil (`profile_extra`)**: Formulários por contexto para o app do cidadão; documentação de API e fluxo em [Dados adicionais de perfil](/arquitetura/modelagem-banco-dados/dados-adicionais-perfil)
 - **Relatórios Epidemiológicos**: Geração e análise de relatórios de saúde pública
-- **Classificação sindrômica**: Motor de score por síndrome (pesos e limiares), extração de sintomas por formulário e relatórios de vigilância — ver [Classificação sindrômica](/arquitetura/modelagem-banco-dados/classificacao-sindromica)
+- **Classificação sindrômica**: Motor de score por síndrome (pesos e limiares), extração de sintomas por formulário e relatórios de vigilância — ver [Classificação sindrômica](/arquitetura/modelagem-banco-dados/classificacao-sindromica); export JSON para BI em [Integração BI — export sindrômico](/integracao-bi-export-sindromico)
 - **Quizzes Educacionais**: Criação e gerenciamento de avaliações e questionários sobre saúde pública
 - **Trilhas de Aprendizado**: Estruturação de conteúdo educacional em trilhas para capacitação
 - **Documentos Legais**: Gestão de termos de uso e políticas de privacidade
@@ -69,6 +69,8 @@ O sistema tem sido utilizado desde 2007 em diferentes contextos de vigilância, 
 
 Esta documentação está organizada em seções:
 
+- **[Ambientes (desenvolvimento e produção)](/ambientes)**: URLs do console admin e da API, branches Git, tags de imagem Docker (`:develop` / `:prod`) e deploy
+- **[Integração BI — export sindrômico](/integracao-bi-export-sindromico)**: endpoint JSON de scores para ferramentas de BI, cabeçalho `x-api-key` e geração de chaves no console admin (`/admin/syndromic/bi-export-api-keys`)
 - **Arquitetura**: Modelo de banco de dados, estrutura de APIs e organização do código
 - **[Configuração de contexto e integrações](/arquitetura/configuracao-contexto-e-integracoes)**: Módulos do contexto, chaves `context_configuration` (perfil, e-mail, regras de reports) e `integration_config` (integração externa de sinais)
 - **Guias de Desenvolvimento**: Padrões, convenções e boas práticas
@@ -78,10 +80,11 @@ Esta documentação está organizada em seções:
 
 Para começar a explorar a documentação, recomendamos:
 
-1. Ver o [Modelo de Banco de Dados](/arquitetura/modelagem-banco-dados/modelo-banco-dados) para entender a estrutura de dados
-2. Para a **área do cidadão na web**, ver [Funcionalidades — área web do participante](/funcionalidades-app-web-participante)
-3. Explorar a seção de Arquitetura para entender a organização do sistema
-4. Consultar os guias de desenvolvimento para padrões e convenções
+1. Consultar **[Ambientes](/ambientes)** se precisar das URLs públicas (dev/prod), do alinhamento com branches ou das tags de imagem usadas no deploy
+2. Ver o [Modelo de Banco de Dados](/arquitetura/modelagem-banco-dados/modelo-banco-dados) para entender a estrutura de dados
+3. Para a **área do cidadão na web**, ver [Funcionalidades — área web do participante](/funcionalidades-app-web-participante)
+4. Explorar a seção de Arquitetura para entender a organização do sistema
+5. Consultar os guias de desenvolvimento para padrões e convenções
 
 ---
 

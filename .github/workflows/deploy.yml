@@ -245,6 +245,10 @@ jobs:
           kubectl set image deployment/gds-backend \
             backend=${REGISTRY}/${IMAGE}/backend:${TAG} -n gds
 
+          # Mesma referência (ex. :develop) não altera o spec → sem rollout; forçar recriação dos pods
+          echo "🔄 Rollout restart (garantir pull da imagem publicada nesta pipeline)..."
+          kubectl rollout restart deployment/gds-backend -n gds
+
           echo "⏳ Aguardando rollout..."
           kubectl rollout status deployment/gds-backend -n gds --timeout=300s
 
@@ -301,6 +305,9 @@ jobs:
 
           kubectl set image deployment/gds-frontend \
             frontend=${REGISTRY}/${IMAGE}/frontend:${TAG} -n gds
+
+          echo "🔄 Rollout restart (garantir pull da imagem publicada nesta pipeline)..."
+          kubectl rollout restart deployment/gds-frontend -n gds
 
           echo "⏳ Aguardando rollout..."
           kubectl rollout status deployment/gds-frontend -n gds --timeout=300s

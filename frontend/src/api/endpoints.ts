@@ -147,6 +147,9 @@ export const API_ENDPOINTS = {
     FORM_CONFIGS: "/syndromic-classification/syndrome-form-configs",
     FORM_CONFIG_DETAIL: (id: number) =>
       `/syndromic-classification/syndrome-form-configs/${id}`,
+    BI_EXPORT_API_KEYS: "/syndromic-classification/bi-export-api-keys",
+    BI_EXPORT_API_KEY_DETAIL: (publicId: string) =>
+      `/syndromic-classification/bi-export-api-keys/${encodeURIComponent(publicId)}`,
   },
 
   // CONTENTS

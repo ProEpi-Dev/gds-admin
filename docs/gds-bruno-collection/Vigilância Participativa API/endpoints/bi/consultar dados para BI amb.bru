@@ -1,0 +1,21 @@
+meta {
+  name: consultar dados para BI amb
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/syndromic-classification/reports/bi-export-scores?startDate=2026-01-01&endDate=2026-05-01&onlySymptoms=true
+  body: none
+  auth: none
+}
+
+params:query {
+  startDate: 2026-01-01
+  endDate: 2026-05-01
+  onlySymptoms: true
+}
+
+headers {
+  x-api-key: {{chave_api_bi}}
+}

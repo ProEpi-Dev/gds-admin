@@ -8,7 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma, report_type_enum } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { toDate } from 'date-fns-tz';
+import { formatInTimeZone, toDate } from 'date-fns-tz';
+import { latLngToCell } from 'h3-js';
 import { AuthzService } from '../authz/authz.service';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
@@ -28,6 +29,7 @@ import {
   CreateSyndromeWeightDto,
   CreateSymptomDto,
   DailySyndromeCountsQueryDto,
+  BiExportSyndromeScoresQueryDto,
   ReprocessSyndromicClassificationDto,
   ReportSyndromeScoresQueryDto,
   ReportSyndromeScoreResponseDto,
@@ -41,11 +43,60 @@ import {
 
 type AuditMeta = Record<string, unknown>;
 
+type PeriodoDiaSlug = 'madrugada' | 'manha' | 'tarde' | 'noite';
+
+type BiExportSyndromeScoresBase = {
+  generated_at: string;
+  context_id: number;
+  context_name: string;
+  location_schema: { type: 'h3'; resolution: number };
+};
+
+type BiExportSymptomOnlyItem = {
+  report_id: number;
+  report_date: string;
+  periodo_dia: PeriodoDiaSlug;
+  faixa_etaria: null;
+  sexo: string | null;
+  location_index: string | null;
+  sintomas_codigos: string[];
+};
+
+type BiExportScoreLineItem = BiExportSymptomOnlyItem & {
+  sindrome_codigo: string | null;
+  modelo: string;
+  score_modelo: number | null;
+  score_tipo: 'weighted_score';
+  limiar_decisao: number | null;
+  classificacao_positiva: boolean | null;
+};
+
+type BiExportSyndromeScoresPayload = BiExportSyndromeScoresBase & {
+  only_symptoms: boolean;
+  items: BiExportSymptomOnlyItem[] | BiExportScoreLineItem[];
+};
+
 @Injectable()
 export class SyndromicClassificationService {
   private readonly logger = new Logger(SyndromicClassificationService.name);
   private static readonly PROCESSING_VERSION = 'v1-weighted';
   private static readonly REPORT_DAY_TZ = 'America/Sao_Paulo';
+  private static readonly BI_EXPORT_MAX_ITEMS = 10_000;
+  private static readonly SCORE_TIPO_WEIGHTED = 'weighted_score' as const;
+  private static readonly BI_EXPORT_REPORT_INCLUDE = {
+    syndrome: true,
+    report: {
+      select: {
+        created_at: true,
+        occurrence_location: true,
+        participation: {
+          include: {
+            user: { include: { gender: true } },
+          },
+        },
+      },
+    },
+  } as const;
 
   private static toDecimalNumberOrNull(value: unknown): number | null {
     if (value === null || value === undefined) {
@@ -101,6 +152,91 @@ export class SyndromicClassificationService {
       startUtc: toDate(`${startDate}T00:00:00`, { timeZone }),
       endInclusiveUtc: toDate(`${endDate}T23:59:59.999`, { timeZone }),
     };
+  }
+
+  private static periodoDiaFromInstant(instant: Date): PeriodoDiaSlug {
+    const h = Number.parseInt(
+      formatInTimeZone(
+        instant,
+        SyndromicClassificationService.REPORT_DAY_TZ,
+        'H',
+      ),
+      10,
+    );
+    if (h < 6) {
+      return 'madrugada';
+    }
+    if (h < 12) {
+      return 'manha';
+    }
+    if (h < 18) {
+      return 'tarde';
+    }
+    return 'noite';
+  }
+
+  private static reportDateCivilYmd(instant: Date): string {
+    return formatInTimeZone(
+      instant,
+      SyndromicClassificationService.REPORT_DAY_TZ,
+      'yyyy-MM-dd',
+    );
+  }
+
+  private static sexoToSlug(name: string | null | undefined): string | null {
+    if (name == null || typeof name !== 'string') {
+      return null;
+    }
+    const t = name.trim();
+    if (!t) {
+      return null;
+    }
+    return t.toLowerCase().replaceAll(/\s+/g, '_');
+  }
+
+  private static reportCreatedAtFromRowOrEpoch(
+    report: { created_at?: unknown } | null | undefined,
+  ): Date {
+    if (report?.created_at == null) {
+      return new Date(0);
+    }
+    return new Date(report.created_at as string | number | Date);
+  }
+
+  private static h3IndexFromLocation(
+    location: { latitude: unknown; longitude: unknown } | null | undefined,
+    resolution: number,
+  ): string | null {
+    if (location == null) {
+      return null;
+    }
+    const lat = Number(location.latitude);
+    const lng = Number(location.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return null;
+    }
+    try {
+      return latLngToCell(lat, lng, resolution);
+    } catch {
+      return null;
+    }
+  }
+
+  private static matchedSymptomIdsFromRow(
+    matched_symptom_ids: unknown,
+  ): number[] {
+    const out: number[] = [];
+    if (Array.isArray(matched_symptom_ids)) {
+      for (const x of matched_symptom_ids) {
+        if (typeof x === 'number' && Number.isFinite(x)) {
+          out.push(x);
+        }
+      }
+    }
+    return out;
   }
 
   constructor(
@@ -680,6 +816,275 @@ export class SyndromicClassificationService {
         queryParams,
       }),
     };
+  }
+
+  async getBiExportSyndromeScores(
+    query: BiExportSyndromeScoresQueryDto,
+    contextIdFromApiKey?: number,
+  ): Promise<BiExportSyndromeScoresPayload> {
+    if (query.startDate > query.endDate) {
+      throw new BadRequestException(
+        'startDate deve ser menor ou igual a endDate',
+      );
+    }
+
+    const h3Res = Math.max(
+      0,
+      Math.min(15, Math.floor(query.h3Resolution ?? 8)),
+    );
+
+    const onlySymptoms = query.onlySymptoms === true;
+
+    let contextId: number | undefined =
+      contextIdFromApiKey ?? query.contextId;
+    if (contextId == null) {
+      throw new BadRequestException(
+        'Informe o parâmetro contextId na URL ou use uma chave de API cadastrada para um contexto.',
+      );
+    }
+    if (
+      contextIdFromApiKey != null &&
+      query.contextId != null &&
+      Number(query.contextId) !== contextIdFromApiKey
+    ) {
+      throw new ForbiddenException(
+        'O parâmetro contextId não corresponde ao contexto vinculado à chave de API.',
+      );
+    }
+
+    const contextRow = await this.prisma.context.findUnique({
+      where: { id: contextId },
+      select: { name: true },
+    });
+    if (!contextRow) {
+      throw new NotFoundException(`Contexto ${contextId} não encontrado`);
+    }
+
+    const filterLike: ReportSyndromeScoresQueryDto = {
+      startDate: query.startDate,
+      endDate: query.endDate,
+      reportId: query.reportId,
+      syndromeId: query.syndromeId,
+      processingStatus: query.processingStatus ?? 'processed',
+      isAboveThreshold: query.isAboveThreshold,
+      onlyLatest: query.onlyLatest,
+    } as ReportSyndromeScoresQueryDto;
+
+    const where: Record<string, unknown> = {
+      report: {
+        participation: {
+          context_id: contextId,
+        },
+      },
+      matched_symptom_ids: { not: { equals: [] } },
+    };
+    this.applyReportScoresQueryFilters(filterLike, where);
+    const whereInput = where as Prisma.report_syndrome_scoreWhereInput;
+
+    const max = SyndromicClassificationService.BI_EXPORT_MAX_ITEMS;
+    const base: BiExportSyndromeScoresBase = {
+      generated_at: new Date().toISOString(),
+      context_id: contextId,
+      context_name: contextRow.name,
+      location_schema: { type: 'h3', resolution: h3Res },
+    };
+
+    if (onlySymptoms) {
+      return this.buildBiExportOnlySymptomsPayload(
+        h3Res,
+        where,
+        whereInput,
+        base,
+        max,
+      );
+    }
+    return this.buildBiExportScoresPayload(h3Res, whereInput, base, max);
+  }
+
+  private async loadBiExportSymptomCodeByIdMap(
+    rows: Array<{ matched_symptom_ids: unknown }>,
+  ): Promise<Map<number, string>> {
+    const symptomIdSet = new Set<number>();
+    for (const row of rows) {
+      for (const id of SyndromicClassificationService.matchedSymptomIdsFromRow(
+        row.matched_symptom_ids,
+      )) {
+        symptomIdSet.add(id);
+      }
+    }
+    if (symptomIdSet.size === 0) {
+      return new Map();
+    }
+    const symptoms = await this.symptomModel.findMany({
+      where: { id: { in: [...symptomIdSet] } },
+      select: { id: true, code: true },
+    });
+    return new Map(symptoms.map((s) => [s.id, s.code]));
+  }
+
+  private async buildBiExportOnlySymptomsPayload(
+    h3Res: number,
+    where: Record<string, unknown>,
+    whereInput: Prisma.report_syndrome_scoreWhereInput,
+    base: BiExportSyndromeScoresBase,
+    max: number,
+  ): Promise<BiExportSyndromeScoresPayload> {
+    const reportGroups = await this.reportSyndromeScoreModel.groupBy({
+      by: ['report_id'],
+      where: whereInput,
+      _max: { processed_at: true },
+      orderBy: { _max: { processed_at: 'desc' } },
+      take: max + 1,
+    });
+    if (reportGroups.length > max) {
+      throw new BadRequestException(
+        `Muitos reports distintos para exportar no modo onlySymptoms (${reportGroups.length}+). O máximo é ` +
+          `${max}. Reduza o intervalo de datas ou adicione filtros (ex.: síndrome, report).`,
+      );
+    }
+    if (reportGroups.length === 0) {
+      return { ...base, only_symptoms: true, items: [] };
+    }
+    const reportIds = reportGroups.map((g) => g.report_id);
+    const rows = await this.reportSyndromeScoreModel.findMany({
+      where: {
+        ...where,
+        report_id: { in: reportIds },
+      } as Prisma.report_syndrome_scoreWhereInput,
+      include: SyndromicClassificationService.BI_EXPORT_REPORT_INCLUDE,
+    });
+
+    const bySymptomId = await this.loadBiExportSymptomCodeByIdMap(rows);
+
+    const byReport = new Map<
+      number,
+      {
+        report: (typeof rows)[0]['report'];
+        idSet: Set<number>;
+      }
+    >();
+    for (const row of rows as any[]) {
+      const rid = row.report_id as number;
+      let g = byReport.get(rid);
+      if (!g) {
+        g = { report: row.report, idSet: new Set<number>() };
+        byReport.set(rid, g);
+      }
+      for (const sid of SyndromicClassificationService.matchedSymptomIdsFromRow(
+        row.matched_symptom_ids,
+      )) {
+        g.idSet.add(sid);
+      }
+    }
+
+    const items: BiExportSymptomOnlyItem[] = reportIds.map((rid) => {
+      const g = byReport.get(rid);
+      const report = g?.report;
+      const createdAt =
+        SyndromicClassificationService.reportCreatedAtFromRowOrEpoch(report);
+      const ids = g ? [...g.idSet] : [];
+      ids.sort((a, b) => a - b);
+      const sintomas_codigos: string[] = [];
+      for (const mid of ids) {
+        const c = bySymptomId.get(mid);
+        if (typeof c === 'string' && c.length > 0) {
+          sintomas_codigos.push(c);
+        }
+      }
+      return {
+        report_id: rid,
+        report_date: SyndromicClassificationService.reportDateCivilYmd(
+          createdAt,
+        ),
+        periodo_dia: SyndromicClassificationService.periodoDiaFromInstant(
+          createdAt,
+        ),
+        faixa_etaria: null,
+        sexo: SyndromicClassificationService.sexoToSlug(
+          report?.participation?.user?.gender?.name,
+        ),
+        location_index: SyndromicClassificationService.h3IndexFromLocation(
+          report?.occurrence_location,
+          h3Res,
+        ),
+        sintomas_codigos,
+      };
+    });
+
+    return { ...base, only_symptoms: true, items };
+  }
+
+  private async buildBiExportScoresPayload(
+    h3Res: number,
+    whereInput: Prisma.report_syndrome_scoreWhereInput,
+    base: BiExportSyndromeScoresBase,
+    max: number,
+  ): Promise<BiExportSyndromeScoresPayload> {
+    const totalItems = await this.reportSyndromeScoreModel.count({
+      where: whereInput,
+    });
+    if (totalItems > max) {
+      throw new BadRequestException(
+        `Muitas linhas para exportar (${totalItems}). O máximo é ` +
+          `${max}. Reduza o intervalo de datas ou adicione filtros (ex.: síndrome).`,
+      );
+    }
+
+    const rows = await this.reportSyndromeScoreModel.findMany({
+      where: whereInput,
+      take: max,
+      include: SyndromicClassificationService.BI_EXPORT_REPORT_INCLUDE,
+      orderBy: [{ processed_at: 'desc' }, { id: 'desc' }],
+    });
+
+    const bySymptomId = await this.loadBiExportSymptomCodeByIdMap(rows);
+
+    const items: BiExportScoreLineItem[] = (rows as any[]).map((row) => {
+      const report = row.report;
+      const createdAt =
+        SyndromicClassificationService.reportCreatedAtFromRowOrEpoch(report);
+      const matched = SyndromicClassificationService.matchedSymptomIdsFromRow(
+        row.matched_symptom_ids,
+      );
+      const sintomas_codigos: string[] = [];
+      for (const mid of matched) {
+        const c = bySymptomId.get(mid);
+        if (typeof c === 'string' && c.length > 0) {
+          sintomas_codigos.push(c);
+        }
+      }
+
+      return {
+        report_id: row.report_id,
+        report_date: SyndromicClassificationService.reportDateCivilYmd(
+          createdAt,
+        ),
+        periodo_dia: SyndromicClassificationService.periodoDiaFromInstant(
+          createdAt,
+        ),
+        faixa_etaria: null,
+        sexo: SyndromicClassificationService.sexoToSlug(
+          report?.participation?.user?.gender?.name,
+        ),
+        location_index: SyndromicClassificationService.h3IndexFromLocation(
+          report?.occurrence_location,
+          h3Res,
+        ),
+        sintomas_codigos,
+        sindrome_codigo: row.syndrome?.code ?? null,
+        modelo: row.processing_version ?? SyndromicClassificationService.PROCESSING_VERSION,
+        score_modelo: SyndromicClassificationService.toDecimalNumberOrNull(
+          row.score,
+        ),
+        score_tipo: SyndromicClassificationService.SCORE_TIPO_WEIGHTED,
+        limiar_decisao: SyndromicClassificationService.toDecimalNumberOrNull(
+          row.threshold_score_snapshot,
+        ),
+        classificacao_positiva: row.is_above_threshold ?? null,
+      };
+    });
+
+    return { ...base, only_symptoms: false, items };
   }
 
   private async assertCanReadReportScores(

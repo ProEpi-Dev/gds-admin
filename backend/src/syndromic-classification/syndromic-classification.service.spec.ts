@@ -12,7 +12,10 @@ import { AuthzService } from '../authz/authz.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { report_type_enum } from '@prisma/client';
-import { ReportSyndromeScoresQueryDto } from './dto/syndromic-classification.dto';
+import {
+  BiExportSyndromeScoresQueryDto,
+  ReportSyndromeScoresQueryDto,
+} from './dto/syndromic-classification.dto';
 
 describe('SyndromicClassificationService', () => {
   let service: SyndromicClassificationService;
@@ -37,11 +40,15 @@ describe('SyndromicClassificationService', () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
       },
+      context: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'UnB' }),
+      },
       $queryRaw: jest.fn(),
     };
     prisma.report_syndrome_score = {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
       findFirst: jest.fn(),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     };
@@ -454,6 +461,188 @@ describe('SyndromicClassificationService', () => {
       const call = prisma.report_syndrome_score.findMany.mock.calls[0][0];
       expect(call.where.report.created_at.lte).toBeInstanceOf(Date);
       expect(call.where.report.created_at.gte).toBeUndefined();
+    });
+  });
+
+  describe('getBiExportSyndromeScores', () => {
+    it('lança BadRequest quando startDate > endDate', async () => {
+      await expect(
+        service.getBiExportSyndromeScores({
+          startDate: '2026-04-20',
+          endDate: '2026-04-01',
+          contextId: 10,
+          h3Resolution: 8,
+        } as BiExportSyndromeScoresQueryDto),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.context.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lança NotFound quando contexto não existe', async () => {
+      prisma.context.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.getBiExportSyndromeScores({
+          startDate: '2026-04-01',
+          endDate: '2026-04-30',
+          contextId: 10,
+          h3Resolution: 8,
+        } as BiExportSyndromeScoresQueryDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('lança BadRequest quando count excede o máximo', async () => {
+      prisma.report_syndrome_score.count.mockResolvedValue(10_001);
+      await expect(
+        service.getBiExportSyndromeScores({
+          startDate: '2026-04-01',
+          endDate: '2026-04-30',
+          contextId: 10,
+          h3Resolution: 8,
+        } as BiExportSyndromeScoresQueryDto),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.report_syndrome_score.findMany).not.toHaveBeenCalled();
+      expect(prisma.report_syndrome_score.groupBy).not.toHaveBeenCalled();
+    });
+
+    it('exige matched_symptom_ids não vazio no where e monta o payload', async () => {
+      authz.resolveListContextId.mockClear();
+      prisma.report_syndrome_score.count.mockResolvedValue(1);
+      prisma.report_syndrome_score.findMany.mockResolvedValue([
+        {
+          id: 9,
+          report_id: 100,
+          syndrome_id: 1,
+          score: 0.4347,
+          threshold_score_snapshot: 0.36,
+          is_above_threshold: true,
+          processing_status: 'processed',
+          processing_version: 'v1-weighted',
+          processed_at: new Date('2026-04-22T12:00:00.000Z'),
+          matched_symptom_ids: [1, 2],
+          syndrome: { code: 'gripal' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: { latitude: -15.5, longitude: -47.8 },
+            participation: {
+              user: { gender: { name: 'Feminino' } },
+            },
+          },
+        },
+      ]);
+      prisma.symptom.findMany.mockResolvedValue([
+        { id: 1, code: 'febre' },
+        { id: 2, code: 'tosse' },
+      ]);
+
+      const out = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-01',
+        endDate: '2026-04-30',
+        contextId: 10,
+        h3Resolution: 8,
+      } as BiExportSyndromeScoresQueryDto);
+
+      const findArgs = prisma.report_syndrome_score.findMany.mock.calls[0][0];
+      expect(findArgs.where.matched_symptom_ids).toEqual({
+        not: { equals: [] },
+      });
+      expect(authz.resolveListContextId).not.toHaveBeenCalled();
+      expect(out.context_id).toBe(10);
+      expect(out.context_name).toBe('UnB');
+      expect(out.location_schema).toEqual({ type: 'h3', resolution: 8 });
+      expect(out.items).toHaveLength(1);
+      expect(out.only_symptoms).toBe(false);
+      const lineFull = out.items[0] as {
+        report_id: number;
+        sindrome_codigo: string | null;
+        sexo: string | null;
+        score_tipo: string;
+        modelo: string;
+        limiar_decisao: number | null;
+        classificacao_positiva: boolean | null;
+        location_index: string | null;
+        sintomas_codigos: string[];
+        faixa_etaria: null;
+      };
+      expect(lineFull.report_id).toBe(100);
+      expect(lineFull.sintomas_codigos).toEqual(['febre', 'tosse']);
+      expect(lineFull.sindrome_codigo).toBe('gripal');
+      expect(lineFull.sexo).toBe('feminino');
+      expect(lineFull.faixa_etaria).toBeNull();
+      expect(lineFull.score_tipo).toBe('weighted_score');
+      expect(lineFull.modelo).toBe('v1-weighted');
+      expect(lineFull.limiar_decisao).toBe(0.36);
+      expect(lineFull.classificacao_positiva).toBe(true);
+      expect(typeof lineFull.location_index).toBe('string');
+      expect(lineFull.location_index!.length).toBeGreaterThan(0);
+    });
+
+    it('onlySymptoms: uma linha por report com sintomas agregados', async () => {
+      prisma.report_syndrome_score.groupBy.mockResolvedValue([
+        {
+          report_id: 100,
+          _max: { processed_at: new Date('2026-04-22T12:00:00.000Z') },
+        },
+      ]);
+      prisma.report_syndrome_score.findMany.mockResolvedValueOnce([
+        {
+          id: 1,
+          report_id: 100,
+          syndrome_id: 1,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'gripal' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: { latitude: -15.5, longitude: -47.8 },
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+        {
+          id: 2,
+          report_id: 100,
+          syndrome_id: 2,
+          matched_symptom_ids: [2],
+          syndrome: { code: 'outra' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: { latitude: -15.5, longitude: -47.8 },
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+      ]);
+      prisma.symptom.findMany.mockResolvedValue([
+        { id: 1, code: 'febre' },
+        { id: 2, code: 'tosse' },
+      ]);
+
+      const out = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-01',
+        endDate: '2026-04-30',
+        contextId: 10,
+        h3Resolution: 8,
+        onlySymptoms: true,
+      } as BiExportSyndromeScoresQueryDto);
+
+      expect(out.only_symptoms).toBe(true);
+      expect(out.items).toHaveLength(1);
+      expect((out.items[0] as { sindrome_codigo?: string }).sindrome_codigo).toBeUndefined();
+      expect(out.items[0].sintomas_codigos).toEqual(['febre', 'tosse']);
+      expect(out.items[0].report_id).toBe(100);
+      expect(prisma.report_syndrome_score.count).not.toHaveBeenCalled();
+    });
+
+    it('onlySymptoms: BadRequest quando há mais reports distintos que o máximo', async () => {
+      const many = Array.from({ length: 10_001 }, (_, i) => ({
+        report_id: i + 1,
+        _max: { processed_at: new Date(0) },
+      }));
+      prisma.report_syndrome_score.groupBy.mockResolvedValue(many);
+      await expect(
+        service.getBiExportSyndromeScores({
+          startDate: '2026-04-01',
+          endDate: '2026-04-30',
+          contextId: 10,
+          onlySymptoms: true,
+        } as BiExportSyndromeScoresQueryDto),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

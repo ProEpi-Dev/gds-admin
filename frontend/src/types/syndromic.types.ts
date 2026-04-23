@@ -191,3 +191,25 @@ export interface UpdateSyndromeFormConfigDto {
   symptomOnsetDateFieldName?: string;
   active?: boolean;
 }
+
+export interface BiExportApiKeyListItem {
+  publicId: string;
+  name: string;
+  contextId: number;
+  createdAt: string;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface CreateBiExportApiKeyDto {
+  contextId: number;
+  name: string;
+}
+
+export interface CreateBiExportApiKeyResponse {
+  apiKey: string;
+  publicId: string;
+  name: string;
+  contextId: number;
+  createdAt: string;
+}
