@@ -19,6 +19,9 @@ import type {
   UpdateSymptomDto,
   UpsertSyndromeWeightMatrixDto,
   UpsertSyndromeWeightMatrixResponse,
+  BiExportApiKeyListItem,
+  CreateBiExportApiKeyDto,
+  CreateBiExportApiKeyResponse,
 } from "../../types/syndromic.types";
 import type { ListResponse } from "../../types/api.types";
 
@@ -166,5 +169,28 @@ export const syndromicClassificationService = {
 
   async removeFormConfig(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.SYNDROMIC.FORM_CONFIG_DETAIL(id));
+  },
+
+  async listBiExportApiKeys(contextId: number): Promise<BiExportApiKeyListItem[]> {
+    const params = new URLSearchParams();
+    params.append("contextId", String(contextId));
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.SYNDROMIC.BI_EXPORT_API_KEYS}?${params.toString()}`,
+    );
+    return response.data;
+  },
+
+  async createBiExportApiKey(
+    data: CreateBiExportApiKeyDto,
+  ): Promise<CreateBiExportApiKeyResponse> {
+    const response = await apiClient.post(
+      API_ENDPOINTS.SYNDROMIC.BI_EXPORT_API_KEYS,
+      data,
+    );
+    return response.data;
+  },
+
+  async revokeBiExportApiKey(publicId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.SYNDROMIC.BI_EXPORT_API_KEY_DETAIL(publicId));
   },
 };

@@ -505,3 +505,97 @@ export class ReportSyndromeScoresQueryDto extends PaginationQueryDto {
   @IsOptional()
   onlyLatest?: boolean = true;
 }
+
+const BI_EXPORT_H3_MAX_RES = 15;
+
+/**
+ * Filtro para export JSON (consumo por qualquer ferramenta de BI, intervalo de datas obrigatório).
+ */
+export class BiExportSyndromeScoresQueryDto {
+  @ApiProperty({ example: '2026-01-01' })
+  @IsDateString()
+  startDate: string;
+
+  @ApiProperty({ example: '2026-01-31' })
+  @IsDateString()
+  endDate: string;
+
+  @ApiPropertyOptional({
+    example: 12,
+    description:
+      'Opcional se a chave de API já estiver vinculada a um contexto; caso contrário, obrigatório.',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  contextId?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  syndromeId?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  reportId?: number;
+
+  @ApiPropertyOptional({
+    enum: ['processed', 'skipped', 'failed'],
+  })
+  @IsIn(['processed', 'skipped', 'failed'])
+  @IsOptional()
+  processingStatus?: 'processed' | 'skipped' | 'failed';
+
+  @ApiPropertyOptional({
+    description: 'Filtra por is_above_threshold (true = acima do limiar)',
+  })
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  @IsOptional()
+  isAboveThreshold?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  @IsOptional()
+  onlyLatest?: boolean = true;
+
+  @ApiPropertyOptional({
+    description: 'Resolução H3 da coluna `location_index` (padrão 8)',
+    default: 8,
+    minimum: 0,
+    maximum: BI_EXPORT_H3_MAX_RES,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(BI_EXPORT_H3_MAX_RES)
+  @IsOptional()
+  h3Resolution: number = 8;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Se true, devolve uma linha por report, só com localização, demografia e `sintomas_codigos` (união de todos os matches); sem colunas de score/síndrome por linha.',
+  })
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  @IsOptional()
+  onlySymptoms?: boolean = false;
+}

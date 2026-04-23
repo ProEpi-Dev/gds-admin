@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -23,6 +24,8 @@ import { Request } from 'express';
 import { Roles } from '../authz/decorators/roles.decorator';
 import { RolesGuard } from '../authz/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
+import { BiExportApiKeyGuard } from './bi-export-api-key.guard';
 import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 import {
   CreateFormSymptomMappingDto,
@@ -31,6 +34,7 @@ import {
   CreateSyndromeWeightDto,
   CreateSymptomDto,
   DailySyndromeCountsQueryDto,
+  BiExportSyndromeScoresQueryDto,
   ReprocessSyndromicClassificationDto,
   ReportSyndromeScoresQueryDto,
   UpdateFormSymptomMappingDto,
@@ -74,6 +78,30 @@ export class SyndromicClassificationController {
     @CurrentUser() user: { userId: number },
   ) {
     return this.service.listReportScores(query, user.userId);
+  }
+
+  @Get('reports/bi-export-scores')
+  @Public()
+  @UseGuards(BiExportApiKeyGuard)
+  @ApiHeader({
+    name: 'x-api-key',
+    description:
+      'Chave de API (formato publicId.secret) criada no painel; autentica o contexto vinculado',
+    required: true,
+  })
+  @ApiOperation({
+    summary: 'Export de scores (JSON com H3) para consumo em ferramentas de BI',
+    description:
+      'Autenticação por chave de API (cabeçalho `x-api-key`, formato `publicId.secret` gerado no painel). O `contextId` na URL é opcional quando a chave já está vinculada a um contexto; se informado, deve coincidir com o da chave. Com `onlySymptoms=true`, uma linha por `report` e apenas campos de sintoma/local/demografia (limite = reports distintos).',
+  })
+  async getBiExportSyndromeScores(
+    @Query() query: BiExportSyndromeScoresQueryDto,
+    @Req() req: Request & { biExportKeyContextId?: number },
+  ) {
+    return this.service.getBiExportSyndromeScores(
+      query,
+      req.biExportKeyContextId,
+    );
   }
 
   @Post('reprocess')

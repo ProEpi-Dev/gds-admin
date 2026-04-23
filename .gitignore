@@ -5,4 +5,4 @@ migrations/.env
 # Keep example files
 !.env.example
 !migrations/.env.example
-
+docs/plano-migracao.md
