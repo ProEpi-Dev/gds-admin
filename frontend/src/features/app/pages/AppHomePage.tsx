@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   SentimentDissatisfiedOutlined as SentimentDissatisfiedOutlinedIcon,
   SentimentSatisfiedAltOutlined as SentimentSatisfiedAltOutlinedIcon,
@@ -10,33 +9,18 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
-  IconButton,
   Paper,
   Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-  subDays,
-  subMonths,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format, subDays } from "date-fns";
 import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import UserLayout from "../../../components/layout/UserLayout";
@@ -52,7 +36,7 @@ import FormRenderer, {
 } from "../../../components/form-renderer/FormRenderer";
 import { hasModule, resolveEnabledModules } from "../utils/contextModules";
 import { useUserRole } from "../../../hooks/useUserRole";
-import { useTranslation } from "../../../hooks/useTranslation";
+import AppCommunitySignalsHistory from "../components/AppCommunitySignalsHistory";
 
 function getRoleLabel(
   isAdmin: boolean,
@@ -102,7 +86,6 @@ const moodOrangeButtonSx = {
 };
 
 export default function AppHomePage() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const { isAdmin, isManager, isContentManager, isParticipant, isLoading: roleLoading } =
     useUserRole();
@@ -110,7 +93,6 @@ export default function AppHomePage() {
   const snackbar = useSnackbar();
   const [openDialog, setOpenDialog] = useState(false);
   const [openSignalDialog, setOpenSignalDialog] = useState(false);
-  const [communityCalendarMonth, setCommunityCalendarMonth] = useState(new Date());
   const [selfHealthSignalResponse, setSelfHealthSignalResponse] = useState<
     Record<string, unknown>
   >({});
@@ -127,10 +109,6 @@ export default function AppHomePage() {
   const communitySignalEnabled = hasModule(enabledModules, "community_signal");
   const activeModule = enabledModules[0] ?? "self_health";
   const showSelfHealthMap = selfHealthEnabled && activeModule === "self_health";
-  const communityMonthStart = startOfMonth(communityCalendarMonth);
-  const communityMonthEnd = endOfMonth(communityCalendarMonth);
-  const communityRangeStart = format(communityMonthStart, "yyyy-MM-dd");
-  const communityRangeEnd = format(communityMonthEnd, "yyyy-MM-dd");
 
   /** Janela do mapa de reports (self_health): 1 semana; poucos pontos no mapa inicial para aliviar payload e render. */
   const startDate = useMemo(() => format(subDays(new Date(), 7), "yyyy-MM-dd"), []);
@@ -183,26 +161,6 @@ export default function AppHomePage() {
       ),
     enabled: Boolean(participationId),
   });
-  const { data: communityStreak, isLoading: communityStreakLoading } = useQuery({
-    queryKey: [
-      "app-home-community-days",
-      contextId,
-      participationId,
-      communityRangeStart,
-      communityRangeEnd,
-    ],
-    queryFn: () =>
-      reportsService.findParticipationReportStreak(contextId!, participationId!, {
-        startDate: communityRangeStart,
-        endDate: communityRangeEnd,
-      }),
-    enabled: Boolean(
-      contextId &&
-        participationId &&
-        communitySignalEnabled &&
-        activeModule === "community_signal",
-    ),
-  });
   const pendingRequiredTracks = Math.max(
     0,
     (compliance?.totalRequired ?? 0) - (compliance?.completedCount ?? 0),
@@ -230,32 +188,6 @@ export default function AppHomePage() {
     }
     return null;
   }, [formsData]);
-  const communityReportedDaySet = useMemo(
-    () => new Set((communityStreak?.reportedDays ?? []).map((row) => row.date)),
-    [communityStreak],
-  );
-  const communityPositiveDaySet = useMemo(
-    () =>
-      new Set(
-        (communityStreak?.reportedDays ?? [])
-          .filter((row) => row.positiveCount > 0)
-          .map((row) => row.date),
-      ),
-    [communityStreak],
-  );
-  const communityCalendarDays = useMemo(() => {
-    const start = startOfWeek(communityMonthStart, { weekStartsOn: 0 });
-    const end = endOfWeek(communityMonthEnd, { weekStartsOn: 0 });
-    const next: Date[] = [];
-    let day = start;
-    while (day <= end) {
-      next.push(day);
-      day = addDays(day, 1);
-    }
-    return next;
-  }, [communityMonthStart, communityMonthEnd]);
-  const informedDaysCount = communityStreak?.reportedDaysInRangeCount ?? 0;
-
   const createReportMutation = useMutation({
     mutationFn: (payload: CreateReportDto) => reportsService.create(payload),
     onSuccess: () => {
@@ -267,6 +199,7 @@ export default function AppHomePage() {
       queryClient.invalidateQueries({ queryKey: ["app-home", "report-points"] });
       queryClient.invalidateQueries({ queryKey: ["app-days-streak"] });
       queryClient.invalidateQueries({ queryKey: ["app-home-community-days"] });
+      queryClient.invalidateQueries({ queryKey: ["app-signals-list"] });
     },
     onError: () => {
       snackbar.showError("Não foi possível enviar o report");
@@ -521,215 +454,6 @@ export default function AppHomePage() {
           </Paper>
         )}
 
-        {showSelfHealthMap && (
-          <Paper sx={{ p: 2 }}>
-            {pointsLoading ? (
-              <Box sx={{ py: 4, display: "flex", justifyContent: "center" }}>
-                <CircularProgress size={28} />
-              </Box>
-            ) : (
-              <ReportsMapView points={points} height={340} showSummary={false} />
-            )}
-          </Paper>
-        )}
-
-        {activeModule === "community_signal" && communitySignalEnabled && (
-          <>
-            <Paper
-              component={RouterLink}
-              to="/app/sinais"
-              elevation={0}
-              sx={{
-                p: 2,
-                display: "block",
-                textDecoration: "none",
-                color: "inherit",
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "background.paper",
-                boxShadow: "none",
-                transition: (theme) =>
-                  theme.transitions.create(
-                    ["background-color", "box-shadow"],
-                    { duration: theme.transitions.duration.shortest },
-                  ),
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  boxShadow: 1,
-                },
-                "&:focus-visible": {
-                  outline: (theme) => `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: 2,
-                },
-              }}
-            >
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Meus sinais informados
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    Veja os sinais de alerta já informados por você.
-                  </Typography>
-                </Box>
-                <ChevronRightIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
-              </Stack>
-            </Paper>
-
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Seus sinais e frequência
-              </Typography>
-              <Chip
-                color="primary"
-                label={`${informedDaysCount} dia(s) com registro no mês`}
-                sx={{ mb: 2 }}
-              />
-
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ mb: 1 }}
-              >
-                <IconButton
-                  onClick={() =>
-                    setCommunityCalendarMonth((prev) => subMonths(prev, 1))
-                  }
-                >
-                  <ChevronLeftIcon />
-                </IconButton>
-                <Typography variant="subtitle1" textTransform="capitalize">
-                  {format(communityCalendarMonth, "MMMM yyyy", { locale: ptBR })}
-                </Typography>
-                <IconButton
-                  onClick={() =>
-                    setCommunityCalendarMonth((prev) => addMonths(prev, 1))
-                  }
-                >
-                  <ChevronRightIcon />
-                </IconButton>
-              </Stack>
-
-              {communityStreakLoading ? (
-                <Box sx={{ py: 2, display: "flex", justifyContent: "center" }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : (
-                <Box>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                      gap: 1,
-                      mb: 2,
-                    }}
-                  >
-                    {["D", "S", "T", "Q", "Q", "S", "S"].map((label, index) => (
-                      <Typography
-                        key={`${label}-${index}`}
-                        variant="caption"
-                        color="primary.main"
-                        align="center"
-                        sx={{ fontWeight: 700 }}
-                      >
-                        {label}
-                      </Typography>
-                    ))}
-                    {communityCalendarDays.map((day) => {
-                      const iso = format(day, "yyyy-MM-dd");
-                      const inMonth = isSameMonth(day, communityCalendarMonth);
-                      const marked = communityReportedDaySet.has(iso);
-                      const positiveDay = communityPositiveDaySet.has(iso);
-                      const isToday = isSameDay(day, new Date());
-                      return (
-                        <Box
-                          key={iso}
-                          sx={{
-                            minHeight: 40,
-                            borderRadius: 1,
-                            border: 1,
-                            borderColor: positiveDay
-                              ? "error.main"
-                              : marked
-                                ? "success.main"
-                                : isToday
-                                  ? "primary.main"
-                                  : "divider",
-                            bgcolor: positiveDay
-                              ? "error.main"
-                              : marked
-                                ? "success.main"
-                                : "background.paper",
-                            color:
-                              positiveDay || marked
-                                ? "common.white"
-                                : inMonth
-                                  ? "text.primary"
-                                  : "text.disabled",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: marked || positiveDay || isToday ? 700 : 500,
-                            opacity: inMonth ? 1 : 0.6,
-                          }}
-                        >
-                          {format(day, "d")}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                  <Stack
-                    direction="row"
-                    flexWrap="wrap"
-                    gap={2}
-                    justifyContent="center"
-                    alignItems="center"
-                    sx={{
-                      pt: 1.5,
-                      mt: 0.5,
-                      borderTop: 1,
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                      <Box
-                        sx={{
-                          width: 11,
-                          height: 11,
-                          borderRadius: 0.75,
-                          bgcolor: "error.main",
-                          flexShrink: 0,
-                          boxShadow: 1,
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {t("appHome.communityCalendarLegendSignal")}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                      <Box
-                        sx={{
-                          width: 11,
-                          height: 11,
-                          borderRadius: 0.75,
-                          bgcolor: "success.main",
-                          flexShrink: 0,
-                          boxShadow: 1,
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {t("appHome.communityCalendarLegendNothingOccurred")}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
-              )}
-            </Paper>
-          </>
-        )}
-
         {compliance && pendingRequiredTracks > 0 && (
           <Paper
             component={RouterLink}
@@ -772,6 +496,20 @@ export default function AppHomePage() {
               </Box>
               <ChevronRightIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
             </Stack>
+          </Paper>
+        )}
+
+        {communitySignalEnabled && <AppCommunitySignalsHistory />}
+
+        {showSelfHealthMap && (
+          <Paper sx={{ p: 2 }}>
+            {pointsLoading ? (
+              <Box sx={{ py: 4, display: "flex", justifyContent: "center" }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : (
+              <ReportsMapView points={points} height={340} showSummary={false} />
+            )}
           </Paper>
         )}
         </Stack>
