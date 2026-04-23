@@ -337,81 +337,76 @@ export default function AppCommunitySignalsHistory() {
           <ToggleButton value="NEGATIVE">Nada ocorreu</ToggleButton>
         </ToggleButtonGroup>
 
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            Histórico de sinais
+        {signalsLoading ? (
+          <Stack sx={{ py: 2, alignItems: "center" }}>
+            <CircularProgress size={22} />
+          </Stack>
+        ) : allSignals.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            Nenhum sinal enviado até o momento.
           </Typography>
-          {signalsLoading ? (
-            <Stack sx={{ py: 2, alignItems: "center" }}>
-              <CircularProgress size={22} />
-            </Stack>
-          ) : allSignals.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Nenhum sinal enviado até o momento.
-            </Typography>
-          ) : filteredSignals.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Nenhum sinal neste filtro.
-            </Typography>
-          ) : (
-            <Stack spacing={1}>
-              {filteredSignals.map((signal: Report) => {
-                const integ =
-                  signal.reportType === "POSITIVE"
-                    ? integrationEventByReportId.get(signal.id)
-                    : undefined;
-                return (
-                  <Paper
-                    key={signal.id}
-                    variant="outlined"
-                    sx={{ p: 1.5, bgcolor: "background.default", cursor: "pointer" }}
-                    onClick={() => setSelectedSignal(signal)}
-                  >
-                    <Stack spacing={0.75} sx={{ mb: 0.5 }}>
-                      <Typography variant="caption" color="text.secondary" component="div">
-                        {format(new Date(signal.createdAt), "dd/MM/yyyy HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </Typography>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        flexWrap="wrap"
-                        useFlexGap
-                        sx={{ width: "100%" }}
-                      >
+        ) : filteredSignals.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            Nenhum sinal neste filtro.
+          </Typography>
+        ) : (
+          <Stack spacing={1}>
+            {filteredSignals.map((signal: Report) => {
+              const integ =
+                signal.reportType === "POSITIVE"
+                  ? integrationEventByReportId.get(signal.id)
+                  : undefined;
+              return (
+                <Paper
+                  key={signal.id}
+                  variant="outlined"
+                  sx={{ p: 1.5, bgcolor: "background.default", cursor: "pointer" }}
+                  onClick={() => setSelectedSignal(signal)}
+                >
+                  <Stack spacing={0.75} sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" component="div">
+                      {format(new Date(signal.createdAt), "dd/MM/yyyy HH:mm", {
+                        locale: ptBR,
+                      })}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      flexWrap="wrap"
+                      useFlexGap
+                      sx={{ width: "100%" }}
+                    >
+                      <Chip
+                        size="small"
+                        color={signal.reportType === "POSITIVE" ? "error" : "success"}
+                        label={
+                          signal.reportType === "POSITIVE" ? "Com sinal" : "Nada ocorreu"
+                        }
+                      />
+                      {integ?.externalSignalStageLabel ? (
                         <Chip
                           size="small"
-                          color={signal.reportType === "POSITIVE" ? "error" : "success"}
-                          label={
-                            signal.reportType === "POSITIVE" ? "Com sinal" : "Nada ocorreu"
-                          }
+                          variant="outlined"
+                          color="info"
+                          label={integ.externalSignalStageLabel}
                         />
-                        {integ?.externalSignalStageLabel ? (
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            color="info"
-                            label={integ.externalSignalStageLabel}
-                          />
-                        ) : null}
-                      </Stack>
+                      ) : null}
                     </Stack>
-                    <Typography variant="body2">
-                      {signal.reportType === "POSITIVE"
-                        ? summarizeSignalResponse(
-                            signal.formResponse,
-                            signalFieldMetaByName,
-                            signalFormDefinition,
-                          )
-                        : "Sem sinal informado neste dia."}
-                    </Typography>
-                  </Paper>
-                );
-              })}
-            </Stack>
-          )}
-        </Paper>
+                  </Stack>
+                  <Typography variant="body2">
+                    {signal.reportType === "POSITIVE"
+                      ? summarizeSignalResponse(
+                          signal.formResponse,
+                          signalFieldMetaByName,
+                          signalFormDefinition,
+                        )
+                      : "Sem sinal informado neste dia."}
+                  </Typography>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
       </Stack>
 
       <Dialog
