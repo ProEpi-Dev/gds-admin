@@ -27,6 +27,7 @@ model context {
   participation      participation[]
   track              track[]
   track_cycle        track_cycle[]
+  syndrome_bi_export_api_key syndrome_bi_export_api_key[]
 
   @@index([location_id], map: "idx_context_location_id")
 }
@@ -361,6 +362,26 @@ model report_syndrome_score {
   @@index([processing_status], map: "idx_rss_processing_status")
 }
 
+/// Chaves de API para export de scores sindrômicos (ex.: consumo por qualquer BI). Header x-api-key.
+/// Formato do segredo: `{public_id}.{secret_plano}` — o secret_plano só é exibido uma vez na criação.
+model syndrome_bi_export_api_key {
+  id                 Int       @id @default(autoincrement())
+  public_id          String    @unique(map: "uq_sbeak_public_id") @db.VarChar(36)
+  context_id         Int
+  name               String    @db.VarChar(120)
+  secret_hash        String    @db.VarChar(255)
+  active             Boolean   @default(true)
+  revoked_at         DateTime? @db.Timestamp(6)
+  last_used_at       DateTime? @db.Timestamp(6)
+  created_at         DateTime  @default(now()) @db.Timestamp(6)
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  created_by_user_id Int?
+  context            context   @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  created_by_user    user?     @relation("SyndromeBiExportApiKeyCreatedBy", fields: [created_by_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([context_id], map: "idx_sbeak_context_id")
+}
+
 model participation_report_day {
   id               Int           @id @default(autoincrement())
   participation_id Int
@@ -418,6 +439,7 @@ model user {
   role                      role?                   @relation(fields: [role_id], references: [id], onUpdate: NoAction)
   user_legal_acceptance     user_legal_acceptance[]
   user_refresh_token        user_refresh_token[]
+  syndrome_bi_export_api_keys_created syndrome_bi_export_api_key[] @relation("SyndromeBiExportApiKeyCreatedBy")
 
   @@index([email], map: "idx_user_email")
   @@index([gender_id], map: "idx_user_gender_id")

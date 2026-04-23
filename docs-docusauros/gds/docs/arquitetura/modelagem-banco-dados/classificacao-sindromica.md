@@ -10,6 +10,7 @@ Esta página descreve a **classificação sindrômica (motor V1 ponderado)**: ob
 
 - Formulários, versões e `report`: [Formulários e Relatórios](formularios-relatorios)
 - Papéis e escopo por contexto: [Papéis e Permissões (RBAC)](papeis-permissoes-rbac)
+- Export JSON para ferramentas de BI (chave `x-api-key`, console admin): [Integração BI — export sindrômico](/integracao-bi-export-sindromico)
 
 :::
 

@@ -11,6 +11,7 @@ import type {
   UpdateSyndromeDto,
   UpdateSymptomDto,
   UpsertSyndromeWeightMatrixDto,
+  CreateBiExportApiKeyDto,
 } from "../../../types/syndromic.types";
 
 export function useSyndromicSymptoms() {
@@ -188,6 +189,41 @@ export function useRemoveSyndromicFormConfig() {
       syndromicClassificationService.removeFormConfig(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["syndromic", "form-configs"] });
+    },
+  });
+}
+
+export function useBiExportApiKeys(contextId: number | null) {
+  return useQuery({
+    queryKey: ["syndromic", "bi-export-api-keys", contextId],
+    queryFn: () =>
+      syndromicClassificationService.listBiExportApiKeys(contextId as number),
+    enabled: contextId != null && contextId > 0,
+  });
+}
+
+export function useCreateBiExportApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBiExportApiKeyDto) =>
+      syndromicClassificationService.createBiExportApiKey(data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["syndromic", "bi-export-api-keys", variables.contextId],
+      });
+    },
+  });
+}
+
+export function useRevokeBiExportApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ publicId }: { publicId: string; contextId: number }) =>
+      syndromicClassificationService.revokeBiExportApiKey(publicId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["syndromic", "bi-export-api-keys", variables.contextId],
+      });
     },
   });
 }

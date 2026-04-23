@@ -87,6 +87,7 @@ import SyndromicSymptomsPage from "../features/syndromic/pages/SyndromicSymptoms
 import SyndromicSyndromesPage from "../features/syndromic/pages/SyndromicSyndromesPage";
 import SyndromicWeightsMatrixPage from "../features/syndromic/pages/SyndromicWeightsMatrixPage";
 import SyndromicReportsPage from "../features/syndromic/pages/SyndromicReportsPage";
+import SyndromicBiExportKeysPage from "../features/syndromic/pages/SyndromicBiExportKeysPage";
 import SyndromicFormConfigsPage from "../features/syndromic/pages/SyndromicFormConfigsPage";
 import { hasModule, resolveEnabledModules } from "../features/app/utils/contextModules";
 
@@ -801,6 +802,16 @@ export default function AppRoutes() {
           <AdminRoute>
             <ManagerOrAdminOnlyRoute>
               <SyndromicReportsPage />
+            </ManagerOrAdminOnlyRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/syndromic/bi-export-api-keys"
+        element={
+          <AdminRoute>
+            <ManagerOrAdminOnlyRoute>
+              <SyndromicBiExportKeysPage />
             </ManagerOrAdminOnlyRoute>
           </AdminRoute>
         }

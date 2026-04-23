@@ -44,6 +44,7 @@ import {
   Tune as TuneIcon,
   Vaccines as VaccinesIcon,
   QueryStats as QueryStatsIcon,
+  Key as KeyIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -289,6 +290,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             path: "/admin/syndromic/reports",
             label: "Relatórios",
             icon: <QueryStatsIcon />,
+          },
+          {
+            path: "/admin/syndromic/bi-export-api-keys",
+            label: "Chaves de export (BI)",
+            icon: <KeyIcon />,
           },
         ],
       },
