@@ -128,19 +128,10 @@ function RootRedirect() {
 function AppDaysRoute() {
   const { user } = useAuth();
   const modules = resolveEnabledModules(user?.participation?.context.modules);
-  if (!hasModule(modules, "self_health")) {
+  if (!hasModule(modules, "self_health") && !hasModule(modules, "community_signal")) {
     return <Navigate to="/app/inicio" replace />;
   }
   return <AppDaysPage />;
-}
-
-function AppSignalsRoute() {
-  const { user } = useAuth();
-  const modules = resolveEnabledModules(user?.participation?.context.modules);
-  if (!hasModule(modules, "community_signal")) {
-    return <Navigate to="/app/inicio" replace />;
-  }
-  return <AppSignalsPage />;
 }
 
 export default function AppRoutes() {
@@ -192,7 +183,7 @@ export default function AppRoutes() {
         path="/app/sinais"
         element={
           <UserRoute>
-            <AppSignalsRoute />
+            <AppSignalsPage />
           </UserRoute>
         }
       />

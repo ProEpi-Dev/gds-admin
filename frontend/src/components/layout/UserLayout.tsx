@@ -28,7 +28,6 @@ import {
   CalendarMonth as CalendarMonthIcon,
   School as SchoolIcon,
   Article as ArticleIcon,
-  NotificationsActive as NotificationsActiveIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -100,14 +99,14 @@ export default function UserLayout({ children }: UserLayoutProps) {
   const enabledModules = resolveEnabledModules(user?.participation?.context.modules);
   const showDaysModule = hasModule(enabledModules, 'self_health');
   const showSignalsModule = hasModule(enabledModules, 'community_signal');
+  const showDiasTab = showDaysModule || showSignalsModule;
   const navValue = useMemo(() => {
     const path = location.pathname;
-    if (showDaysModule && path.startsWith('/app/dias')) return 'dias';
-    if (showSignalsModule && path.startsWith('/app/sinais')) return 'sinais';
+    if (showDiasTab && path.startsWith('/app/dias')) return 'dias';
     if (path.startsWith('/app/aprenda')) return 'aprenda';
     if (path.startsWith('/app/conteudos')) return 'conteudos';
     return 'inicio';
-  }, [location.pathname, showDaysModule, showSignalsModule]);
+  }, [location.pathname, showDiasTab]);
   const hideBottomNav = location.pathname.startsWith('/app/complete-profile');
   /** Início: sem gutters para o hero encostar nas laterais; margem superior alinhada à AppBar. */
   const isAppInicio = location.pathname === '/app/inicio';
@@ -239,23 +238,15 @@ export default function UserLayout({ children }: UserLayoutProps) {
             value={navValue}
             onChange={(_, nextValue) => {
               if (nextValue === 'inicio') navigate('/app/inicio');
-              if (nextValue === 'dias' && showDaysModule) navigate('/app/dias');
-              if (nextValue === 'sinais' && showSignalsModule) navigate('/app/sinais');
+              if (nextValue === 'dias' && showDiasTab) navigate('/app/dias');
               if (nextValue === 'aprenda') navigate('/app/aprenda');
               if (nextValue === 'conteudos') navigate('/app/conteudos');
             }}
             showLabels
           >
             <BottomNavigationAction label="Início" value="inicio" icon={<HomeIcon />} />
-            {showDaysModule && (
+            {showDiasTab && (
               <BottomNavigationAction label="Dias" value="dias" icon={<CalendarMonthIcon />} />
-            )}
-            {showSignalsModule && (
-              <BottomNavigationAction
-                label="Meus sinais"
-                value="sinais"
-                icon={<NotificationsActiveIcon />}
-              />
             )}
             <BottomNavigationAction label="Aprenda" value="aprenda" icon={<SchoolIcon />} />
             <BottomNavigationAction label="Conteúdos" value="conteudos" icon={<ArticleIcon />} />
