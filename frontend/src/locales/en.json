@@ -311,6 +311,7 @@
     "orgLevelCountry": "Country",
     "orgLevelStateDistrict": "State/District",
     "orgLevelCityCouncil": "City/Council",
+    "orgLevelSite": "Site / place / area (house, lot, street, building, school, campus, square…)",
     "coordinates": "Coordinates",
     "latitude": "Latitude",
     "longitude": "Longitude",

@@ -1,5 +1,12 @@
 import type { PaginationQuery } from './api.types';
 
+/** Nível da localização na hierarquia (administrativo ou de local/ponto). */
+export type LocationOrgLevelValue =
+  | 'COUNTRY'
+  | 'STATE_DISTRICT'
+  | 'CITY_COUNCIL'
+  | 'SITE';
+
 export interface ParentLocation {
   id: number;
   name: string;
@@ -11,7 +18,7 @@ export interface Location {
   parentId: number | null;
   parent?: ParentLocation; // Hierarquia até 3 níveis
   name: string;
-  orgLevel: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+  orgLevel: LocationOrgLevelValue;
   latitude: number | null;
   longitude: number | null;
   polygons: any | null;
@@ -23,7 +30,7 @@ export interface Location {
 export interface CreateLocationDto {
   name: string;
   parentId?: number;
-  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+  orgLevel?: LocationOrgLevelValue;
   latitude?: number;
   longitude?: number;
   polygons?: any;
@@ -33,7 +40,7 @@ export interface CreateLocationDto {
 export interface UpdateLocationDto {
   name?: string;
   parentId?: number;
-  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+  orgLevel?: LocationOrgLevelValue;
   longitude?: number;
   latitude?: number;
   polygons?: any;
@@ -43,6 +50,6 @@ export interface UpdateLocationDto {
 export interface LocationQuery extends PaginationQuery {
   active?: boolean;
   parentId?: number;
-  orgLevel?: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+  orgLevel?: LocationOrgLevelValue;
 }
 

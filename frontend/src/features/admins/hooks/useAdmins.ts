@@ -9,18 +9,6 @@ export function useAdmins(query?: UserQuery) {
   });
 }
 
-export function usePromoteToAdmin() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ userId, roleId }: { userId: number; roleId: number }) =>
-      usersService.update(userId, { roleId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', 'admins'] });
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-}
-
 /** Cria um novo usuário já como administrador (sem participações). Apenas admin. */
 export function useCreateAdmin() {
   const queryClient = useQueryClient();
