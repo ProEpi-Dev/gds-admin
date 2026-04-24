@@ -30,7 +30,7 @@ import ErrorAlert from '../../../components/common/ErrorAlert';
 import { useTranslation } from '../../../hooks/useTranslation';
 import SelectLocation from '../../../components/common/SelectLocation';
 import LocationMapViewer from '../../../components/common/LocationMapViewer';
-import type { Location } from '../../../types/location.types';
+import type { Location, LocationOrgLevelValue } from '../../../types/location.types';
 
 export default function LocationsListPage() {
   const navigate = useNavigate();
@@ -39,9 +39,9 @@ export default function LocationsListPage() {
   const [pageSize, setPageSize] = useState(20);
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
   const [parentIdFilter, setParentIdFilter] = useState<number | undefined>(undefined);
-  const [orgLevelFilter, setOrgLevelFilter] = useState<
-    'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL' | undefined
-  >(undefined);
+  const [orgLevelFilter, setOrgLevelFilter] = useState<LocationOrgLevelValue | undefined>(
+    undefined,
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
@@ -256,11 +256,7 @@ export default function LocationsListPage() {
             label={t('locations.orgLevel')}
             value={orgLevelFilter ?? ''}
             onChange={(event) => {
-              const value = event.target.value as
-                | 'COUNTRY'
-                | 'STATE_DISTRICT'
-                | 'CITY_COUNCIL'
-                | '';
+              const value = event.target.value as LocationOrgLevelValue | '';
               setOrgLevelFilter(value || undefined);
             }}
             sx={{ minWidth: 220 }}
@@ -273,6 +269,9 @@ export default function LocationsListPage() {
             </MenuItem>
             <MenuItem value="CITY_COUNCIL">
               {t('locations.orgLevelCityCouncil')}
+            </MenuItem>
+            <MenuItem value="SITE">
+              {t('locations.orgLevelSite')}
             </MenuItem>
           </TextField>
           <Button
@@ -357,10 +356,7 @@ export default function LocationsListPage() {
   );
 }
 
-function getOrgLevelLabel(
-  value: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL',
-  t: (key: string) => string,
-): string {
+function getOrgLevelLabel(value: LocationOrgLevelValue, t: (key: string) => string): string {
   switch (value) {
     case 'COUNTRY':
       return t('locations.orgLevelCountry');
@@ -368,6 +364,8 @@ function getOrgLevelLabel(
       return t('locations.orgLevelStateDistrict');
     case 'CITY_COUNCIL':
       return t('locations.orgLevelCityCouncil');
+    case 'SITE':
+      return t('locations.orgLevelSite');
     default:
       return value;
   }

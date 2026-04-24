@@ -33,9 +33,9 @@ export class LocationResponseDto {
   @ApiProperty({
     description: 'Nível organizacional da localização',
     example: 'CITY_COUNCIL',
-    enum: ['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL'],
+    enum: ['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL', 'SITE'],
   })
-  orgLevel: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL';
+  orgLevel: 'COUNTRY' | 'STATE_DISTRICT' | 'CITY_COUNCIL' | 'SITE';
 
   @ApiPropertyOptional({ description: 'Latitude', example: -23.5505 })
   latitude: number | null;

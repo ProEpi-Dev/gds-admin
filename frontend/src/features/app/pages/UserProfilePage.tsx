@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Typography, TextField, Button, CircularProgress, Paper, Chip, Divider, Alert, Autocomplete } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -98,6 +98,11 @@ export default function UserProfilePage() {
       }),
   });
 
+  const locationsById = useMemo(
+    () => new Map(allLocations.map((l) => [l.id, l])),
+    [allLocations],
+  );
+
   useEffect(() => {
     if (!profileStatus?.profile) return;
     reset({
@@ -125,12 +130,13 @@ export default function UserProfilePage() {
     const isChild = isLocationDescendantOfCountry(
       currentLocation,
       selectedCountryLocationId,
+      locationsById,
     );
 
     if (!isChild) {
       setValue('locationId', undefined);
     }
-  }, [selectedCountryLocationId, selectedLocationId, allLocations, setValue]);
+  }, [selectedCountryLocationId, selectedLocationId, allLocations, locationsById, setValue]);
 
   const saveProfileExtraMutation = useMutation({
     mutationFn: async () => {
@@ -197,7 +203,11 @@ export default function UserProfilePage() {
   const locationsByCountry =
     profileReq.country && selectedCountryLocationId
       ? allLocations.filter((location) =>
-          isLocationDescendantOfCountry(location, selectedCountryLocationId),
+          isLocationDescendantOfCountry(
+            location,
+            selectedCountryLocationId,
+            locationsById,
+          ),
         )
       : profileReq.country
         ? []
@@ -266,7 +276,7 @@ export default function UserProfilePage() {
                   onChange={field.onChange}
                   error={!!errors.genderId}
                   helperText={errors.genderId?.message}
-                  label={t('profile.gender')}
+                  label={t('profile.sex')}
                 />
               )}
             />

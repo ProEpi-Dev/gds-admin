@@ -136,6 +136,8 @@ export default function LocationViewPage() {
                 t('locations.orgLevelStateDistrict')}
               {location.orgLevel === 'CITY_COUNCIL' &&
                 t('locations.orgLevelCityCouncil')}
+              {location.orgLevel === 'SITE' &&
+                t('locations.orgLevelSite')}
             </Typography>
           </Box>
 
