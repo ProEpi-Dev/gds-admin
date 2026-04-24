@@ -127,6 +127,11 @@ function CompleteProfileForm({
       }),
   });
 
+  const locationsById = useMemo(
+    () => new Map(allLocations.map((l) => [l.id, l])),
+    [allLocations],
+  );
+
   useEffect(() => {
     reset({
       genderId: profileStatus.profile.genderId ?? undefined,
@@ -153,12 +158,19 @@ function CompleteProfileForm({
     const isChild = isLocationDescendantOfCountry(
       currentLocation,
       selectedCountryLocationId,
+      locationsById,
     );
 
     if (!isChild) {
       resetField('locationId');
     }
-  }, [selectedCountryLocationId, selectedLocationId, allLocations, resetField]);
+  }, [
+    selectedCountryLocationId,
+    selectedLocationId,
+    allLocations,
+    locationsById,
+    resetField,
+  ]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (vars: {
@@ -244,7 +256,11 @@ function CompleteProfileForm({
   const locationsByCountry = req.country
     ? selectedCountryLocationId
       ? allLocations.filter((location) =>
-          isLocationDescendantOfCountry(location, selectedCountryLocationId),
+          isLocationDescendantOfCountry(
+            location,
+            selectedCountryLocationId,
+            locationsById,
+          ),
         )
       : []
     : allLocations;
@@ -276,7 +292,7 @@ function CompleteProfileForm({
                 error={!!errors.genderId}
                 helperText={errors.genderId?.message}
                 required={req.gender}
-                label={t('profile.gender')}
+                label={t('profile.sex')}
               />
             )}
           />

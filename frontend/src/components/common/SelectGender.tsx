@@ -19,7 +19,7 @@ export default function SelectGender({
   error = false,
   helperText,
   required = false,
-  label = 'Gênero',
+  label = 'Sexo',
 }: SelectGenderProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['genders'],

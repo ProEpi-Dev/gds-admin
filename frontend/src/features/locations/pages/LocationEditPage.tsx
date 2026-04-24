@@ -25,10 +25,17 @@ import SelectLocation from '../../../components/common/SelectLocation';
 import LocationMapEditor from '../../../components/common/LocationMapEditor';
 import type { UpdateLocationDto } from '../../../types/location.types';
 
+const orgLevelEnum = z.enum([
+  'COUNTRY',
+  'STATE_DISTRICT',
+  'CITY_COUNCIL',
+  'SITE',
+]);
+
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),
   parentId: z.number().optional().nullable(),
-  orgLevel: z.enum(['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL']).optional(),
+  orgLevel: orgLevelEnum,
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   polygons: z.any().optional().nullable(),
@@ -41,6 +48,7 @@ const ORG_LEVEL_OPTIONS = [
   { value: 'COUNTRY', labelKey: 'locations.orgLevelCountry' },
   { value: 'STATE_DISTRICT', labelKey: 'locations.orgLevelStateDistrict' },
   { value: 'CITY_COUNCIL', labelKey: 'locations.orgLevelCityCouncil' },
+  { value: 'SITE', labelKey: 'locations.orgLevelSite' },
 ] as const;
 
 export default function LocationEditPage() {
@@ -67,6 +75,7 @@ export default function LocationEditPage() {
 
   const parentId = watch('parentId');
   const active = watch('active');
+  const orgLevelWatched = watch('orgLevel');
 
   useEffect(() => {
     if (location) {
@@ -121,9 +130,7 @@ export default function LocationEditPage() {
       updateData.parentId = data.parentId || undefined;
     }
 
-    if (data.orgLevel !== undefined) {
-      updateData.orgLevel = data.orgLevel;
-    }
+    updateData.orgLevel = data.orgLevel;
 
     if (point) {
       updateData.latitude = point.latitude;
@@ -194,10 +201,16 @@ export default function LocationEditPage() {
             />
 
             <TextField
-              {...register('orgLevel')}
               select
               label={t('locations.orgLevel')}
               fullWidth
+              value={orgLevelWatched ?? location.orgLevel}
+              onChange={(e) => {
+                const v = e.target.value as FormData['orgLevel'];
+                setValue('orgLevel', v, { shouldValidate: true, shouldDirty: true });
+              }}
+              error={!!errors.orgLevel}
+              helperText={errors.orgLevel?.message}
             >
               {ORG_LEVEL_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>

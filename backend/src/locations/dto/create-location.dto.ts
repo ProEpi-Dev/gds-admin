@@ -15,6 +15,8 @@ export enum LocationOrgLevelDto {
   COUNTRY = 'COUNTRY',
   STATE_DISTRICT = 'STATE_DISTRICT',
   CITY_COUNCIL = 'CITY_COUNCIL',
+  /** Local/ponto/área não administrativo (ex.: casa, lote, campus, praça). */
+  SITE = 'SITE',
 }
 
 export class CreateLocationDto {

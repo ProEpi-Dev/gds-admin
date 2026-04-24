@@ -23,10 +23,17 @@ import SelectLocation from '../../../components/common/SelectLocation';
 import LocationMapEditor from '../../../components/common/LocationMapEditor';
 import type { CreateLocationDto } from '../../../types/location.types';
 
+const orgLevelEnum = z.enum([
+  'COUNTRY',
+  'STATE_DISTRICT',
+  'CITY_COUNCIL',
+  'SITE',
+]);
+
 const formSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   parentId: z.number().optional().nullable(),
-  orgLevel: z.enum(['COUNTRY', 'STATE_DISTRICT', 'CITY_COUNCIL']),
+  orgLevel: orgLevelEnum,
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
   polygons: z.any().optional().nullable(),
@@ -39,6 +46,7 @@ const ORG_LEVEL_OPTIONS = [
   { value: 'COUNTRY', labelKey: 'locations.orgLevelCountry' },
   { value: 'STATE_DISTRICT', labelKey: 'locations.orgLevelStateDistrict' },
   { value: 'CITY_COUNCIL', labelKey: 'locations.orgLevelCityCouncil' },
+  { value: 'SITE', labelKey: 'locations.orgLevelSite' },
 ] as const;
 
 export default function LocationCreatePage() {
@@ -68,6 +76,7 @@ export default function LocationCreatePage() {
 
   const parentId = watch('parentId');
   const active = watch('active');
+  const orgLevel = watch('orgLevel');
 
   const createMutation = useCreateLocation();
 
@@ -139,10 +148,16 @@ export default function LocationCreatePage() {
             />
 
             <TextField
-              {...register('orgLevel')}
               select
               label={t('locations.orgLevel')}
               fullWidth
+              value={orgLevel ?? 'CITY_COUNCIL'}
+              onChange={(e) => {
+                const v = e.target.value as FormData['orgLevel'];
+                setValue('orgLevel', v, { shouldValidate: true, shouldDirty: true });
+              }}
+              error={!!errors.orgLevel}
+              helperText={errors.orgLevel?.message}
             >
               {ORG_LEVEL_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>

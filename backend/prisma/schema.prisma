@@ -142,6 +142,7 @@ enum location_org_level {
   COUNTRY
   STATE_DISTRICT
   CITY_COUNCIL
+  SITE
 }
 
 model role {
