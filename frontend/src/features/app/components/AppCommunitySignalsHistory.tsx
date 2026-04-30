@@ -14,8 +14,6 @@ import {
   Paper,
   Stack,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Send as SendIcon } from "@mui/icons-material";
@@ -32,11 +30,9 @@ import type {
 import { hasModule, resolveEnabledModules } from "../utils/contextModules";
 import {
   useIntegrationEventByReport,
-  useIntegrationEventsByParticipation,
   useIntegrationMessages,
   useSendIntegrationMessage,
 } from "../../report-integrations/hooks/useReportIntegrations";
-import type { IntegrationEvent } from "../../../api/services/report-integrations.service";
 import { filterEchoInboundMessages } from "../../report-integrations/utils/filterEchoInboundMessages";
 
 type SignalFieldMeta = {
@@ -168,47 +164,6 @@ function buildSignalEntries(
     });
 }
 
-function summarizeSignalResponse(
-  response: unknown,
-  fieldMetaByName: Record<string, SignalFieldMeta>,
-  definition: FormBuilderDefinition | null,
-): string {
-  if (!response || typeof response !== "object") {
-    return "Sem detalhes adicionais.";
-  }
-  const payload = response as Record<string, unknown>;
-  const previewName = definition?.listPreviewFieldName?.trim();
-  if (previewName) {
-    const value = payload[previewName];
-    const meta = fieldMetaByName[previewName];
-    const hasValue = value !== null && value !== undefined && value !== "";
-    if (hasValue) {
-      return formatSignalValue(value, meta);
-    }
-    return "—";
-  }
-  const symptoms = Array.isArray(payload.symptoms)
-    ? payload.symptoms.filter((item) => typeof item === "string")
-    : [];
-  if (symptoms.length > 0) {
-    return `Sintomas: ${symptoms.join(", ")}.`;
-  }
-  const fields = Object.entries(payload).filter(
-    ([key, value]) =>
-      key !== "_isValid" && value !== null && value !== undefined && value !== "",
-  );
-  if (fields.length === 0) {
-    return "Sem detalhes adicionais.";
-  }
-  return fields
-    .slice(0, 2)
-    .map(([key, value]) => {
-      const meta = fieldMetaByName[key];
-      return formatSignalValue(value, meta);
-    })
-    .join(" · ");
-}
-
 export default function AppCommunitySignalsHistory() {
   const { user } = useAuth();
   const participation = user?.participation;
@@ -218,15 +173,8 @@ export default function AppCommunitySignalsHistory() {
   const communitySignalEnabled = hasModule(enabledModules, "community_signal");
   const [selectedSignal, setSelectedSignal] = useState<Report | null>(null);
   const [messageText, setMessageText] = useState("");
-  const [signalFilter, setSignalFilter] = useState<"all" | "POSITIVE" | "NEGATIVE">(
-    "all",
-  );
 
   const { data: integrationEvent } = useIntegrationEventByReport(selectedSignal?.id ?? null);
-  const { data: integrationEventsForParticipation } =
-    useIntegrationEventsByParticipation(
-      participationId && communitySignalEnabled ? participationId : null,
-    );
   const { data: integrationMessages, isLoading: messagesLoading } =
     useIntegrationMessages(integrationEvent?.id ?? null);
   const visibleIntegrationMessages = useMemo(
@@ -244,7 +192,7 @@ export default function AppCommunitySignalsHistory() {
   };
 
   const { data: signalsData, isLoading: signalsLoading } = useQuery({
-    queryKey: ["app-signals-list", contextId, participationId],
+    queryKey: ["app-signals-list", contextId, participationId, "NEGATIVE", "app"],
     queryFn: () =>
       reportsService.findAll({
         page: 1,
@@ -252,9 +200,20 @@ export default function AppCommunitySignalsHistory() {
         active: true,
         contextId,
         participationId,
+        reportType: "NEGATIVE",
+        view: "app",
       }),
     enabled: Boolean(contextId && participationId && communitySignalEnabled),
   });
+
+  const selectedReportId = selectedSignal?.id ?? null;
+
+  const { data: reportDetail, isLoading: detailLoading } = useQuery({
+    queryKey: ["reports", selectedReportId, "detail"],
+    queryFn: () => reportsService.findOne(selectedReportId!),
+    enabled: Boolean(selectedReportId && communitySignalEnabled),
+  });
+
   const { data: formsData } = useQuery({
     queryKey: ["app-signals-forms", contextId],
     queryFn: () =>
@@ -265,7 +224,9 @@ export default function AppCommunitySignalsHistory() {
         pageSize: 20,
         active: true,
       }),
-    enabled: Boolean(contextId && communitySignalEnabled),
+    enabled: Boolean(
+      contextId && communitySignalEnabled && Boolean(selectedSignal?.id),
+    ),
   });
 
   const allSignals = signalsData?.data ?? [];
@@ -284,26 +245,28 @@ export default function AppCommunitySignalsHistory() {
     () => buildSignalFieldMeta(signalFormDefinition),
     [signalFormDefinition],
   );
-  const selectedSignalEntries = useMemo(
-    () =>
-      selectedSignal && selectedSignal.reportType === "POSITIVE"
-        ? buildSignalEntries(selectedSignal.formResponse, signalFieldMetaByName)
-        : [],
-    [selectedSignal, signalFieldMetaByName],
-  );
+  const detailFormResponse = reportDetail?.formResponse ?? selectedSignal?.formResponse;
+  const selectedSignalEntries = useMemo(() => {
+    if (!selectedSignal || selectedSignal.reportType !== "NEGATIVE") return [];
+    if (
+      detailFormResponse == null ||
+      typeof detailFormResponse !== "object"
+    )
+      return [];
+    return buildSignalEntries(detailFormResponse, signalFieldMetaByName);
+  }, [
+    selectedSignal,
+    detailFormResponse,
+    signalFieldMetaByName,
+  ]);
 
-  const integrationEventByReportId = useMemo(() => {
-    const m = new Map<number, IntegrationEvent>();
-    for (const ev of integrationEventsForParticipation ?? []) {
-      if (!m.has(ev.reportId)) m.set(ev.reportId, ev);
-    }
-    return m;
-  }, [integrationEventsForParticipation]);
+  const integrationTrackingStatus =
+    integrationEvent?.status ?? selectedSignal?.integrationSummary?.status ?? null;
 
-  const filteredSignals = useMemo(() => {
-    if (signalFilter === "all") return allSignals;
-    return allSignals.filter((s) => s.reportType === signalFilter);
-  }, [allSignals, signalFilter]);
+  const stageLabel =
+    integrationEvent?.externalSignalStageLabel ??
+    selectedSignal?.integrationSummary?.externalSignalStageLabel ??
+    null;
 
   if (!communitySignalEnabled) {
     return null;
@@ -313,7 +276,7 @@ export default function AppCommunitySignalsHistory() {
     <>
       <Stack spacing={2}>
         <Typography variant="h5" fontWeight={700}>
-          Meus sinais
+          Meus Sinais
         </Typography>
 
         {!participationId && (
@@ -322,40 +285,21 @@ export default function AppCommunitySignalsHistory() {
           </Alert>
         )}
 
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          fullWidth
-          value={signalFilter}
-          onChange={(_, value) => {
-            if (value != null) setSignalFilter(value);
-          }}
-          aria-label="Filtro de sinais"
-        >
-          <ToggleButton value="all">Todos</ToggleButton>
-          <ToggleButton value="POSITIVE">Com sinal</ToggleButton>
-          <ToggleButton value="NEGATIVE">Nada ocorreu</ToggleButton>
-        </ToggleButtonGroup>
-
         {signalsLoading ? (
           <Stack sx={{ py: 2, alignItems: "center" }}>
             <CircularProgress size={22} />
           </Stack>
         ) : allSignals.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            Nenhum sinal enviado até o momento.
-          </Typography>
-        ) : filteredSignals.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Nenhum sinal neste filtro.
+            Nenhum sinal com ocorrência informada até o momento.
           </Typography>
         ) : (
           <Stack spacing={1}>
-            {filteredSignals.map((signal: Report) => {
-              const integ =
-                signal.reportType === "POSITIVE"
-                  ? integrationEventByReportId.get(signal.id)
-                  : undefined;
+            {allSignals.map((signal: Report) => {
+              const chipLabel =
+                signal.integrationSummary?.externalSignalStageLabel ?? null;
+              const linePreview =
+                signal.previewText ?? "Sem detalhes adicionais.";
               return (
                 <Paper
                   key={signal.id}
@@ -363,45 +307,30 @@ export default function AppCommunitySignalsHistory() {
                   sx={{ p: 1.5, bgcolor: "background.default", cursor: "pointer" }}
                   onClick={() => setSelectedSignal(signal)}
                 >
-                  <Stack spacing={0.75} sx={{ mb: 0.5 }}>
+                  <Stack spacing={0.75} sx={{ mb: chipLabel ? 0.5 : 0 }}>
                     <Typography variant="caption" color="text.secondary" component="div">
                       {format(new Date(signal.createdAt), "dd/MM/yyyy HH:mm", {
                         locale: ptBR,
                       })}
                     </Typography>
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      flexWrap="wrap"
-                      useFlexGap
-                      sx={{ width: "100%" }}
-                    >
-                      <Chip
-                        size="small"
-                        color={signal.reportType === "POSITIVE" ? "error" : "success"}
-                        label={
-                          signal.reportType === "POSITIVE" ? "Com sinal" : "Nada ocorreu"
-                        }
-                      />
-                      {integ?.externalSignalStageLabel ? (
+                    {chipLabel ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                        sx={{ width: "100%" }}
+                      >
                         <Chip
                           size="small"
                           variant="outlined"
                           color="info"
-                          label={integ.externalSignalStageLabel}
+                          label={chipLabel}
                         />
-                      ) : null}
-                    </Stack>
+                      </Stack>
+                    ) : null}
                   </Stack>
-                  <Typography variant="body2">
-                    {signal.reportType === "POSITIVE"
-                      ? summarizeSignalResponse(
-                          signal.formResponse,
-                          signalFieldMetaByName,
-                          signalFormDefinition,
-                        )
-                      : "Sem sinal informado neste dia."}
-                  </Typography>
+                  <Typography variant="body2">{linePreview}</Typography>
                 </Paper>
               );
             })}
@@ -424,29 +353,21 @@ export default function AppCommunitySignalsHistory() {
                   locale: ptBR,
                 })}
               </Typography>
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                <Chip
-                  size="small"
-                  color={selectedSignal.reportType === "POSITIVE" ? "error" : "success"}
-                  label={
-                    selectedSignal.reportType === "POSITIVE"
-                      ? "Com sinal"
-                      : "Nada ocorreu"
-                  }
-                  sx={{ width: "fit-content" }}
-                />
-                {integrationEvent?.externalSignalStageLabel ? (
+              {stageLabel ? (
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                   <Chip
                     size="small"
                     variant="outlined"
                     color="info"
                     sx={{ width: "fit-content" }}
-                    label={integrationEvent.externalSignalStageLabel}
+                    label={stageLabel}
                   />
-                ) : null}
-              </Stack>
-              {selectedSignal.reportType === "NEGATIVE" ? (
-                <Typography variant="body2">Sem sinal informado neste dia.</Typography>
+                </Stack>
+              ) : null}
+              {detailLoading ? (
+                <Stack sx={{ py: 1, alignItems: "center" }}>
+                  <CircularProgress size={22} />
+                </Stack>
               ) : selectedSignalEntries.length === 0 ? (
                 <Typography variant="body2">Sem detalhes adicionais.</Typography>
               ) : (
@@ -462,7 +383,7 @@ export default function AppCommunitySignalsHistory() {
                 </Stack>
               )}
 
-              {integrationEvent && (
+              {integrationTrackingStatus && (
                 <>
                   <Divider sx={{ my: 1 }} />
                   <Typography variant="subtitle2">Acompanhamento</Typography>
@@ -470,33 +391,33 @@ export default function AppCommunitySignalsHistory() {
                     <Chip
                       size="small"
                       label={
-                        integrationEvent.status === "sent"
+                        integrationTrackingStatus === "sent"
                           ? "Enviado ao sistema externo"
-                          : integrationEvent.status === "failed"
+                          : integrationTrackingStatus === "failed"
                             ? "Falha no envio"
-                            : integrationEvent.status === "processing"
+                            : integrationTrackingStatus === "processing"
                               ? "Processando"
                               : "Pendente"
                       }
                       color={
-                        integrationEvent.status === "sent"
+                        integrationTrackingStatus === "sent"
                           ? "success"
-                          : integrationEvent.status === "failed"
+                          : integrationTrackingStatus === "failed"
                             ? "error"
                             : "warning"
                       }
                     />
-                    {integrationEvent.externalSignalStageLabel ? (
+                    {stageLabel ? (
                       <Chip
                         size="small"
                         variant="outlined"
                         color="info"
-                        label={`Estado no sistema externo: ${integrationEvent.externalSignalStageLabel}`}
+                        label={`Estado no sistema externo: ${stageLabel}`}
                       />
                     ) : null}
                   </Stack>
 
-                  {integrationEvent.externalEventId && (
+                  {integrationEvent?.externalEventId ? (
                     <>
                       <Typography variant="subtitle2" sx={{ mt: 1 }}>
                         Mensagens
@@ -557,7 +478,7 @@ export default function AppCommunitySignalsHistory() {
                         </IconButton>
                       </Stack>
                     </>
-                  )}
+                  ) : null}
                 </>
               )}
             </Stack>

@@ -5,15 +5,16 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/syndromic-classification/reports/bi-export-scores?startDate=2026-01-01&endDate=2026-05-01&isAboveThreshold=true
+  url: {{baseUrl}}/syndromic-classification/reports/bi-export-scores?startDate=2026-04-28&endDate=2026-04-30&topScore=true
   body: none
   auth: none
 }
 
 params:query {
-  startDate: 2026-01-01
-  endDate: 2026-05-01
-  isAboveThreshold: true
+  startDate: 2026-04-28
+  endDate: 2026-04-30
+  topScore: true
+  ~isAboveThreshold: true
   ~onlySymptoms: true
 }
 

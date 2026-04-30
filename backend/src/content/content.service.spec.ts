@@ -287,7 +287,7 @@ describe('ContentService', () => {
 
       expect(result).toEqual(mockContents);
       expect(prismaService.content.findMany).toHaveBeenCalledWith({
-        where: { active: true, context_id: 1 },
+        where: { active: true, context_id: 1, track_exclusive: false },
         include: {
           content_tag: {
             include: {
@@ -360,9 +360,24 @@ describe('ContentService', () => {
 
       expect(prismaService.content.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { active: true, context_id: 1 },
+          where: { active: true, context_id: 1, track_exclusive: false },
         }),
       );
+    });
+
+    it('quando usuário tem content:write, não restringe track_exclusive na listagem', async () => {
+      jest.spyOn(authzService, 'hasPermission').mockResolvedValue(true);
+      jest.spyOn(prismaService.content, 'findMany').mockResolvedValue([]);
+
+      await service.list(1, 1);
+
+      const call = (prismaService.content.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(call.where).not.toHaveProperty('track_exclusive');
+      expect(call.where).toMatchObject({
+        active: true,
+        context_id: 1,
+      });
     });
   });
 

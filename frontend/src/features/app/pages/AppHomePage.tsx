@@ -228,8 +228,8 @@ export default function AppHomePage() {
     createReportMutation.mutate(payload);
   };
 
-  const submitSelfHealthNegativeReport = () => {
-    submitReport("NEGATIVE", null);
+  const submitSelfHealthWellReport = () => {
+    submitReport("POSITIVE", null);
   };
 
   const submitSelfHealthSignal = () => {
@@ -246,7 +246,7 @@ export default function AppHomePage() {
       snackbar.showError("Revise os campos obrigatórios do formulário.");
       return;
     }
-    submitReport("POSITIVE", cleanFormResponse);
+    submitReport("NEGATIVE", cleanFormResponse);
   };
 
   const submitCommunitySignal = () => {
@@ -263,7 +263,7 @@ export default function AppHomePage() {
       snackbar.showError("Revise os campos obrigatórios do formulário.");
       return;
     }
-    submitReport("POSITIVE", cleanFormResponse);
+    submitReport("NEGATIVE", cleanFormResponse);
   };
 
   return (
@@ -369,7 +369,7 @@ export default function AppHomePage() {
                         fullWidth
                         variant="contained"
                         disabled={!canSubmit || createReportMutation.isPending}
-                        onClick={submitSelfHealthNegativeReport}
+                        onClick={submitSelfHealthWellReport}
                         startIcon={
                           <SentimentSatisfiedAltOutlinedIcon sx={{ color: "inherit" }} />
                         }
@@ -430,7 +430,7 @@ export default function AppHomePage() {
                         fullWidth
                         variant="contained"
                         disabled={!canSubmit || createReportMutation.isPending}
-                        onClick={() => submitReport("NEGATIVE", null)}
+                        onClick={() => submitReport("POSITIVE", null)}
                         sx={moodBlueButtonSx}
                       >
                         Nada ocorreu

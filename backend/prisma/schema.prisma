@@ -458,6 +458,7 @@ model content {
   reference    String        @unique(map: "uq_content_reference") @db.VarChar(50)
   content      String
   thumbnail_url String?      @db.Text
+  track_exclusive Boolean    @default(false)
   active       Boolean       @default(false)
   summary      String?       @db.VarChar(500)
   slug         String        @unique(map: "uq_content_slug") @db.VarChar(255)

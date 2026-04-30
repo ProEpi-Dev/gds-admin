@@ -64,6 +64,8 @@ interface Content {
     id: number;
     section?: { track?: { id: number; name: string; active: boolean } };
   }>;
+  /** Se true, oculto da listagem do app para participantes (painel/admin vê sempre). */
+  track_exclusive?: boolean;
   /** Associações conteúdo–quiz ativas (vem do GET /contents). */
   content_quiz?: Array<{
     id: number;
@@ -501,6 +503,19 @@ export default function ContentList() {
     },
     { id: "slug", label: "Slug", minWidth: 150 },
     {
+      id: "track_exclusive",
+      label: "Exclusivo trilhas",
+      minWidth: 130,
+      render: (row) =>
+        row.track_exclusive ? (
+          <Chip label="Só trilha" size="small" color="info" variant="outlined" />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            —
+          </Typography>
+        ),
+    },
+    {
       id: "quizzes",
       label: "Quizes",
       minWidth: 200,
@@ -637,7 +652,15 @@ export default function ContentList() {
     if (!filteredContents || filteredContents.length === 0) return;
 
     // Cabeçalhos das colunas
-    const headers = ["ID", "Título", "Situação", "Slug", "Quizes", "Trilhas"];
+    const headers = [
+      "ID",
+      "Título",
+      "Situação",
+      "Slug",
+      "Exclusivo trilhas",
+      "Quizes",
+      "Trilhas",
+    ];
 
     // Linhas de dados
     const rows = filteredContents.map((item) => {
@@ -648,12 +671,14 @@ export default function ContentList() {
         .map((t) => t.name)
         .join(", ");
       const situacao = item.active === false ? "Inativo" : "Ativo";
+      const exclusivoTrilhas = item.track_exclusive ? "Sim" : "Não";
 
       return [
         item.id.toString(),
         item.title.replace(/"/g, '""'),
         situacao,
         item.slug.replace(/"/g, '""'),
+        exclusivoTrilhas,
         quizes.replace(/"/g, '""'),
         trilhas.replace(/"/g, '""'),
       ];

@@ -188,8 +188,6 @@ export class ReportIntegrationsService {
 
     if (!report) return false;
 
-    if (report.report_type === 'NEGATIVE') return false;
-
     if (report.form_version.form.type !== 'signal') return false;
 
     const hasCommunitySignal =
@@ -197,6 +195,9 @@ export class ReportIntegrationsService {
         (m) => m.module_code === context_module_code.community_signal,
       );
     if (!hasCommunitySignal) return false;
+
+    /** Alertas comunitários ("Informar") são persistidos como NEGATIVE */
+    if (report.report_type !== 'NEGATIVE') return false;
 
     return true;
   }
@@ -1039,6 +1040,89 @@ export class ReportIntegrationsService {
           : null,
       ),
     );
+  }
+
+  /**
+   * Resumo de integração por report (primeiro evento por report), para `GET /reports?view=app`.
+   * Mesmas regras de acesso que findEventsByParticipationForUser (participação do usuário).
+   */
+  async getSummariesForParticipationReports(
+    participationId: number,
+    userId: number,
+    reportIds: number[],
+  ): Promise<
+    Map<
+      number,
+      {
+        status: 'pending' | 'processing' | 'sent' | 'failed';
+        externalSignalStageLabel: string | null;
+        externalSignalStageId: number | null;
+      }
+    >
+  > {
+    const out = new Map<
+      number,
+      {
+        status: 'pending' | 'processing' | 'sent' | 'failed';
+        externalSignalStageLabel: string | null;
+        externalSignalStageId: number | null;
+      }
+    >();
+
+    const uniqueIds = [...new Set(reportIds)].filter((id) => Number.isFinite(id) && id > 0);
+    if (uniqueIds.length === 0) {
+      return out;
+    }
+
+    const participation = await this.prisma.participation.findFirst({
+      where: { id: participationId, user_id: userId },
+      select: {
+        id: true,
+        context_id: true,
+        user_id: true,
+        integration_training_mode: true,
+      },
+    });
+    if (!participation) {
+      throw new ForbiddenException(
+        'Participação inválida ou sem permissão para acessar estes dados',
+      );
+    }
+
+    const events = await this.integrationEvent.findMany({
+      where: {
+        report_id: { in: uniqueIds },
+        report: { participation_id: participationId },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const stageIndex = await this.fetchEphemSignalStageIndexByUser(
+      participation.context_id,
+      participation.user_id,
+      participation.integration_training_mode ?? false,
+    );
+
+    const firstEventByReport = new Map<number, (typeof events)[number]>();
+    for (const e of events) {
+      if (!firstEventByReport.has(e.report_id)) {
+        firstEventByReport.set(e.report_id, e);
+      }
+    }
+
+    for (const [reportId, event] of firstEventByReport) {
+      const externalStage = event.external_event_id
+        ? (stageIndex.get(String(event.external_event_id)) ?? null)
+        : null;
+      const dto = this.mapEventToDto(event, externalStage);
+      out.set(reportId, {
+        status: dto.status,
+        externalSignalStageLabel: dto.externalSignalStageLabel ?? null,
+        externalSignalStageId: dto.externalSignalStageId ?? null,
+      });
+    }
+
+    return out;
   }
 
   async findEvents(

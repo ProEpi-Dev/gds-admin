@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { report_type_enum } from '@prisma/client';
+import { Prisma, report_type_enum } from '@prisma/client';
+import { ReportIntegrationSummaryDto } from './report-integration-summary.dto';
 
 export class ReportResponseDto {
   @ApiProperty({ description: 'ID do report', example: 1 })
@@ -19,16 +20,22 @@ export class ReportResponseDto {
   reportType: report_type_enum;
 
   @ApiPropertyOptional({
-    description: 'Localização da ocorrência (JSON)',
+    description:
+      'Localização da ocorrência (JSON). Omitida em `GET /reports?view=app`.',
     example: { latitude: -23.5505, longitude: -46.6333 },
+    type: Object,
+    nullable: true,
   })
-  occurrenceLocation: any | null;
+  occurrenceLocation?: Prisma.JsonValue | null;
 
-  @ApiProperty({
-    description: 'Resposta do formulário (JSON)',
+  @ApiPropertyOptional({
+    description:
+      'Resposta do formulário (JSON). Omitida em `GET /reports?view=app` — use previewText ou `GET /reports/:id`.',
     example: { campo1: 'valor1', campo2: 'valor2' },
+    type: Object,
+    nullable: true,
   })
-  formResponse: any;
+  formResponse?: Prisma.JsonValue | null;
 
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;
@@ -44,4 +51,17 @@ export class ReportResponseDto {
     example: '2024-01-01T00:00:00.000Z',
   })
   updatedAt: Date;
+
+  @ApiPropertyOptional({
+    description:
+      'Texto de preview da listagem no app (definição: listPreviewFieldName). Só com `view=app`.',
+  })
+  previewText?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Resumo da integração externa para o report. Só com `view=app`, participante, config ativa e módulo community_signal.',
+    type: ReportIntegrationSummaryDto,
+  })
+  integrationSummary?: ReportIntegrationSummaryDto | null;
 }

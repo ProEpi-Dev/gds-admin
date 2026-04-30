@@ -64,16 +64,43 @@ type BiExportSymptomOnlyItem = {
 
 type BiExportScoreLineItem = BiExportSymptomOnlyItem & {
   sindrome_codigo: string | null;
-  modelo: string;
-  score_modelo: number | null;
-  score_tipo: 'weighted_score';
-  limiar_decisao: number | null;
   classificacao_positiva: boolean | null;
+};
+
+type BiExportTotalsByDay = {
+  date: string;
+  positive: number;
+  negative: number;
+};
+
+type BiExportTotals = {
+  positive: number;
+  negative: number;
+  by_day: BiExportTotalsByDay[];
 };
 
 type BiExportSyndromeScoresPayload = BiExportSyndromeScoresBase & {
   only_symptoms: boolean;
+  top_score: boolean;
+  totals: BiExportTotals;
   items: BiExportSymptomOnlyItem[] | BiExportScoreLineItem[];
+};
+
+/** Linha de score com includes usados na exportação BI (modo top_score). */
+type BiExportTopScoreSyndromeRow = {
+  id: number;
+  report_id: number;
+  is_above_threshold?: boolean | null;
+  score?: unknown;
+  matched_symptom_ids?: unknown;
+  syndrome?: { code?: string | null } | null;
+  report?: {
+    created_at?: unknown;
+    occurrence_location?: { latitude: unknown; longitude: unknown } | null;
+    participation?: {
+      user?: { gender?: { name?: string | null } | null } | null;
+    } | null;
+  } | null;
 };
 
 @Injectable()
@@ -82,7 +109,6 @@ export class SyndromicClassificationService {
   private static readonly PROCESSING_VERSION = 'v1-weighted';
   private static readonly REPORT_DAY_TZ = 'America/Sao_Paulo';
   private static readonly BI_EXPORT_MAX_ITEMS = 10_000;
-  private static readonly SCORE_TIPO_WEIGHTED = 'weighted_score' as const;
   private static readonly BI_EXPORT_REPORT_INCLUDE = {
     syndrome: true,
     report: {
@@ -834,6 +860,12 @@ export class SyndromicClassificationService {
     );
 
     const onlySymptoms = query.onlySymptoms === true;
+    const topScore = query.topScore === true;
+    if (onlySymptoms && topScore) {
+      throw new BadRequestException(
+        'Os parâmetros onlySymptoms e topScore são mutuamente exclusivos.',
+      );
+    }
 
     let contextId: number | undefined =
       contextIdFromApiKey ?? query.contextId;
@@ -889,16 +921,93 @@ export class SyndromicClassificationService {
       location_schema: { type: 'h3', resolution: h3Res },
     };
 
+    const totals = await this.computeBiExportTotals(
+      contextId,
+      query.startDate,
+      query.endDate,
+    );
+
     if (onlySymptoms) {
       return this.buildBiExportOnlySymptomsPayload(
         h3Res,
         where,
         whereInput,
         base,
+        totals,
         max,
       );
     }
-    return this.buildBiExportScoresPayload(h3Res, whereInput, base, max);
+    if (topScore) {
+      return this.buildBiExportTopScorePayload(
+        h3Res,
+        where,
+        whereInput,
+        base,
+        totals,
+        max,
+      );
+    }
+    return this.buildBiExportScoresPayload(
+      h3Res,
+      whereInput,
+      base,
+      totals,
+      max,
+    );
+  }
+
+  private async computeBiExportTotals(
+    contextId: number,
+    startDate: string,
+    endDate: string,
+  ): Promise<BiExportTotals> {
+    const { startUtc, endInclusiveUtc } =
+      SyndromicClassificationService.reportCalendarDayRangeUtc(
+        startDate,
+        endDate,
+      );
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ report_day: Date; report_type: string; total: number | bigint }>
+    >(Prisma.sql`
+      SELECT
+        (timezone(${SyndromicClassificationService.REPORT_DAY_TZ}, r.created_at))::date AS report_day,
+        r.report_type::text AS report_type,
+        COUNT(*)::int AS total
+      FROM report r
+      INNER JOIN participation p ON p.id = r.participation_id
+      WHERE p.context_id = ${contextId}
+        AND r.created_at >= ${startUtc}
+        AND r.created_at <= ${endInclusiveUtc}
+        AND r.active = true
+        AND r.report_type IN ('POSITIVE', 'NEGATIVE')
+      GROUP BY 1, 2
+      ORDER BY 1 ASC
+    `);
+
+    const byDay = new Map<string, BiExportTotalsByDay>();
+    let totalPositive = 0;
+    let totalNegative = 0;
+    for (const row of rows) {
+      const dateYmd = new Date(row.report_day).toISOString().split('T')[0];
+      const total = Number(row.total) || 0;
+      let entry = byDay.get(dateYmd);
+      if (!entry) {
+        entry = { date: dateYmd, positive: 0, negative: 0 };
+        byDay.set(dateYmd, entry);
+      }
+      if (row.report_type === 'POSITIVE') {
+        entry.positive += total;
+        totalPositive += total;
+      } else if (row.report_type === 'NEGATIVE') {
+        entry.negative += total;
+        totalNegative += total;
+      }
+    }
+    const by_day = [...byDay.values()].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+    return { positive: totalPositive, negative: totalNegative, by_day };
   }
 
   private async loadBiExportSymptomCodeByIdMap(
@@ -927,6 +1036,7 @@ export class SyndromicClassificationService {
     where: Record<string, unknown>,
     whereInput: Prisma.report_syndrome_scoreWhereInput,
     base: BiExportSyndromeScoresBase,
+    totals: BiExportTotals,
     max: number,
   ): Promise<BiExportSyndromeScoresPayload> {
     const reportGroups = await this.reportSyndromeScoreModel.groupBy({
@@ -943,7 +1053,13 @@ export class SyndromicClassificationService {
       );
     }
     if (reportGroups.length === 0) {
-      return { ...base, only_symptoms: true, items: [] };
+      return {
+        ...base,
+        only_symptoms: true,
+        top_score: false,
+        totals,
+        items: [],
+      };
     }
     const reportIds = reportGroups.map((g) => g.report_id);
     const rows = await this.reportSyndromeScoreModel.findMany({
@@ -1011,13 +1127,20 @@ export class SyndromicClassificationService {
       };
     });
 
-    return { ...base, only_symptoms: true, items };
+    return {
+      ...base,
+      only_symptoms: true,
+      top_score: false,
+      totals,
+      items,
+    };
   }
 
   private async buildBiExportScoresPayload(
     h3Res: number,
     whereInput: Prisma.report_syndrome_scoreWhereInput,
     base: BiExportSyndromeScoresBase,
+    totals: BiExportTotals,
     max: number,
   ): Promise<BiExportSyndromeScoresPayload> {
     const totalItems = await this.reportSyndromeScoreModel.count({
@@ -1072,19 +1195,167 @@ export class SyndromicClassificationService {
         ),
         sintomas_codigos,
         sindrome_codigo: row.syndrome?.code ?? null,
-        modelo: row.processing_version ?? SyndromicClassificationService.PROCESSING_VERSION,
-        score_modelo: SyndromicClassificationService.toDecimalNumberOrNull(
-          row.score,
-        ),
-        score_tipo: SyndromicClassificationService.SCORE_TIPO_WEIGHTED,
-        limiar_decisao: SyndromicClassificationService.toDecimalNumberOrNull(
-          row.threshold_score_snapshot,
-        ),
         classificacao_positiva: row.is_above_threshold ?? null,
       };
     });
 
-    return { ...base, only_symptoms: false, items };
+    return {
+      ...base,
+      only_symptoms: false,
+      top_score: false,
+      totals,
+      items,
+    };
+  }
+
+  private pickWinningAboveThresholdSyndromeRow(
+    reportRows: BiExportTopScoreSyndromeRow[],
+  ): BiExportTopScoreSyndromeRow | null {
+    let topRow: BiExportTopScoreSyndromeRow | null = null;
+    let topScore = -Infinity;
+    for (const row of reportRows) {
+      if (row.is_above_threshold !== true) continue;
+      const score =
+        SyndromicClassificationService.toDecimalNumberOrNull(row.score) ??
+        -Infinity;
+      const isBetter =
+        topRow == null ||
+        score > topScore ||
+        (score === topScore && row.id > topRow.id);
+      if (isBetter) {
+        topRow = row;
+        topScore = score;
+      }
+    }
+    return topRow;
+  }
+
+  private symptomIdsForBiExportTopScoreLine(
+    topRow: BiExportTopScoreSyndromeRow | null,
+    reportRows: BiExportTopScoreSyndromeRow[],
+  ): number[] {
+    if (topRow) {
+      return SyndromicClassificationService.matchedSymptomIdsFromRow(
+        topRow.matched_symptom_ids,
+      );
+    }
+    const set = new Set<number>();
+    for (const row of reportRows) {
+      for (const sid of SyndromicClassificationService.matchedSymptomIdsFromRow(
+        row.matched_symptom_ids,
+      )) {
+        set.add(sid);
+      }
+    }
+    return [...set].sort((a, b) => a - b);
+  }
+
+  private mapReportToBiExportTopScoreLineItem(
+    rid: number,
+    reportRows: BiExportTopScoreSyndromeRow[],
+    bySymptomId: Map<number, string>,
+    h3Res: number,
+  ): BiExportScoreLineItem {
+    const topRow = this.pickWinningAboveThresholdSyndromeRow(reportRows);
+    const refRow = topRow ?? reportRows[0];
+    const report = refRow?.report;
+    const createdAt =
+      SyndromicClassificationService.reportCreatedAtFromRowOrEpoch(report);
+    const symptomIds = this.symptomIdsForBiExportTopScoreLine(
+      topRow,
+      reportRows,
+    );
+    const sintomas_codigos: string[] = [];
+    for (const sid of symptomIds) {
+      const c = bySymptomId.get(sid);
+      if (typeof c === 'string' && c.length > 0) {
+        sintomas_codigos.push(c);
+      }
+    }
+    return {
+      report_id: rid,
+      report_date:
+        SyndromicClassificationService.reportDateCivilYmd(createdAt),
+      periodo_dia:
+        SyndromicClassificationService.periodoDiaFromInstant(createdAt),
+      faixa_etaria: null,
+      sexo: SyndromicClassificationService.sexoToSlug(
+        report?.participation?.user?.gender?.name,
+      ),
+      location_index: SyndromicClassificationService.h3IndexFromLocation(
+        report?.occurrence_location,
+        h3Res,
+      ),
+      sintomas_codigos,
+      sindrome_codigo: topRow?.syndrome?.code ?? null,
+      classificacao_positiva: topRow != null,
+    };
+  }
+
+  private async buildBiExportTopScorePayload(
+    h3Res: number,
+    where: Record<string, unknown>,
+    whereInput: Prisma.report_syndrome_scoreWhereInput,
+    base: BiExportSyndromeScoresBase,
+    totals: BiExportTotals,
+    max: number,
+  ): Promise<BiExportSyndromeScoresPayload> {
+    const reportGroups = await this.reportSyndromeScoreModel.groupBy({
+      by: ['report_id'],
+      where: whereInput,
+      _max: { processed_at: true },
+      orderBy: { _max: { processed_at: 'desc' } },
+      take: max + 1,
+    });
+    if (reportGroups.length > max) {
+      throw new BadRequestException(
+        `Muitos reports distintos para exportar no modo topScore (${reportGroups.length}+). O máximo é ` +
+          `${max}. Reduza o intervalo de datas ou adicione filtros (ex.: síndrome, report).`,
+      );
+    }
+    if (reportGroups.length === 0) {
+      return {
+        ...base,
+        only_symptoms: false,
+        top_score: true,
+        totals,
+        items: [],
+      };
+    }
+    const reportIds = reportGroups.map((g: { report_id: number }) => g.report_id);
+    const rows = await this.reportSyndromeScoreModel.findMany({
+      where: {
+        ...where,
+        report_id: { in: reportIds },
+      } as Prisma.report_syndrome_scoreWhereInput,
+      include: SyndromicClassificationService.BI_EXPORT_REPORT_INCLUDE,
+    });
+
+    const bySymptomId = await this.loadBiExportSymptomCodeByIdMap(rows);
+
+    const byReport = new Map<number, BiExportTopScoreSyndromeRow[]>();
+    for (const row of rows as BiExportTopScoreSyndromeRow[]) {
+      const list = byReport.get(row.report_id) ?? [];
+      list.push(row);
+      byReport.set(row.report_id, list);
+    }
+
+    const items: BiExportScoreLineItem[] = reportIds.map((rid: number) =>
+      this.mapReportToBiExportTopScoreLineItem(
+        rid,
+        byReport.get(rid) ?? [],
+        bySymptomId,
+        h3Res,
+      ),
+    );
+
+    return {
+      ...base,
+      only_symptoms: false,
+      top_score: true,
+      totals,
+      items,
+    };
   }
 
   private async assertCanReadReportScores(
