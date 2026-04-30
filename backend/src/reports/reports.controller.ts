@@ -107,10 +107,11 @@ export class ReportsController {
 
   @Get(':id')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'participant')
   @ApiOperation({
     summary: 'Obter report por ID',
-    description: 'Retorna detalhes de um report específico',
+    description:
+      'Retorna detalhes de um report específico. Participantes só podem ver reports da própria participação; gestores/administradores veem conforme permissão no contexto.',
   })
   @ApiParam({ name: 'id', type: Number, description: 'ID do report' })
   @ApiResponse({

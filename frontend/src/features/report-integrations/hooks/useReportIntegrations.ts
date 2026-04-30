@@ -66,6 +66,7 @@ export function useSendIntegrationMessage() {
       queryClient.invalidateQueries({
         queryKey: ['integration-events-by-participation'],
       });
+      queryClient.invalidateQueries({ queryKey: ['app-signals-list'] });
     },
     onError: (error) => {
       const detail = getErrorMessage(

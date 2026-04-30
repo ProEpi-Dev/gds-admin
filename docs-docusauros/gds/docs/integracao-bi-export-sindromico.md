@@ -89,6 +89,7 @@ O servidor também aceita o nome `X-Api-Key` (variação de capitalização).
 | `onlyLatest` | Não | Por omissão `true`: considera apenas a classificação mais recente por par report×síndrome quando aplicável |
 | `h3Resolution` | Não | Resolução H3 da coluna `location_index` (0–15; padrão **8**) |
 | `onlySymptoms` | Não | Se `true`: uma linha por **report**, com localização, demografia e **`sintomas_codigos`** (união dos sintomas); **sem** colunas de score por síndrome nessa linha |
+| `topScore` | Não | Se `true`: uma linha por **report** com a síndrome de maior score acima do limiar (`sindrome_codigo` + `classificacao_positiva: true`). Reports sem nenhum score acima do limiar voltam com `sindrome_codigo: null` e `classificacao_positiva: false`. **Mutuamente exclusivo com `onlySymptoms`** |
 
 ### Exemplo com `curl`
 
@@ -109,7 +110,11 @@ O corpo é um **objeto JSON** com, entre outros:
 - `context_id`, `context_name`
 - `location_schema` — `{ "type": "h3", "resolution": <número> }`
 - `only_symptoms` — eco do modo `onlySymptoms`
-- `items` — lista de objetos; o conjunto de campos por linha depende de `only_symptoms` (ver contrato na documentação Swagger do backend ou na página de chaves no admin, onde há um exemplo de URL)
+- `top_score` — eco do modo `topScore`
+- `totals` — agregados de **reports** do contexto/intervalo (independente de classificação):
+  - `positive` / `negative`: total de reports `POSITIVE` / `NEGATIVE`
+  - `by_day`: lista por dia civil em America/Sao_Paulo (`{ "date": "yyyy-MM-dd", "positive": n, "negative": n }`); só dias com pelo menos um report
+- `items` — lista de objetos; o conjunto de campos por linha depende dos modos `only_symptoms` / `top_score` (ver contrato na documentação Swagger do backend)
 
 Em caso de erro, a API devolve o código HTTP habitual (**400** validação, **401** chave inválida/ausente, **403** `contextId` incompatível com a chave, **404** contexto inexistente) com mensagem no corpo quando aplicável.
 

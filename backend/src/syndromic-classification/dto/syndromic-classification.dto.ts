@@ -598,4 +598,18 @@ export class BiExportSyndromeScoresQueryDto {
   @IsBoolean()
   @IsOptional()
   onlySymptoms?: boolean = false;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Se true, devolve uma linha por report. Quando o report tiver pelo menos uma classificação acima do limiar, escolhe a síndrome com maior score; caso contrário devolve `sindrome_codigo: null`. Mutuamente exclusivo com `onlySymptoms`.',
+  })
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  @IsOptional()
+  topScore?: boolean = false;
 }

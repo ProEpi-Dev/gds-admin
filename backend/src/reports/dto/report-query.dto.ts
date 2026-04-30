@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsEnum,
@@ -11,7 +12,19 @@ import {
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { report_type_enum } from '@prisma/client';
 
+export const REPORT_VIEW_APP = 'app' as const;
+
 export class ReportQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      '`app`: resposta enxuta para o app (previewText; integração só com config ativa + community_signal); sem formResponse/occurrenceLocation na lista.',
+    enum: [REPORT_VIEW_APP],
+    example: REPORT_VIEW_APP,
+  })
+  @IsOptional()
+  @IsIn([REPORT_VIEW_APP])
+  view?: typeof REPORT_VIEW_APP;
+
   @ApiPropertyOptional({
     description: 'Filtrar por status ativo',
     example: true,

@@ -5,13 +5,14 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { Prisma, report_type_enum } from '@prisma/client';
+import { Prisma, report_type_enum, context_module_code } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthzService } from '../authz/authz.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
-import { ReportQueryDto } from './dto/report-query.dto';
+import { ReportQueryDto, REPORT_VIEW_APP } from './dto/report-query.dto';
 import { ReportResponseDto } from './dto/report-response.dto';
+import { ReportIntegrationSummaryDto } from './dto/report-integration-summary.dto';
 import {
   ReportsPointsQueryDto,
   REPORTS_POINTS_DEFAULT_LIMIT,
@@ -30,6 +31,7 @@ import {
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
+import { buildAppListPreviewText } from './helpers/report-app-list-preview.helper';
 import { addDays, parseISO } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
@@ -67,6 +69,28 @@ export class ReportsService {
   ): Promise<void> {
     const isAdmin = await this.authz.isAdmin(userId);
     if (isAdmin) return;
+    const canManage = await this.authz.hasAnyRole(userId, reportContextId, [
+      'manager',
+      'content_manager',
+    ]);
+    if (!canManage) {
+      throw new ForbiddenException(
+        'Você não tem permissão para acessar este report',
+      );
+    }
+  }
+
+  /**
+   * Leitura de um report: admin; gestores do contexto; ou o próprio participante dono da participação.
+   */
+  private async assertCanReadReport(
+    userId: number,
+    reportContextId: number,
+    participationUserId: number,
+  ): Promise<void> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (isAdmin) return;
+    if (participationUserId === userId) return;
     const canManage = await this.authz.hasAnyRole(userId, reportContextId, [
       'manager',
       'content_manager',
@@ -423,27 +447,32 @@ export class ReportsService {
       );
     }
 
-    // Idempotência para NEGATIVE:
-    // 1) ignora clique sequencial recente de NEGATIVE
-    // 2) ignora NEGATIVE se houve POSITIVE recente (regra configurável por contexto)
-    if (createReportDto.reportType === report_type_enum.NEGATIVE) {
-      const now = new Date();
-      const {
-        negativeDedupWindowMin,
-        negativeBlockIfPositiveWithinMin,
-      } = await this.getContextReportRules(participation.context_id);
+    // Idempotência e consistência temporal (mesmas janelas em context_configuration):
+    // - POSITIVE = relatório benigno (ex.: BEM, "Nada ocorreu"): dedup de envios repetidos;
+    //   bloqueia novo benigno se houver alerta (NEGATIVE) recente na janela configurada.
+    // - NEGATIVE = alerta (ex.: MAL com formulário, Informar): dedup de envios repetidos;
+    //   permite alerta após benigno sem bloqueio.
+    const now = new Date();
+    const {
+      negativeDedupWindowMin,
+      negativeBlockIfPositiveWithinMin,
+    } = await this.getContextReportRules(participation.context_id);
 
-      const biggestWindow = Math.max(
-        negativeDedupWindowMin,
-        negativeBlockIfPositiveWithinMin,
-      );
-      const lookupStart = this.subtractMinutes(now, biggestWindow);
-      const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
-      const positiveBlockStart = this.subtractMinutes(
-        now,
-        negativeBlockIfPositiveWithinMin,
-      );
+    const biggestWindow = Math.max(
+      negativeDedupWindowMin,
+      negativeBlockIfPositiveWithinMin,
+    );
+    const lookupStart = this.subtractMinutes(now, biggestWindow);
+    const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
+    const blockBenignAfterAlertStart = this.subtractMinutes(
+      now,
+      negativeBlockIfPositiveWithinMin,
+    );
 
+    if (
+      createReportDto.reportType === report_type_enum.POSITIVE ||
+      createReportDto.reportType === report_type_enum.NEGATIVE
+    ) {
       const recentReports = await this.prisma.report.findMany({
         where: {
           participation_id: createReportDto.participationId,
@@ -458,38 +487,59 @@ export class ReportsService {
         orderBy: { created_at: 'desc' },
       });
 
-      const recentNegative = recentReports.find(
-        (report) =>
-          report.report_type === report_type_enum.NEGATIVE &&
-          report.created_at >= dedupStart,
-      );
-      if (recentNegative) {
-        this.logger.debug(
-          {
-            participationId: createReportDto.participationId,
-            reportId: recentNegative.id,
-            dedupWindowMin: negativeDedupWindowMin,
-          },
-          'Report NEGATIVE ignorado por idempotência na janela temporal',
+      if (createReportDto.reportType === report_type_enum.POSITIVE) {
+        const recentPositive = recentReports.find(
+          (report) =>
+            report.report_type === report_type_enum.POSITIVE &&
+            report.created_at >= dedupStart,
         );
-        return this.mapToResponseDto(recentNegative);
+        if (recentPositive) {
+          this.logger.debug(
+            {
+              participationId: createReportDto.participationId,
+              reportId: recentPositive.id,
+              dedupWindowMin: negativeDedupWindowMin,
+            },
+            'Report POSITIVE ignorado por idempotência na janela temporal',
+          );
+          return this.mapToResponseDto(recentPositive);
+        }
+
+        const recentNegative = recentReports.find(
+          (report) =>
+            report.report_type === report_type_enum.NEGATIVE &&
+            report.created_at >= blockBenignAfterAlertStart,
+        );
+        if (recentNegative) {
+          this.logger.debug(
+            {
+              participationId: createReportDto.participationId,
+              alertReportId: recentNegative.id,
+              blockWindowMin: negativeBlockIfPositiveWithinMin,
+            },
+            'Report POSITIVE ignorado por existência de NEGATIVE recente',
+          );
+          return this.mapToResponseDto(recentNegative);
+        }
       }
 
-      const recentPositive = recentReports.find(
-        (report) =>
-          report.report_type === report_type_enum.POSITIVE &&
-          report.created_at >= positiveBlockStart,
-      );
-      if (recentPositive) {
-        this.logger.debug(
-          {
-            participationId: createReportDto.participationId,
-            positiveReportId: recentPositive.id,
-            blockWindowMin: negativeBlockIfPositiveWithinMin,
-          },
-          'Report NEGATIVE ignorado por existência de POSITIVE recente',
+      if (createReportDto.reportType === report_type_enum.NEGATIVE) {
+        const recentNegative = recentReports.find(
+          (report) =>
+            report.report_type === report_type_enum.NEGATIVE &&
+            report.created_at >= dedupStart,
         );
-        return this.mapToResponseDto(recentPositive);
+        if (recentNegative) {
+          this.logger.debug(
+            {
+              participationId: createReportDto.participationId,
+              reportId: recentNegative.id,
+              dedupWindowMin: negativeDedupWindowMin,
+            },
+            'Report NEGATIVE ignorado por idempotência na janela temporal',
+          );
+          return this.mapToResponseDto(recentNegative);
+        }
       }
     }
 
@@ -631,6 +681,122 @@ export class ReportsService {
       this.prisma.report.count({ where }),
     ]);
 
+    if (query.view === REPORT_VIEW_APP) {
+      const versionIds = [...new Set(reports.map((r) => r.form_version_id))];
+      const versions = await this.prisma.form_version.findMany({
+        where: { id: { in: versionIds } },
+        select: { id: true, definition: true },
+      });
+      const defByVersionId = new Map(versions.map((v) => [v.id, v.definition]));
+
+      const [integrationConfig, contextHasCommunitySignal] = await Promise.all([
+        this.reportIntegrations.getActiveConfig(filterContextId),
+        this.prisma.context.findFirst({
+          where: {
+            id: filterContextId,
+            context_module: {
+              some: { module_code: context_module_code.community_signal },
+            },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      const shouldAttachIntegration =
+        query.participationId != null &&
+        !canManageContext &&
+        !!integrationConfig &&
+        !!contextHasCommunitySignal;
+
+      let integrationByReport = new Map<
+        number,
+        {
+          status: 'pending' | 'processing' | 'sent' | 'failed';
+          externalSignalStageLabel: string | null;
+          externalSignalStageId: number | null;
+        }
+      >();
+
+      if (shouldAttachIntegration && query.participationId != null) {
+        try {
+          integrationByReport =
+            await this.reportIntegrations.getSummariesForParticipationReports(
+              query.participationId,
+              userId,
+              reports.map((r) => r.id),
+            );
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            {
+              event: 'REPORTS_APP_VIEW_INTEGRATION_SUMMARY_FAILED',
+              participationId: query.participationId,
+              errMessage: msg,
+            },
+            'Falha ao carregar resumo de integração na listagem app; continuando sem integrationSummary.',
+          );
+          integrationByReport = new Map();
+        }
+      }
+
+      const data = reports.map((report) => {
+        const definition = defByVersionId.get(report.form_version_id);
+        const previewText = buildAppListPreviewText(
+          definition,
+          report.form_response,
+        );
+        const raw = integrationByReport.get(report.id);
+        const integrationSummary: ReportIntegrationSummaryDto | null =
+          raw != null
+            ? {
+                status: raw.status,
+                externalSignalStageLabel: raw.externalSignalStageLabel,
+                externalSignalStageId: raw.externalSignalStageId,
+              }
+            : null;
+
+        return this.mapToAppListItem(
+          report,
+          previewText,
+          shouldAttachIntegration ? integrationSummary : null,
+        );
+      });
+
+      const baseUrl = '/v1/reports';
+      const queryParams: Record<string, any> = { view: query.view };
+      if (query.active !== undefined) queryParams.active = query.active;
+      if (query.participationId !== undefined)
+        queryParams.participationId = query.participationId;
+      if (query.formVersionId !== undefined)
+        queryParams.formVersionId = query.formVersionId;
+      if (query.reportType !== undefined)
+        queryParams.reportType = query.reportType;
+      if (query.formId !== undefined) queryParams.formId = query.formId;
+      if (query.startDate !== undefined)
+        queryParams.startDate = query.startDate;
+      if (query.endDate !== undefined) queryParams.endDate = query.endDate;
+      if (query.contextId !== undefined)
+        queryParams.contextId = query.contextId;
+
+      return {
+        data,
+        meta: createPaginationMeta({
+          page,
+          pageSize,
+          totalItems,
+          baseUrl,
+          queryParams,
+        }),
+        links: createPaginationLinks({
+          page,
+          pageSize,
+          totalItems,
+          baseUrl,
+          queryParams,
+        }),
+      };
+    }
+
     // Criar resposta paginada
     const baseUrl = '/v1/reports';
     const queryParams: Record<string, any> = {};
@@ -668,16 +834,23 @@ export class ReportsService {
   async findOne(id: number, userId: number): Promise<ReportResponseDto> {
     const report = await this.prisma.report.findUnique({
       where: { id },
-      include: { participation: { select: { context_id: true } } },
+      include: {
+        participation: { select: { context_id: true, user_id: true } },
+      },
     });
 
     if (!report) {
       throw new NotFoundException(`Report com ID ${id} não encontrado`);
     }
 
-    await this.assertCanManageReport(
+    const participation = report.participation as {
+      context_id: number;
+      user_id: number;
+    };
+    await this.assertCanReadReport(
       userId,
-      (report as any).participation.context_id,
+      participation.context_id,
+      participation.user_id,
     );
 
     return this.mapToResponseDto(report);
@@ -1129,6 +1302,34 @@ export class ReportsService {
       active: report.active,
       createdAt: report.created_at,
       updatedAt: report.updated_at,
+    };
+  }
+
+  private mapToAppListItem(
+    report: {
+      id: number;
+      participation_id: number;
+      form_version_id: number;
+      report_type: report_type_enum;
+      active: boolean;
+      created_at: Date;
+      updated_at: Date;
+    },
+    previewText: string,
+    integrationSummary: ReportIntegrationSummaryDto | null,
+  ): ReportResponseDto {
+    return {
+      id: report.id,
+      participationId: report.participation_id,
+      formVersionId: report.form_version_id,
+      reportType: report.report_type,
+      occurrenceLocation: null,
+      formResponse: null,
+      active: report.active,
+      createdAt: report.created_at,
+      updatedAt: report.updated_at,
+      previewText,
+      integrationSummary,
     };
   }
 }

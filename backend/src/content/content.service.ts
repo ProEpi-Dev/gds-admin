@@ -199,21 +199,26 @@ export class ContentService {
       { allowParticipantContext: true },
     );
 
-    const where: { context_id: number; active?: boolean } = {
+    const hasContentWrite = await this.authz.hasPermission(
+      userId,
+      filterContextId,
+      'content:write',
+    );
+
+    const where: Prisma.contentWhereInput = {
       context_id: filterContextId,
     };
 
     if (options?.includeInactive) {
-      const canSeeInactive = await this.authz.hasPermission(
-        userId,
-        filterContextId,
-        'content:write',
-      );
-      if (!canSeeInactive) {
+      if (!hasContentWrite) {
         where.active = true;
       }
     } else {
       where.active = true;
+    }
+
+    if (!hasContentWrite) {
+      where.track_exclusive = false;
     }
 
     return this.prisma.content.findMany({

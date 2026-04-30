@@ -10,7 +10,7 @@ import { AuthzService } from '../authz/authz.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
-import { ReportQueryDto } from './dto/report-query.dto';
+import { REPORT_VIEW_APP, ReportQueryDto } from './dto/report-query.dto';
 import {
   ReportsPointsQueryDto,
   REPORTS_POINTS_DEFAULT_LIMIT,
@@ -40,10 +40,10 @@ describe('ReportsService', () => {
     updated_at: new Date(),
   };
 
-  /** Report como retornado por findUnique com include: { participation: { select: { context_id } } } */
+  /** Report como retornado por findUnique com include participation */
   const mockReportWithParticipation = {
     ...mockReport,
-    participation: { context_id: 1 },
+    participation: { context_id: 1, user_id: 999 },
   };
 
   const mockParticipation = {
@@ -76,6 +76,7 @@ describe('ReportsService', () => {
       },
       form_version: {
         findUnique: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       context_configuration: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -88,6 +89,9 @@ describe('ReportsService', () => {
       participation_report_streak: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+      },
+      context: {
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
 
@@ -117,7 +121,13 @@ describe('ReportsService', () => {
         },
         {
           provide: ReportIntegrationsService,
-          useValue: { dispatchIntegrationEvent: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            dispatchIntegrationEvent: jest.fn().mockResolvedValue(undefined),
+            getActiveConfig: jest.fn().mockResolvedValue(null),
+            getSummariesForParticipationReports: jest
+              .fn()
+              .mockResolvedValue(new Map()),
+          },
         },
         {
           provide: SyndromicClassificationService,
@@ -276,6 +286,7 @@ describe('ReportsService', () => {
       } as any);
       jest
         .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValueOnce([] as any)
         .mockResolvedValue([
           { report_type: 'POSITIVE' },
           { report_type: 'NEGATIVE' },
@@ -345,7 +356,9 @@ describe('ReportsService', () => {
         ...mockReport,
         created_at: new Date('2026-03-14T02:30:00.000Z'),
       } as any);
-      findManySpy.mockResolvedValueOnce([{ report_type: 'POSITIVE' }] as any);
+      findManySpy
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce([{ report_type: 'POSITIVE' }] as any);
       jest
         .spyOn(prismaService.participation_report_day, 'findMany')
         .mockResolvedValue([
@@ -406,6 +419,7 @@ describe('ReportsService', () => {
       } as any);
       jest
         .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValueOnce([] as any)
         .mockRejectedValueOnce(new Error('erro ao agregar'));
 
       const result = await service.create(createDto, 1);
@@ -442,7 +456,10 @@ describe('ReportsService', () => {
         ...mockReport,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
-      jest.spyOn(prismaService.report, 'findMany').mockResolvedValueOnce([] as any);
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValueOnce([] as any)
+        .mockResolvedValueOnce([] as any);
       jest
         .spyOn(prismaService.participation_report_day, 'deleteMany')
         .mockResolvedValue({ count: 1 } as any);
@@ -629,18 +646,18 @@ describe('ReportsService', () => {
       expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
-    it('deve ignorar NEGATIVE quando houver POSITIVE recente na janela configurada', async () => {
+    it('deve ignorar POSITIVE quando houver NEGATIVE recente na janela configurada', async () => {
       const createDto: CreateReportDto = {
         participationId: 1,
         formVersionId: 1,
-        reportType: 'NEGATIVE',
+        reportType: 'POSITIVE',
         formResponse: {},
       };
 
-      const recentPositive = {
+      const recentNegative = {
         ...mockReport,
         id: 92,
-        report_type: 'POSITIVE',
+        report_type: 'NEGATIVE',
         created_at: new Date(),
       };
 
@@ -658,12 +675,12 @@ describe('ReportsService', () => {
         ] as any);
       jest
         .spyOn(prismaService.report, 'findMany')
-        .mockResolvedValue([recentPositive] as any);
+        .mockResolvedValue([recentNegative] as any);
 
       const result = await service.create(createDto, 1);
 
       expect(result.id).toBe(92);
-      expect(result.reportType).toBe('POSITIVE');
+      expect(result.reportType).toBe('NEGATIVE');
       expect(prismaService.report.create).not.toHaveBeenCalled();
       expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
       expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
@@ -803,6 +820,101 @@ describe('ReportsService', () => {
         'GET /reports',
         { allowParticipantContext: true },
       );
+    });
+
+    it('com view=app retorna previewText e omite formResponse na lista', async () => {
+      const query: ReportQueryDto = {
+        page: 1,
+        pageSize: 20,
+        view: REPORT_VIEW_APP,
+      };
+
+      const reportWithPayload = {
+        ...mockReport,
+        form_version_id: 10,
+        form_response: { fever: true },
+      };
+
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([reportWithPayload] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(1);
+      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
+        {
+          id: 10,
+          definition: {
+            fields: [{ name: 'fever', label: 'Febre', type: 'boolean' }],
+          },
+        },
+      ] as any);
+
+      const result = await service.findAll(query, 1);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].previewText).toBe('Sim');
+      expect(result.data[0].formResponse).toBeNull();
+      expect(result.data[0].occurrenceLocation).toBeNull();
+      expect(prismaService.form_version.findMany).toHaveBeenCalled();
+    });
+
+    it('com view=app e falha ao buscar integração ainda retorna lista sem integrationSummary', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValueOnce(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValueOnce(false);
+
+      (reportIntegrations.getActiveConfig as jest.Mock).mockResolvedValueOnce({
+        id: 99,
+      });
+      (
+        reportIntegrations.getSummariesForParticipationReports as jest.Mock
+      ).mockRejectedValueOnce(new Error('integration down'));
+
+      jest
+        .spyOn(prismaService.context, 'findFirst')
+        .mockResolvedValueOnce({ id: 1 } as any);
+
+      const query: ReportQueryDto = {
+        page: 1,
+        pageSize: 20,
+        view: REPORT_VIEW_APP,
+        participationId: mockReport.participation_id,
+      };
+
+      const reportRow = {
+        ...mockReport,
+        form_version_id: 10,
+        form_response: { campo: 'ok' },
+      };
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([reportRow] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(1);
+      jest.spyOn(prismaService.form_version, 'findMany').mockResolvedValue([
+        {
+          id: 10,
+          definition: {
+            fields: [{ name: 'campo', label: 'Campo', type: 'text' }],
+          },
+        },
+      ] as any);
+
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      const result = await service.findAll(query, mockParticipation.user_id);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].previewText).toBe('ok');
+      expect(result.data[0].integrationSummary).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'REPORTS_APP_VIEW_INTEGRATION_SUMMARY_FAILED',
+          participationId: mockReport.participation_id,
+          errMessage: 'integration down',
+        }),
+        expect.stringContaining('integração'),
+      );
+
+      warnSpy.mockRestore();
     });
   });
 
@@ -1337,7 +1449,7 @@ describe('ReportsService', () => {
       await expect(service.findOne(999, 1)).rejects.toThrow(NotFoundException);
     });
 
-    it('deve lançar ForbiddenException quando usuário não pode gerenciar o contexto', async () => {
+    it('deve lançar ForbiddenException quando usuário não é dono nem gestor do contexto', async () => {
       const authz = moduleRef.get<AuthzService>(AuthzService);
       (authz.isAdmin as jest.Mock).mockResolvedValue(false);
       (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
@@ -1346,6 +1458,22 @@ describe('ReportsService', () => {
         .mockResolvedValue(mockReportWithParticipation as any);
 
       await expect(service.findOne(1, 1)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deve permitir leitura quando o usuário é o participante dono do report', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      jest.spyOn(prismaService.report, 'findUnique').mockResolvedValue({
+        ...mockReport,
+        participation: { context_id: 1, user_id: 42 },
+      } as any);
+
+      const result = await service.findOne(1, 42);
+
+      expect(result).toHaveProperty('id', 1);
+      expect(authz.hasAnyRole).not.toHaveBeenCalled();
     });
   });
 
