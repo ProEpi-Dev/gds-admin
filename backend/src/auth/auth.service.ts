@@ -370,8 +370,9 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string): Promise<any> {
+    const normalizedEmail = email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user || !user.active) {
@@ -473,13 +474,15 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<SignupResponseDto> {
+    const email = signupDto.email.toLowerCase().trim();
+
     // 1. Validar email único
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: signupDto.email },
+      where: { email },
     });
 
     if (existingUser) {
-      throw new ConflictException(`Email ${signupDto.email} já está em uso`);
+      throw new ConflictException(`Email ${email} já está em uso`);
     }
 
     // 2. Validar contexto existe e é PUBLIC
@@ -532,7 +535,7 @@ export class AuthService {
       const user = await tx.user.create({
         data: {
           name: signupDto.name,
-          email: signupDto.email,
+          email,
           password: hashedPassword,
           active: true,
         },

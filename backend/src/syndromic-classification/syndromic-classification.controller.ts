@@ -92,7 +92,7 @@ export class SyndromicClassificationController {
   @ApiOperation({
     summary: 'Export de scores (JSON com H3) para consumo em ferramentas de BI',
     description:
-      'Autenticação por chave de API (cabeçalho `x-api-key`, formato `publicId.secret` gerado no painel). O `contextId` na URL é opcional quando a chave já está vinculada a um contexto; se informado, deve coincidir com o da chave. Com `onlySymptoms=true`, uma linha por `report` e apenas campos de sintoma/local/demografia (limite = reports distintos).',
+      'Autenticação por chave de API (cabeçalho `x-api-key`, formato `publicId.secret` gerado no painel). O `contextId` na URL é opcional quando a chave já está vinculada a um contexto; se informado, deve coincidir com o da chave.\n\nModos:\n- `onlySymptoms=true`: uma linha por `report` apenas com sintoma/local/demografia (limite = reports distintos).\n- `topScore=true`: uma linha por `report` com a síndrome de maior score acima do limiar; reports sem nenhum score acima do limiar voltam com `sindrome_codigo: null`. Mutuamente exclusivo com `onlySymptoms`.\n- Em todos os modos o payload inclui `totals` com contagem de reports POSITIVE/NEGATIVE no contexto/intervalo e quebra `by_day`.',
   })
   async getBiExportSyndromeScores(
     @Query() query: BiExportSyndromeScoresQueryDto,

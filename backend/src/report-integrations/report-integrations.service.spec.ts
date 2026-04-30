@@ -90,10 +90,10 @@ describe('ReportIntegrationsService', () => {
       expect(await service.isEligibleForIntegration(999)).toBe(false);
     });
 
-    it('deve retornar false para report NEGATIVE', async () => {
+    it('deve retornar false para report POSITIVE', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 1,
-        report_type: 'NEGATIVE',
+        report_type: 'POSITIVE',
         form_version: { form: { type: 'signal' } },
         participation: {
           context: {
@@ -107,7 +107,7 @@ describe('ReportIntegrationsService', () => {
     it('deve retornar false quando type não é signal', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 1,
-        report_type: 'POSITIVE',
+        report_type: 'NEGATIVE',
         form_version: { form: { type: 'quiz' } },
         participation: {
           context: {
@@ -121,7 +121,7 @@ describe('ReportIntegrationsService', () => {
     it('deve retornar false quando contexto não tem community_signal', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 1,
-        report_type: 'POSITIVE',
+        report_type: 'NEGATIVE',
         form_version: { form: { type: 'signal' } },
         participation: {
           context: {
@@ -135,7 +135,7 @@ describe('ReportIntegrationsService', () => {
     it('deve retornar true quando todas condições são atendidas', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 1,
-        report_type: 'POSITIVE',
+        report_type: 'NEGATIVE',
         form_version: { form: { type: 'signal' } },
         participation: {
           context: {
@@ -545,7 +545,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 99,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -642,7 +642,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 100,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -734,7 +734,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 103,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -822,7 +822,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 102,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -888,7 +888,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 104,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -959,7 +959,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 101,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1023,7 +1023,7 @@ describe('ReportIntegrationsService', () => {
     it('retorna cedo quando o report não é elegível', async () => {
       prisma.report.findUnique.mockResolvedValue({
         id: 1,
-        report_type: 'NEGATIVE',
+        report_type: 'POSITIVE',
         form_version: { form: { type: 'signal' } },
         participation: {
           context: {
@@ -1040,7 +1040,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 88,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1061,7 +1061,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 300,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1123,7 +1123,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 2,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1158,7 +1158,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 3,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1201,7 +1201,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 4,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1256,7 +1256,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 5,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1309,7 +1309,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 201,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1379,7 +1379,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 200,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {
@@ -1442,7 +1442,7 @@ describe('ReportIntegrationsService', () => {
       prisma.report.findUnique
         .mockResolvedValueOnce({
           id: 6,
-          report_type: 'POSITIVE',
+          report_type: 'NEGATIVE',
           form_version: { form: { type: 'signal' } },
           participation: {
             context: {

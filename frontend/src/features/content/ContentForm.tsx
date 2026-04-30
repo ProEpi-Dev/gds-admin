@@ -51,6 +51,8 @@ import {
   DialogContent,
   DialogActions,
   Chip,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -108,6 +110,7 @@ export default function ContentForm() {
     context_id: currentContext?.id ?? 0,
     type_id: null as number | null,
     tags: [] as number[],
+    track_exclusive: false,
   });
 
   // LOAD CONTENT TYPES ON MOUNT
@@ -194,6 +197,7 @@ export default function ContentForm() {
           context_id: c.context_id,
           type_id: c.type_id || null,
           tags: c.content_tag?.map((t: any) => t.tag.id) || [],
+          track_exclusive: Boolean(c.track_exclusive),
         });
 
         // Atualizar o editor Quill com o conteúdo carregado
@@ -513,6 +517,29 @@ export default function ContentForm() {
         sx={{ mb: 3 }}
         value={form.summary}
         onChange={(e) => setForm({ ...form, summary: e.target.value })}
+      />
+
+      <FormControlLabel
+        sx={{ mb: 2, ml: 0, display: "flex", alignItems: "flex-start" }}
+        control={
+          <Switch
+            checked={form.track_exclusive}
+            onChange={(e) =>
+              setForm({ ...form, track_exclusive: e.target.checked })
+            }
+          />
+        }
+        label={
+          <Box>
+            <Typography variant="body2">
+              Conteúdo exclusivo para trilhas
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Não aparece na lista geral do app para participantes; continua
+              acessível nas trilhas e no painel.
+            </Typography>
+          </Box>
+        }
       />
 
       {/* THUMBNAIL */}

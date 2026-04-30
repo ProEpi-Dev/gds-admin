@@ -26,6 +26,7 @@ export const reportsService = {
     if (query?.formVersionId)
       params.append("formVersionId", query.formVersionId.toString());
     if (query?.reportType) params.append("reportType", query.reportType);
+    if (query?.view) params.append("view", query.view);
     if (query?.formId) params.append("formId", query.formId.toString());
     if (query?.startDate) params.append("startDate", query.startDate);
     if (query?.endDate) params.append("endDate", query.endDate);

@@ -7,12 +7,22 @@ export interface Report {
   participationId: number;
   formVersionId: number;
   reportType: ReportType;
-  occurrenceLocation: any | null;
-  formResponse: any;
+  occurrenceLocation?: any | null;
+  formResponse?: any | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Só em `GET /reports?view=app` */
+  previewText?: string;
+  /** Só em `GET /reports?view=app` quando integração ativa no contexto */
+  integrationSummary?: ReportIntegrationSummary | null;
 }
+
+export type ReportIntegrationSummary = {
+  status: 'pending' | 'processing' | 'sent' | 'failed';
+  externalSignalStageLabel?: string | null;
+  externalSignalStageId?: number | null;
+};
 
 export interface ReportPoint {
   latitude: number;
@@ -55,6 +65,8 @@ export interface ReportQuery extends PaginationQuery {
   formId?: number;
   startDate?: string;
   endDate?: string;
+  /** Resposta enxuta para o app (preview + integração condicional). */
+  view?: "app";
   /** Filtrar por contexto (reports cuja participação pertence ao contexto selecionado) */
   contextId?: number;
 }

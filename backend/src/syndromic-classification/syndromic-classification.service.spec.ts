@@ -489,7 +489,21 @@ describe('SyndromicClassificationService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('lança BadRequest quando onlySymptoms e topScore vêm juntos', async () => {
+      await expect(
+        service.getBiExportSyndromeScores({
+          startDate: '2026-04-01',
+          endDate: '2026-04-30',
+          contextId: 10,
+          h3Resolution: 8,
+          onlySymptoms: true,
+          topScore: true,
+        } as BiExportSyndromeScoresQueryDto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('lança BadRequest quando count excede o máximo', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([]);
       prisma.report_syndrome_score.count.mockResolvedValue(10_001);
       await expect(
         service.getBiExportSyndromeScores({
@@ -503,8 +517,25 @@ describe('SyndromicClassificationService', () => {
       expect(prisma.report_syndrome_score.groupBy).not.toHaveBeenCalled();
     });
 
-    it('exige matched_symptom_ids não vazio no where e monta o payload', async () => {
+    it('exige matched_symptom_ids não vazio no where e monta o payload com totals', async () => {
       authz.resolveListContextId.mockClear();
+      prisma.$queryRaw.mockResolvedValueOnce([
+        {
+          report_day: new Date('2026-04-22T03:00:00.000Z'),
+          report_type: 'POSITIVE',
+          total: 4,
+        },
+        {
+          report_day: new Date('2026-04-22T03:00:00.000Z'),
+          report_type: 'NEGATIVE',
+          total: 30,
+        },
+        {
+          report_day: new Date('2026-04-23T03:00:00.000Z'),
+          report_type: 'NEGATIVE',
+          total: 5,
+        },
+      ]);
       prisma.report_syndrome_score.count.mockResolvedValue(1);
       prisma.report_syndrome_score.findMany.mockResolvedValue([
         {
@@ -550,32 +581,44 @@ describe('SyndromicClassificationService', () => {
       expect(out.location_schema).toEqual({ type: 'h3', resolution: 8 });
       expect(out.items).toHaveLength(1);
       expect(out.only_symptoms).toBe(false);
+      expect(out.top_score).toBe(false);
+      expect(out.totals).toEqual({
+        positive: 4,
+        negative: 35,
+        by_day: [
+          { date: '2026-04-22', positive: 4, negative: 30 },
+          { date: '2026-04-23', positive: 0, negative: 5 },
+        ],
+      });
       const lineFull = out.items[0] as {
         report_id: number;
         sindrome_codigo: string | null;
         sexo: string | null;
-        score_tipo: string;
-        modelo: string;
-        limiar_decisao: number | null;
         classificacao_positiva: boolean | null;
         location_index: string | null;
         sintomas_codigos: string[];
         faixa_etaria: null;
+        modelo?: string;
+        score_modelo?: number | null;
+        score_tipo?: string;
+        limiar_decisao?: number | null;
       };
       expect(lineFull.report_id).toBe(100);
       expect(lineFull.sintomas_codigos).toEqual(['febre', 'tosse']);
       expect(lineFull.sindrome_codigo).toBe('gripal');
       expect(lineFull.sexo).toBe('feminino');
       expect(lineFull.faixa_etaria).toBeNull();
-      expect(lineFull.score_tipo).toBe('weighted_score');
-      expect(lineFull.modelo).toBe('v1-weighted');
-      expect(lineFull.limiar_decisao).toBe(0.36);
       expect(lineFull.classificacao_positiva).toBe(true);
+      expect(lineFull.modelo).toBeUndefined();
+      expect(lineFull.score_modelo).toBeUndefined();
+      expect(lineFull.score_tipo).toBeUndefined();
+      expect(lineFull.limiar_decisao).toBeUndefined();
       expect(typeof lineFull.location_index).toBe('string');
       expect(lineFull.location_index!.length).toBeGreaterThan(0);
     });
 
     it('onlySymptoms: uma linha por report com sintomas agregados', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([]);
       prisma.report_syndrome_score.groupBy.mockResolvedValue([
         {
           report_id: 100,
@@ -622,6 +665,8 @@ describe('SyndromicClassificationService', () => {
       } as BiExportSyndromeScoresQueryDto);
 
       expect(out.only_symptoms).toBe(true);
+      expect(out.top_score).toBe(false);
+      expect(out.totals).toEqual({ positive: 0, negative: 0, by_day: [] });
       expect(out.items).toHaveLength(1);
       expect((out.items[0] as { sindrome_codigo?: string }).sindrome_codigo).toBeUndefined();
       expect(out.items[0].sintomas_codigos).toEqual(['febre', 'tosse']);
@@ -630,6 +675,7 @@ describe('SyndromicClassificationService', () => {
     });
 
     it('onlySymptoms: BadRequest quando há mais reports distintos que o máximo', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([]);
       const many = Array.from({ length: 10_001 }, (_, i) => ({
         report_id: i + 1,
         _max: { processed_at: new Date(0) },
@@ -643,6 +689,175 @@ describe('SyndromicClassificationService', () => {
           onlySymptoms: true,
         } as BiExportSyndromeScoresQueryDto),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('topScore: escolhe o maior score acima do limiar por report', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([
+        {
+          report_day: new Date('2026-04-22T03:00:00.000Z'),
+          report_type: 'POSITIVE',
+          total: 2,
+        },
+      ]);
+      prisma.report_syndrome_score.groupBy.mockResolvedValue([
+        { report_id: 1, _max: { processed_at: new Date('2026-04-22T12:00:00.000Z') } },
+        { report_id: 2, _max: { processed_at: new Date('2026-04-22T11:00:00.000Z') } },
+      ]);
+      prisma.report_syndrome_score.findMany.mockResolvedValueOnce([
+        {
+          id: 11,
+          report_id: 1,
+          syndrome_id: 10,
+          score: 0.6,
+          threshold_score_snapshot: 0.3,
+          is_above_threshold: true,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'diarreia' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: { latitude: -15.5, longitude: -47.8 },
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+        {
+          id: 12,
+          report_id: 1,
+          syndrome_id: 20,
+          score: 0.61,
+          threshold_score_snapshot: 0.5,
+          is_above_threshold: true,
+          matched_symptom_ids: [2],
+          syndrome: { code: 'gripe' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: { latitude: -15.5, longitude: -47.8 },
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+        {
+          id: 21,
+          report_id: 2,
+          syndrome_id: 10,
+          score: 0.31,
+          threshold_score_snapshot: 0.3,
+          is_above_threshold: true,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'diarreia' },
+          report: {
+            created_at: new Date('2026-04-22T11:00:00.000Z'),
+            occurrence_location: null,
+            participation: { user: { gender: { name: 'Masculino' } } },
+          },
+        },
+        {
+          id: 22,
+          report_id: 2,
+          syndrome_id: 20,
+          score: 0.49,
+          threshold_score_snapshot: 0.5,
+          is_above_threshold: false,
+          matched_symptom_ids: [3],
+          syndrome: { code: 'gripe' },
+          report: {
+            created_at: new Date('2026-04-22T11:00:00.000Z'),
+            occurrence_location: null,
+            participation: { user: { gender: { name: 'Masculino' } } },
+          },
+        },
+      ]);
+      prisma.symptom.findMany.mockResolvedValue([
+        { id: 1, code: 'febre' },
+        { id: 2, code: 'tosse' },
+        { id: 3, code: 'coriza' },
+      ]);
+
+      const out = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-22',
+        endDate: '2026-04-22',
+        contextId: 10,
+        topScore: true,
+      } as BiExportSyndromeScoresQueryDto);
+
+      expect(out.top_score).toBe(true);
+      expect(out.only_symptoms).toBe(false);
+      expect(out.totals.positive).toBe(2);
+      expect(out.items).toHaveLength(2);
+
+      const item1 = (out.items as unknown[]).find(
+        (i) => (i as { report_id: number }).report_id === 1,
+      ) as { sindrome_codigo: string; sintomas_codigos: string[]; classificacao_positiva: boolean };
+      expect(item1.sindrome_codigo).toBe('gripe');
+      expect(item1.classificacao_positiva).toBe(true);
+      expect(item1.sintomas_codigos).toEqual(['tosse']);
+
+      const item2 = (out.items as unknown[]).find(
+        (i) => (i as { report_id: number }).report_id === 2,
+      ) as { sindrome_codigo: string; sintomas_codigos: string[]; classificacao_positiva: boolean };
+      expect(item2.sindrome_codigo).toBe('diarreia');
+      expect(item2.classificacao_positiva).toBe(true);
+      expect(item2.sintomas_codigos).toEqual(['febre']);
+    });
+
+    it('topScore: report sem nenhum score acima do limiar retorna sindrome_codigo null e união dos sintomas', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([]);
+      prisma.report_syndrome_score.groupBy.mockResolvedValue([
+        { report_id: 3, _max: { processed_at: new Date('2026-04-22T11:00:00.000Z') } },
+      ]);
+      prisma.report_syndrome_score.findMany.mockResolvedValueOnce([
+        {
+          id: 31,
+          report_id: 3,
+          syndrome_id: 10,
+          score: 0.29,
+          threshold_score_snapshot: 0.3,
+          is_above_threshold: false,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'diarreia' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: null,
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+        {
+          id: 32,
+          report_id: 3,
+          syndrome_id: 20,
+          score: 0.49,
+          threshold_score_snapshot: 0.5,
+          is_above_threshold: false,
+          matched_symptom_ids: [2],
+          syndrome: { code: 'gripe' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: null,
+            participation: { user: { gender: { name: 'Feminino' } } },
+          },
+        },
+      ]);
+      prisma.symptom.findMany.mockResolvedValue([
+        { id: 1, code: 'febre' },
+        { id: 2, code: 'tosse' },
+      ]);
+
+      const out = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-22',
+        endDate: '2026-04-22',
+        contextId: 10,
+        topScore: true,
+      } as BiExportSyndromeScoresQueryDto);
+
+      expect(out.items).toHaveLength(1);
+      const item = out.items[0] as {
+        report_id: number;
+        sindrome_codigo: string | null;
+        sintomas_codigos: string[];
+        classificacao_positiva: boolean;
+      };
+      expect(item.report_id).toBe(3);
+      expect(item.sindrome_codigo).toBeNull();
+      expect(item.classificacao_positiva).toBe(false);
+      expect(item.sintomas_codigos).toEqual(['febre', 'tosse']);
     });
   });
 
