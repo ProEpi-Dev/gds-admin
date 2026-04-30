@@ -86,6 +86,23 @@ type BiExportSyndromeScoresPayload = BiExportSyndromeScoresBase & {
   items: BiExportSymptomOnlyItem[] | BiExportScoreLineItem[];
 };
 
+/** Linha de score com includes usados na exportação BI (modo top_score). */
+type BiExportTopScoreSyndromeRow = {
+  id: number;
+  report_id: number;
+  is_above_threshold?: boolean | null;
+  score?: unknown;
+  matched_symptom_ids?: unknown;
+  syndrome?: { code?: string | null } | null;
+  report?: {
+    created_at?: unknown;
+    occurrence_location?: { latitude: unknown; longitude: unknown } | null;
+    participation?: {
+      user?: { gender?: { name?: string | null } | null } | null;
+    } | null;
+  } | null;
+};
+
 @Injectable()
 export class SyndromicClassificationService {
   private readonly logger = new Logger(SyndromicClassificationService.name);
@@ -1191,8 +1208,10 @@ export class SyndromicClassificationService {
     };
   }
 
-  private pickWinningAboveThresholdSyndromeRow(reportRows: any[]): any | null {
-    let topRow: any = null;
+  private pickWinningAboveThresholdSyndromeRow(
+    reportRows: BiExportTopScoreSyndromeRow[],
+  ): BiExportTopScoreSyndromeRow | null {
+    let topRow: BiExportTopScoreSyndromeRow | null = null;
     let topScore = -Infinity;
     for (const row of reportRows) {
       if (row.is_above_threshold !== true) continue;
@@ -1212,8 +1231,8 @@ export class SyndromicClassificationService {
   }
 
   private symptomIdsForBiExportTopScoreLine(
-    topRow: any | null,
-    reportRows: any[],
+    topRow: BiExportTopScoreSyndromeRow | null,
+    reportRows: BiExportTopScoreSyndromeRow[],
   ): number[] {
     if (topRow) {
       return SyndromicClassificationService.matchedSymptomIdsFromRow(
@@ -1233,7 +1252,7 @@ export class SyndromicClassificationService {
 
   private mapReportToBiExportTopScoreLineItem(
     rid: number,
-    reportRows: any[],
+    reportRows: BiExportTopScoreSyndromeRow[],
     bySymptomId: Map<number, string>,
     h3Res: number,
   ): BiExportScoreLineItem {
@@ -1314,8 +1333,8 @@ export class SyndromicClassificationService {
 
     const bySymptomId = await this.loadBiExportSymptomCodeByIdMap(rows);
 
-    const byReport = new Map<number, any[]>();
-    for (const row of rows as any[]) {
+    const byReport = new Map<number, BiExportTopScoreSyndromeRow[]>();
+    for (const row of rows as BiExportTopScoreSyndromeRow[]) {
       const list = byReport.get(row.report_id) ?? [];
       list.push(row);
       byReport.set(row.report_id, list);

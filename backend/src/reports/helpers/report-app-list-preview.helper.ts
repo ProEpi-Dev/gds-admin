@@ -21,17 +21,17 @@ function displayUnknownScalar(val: unknown): string {
   if (val === null || val === undefined) {
     return '';
   }
-  const t = typeof val;
-  if (
-    t === 'string' ||
-    t === 'number' ||
-    t === 'boolean' ||
-    t === 'bigint'
-  ) {
-    return String(val);
+  if (typeof val === 'string') {
+    return val;
   }
-  if (t === 'symbol') {
-    return (val as symbol).toString();
+  if (typeof val === 'number' || typeof val === 'boolean') {
+    return `${val}`;
+  }
+  if (typeof val === 'bigint') {
+    return `${val}`;
+  }
+  if (typeof val === 'symbol') {
+    return val.toString();
   }
   try {
     return JSON.stringify(val);
