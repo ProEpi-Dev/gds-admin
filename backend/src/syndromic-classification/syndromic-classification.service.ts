@@ -988,7 +988,7 @@ export class SyndromicClassificationService {
       }
     }
     const by_day = [...byDay.values()].sort((a, b) =>
-      a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+      a.date.localeCompare(b.date),
     );
     return { positive: totalPositive, negative: totalNegative, by_day };
   }
@@ -1191,6 +1191,88 @@ export class SyndromicClassificationService {
     };
   }
 
+  private pickWinningAboveThresholdSyndromeRow(reportRows: any[]): any | null {
+    let topRow: any = null;
+    let topScore = -Infinity;
+    for (const row of reportRows) {
+      if (row.is_above_threshold !== true) continue;
+      const score =
+        SyndromicClassificationService.toDecimalNumberOrNull(row.score) ??
+        -Infinity;
+      const isBetter =
+        topRow == null ||
+        score > topScore ||
+        (score === topScore && row.id > topRow.id);
+      if (isBetter) {
+        topRow = row;
+        topScore = score;
+      }
+    }
+    return topRow;
+  }
+
+  private symptomIdsForBiExportTopScoreLine(
+    topRow: any | null,
+    reportRows: any[],
+  ): number[] {
+    if (topRow) {
+      return SyndromicClassificationService.matchedSymptomIdsFromRow(
+        topRow.matched_symptom_ids,
+      );
+    }
+    const set = new Set<number>();
+    for (const row of reportRows) {
+      for (const sid of SyndromicClassificationService.matchedSymptomIdsFromRow(
+        row.matched_symptom_ids,
+      )) {
+        set.add(sid);
+      }
+    }
+    return [...set].sort((a, b) => a - b);
+  }
+
+  private mapReportToBiExportTopScoreLineItem(
+    rid: number,
+    reportRows: any[],
+    bySymptomId: Map<number, string>,
+    h3Res: number,
+  ): BiExportScoreLineItem {
+    const topRow = this.pickWinningAboveThresholdSyndromeRow(reportRows);
+    const refRow = topRow ?? reportRows[0];
+    const report = refRow?.report;
+    const createdAt =
+      SyndromicClassificationService.reportCreatedAtFromRowOrEpoch(report);
+    const symptomIds = this.symptomIdsForBiExportTopScoreLine(
+      topRow,
+      reportRows,
+    );
+    const sintomas_codigos: string[] = [];
+    for (const sid of symptomIds) {
+      const c = bySymptomId.get(sid);
+      if (typeof c === 'string' && c.length > 0) {
+        sintomas_codigos.push(c);
+      }
+    }
+    return {
+      report_id: rid,
+      report_date:
+        SyndromicClassificationService.reportDateCivilYmd(createdAt),
+      periodo_dia:
+        SyndromicClassificationService.periodoDiaFromInstant(createdAt),
+      faixa_etaria: null,
+      sexo: SyndromicClassificationService.sexoToSlug(
+        report?.participation?.user?.gender?.name,
+      ),
+      location_index: SyndromicClassificationService.h3IndexFromLocation(
+        report?.occurrence_location,
+        h3Res,
+      ),
+      sintomas_codigos,
+      sindrome_codigo: topRow?.syndrome?.code ?? null,
+      classificacao_positiva: topRow != null,
+    };
+  }
+
   private async buildBiExportTopScorePayload(
     h3Res: number,
     where: Record<string, unknown>,
@@ -1239,75 +1321,14 @@ export class SyndromicClassificationService {
       byReport.set(row.report_id, list);
     }
 
-    const items: BiExportScoreLineItem[] = reportIds.map((rid: number) => {
-      const reportRows = byReport.get(rid) ?? [];
-
-      let topRow: any = null;
-      let topScore = -Infinity;
-      for (const row of reportRows) {
-        if (row.is_above_threshold !== true) continue;
-        const score =
-          SyndromicClassificationService.toDecimalNumberOrNull(row.score) ??
-          -Infinity;
-        if (
-          topRow == null ||
-          score > topScore ||
-          (score === topScore && row.id > topRow.id)
-        ) {
-          topRow = row;
-          topScore = score;
-        }
-      }
-
-      const refRow = topRow ?? reportRows[0];
-      const report = refRow?.report;
-      const createdAt =
-        SyndromicClassificationService.reportCreatedAtFromRowOrEpoch(report);
-
-      let symptomIds: number[];
-      if (topRow) {
-        symptomIds =
-          SyndromicClassificationService.matchedSymptomIdsFromRow(
-            topRow.matched_symptom_ids,
-          );
-      } else {
-        const set = new Set<number>();
-        for (const row of reportRows) {
-          for (const sid of SyndromicClassificationService.matchedSymptomIdsFromRow(
-            row.matched_symptom_ids,
-          )) {
-            set.add(sid);
-          }
-        }
-        symptomIds = [...set].sort((a, b) => a - b);
-      }
-      const sintomas_codigos: string[] = [];
-      for (const sid of symptomIds) {
-        const c = bySymptomId.get(sid);
-        if (typeof c === 'string' && c.length > 0) {
-          sintomas_codigos.push(c);
-        }
-      }
-
-      return {
-        report_id: rid,
-        report_date:
-          SyndromicClassificationService.reportDateCivilYmd(createdAt),
-        periodo_dia:
-          SyndromicClassificationService.periodoDiaFromInstant(createdAt),
-        faixa_etaria: null,
-        sexo: SyndromicClassificationService.sexoToSlug(
-          report?.participation?.user?.gender?.name,
-        ),
-        location_index: SyndromicClassificationService.h3IndexFromLocation(
-          report?.occurrence_location,
-          h3Res,
-        ),
-        sintomas_codigos,
-        sindrome_codigo: topRow?.syndrome?.code ?? null,
-        classificacao_positiva: topRow != null,
-      };
-    });
+    const items: BiExportScoreLineItem[] = reportIds.map((rid: number) =>
+      this.mapReportToBiExportTopScoreLineItem(
+        rid,
+        byReport.get(rid) ?? [],
+        bySymptomId,
+        h3Res,
+      ),
+    );
 
     return {
       ...base,

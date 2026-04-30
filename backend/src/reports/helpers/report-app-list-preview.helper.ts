@@ -16,8 +16,44 @@ type FormDefinition = {
   fields?: FormBuilderFieldDef[];
 };
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
+/** Exibe um valor escalar/desconhecido sem cair em `[object Object]`. */
+function displayUnknownScalar(val: unknown): string {
+  if (val === null || val === undefined) {
+    return '';
+  }
+  const t = typeof val;
+  if (
+    t === 'string' ||
+    t === 'number' ||
+    t === 'boolean' ||
+    t === 'bigint'
+  ) {
+    return String(val);
+  }
+  if (t === 'symbol') {
+    return (val as symbol).toString();
+  }
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return '[objeto]';
+  }
+}
+
+/** Compara opção de select/multiselect com valor do formulário de forma estável. */
+function comparableOptionValue(val: unknown): string {
+  if (
+    typeof val === 'string' ||
+    typeof val === 'number' ||
+    typeof val === 'boolean'
+  ) {
+    return String(val);
+  }
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return displayUnknownScalar(val);
+  }
 }
 
 function formatLocationObject(value: Record<string, unknown>): string {
@@ -28,10 +64,111 @@ function formatLocationObject(value: Record<string, unknown>): string {
       const inner = formatLocationObject(val as Record<string, unknown>);
       if (inner !== '-') parts.push(`${key}: ${inner}`);
     } else {
-      parts.push(`${key}: ${String(val)}`);
+      parts.push(`${key}: ${displayUnknownScalar(val)}`);
     }
   }
   return parts.length > 0 ? parts.join(' | ') : '-';
+}
+
+function formatBooleanFieldValue(value: unknown): string {
+  return value ? 'Sim' : 'Não';
+}
+
+function formatMultiselectFieldValue(
+  value: unknown[],
+  field: FormBuilderFieldDef,
+): string {
+  return value
+    .map((v) => {
+      const option = field.options?.find(
+        (opt) => comparableOptionValue(opt.value) === comparableOptionValue(v),
+      );
+      return option ? option.label : displayUnknownScalar(v);
+    })
+    .join(', ');
+}
+
+function formatSelectFieldValue(
+  value: unknown,
+  field: FormBuilderFieldDef,
+): string {
+  const option = field.options?.find(
+    (opt) => comparableOptionValue(opt.value) === comparableOptionValue(value),
+  );
+  return option ? option.label : displayUnknownScalar(value);
+}
+
+function formatDateFieldValue(value: unknown): string {
+  return new Date(value as string | number | Date).toLocaleDateString('pt-BR');
+}
+
+function formatMapPointFieldValue(value: unknown): string {
+  const lat = (value as { latitude: number }).latitude;
+  const lng = (value as { longitude: number }).longitude;
+  return `${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
+}
+
+function formatLocationFieldValue(
+  value: Record<string, unknown>,
+  field: FormBuilderFieldDef,
+): string {
+  const cfg = field.locationConfig;
+  if (!cfg) {
+    return formatLocationObject(value);
+  }
+  const parts: string[] = [];
+  for (const key of [
+    cfg.countryNameKey,
+    cfg.stateDistrictNameKey,
+    cfg.cityCouncilNameKey,
+  ]) {
+    if (!key) continue;
+    const v = value[key];
+    if (v !== null && v !== undefined && v !== '') {
+      parts.push(displayUnknownScalar(v));
+    }
+  }
+  if (parts.length > 0) return parts.join(' · ');
+  return formatLocationObject(value);
+}
+
+function formatFieldValueByType(
+  value: unknown,
+  field: FormBuilderFieldDef,
+): string | undefined {
+  const t = field.type;
+  if (t === 'boolean') {
+    return formatBooleanFieldValue(value);
+  }
+  if (t === 'multiselect' && Array.isArray(value)) {
+    return formatMultiselectFieldValue(value, field);
+  }
+  if (t === 'select') {
+    return formatSelectFieldValue(value, field);
+  }
+  if (t === 'date' && value) {
+    return formatDateFieldValue(value);
+  }
+  if (
+    t === 'mapPoint' &&
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { latitude?: unknown }).latitude === 'number' &&
+    typeof (value as { longitude?: unknown }).longitude === 'number'
+  ) {
+    return formatMapPointFieldValue(value);
+  }
+  if (t === 'location' && value && typeof value === 'object' && field.locationConfig) {
+    return formatLocationFieldValue(value as Record<string, unknown>, field);
+  }
+  return undefined;
+}
+
+function formatFieldValueWithoutMeta(value: unknown): string {
+  if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+    return formatLocationObject(value as Record<string, unknown>);
+  }
+  return displayUnknownScalar(value);
 }
 
 function formatFieldValue(
@@ -42,62 +179,18 @@ function formatFieldValue(
     return '-';
   }
   if (!field) {
-    if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
-      return formatLocationObject(value as Record<string, unknown>);
-    }
-    return String(value);
+    return formatFieldValueWithoutMeta(value);
   }
 
-  const t = field.type;
-  if (t === 'boolean') {
-    return value ? 'Sim' : 'Não';
+  const typed = formatFieldValueByType(value, field);
+  if (typed !== undefined) {
+    return typed;
   }
-  if (t === 'multiselect' && Array.isArray(value)) {
-    return value
-      .map((v) => {
-        const option = field.options?.find((opt) => String(opt.value) === String(v));
-        return option ? option.label : String(v);
-      })
-      .join(', ');
-  }
-  if (t === 'select') {
-    const option = field.options?.find((opt) => String(opt.value) === String(value));
-    return option ? option.label : String(value);
-  }
-  if (t === 'date' && value) {
-    return new Date(value as string | number | Date).toLocaleDateString('pt-BR');
-  }
-  if (
-    t === 'mapPoint' &&
-    value &&
-    typeof value === 'object' &&
-    typeof (value as { latitude?: unknown }).latitude === 'number' &&
-    typeof (value as { longitude?: unknown }).longitude === 'number'
-  ) {
-    const lat = (value as { latitude: number }).latitude;
-    const lng = (value as { longitude: number }).longitude;
-    return `${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
-  }
-  if (t === 'location' && value && typeof value === 'object' && field.locationConfig) {
-    const cfg = field.locationConfig;
-    const rec = value as Record<string, unknown>;
-    const parts: string[] = [];
-    for (const key of [
-      cfg.countryNameKey,
-      cfg.stateDistrictNameKey,
-      cfg.cityCouncilNameKey,
-    ]) {
-      if (!key) continue;
-      const v = rec[key];
-      if (v !== null && v !== undefined && v !== '') parts.push(String(v));
-    }
-    if (parts.length > 0) return parts.join(' · ');
-    return formatLocationObject(rec);
-  }
+
   if (typeof value === 'object' && !Array.isArray(value)) {
     return formatLocationObject(value as Record<string, unknown>);
   }
-  return String(value);
+  return displayUnknownScalar(value);
 }
 
 function fieldMetaByName(
@@ -117,7 +210,11 @@ export function buildAppListPreviewText(
   definitionJson: unknown,
   formResponseJson: unknown,
 ): string {
-  if (!formResponseJson || typeof formResponseJson !== 'object' || Array.isArray(formResponseJson)) {
+  if (
+    !formResponseJson ||
+    typeof formResponseJson !== 'object' ||
+    Array.isArray(formResponseJson)
+  ) {
     return 'Sem detalhes adicionais.';
   }
 

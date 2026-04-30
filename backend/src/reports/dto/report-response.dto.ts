@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { report_type_enum } from '@prisma/client';
+import { Prisma, report_type_enum } from '@prisma/client';
 import { ReportIntegrationSummaryDto } from './report-integration-summary.dto';
 
 export class ReportResponseDto {
@@ -23,15 +23,19 @@ export class ReportResponseDto {
     description:
       'Localização da ocorrência (JSON). Omitida em `GET /reports?view=app`.',
     example: { latitude: -23.5505, longitude: -46.6333 },
+    type: Object,
+    nullable: true,
   })
-  occurrenceLocation?: any | null;
+  occurrenceLocation?: Prisma.JsonValue | null;
 
   @ApiPropertyOptional({
     description:
       'Resposta do formulário (JSON). Omitida em `GET /reports?view=app` — use previewText ou `GET /reports/:id`.',
     example: { campo1: 'valor1', campo2: 'valor2' },
+    type: Object,
+    nullable: true,
   })
-  formResponse?: any | null;
+  formResponse?: Prisma.JsonValue | null;
 
   @ApiProperty({ description: 'Status ativo', example: true })
   active: boolean;

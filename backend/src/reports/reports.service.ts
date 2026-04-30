@@ -203,6 +203,127 @@ export class ReportsService {
     };
   }
 
+  /** Mensagem segura para logs a partir de valores desconhecidos em catch. */
+  private unknownToLogMessage(value: unknown): string {
+    if (value instanceof Error) {
+      return value.message;
+    }
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable]';
+    }
+  }
+
+  /**
+   * Idempotência POSITIVE/NEGATIVE: devolve DTO do report existente ou null para seguir com create.
+   */
+  private async tryResolveCreateDedupReturn(
+    createReportDto: CreateReportDto,
+    contextId: number,
+  ): Promise<ReportResponseDto | null> {
+    if (
+      createReportDto.reportType !== report_type_enum.POSITIVE &&
+      createReportDto.reportType !== report_type_enum.NEGATIVE
+    ) {
+      return null;
+    }
+
+    const now = new Date();
+    const {
+      negativeDedupWindowMin,
+      negativeBlockIfPositiveWithinMin,
+    } = await this.getContextReportRules(contextId);
+
+    const biggestWindow = Math.max(
+      negativeDedupWindowMin,
+      negativeBlockIfPositiveWithinMin,
+    );
+    const lookupStart = this.subtractMinutes(now, biggestWindow);
+    const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
+    const blockBenignAfterAlertStart = this.subtractMinutes(
+      now,
+      negativeBlockIfPositiveWithinMin,
+    );
+
+    const recentReports = await this.prisma.report.findMany({
+      where: {
+        participation_id: createReportDto.participationId,
+        active: true,
+        created_at: {
+          gte: lookupStart,
+        },
+        report_type: {
+          in: [report_type_enum.NEGATIVE, report_type_enum.POSITIVE],
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (createReportDto.reportType === report_type_enum.POSITIVE) {
+      const recentPositive = recentReports.find(
+        (report) =>
+          report.report_type === report_type_enum.POSITIVE &&
+          report.created_at >= dedupStart,
+      );
+      if (recentPositive) {
+        this.logger.debug(
+          {
+            participationId: createReportDto.participationId,
+            reportId: recentPositive.id,
+            dedupWindowMin: negativeDedupWindowMin,
+          },
+          'Report POSITIVE ignorado por idempotência na janela temporal',
+        );
+        return this.mapToResponseDto(recentPositive);
+      }
+
+      const recentNegative = recentReports.find(
+        (report) =>
+          report.report_type === report_type_enum.NEGATIVE &&
+          report.created_at >= blockBenignAfterAlertStart,
+      );
+      if (recentNegative) {
+        this.logger.debug(
+          {
+            participationId: createReportDto.participationId,
+            alertReportId: recentNegative.id,
+            blockWindowMin: negativeBlockIfPositiveWithinMin,
+          },
+          'Report POSITIVE ignorado por existência de NEGATIVE recente',
+        );
+        return this.mapToResponseDto(recentNegative);
+      }
+      return null;
+    }
+
+    const recentNegative = recentReports.find(
+      (report) =>
+        report.report_type === report_type_enum.NEGATIVE &&
+        report.created_at >= dedupStart,
+    );
+    if (recentNegative) {
+      this.logger.debug(
+        {
+          participationId: createReportDto.participationId,
+          reportId: recentNegative.id,
+          dedupWindowMin: negativeDedupWindowMin,
+        },
+        'Report NEGATIVE ignorado por idempotência na janela temporal',
+      );
+      return this.mapToResponseDto(recentNegative);
+    }
+
+    return null;
+  }
+
   private formatDateOnly(value?: Date | null): string | null {
     return value ? value.toISOString().split('T')[0] : null;
   }
@@ -452,95 +573,12 @@ export class ReportsService {
     //   bloqueia novo benigno se houver alerta (NEGATIVE) recente na janela configurada.
     // - NEGATIVE = alerta (ex.: MAL com formulário, Informar): dedup de envios repetidos;
     //   permite alerta após benigno sem bloqueio.
-    const now = new Date();
-    const {
-      negativeDedupWindowMin,
-      negativeBlockIfPositiveWithinMin,
-    } = await this.getContextReportRules(participation.context_id);
-
-    const biggestWindow = Math.max(
-      negativeDedupWindowMin,
-      negativeBlockIfPositiveWithinMin,
+    const dedupReturn = await this.tryResolveCreateDedupReturn(
+      createReportDto,
+      participation.context_id,
     );
-    const lookupStart = this.subtractMinutes(now, biggestWindow);
-    const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
-    const blockBenignAfterAlertStart = this.subtractMinutes(
-      now,
-      negativeBlockIfPositiveWithinMin,
-    );
-
-    if (
-      createReportDto.reportType === report_type_enum.POSITIVE ||
-      createReportDto.reportType === report_type_enum.NEGATIVE
-    ) {
-      const recentReports = await this.prisma.report.findMany({
-        where: {
-          participation_id: createReportDto.participationId,
-          active: true,
-          created_at: {
-            gte: lookupStart,
-          },
-          report_type: {
-            in: [report_type_enum.NEGATIVE, report_type_enum.POSITIVE],
-          },
-        },
-        orderBy: { created_at: 'desc' },
-      });
-
-      if (createReportDto.reportType === report_type_enum.POSITIVE) {
-        const recentPositive = recentReports.find(
-          (report) =>
-            report.report_type === report_type_enum.POSITIVE &&
-            report.created_at >= dedupStart,
-        );
-        if (recentPositive) {
-          this.logger.debug(
-            {
-              participationId: createReportDto.participationId,
-              reportId: recentPositive.id,
-              dedupWindowMin: negativeDedupWindowMin,
-            },
-            'Report POSITIVE ignorado por idempotência na janela temporal',
-          );
-          return this.mapToResponseDto(recentPositive);
-        }
-
-        const recentNegative = recentReports.find(
-          (report) =>
-            report.report_type === report_type_enum.NEGATIVE &&
-            report.created_at >= blockBenignAfterAlertStart,
-        );
-        if (recentNegative) {
-          this.logger.debug(
-            {
-              participationId: createReportDto.participationId,
-              alertReportId: recentNegative.id,
-              blockWindowMin: negativeBlockIfPositiveWithinMin,
-            },
-            'Report POSITIVE ignorado por existência de NEGATIVE recente',
-          );
-          return this.mapToResponseDto(recentNegative);
-        }
-      }
-
-      if (createReportDto.reportType === report_type_enum.NEGATIVE) {
-        const recentNegative = recentReports.find(
-          (report) =>
-            report.report_type === report_type_enum.NEGATIVE &&
-            report.created_at >= dedupStart,
-        );
-        if (recentNegative) {
-          this.logger.debug(
-            {
-              participationId: createReportDto.participationId,
-              reportId: recentNegative.id,
-              dedupWindowMin: negativeDedupWindowMin,
-            },
-            'Report NEGATIVE ignorado por idempotência na janela temporal',
-          );
-          return this.mapToResponseDto(recentNegative);
-        }
-      }
+    if (dedupReturn !== null) {
+      return dedupReturn;
     }
 
     // Preparar dados
@@ -570,13 +608,12 @@ export class ReportsService {
         report.participation_id,
         report.created_at,
       );
-    } catch (error) {
-      const err = error as Error;
+    } catch (error: unknown) {
       this.logger.error(
         {
           reportId: report.id,
           participationId: report.participation_id,
-          errMessage: err?.message,
+          errMessage: this.unknownToLogMessage(error),
         },
         'Falha ao atualizar métricas de report; dados agregados podem estar desatualizados',
       );
@@ -584,9 +621,12 @@ export class ReportsService {
 
     this.reportIntegrations
       .dispatchIntegrationEvent(report.id)
-      .catch((err: Error) =>
+      .catch((err: unknown) =>
         this.logger.error(
-          { reportId: report.id, errMessage: err?.message },
+          {
+            reportId: report.id,
+            errMessage: this.unknownToLogMessage(err),
+          },
           'Falha ao disparar integração externa para report',
         ),
       );
@@ -726,7 +766,7 @@ export class ReportsService {
               reports.map((r) => r.id),
             );
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = this.unknownToLogMessage(err);
           this.logger.warn(
             {
               event: 'REPORTS_APP_VIEW_INTEGRATION_SUMMARY_FAILED',
@@ -746,14 +786,14 @@ export class ReportsService {
           report.form_response,
         );
         const raw = integrationByReport.get(report.id);
-        const integrationSummary: ReportIntegrationSummaryDto | null =
-          raw != null
-            ? {
-                status: raw.status,
-                externalSignalStageLabel: raw.externalSignalStageLabel,
-                externalSignalStageId: raw.externalSignalStageId,
-              }
-            : null;
+        let integrationSummary: ReportIntegrationSummaryDto | null = null;
+        if (raw !== undefined && raw !== null) {
+          integrationSummary = {
+            status: raw.status,
+            externalSignalStageLabel: raw.externalSignalStageLabel,
+            externalSignalStageId: raw.externalSignalStageId,
+          };
+        }
 
         return this.mapToAppListItem(
           report,
