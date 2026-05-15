@@ -11,6 +11,10 @@ import { randomUUID } from 'node:crypto';
 import { formatInTimeZone, toDate } from 'date-fns-tz';
 import { latLngToCell } from 'h3-js';
 import { AuthzService } from '../authz/authz.service';
+import {
+  makeBiExportPseudonym,
+  resolveBiExportPseudonymSecret,
+} from './bi-export-pseudonym.util';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import {
   createPaginationLinks,
@@ -54,6 +58,8 @@ type BiExportSyndromeScoresBase = {
 
 type BiExportSymptomOnlyItem = {
   report_id: number;
+  usuario_ref: string | null;
+  participacao_ref: string | null;
   report_date: string;
   periodo_dia: PeriodoDiaSlug;
   faixa_etaria: null;
@@ -98,7 +104,11 @@ type BiExportTopScoreSyndromeRow = {
     created_at?: unknown;
     occurrence_location?: { latitude: unknown; longitude: unknown } | null;
     participation?: {
-      user?: { gender?: { name?: string | null } | null } | null;
+      id?: number | null;
+      user?: {
+        id?: number | null;
+        gender?: { name?: string | null } | null;
+      } | null;
     } | null;
   } | null;
 };
@@ -251,6 +261,44 @@ export class SyndromicClassificationService {
     }
   }
 
+  /**
+   * Calcula `usuario_ref` e `participacao_ref` para uma linha do export de BI.
+   * Ambos os pseudônimos têm `context_id` como prefixo canônico, isolando os
+   * pseudônimos por contexto (mesmo usuário em outro contexto → outro ref).
+   *
+   * Retorna `null` quando o `participation` / `user` não estiver presente na
+   * row (ex.: include parcial em algum caminho de erro).
+   */
+  private static refsForBiExportRow(
+    secret: string,
+    contextId: number,
+    report:
+      | {
+          participation?:
+            | {
+                id?: number | null;
+                user?: { id?: number | null } | null;
+              }
+            | null;
+        }
+      | null
+      | undefined,
+  ): { usuario_ref: string | null; participacao_ref: string | null } {
+    const participation = report?.participation ?? null;
+    const userId = participation?.user?.id ?? null;
+    const participationId = participation?.id ?? null;
+    return {
+      usuario_ref:
+        typeof userId === 'number' && Number.isFinite(userId)
+          ? makeBiExportPseudonym(secret, [contextId, 'u', userId])
+          : null,
+      participacao_ref:
+        typeof participationId === 'number' && Number.isFinite(participationId)
+          ? makeBiExportPseudonym(secret, [contextId, 'p', participationId])
+          : null,
+    };
+  }
+
   private static matchedSymptomIdsFromRow(
     matched_symptom_ids: unknown,
   ): number[] {
@@ -265,6 +313,8 @@ export class SyndromicClassificationService {
     return out;
   }
 
+  private biExportPseudonymWarningEmitted = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authz: AuthzService,
@@ -272,6 +322,25 @@ export class SyndromicClassificationService {
     private readonly businessMetrics: BusinessMetricsService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Resolve o segredo HMAC usado para pseudonimizar identificadores no export
+   * de BI. Quando a env `BI_EXPORT_PSEUDONYM_SECRET` não está configurada,
+   * volta a um fallback de desenvolvimento e emite **um único** warning no log
+   * para não poluir o output em ambientes locais/teste.
+   */
+  private getBiExportPseudonymSecret(): string {
+    const raw = this.config.get<string>('BI_EXPORT_PSEUDONYM_SECRET');
+    const { secret, isDevFallback } = resolveBiExportPseudonymSecret(raw);
+    if (isDevFallback && !this.biExportPseudonymWarningEmitted) {
+      this.biExportPseudonymWarningEmitted = true;
+      this.logger.warn(
+        'BI_EXPORT_PSEUDONYM_SECRET ausente — usando fallback de desenvolvimento; ' +
+          'configure a env em produção para gerar pseudônimos não-triviais.',
+      );
+    }
+    return secret;
+  }
 
   /**
    * Qual `report_type` entra no motor sindrômico (V1).
@@ -927,6 +996,8 @@ export class SyndromicClassificationService {
       query.endDate,
     );
 
+    const pseudonymSecret = this.getBiExportPseudonymSecret();
+
     if (onlySymptoms) {
       return this.buildBiExportOnlySymptomsPayload(
         h3Res,
@@ -935,6 +1006,7 @@ export class SyndromicClassificationService {
         base,
         totals,
         max,
+        pseudonymSecret,
       );
     }
     if (topScore) {
@@ -945,6 +1017,7 @@ export class SyndromicClassificationService {
         base,
         totals,
         max,
+        pseudonymSecret,
       );
     }
     return this.buildBiExportScoresPayload(
@@ -953,6 +1026,7 @@ export class SyndromicClassificationService {
       base,
       totals,
       max,
+      pseudonymSecret,
     );
   }
 
@@ -1038,6 +1112,7 @@ export class SyndromicClassificationService {
     base: BiExportSyndromeScoresBase,
     totals: BiExportTotals,
     max: number,
+    pseudonymSecret: string,
   ): Promise<BiExportSyndromeScoresPayload> {
     const reportGroups = await this.reportSyndromeScoreModel.groupBy({
       by: ['report_id'],
@@ -1107,8 +1182,16 @@ export class SyndromicClassificationService {
           sintomas_codigos.push(c);
         }
       }
+      const { usuario_ref, participacao_ref } =
+        SyndromicClassificationService.refsForBiExportRow(
+          pseudonymSecret,
+          base.context_id,
+          report,
+        );
       return {
         report_id: rid,
+        usuario_ref,
+        participacao_ref,
         report_date: SyndromicClassificationService.reportDateCivilYmd(
           createdAt,
         ),
@@ -1142,6 +1225,7 @@ export class SyndromicClassificationService {
     base: BiExportSyndromeScoresBase,
     totals: BiExportTotals,
     max: number,
+    pseudonymSecret: string,
   ): Promise<BiExportSyndromeScoresPayload> {
     const totalItems = await this.reportSyndromeScoreModel.count({
       where: whereInput,
@@ -1176,9 +1260,17 @@ export class SyndromicClassificationService {
           sintomas_codigos.push(c);
         }
       }
+      const { usuario_ref, participacao_ref } =
+        SyndromicClassificationService.refsForBiExportRow(
+          pseudonymSecret,
+          base.context_id,
+          report,
+        );
 
       return {
         report_id: row.report_id,
+        usuario_ref,
+        participacao_ref,
         report_date: SyndromicClassificationService.reportDateCivilYmd(
           createdAt,
         ),
@@ -1255,6 +1347,8 @@ export class SyndromicClassificationService {
     reportRows: BiExportTopScoreSyndromeRow[],
     bySymptomId: Map<number, string>,
     h3Res: number,
+    contextId: number,
+    pseudonymSecret: string,
   ): BiExportScoreLineItem {
     const topRow = this.pickWinningAboveThresholdSyndromeRow(reportRows);
     const refRow = topRow ?? reportRows[0];
@@ -1272,8 +1366,16 @@ export class SyndromicClassificationService {
         sintomas_codigos.push(c);
       }
     }
+    const { usuario_ref, participacao_ref } =
+      SyndromicClassificationService.refsForBiExportRow(
+        pseudonymSecret,
+        contextId,
+        report,
+      );
     return {
       report_id: rid,
+      usuario_ref,
+      participacao_ref,
       report_date:
         SyndromicClassificationService.reportDateCivilYmd(createdAt),
       periodo_dia:
@@ -1299,6 +1401,7 @@ export class SyndromicClassificationService {
     base: BiExportSyndromeScoresBase,
     totals: BiExportTotals,
     max: number,
+    pseudonymSecret: string,
   ): Promise<BiExportSyndromeScoresPayload> {
     const reportGroups = await this.reportSyndromeScoreModel.groupBy({
       by: ['report_id'],
@@ -1346,6 +1449,8 @@ export class SyndromicClassificationService {
         byReport.get(rid) ?? [],
         bySymptomId,
         h3Res,
+        base.context_id,
+        pseudonymSecret,
       ),
     );
 
