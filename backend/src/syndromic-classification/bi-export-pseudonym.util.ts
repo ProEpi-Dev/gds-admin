@@ -50,7 +50,7 @@ export function makeBiExportPseudonym(
   secret: string,
   parts: ReadonlyArray<string | number>,
 ): string {
-  const canonical = parts.map((part) => String(part)).join(':');
+  const canonical = parts.map(String).join(':');
   return createHmac('sha256', secret)
     .update(canonical)
     .digest('base64url')
