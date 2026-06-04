@@ -99,7 +99,20 @@ Testes unitários ficam junto ao código (`*.spec.ts`). CI: `.github/workflows/t
 - **Migrations:** nunca editar migrations já aplicadas — criar nova `Vxx__*.sql`
 - **Commits:** só quando o usuário pedir explicitamente
 - **Respostas ao usuário:** em português
-- **Complexidade ciclomática:** manter **baixa** em funções e métodos — preferir funções curtas com uma responsabilidade, extrair ramificações (`if`/`switch`/`try` aninhados) para helpers nomeados, retornos antecipados em vez de `else` profundos, e evitar “métodos deus” em serviços React/Nest; ao refatorar código legado, reduzir complexidade antes de acrescentar comportamento novo
+
+### Complexidade ciclomática e Sonar
+
+O CI roda **SonarQube** no backend. Além da cobertura, ele falha em funções com **complexidade cognitiva** acima do limite (regra `brain-overload`, **máximo 15 por função/método**). Na prática, trate **complexidade ciclomática/cognitiva** como o mesmo objetivo: poucos caminhos de decisão por bloco de código.
+
+**Como manter baixa:**
+
+- Uma responsabilidade por método; fluxo principal legível em poucas linhas.
+- Extrair ramificações (`if` / `else` / `switch` / `try` aninhados, cache, montagem de `where`, paginação) para **métodos privados** com nomes que descrevem o passo (`resolveFindAllContextId`, `buildReportPointsWhereClause`, `mapReportsToPointDtos`).
+- Preferir **early return** em vez de `else` profundos.
+- Evitar “métodos deus” em serviços Nest e hooks React grandes.
+- Ao alterar código legado, **reduzir complexidade antes** de acrescentar comportamento novo — senão o Sonar bloqueia o merge.
+
+**Referência recente:** `forms.service.ts` (`findAll`) e `reports.service.ts` (`findPoints`) foram fatiados em helpers privados para ficar abaixo do limite 15.
 
 ## Scripts úteis
 
