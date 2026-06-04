@@ -969,32 +969,25 @@ export class ReportsService {
     });
   }
 
-  async findPoints(
-    query: ReportsPointsQueryDto,
-    userId: number,
-  ): Promise<ReportPointResponseDto[]> {
-    const filterContextId = await this.authz.resolveListContextId(
-      userId,
-      query.contextId,
-      'GET /reports/points',
-      { allowParticipantContext: true },
-    );
-
-    // Converter datas para Date objects
-    const startDate = new Date(query.startDate);
+  private normalizePointsStartDate(isoDate: string): Date {
+    const startDate = new Date(isoDate);
     startDate.setHours(0, 0, 0, 0);
-    startDate.setMinutes(0);
-    startDate.setSeconds(0);
-    startDate.setMilliseconds(0);
+    return startDate;
+  }
 
-    const endDate = new Date(query.endDate);
+  private normalizePointsEndDate(isoDate: string): Date {
+    const endDate = new Date(isoDate);
     endDate.setHours(23, 59, 59, 999);
-    endDate.setMinutes(59);
-    endDate.setSeconds(59);
-    endDate.setMilliseconds(999);
+    return endDate;
+  }
 
-    // Buscar reports ativos dentro do período, sempre filtrados pelo contexto
-    const whereClause: any = {
+  private buildReportPointsWhereClause(
+    filterContextId: number,
+    startDate: Date,
+    endDate: Date,
+    query: ReportsPointsQueryDto,
+  ): Prisma.reportWhereInput {
+    const whereClause: Prisma.reportWhereInput = {
       active: true,
       created_at: {
         gte: startDate,
@@ -1008,30 +1001,83 @@ export class ReportsService {
       occurrence_location: { not: Prisma.DbNull },
     };
 
-    // Construir filtro de formulário
-    const formVersionFilter: any = {
-      active: true,
-    };
+    if (!query.formId && !query.formReference) {
+      return whereClause;
+    }
 
-    // Se formId foi fornecido, filtrar por ID do formulário
+    const formVersionFilter: Prisma.form_versionWhereInput = { active: true };
     if (query.formId) {
       formVersionFilter.form_id = query.formId;
     }
-
-    // Se formReference foi fornecido, filtrar por referência do formulário
     if (query.formReference) {
-      // Se já existe um filtro de form (não deveria acontecer, mas por segurança)
-      if (!formVersionFilter.form) {
-        formVersionFilter.form = {};
-      }
-      formVersionFilter.form.reference = query.formReference;
-      formVersionFilter.form.active = true;
+      formVersionFilter.form = {
+        reference: query.formReference,
+        active: true,
+      };
     }
+    whereClause.form_version = formVersionFilter;
+    return whereClause;
+  }
 
-    // Aplicar filtro de formulário apenas se algum parâmetro foi fornecido
-    if (query.formId || query.formReference) {
-      whereClause.form_version = formVersionFilter;
+  private isValidOccurrenceLocation(location: unknown): location is {
+    latitude: number;
+    longitude: number;
+  } {
+    if (!location || typeof location !== 'object') {
+      return false;
     }
+    const { latitude, longitude } = location as {
+      latitude?: unknown;
+      longitude?: unknown;
+    };
+    return (
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      !Number.isNaN(latitude) &&
+      !Number.isNaN(longitude)
+    );
+  }
+
+  private mapReportsToPointDtos(
+    reports: Array<{
+      report_type: report_type_enum;
+      occurrence_location: unknown;
+    }>,
+  ): ReportPointResponseDto[] {
+    const points: ReportPointResponseDto[] = [];
+    for (const report of reports) {
+      const location = report.occurrence_location;
+      if (!this.isValidOccurrenceLocation(location)) {
+        continue;
+      }
+      points.push({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        reportType: report.report_type,
+      });
+    }
+    return points;
+  }
+
+  async findPoints(
+    query: ReportsPointsQueryDto,
+    userId: number,
+  ): Promise<ReportPointResponseDto[]> {
+    const filterContextId = await this.authz.resolveListContextId(
+      userId,
+      query.contextId,
+      'GET /reports/points',
+      { allowParticipantContext: true },
+    );
+
+    const startDate = this.normalizePointsStartDate(query.startDate);
+    const endDate = this.normalizePointsEndDate(query.endDate);
+    const whereClause = this.buildReportPointsWhereClause(
+      filterContextId,
+      startDate,
+      endDate,
+      query,
+    );
 
     const take = Math.min(
       query.limit ?? REPORTS_POINTS_DEFAULT_LIMIT,
@@ -1067,27 +1113,7 @@ export class ReportsService {
           take,
         );
 
-    // Filtrar e mapear apenas reports com latitude e longitude válidas
-    const points: ReportPointResponseDto[] = [];
-
-    for (const report of reports) {
-      const location = report.occurrence_location as any;
-
-      // Verificar se location tem latitude e longitude
-      if (
-        location &&
-        typeof location.latitude === 'number' &&
-        typeof location.longitude === 'number' &&
-        !Number.isNaN(location.latitude) &&
-        !Number.isNaN(location.longitude)
-      ) {
-        points.push({
-          latitude: location.latitude,
-          longitude: location.longitude,
-          reportType: report.report_type,
-        });
-      }
-    }
+    const points = this.mapReportsToPointDtos(reports);
 
     if (!hasFormFilter && pointsCacheTtlMs > 0) {
       this.pointsCache.set(cacheKey, points, pointsCacheTtlMs);
