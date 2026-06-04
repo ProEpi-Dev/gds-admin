@@ -295,6 +295,16 @@ describe('ContentService', () => {
       });
       const callArgs = (prismaService.content.findMany as jest.Mock).mock
         .calls[0][0];
+      expect(callArgs.select.content).toBe(true);
+    });
+
+    it('deve omitir corpo HTML na listagem quando canal é web', async () => {
+      jest.spyOn(prismaService.content, 'findMany').mockResolvedValue([]);
+
+      await service.list(1, 1, { channel: 'web' });
+
+      const callArgs = (prismaService.content.findMany as jest.Mock).mock
+        .calls[0][0];
       expect(callArgs.select.content).toBeUndefined();
     });
 

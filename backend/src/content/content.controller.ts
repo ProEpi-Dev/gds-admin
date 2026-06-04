@@ -22,6 +22,7 @@ import { RolesGuard } from '../authz/guards/roles.guard';
 import { Roles } from '../authz/decorators/roles.decorator';
 import { RequirePermission } from '../authz/decorators/require-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentChannel } from '../common/decorators/current-channel.decorator';
 
 @ApiTags('Contents')
 @ApiBearerAuth()
@@ -54,6 +55,7 @@ export class ContentController {
     @Query('contextId') contextId: string | undefined,
     @Query('includeInactive') includeInactive: string | undefined,
     @CurrentUser() user: any,
+    @CurrentChannel() channel: 'web' | 'app',
   ) {
     const id = contextId ? Number(contextId) : undefined;
     const wantInactive =
@@ -61,7 +63,10 @@ export class ContentController {
     return this.contentService.list(
       Number.isNaN(id) ? undefined : id,
       user.userId,
-      wantInactive ? { includeInactive: true } : undefined,
+      {
+        ...(wantInactive ? { includeInactive: true } : {}),
+        channel,
+      },
     );
   }
 
