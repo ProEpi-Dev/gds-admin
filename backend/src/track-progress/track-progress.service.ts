@@ -729,21 +729,20 @@ export class TrackProgressService {
       },
     } as const;
 
-    const [trackProgress, maps] = await Promise.all([
-      this.prisma.track_progress.findUnique({
-        where: {
-          participation_id_track_cycle_id: {
-            participation_id: participationId,
-            track_cycle_id: trackCycleId,
-          },
+    const trackProgress = await this.prisma.track_progress.findUnique({
+      where: {
+        participation_id_track_cycle_id: {
+          participation_id: participationId,
+          track_cycle_id: trackCycleId,
         },
-        include: progressInclude,
-      }),
-      this.loadScheduleMaps(trackCycleId),
-    ]);
+      },
+      include: progressInclude,
+    });
 
     const serialized = this.serializeProgressPercentage(trackProgress) as any;
     if (!serialized) return serialized;
+
+    const maps = await this.loadScheduleMaps(trackCycleId);
 
     const sequentialLocked = this.computeSequenceLocked(serialized);
     const today = todayDateOnlyUtc();

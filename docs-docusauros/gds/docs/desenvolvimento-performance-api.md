@@ -53,7 +53,7 @@ O disparo assíncrono `triggerClassification` ocorre apenas para reports **`NEGA
 
 ## BI / Metabase (fora da home)
 
-Views materializadas **`mv_bi_weekly_reports`** e **`mv_bi_quiz_submissions`** (**`V41__bi_materialized_views.sql`**) servem dashboards Metabase; exigem `REFRESH` operacional. O export JSON sindrômico (`x-api-key`) é independente — ver [Integração BI](/integracao-bi-export-sindromico).
+Views materializadas no schema **`bi_export`** (**`V41__bi_materialized_views.sql`**): `mv_participacao`, `mv_quiz_dados`, `mv_reportes`, `mv_reportes_semanal`. Servem dashboards Metabase; exigem `REFRESH MATERIALIZED VIEW CONCURRENTLY bi_export.mv_*` operacional. O export JSON sindrômico (`x-api-key`) é independente — ver [Integração BI](/integracao-bi-export-sindromico).
 
 ## Análise local
 

@@ -18,6 +18,7 @@ import {
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
+import { Prisma } from '@prisma/client';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -314,9 +315,6 @@ describe('ReportsService', () => {
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
-        .spyOn(prismaService.participation_report_day, 'findUnique')
-        .mockResolvedValue(null);
-      jest
         .spyOn(prismaService.participation_report_streak, 'findUnique')
         .mockResolvedValue({
           participation_id: 1,
@@ -371,9 +369,6 @@ describe('ReportsService', () => {
         created_at: new Date('2026-03-14T02:30:00.000Z'),
       } as any);
       jest
-        .spyOn(prismaService.participation_report_day, 'findUnique')
-        .mockResolvedValue(null);
-      jest
         .spyOn(prismaService.participation_report_streak, 'findUnique')
         .mockResolvedValue(null);
 
@@ -413,7 +408,7 @@ describe('ReportsService', () => {
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
-        .spyOn(prismaService.participation_report_day, 'findUnique')
+        .spyOn(prismaService.participation_report_day, 'create')
         .mockRejectedValue(new Error('erro ao agregar'));
 
       const result = await service.create(createDto, 1);
@@ -450,15 +445,16 @@ describe('ReportsService', () => {
         ...mockReport,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
+      const uniqueViolation = Object.assign(
+        new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed',
+          { code: 'P2002', clientVersion: 'test' },
+        ),
+        { code: 'P2002' },
+      );
       jest
-        .spyOn(prismaService.participation_report_day, 'findUnique')
-        .mockResolvedValue({
-          participation_id: 1,
-          report_date: new Date('2026-03-14T00:00:00.000Z'),
-          report_count: 2,
-          positive_count: 2,
-          negative_count: 0,
-        } as any);
+        .spyOn(prismaService.participation_report_day, 'create')
+        .mockRejectedValue(uniqueViolation);
 
       await service.create(createDto, 1);
 
@@ -466,8 +462,8 @@ describe('ReportsService', () => {
       expect(prismaService.participation_report_day.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            report_count: 3,
-            positive_count: 3,
+            report_count: { increment: 1 },
+            positive_count: { increment: 1 },
           }),
         }),
       );
@@ -489,15 +485,18 @@ describe('ReportsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.report, 'create')
-        .mockResolvedValue(mockReport as any);
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        active: false,
+      } as any);
 
       await service.create(createDto, 1);
 
       expect(prismaService.report.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ active: false }),
       });
+      expect(prismaService.participation_report_day.create).not.toHaveBeenCalled();
+      expect(prismaService.participation_report_day.update).not.toHaveBeenCalled();
       expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 

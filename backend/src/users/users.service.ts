@@ -1051,14 +1051,14 @@ export class UsersService {
       }
     }
 
-    const duplicateIdsArrayLiteral = `{${duplicateUserIds.join(',')}}`;
+    const duplicateIdSqlValues = Prisma.join(duplicateUserIds);
     const mergeLogRows = await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ action: string; detail: string }[]>(
         Prisma.sql`
           SELECT action, detail
           FROM merge_duplicate_users(
             p_canonical_user_id := ${dto.canonicalUserId},
-            p_duplicate_user_ids := ${duplicateIdsArrayLiteral}::int[]
+            p_duplicate_user_ids := ARRAY[${duplicateIdSqlValues}]::int[]
           )
         `,
       );

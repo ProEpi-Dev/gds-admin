@@ -346,46 +346,45 @@ export class ReportsService {
     reportType: report_type_enum,
   ): Promise<boolean> {
     const normalizedDate = this.toSaoPauloCalendarDateForDb(reportDate);
-    const existing = await prisma.participation_report_day.findUnique({
-      where: {
-        participation_id_report_date: {
-          participation_id: participationId,
-          report_date: normalizedDate,
-        },
-      },
-    });
-
-    if (existing) {
-      await prisma.participation_report_day.update({
-        where: {
-          participation_id_report_date: {
-            participation_id: participationId,
-            report_date: normalizedDate,
-          },
-        },
-        data: {
-          report_count: existing.report_count + 1,
-          positive_count:
-            existing.positive_count +
-            (reportType === report_type_enum.POSITIVE ? 1 : 0),
-          negative_count:
-            existing.negative_count +
-            (reportType === report_type_enum.NEGATIVE ? 1 : 0),
-        },
-      });
-      return false;
-    }
-
-    await prisma.participation_report_day.create({
-      data: {
+    const where = {
+      participation_id_report_date: {
         participation_id: participationId,
         report_date: normalizedDate,
-        report_count: 1,
-        positive_count: reportType === report_type_enum.POSITIVE ? 1 : 0,
-        negative_count: reportType === report_type_enum.NEGATIVE ? 1 : 0,
       },
-    });
-    return true;
+    };
+    const positiveInc =
+      reportType === report_type_enum.POSITIVE ? 1 : 0;
+    const negativeInc =
+      reportType === report_type_enum.NEGATIVE ? 1 : 0;
+
+    try {
+      await prisma.participation_report_day.create({
+        data: {
+          participation_id: participationId,
+          report_date: normalizedDate,
+          report_count: 1,
+          positive_count: positiveInc,
+          negative_count: negativeInc,
+        },
+      });
+      return true;
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        await prisma.participation_report_day.update({
+          where,
+          data: {
+            report_count: { increment: 1 },
+            positive_count: { increment: positiveInc },
+            negative_count: { increment: negativeInc },
+          },
+        });
+        return false;
+      }
+      throw error;
+    }
   }
 
   private async incrementParticipationReportStreak(
@@ -569,12 +568,14 @@ export class ReportsService {
     );
 
     try {
-      await this.incrementParticipationReportMetrics(
-        this.prisma,
-        report.participation_id,
-        report.created_at,
-        createReportDto.reportType,
-      );
+      if (report.active) {
+        await this.incrementParticipationReportMetrics(
+          this.prisma,
+          report.participation_id,
+          report.created_at,
+          createReportDto.reportType,
+        );
+      }
     } catch (error: unknown) {
       this.logger.error(
         {

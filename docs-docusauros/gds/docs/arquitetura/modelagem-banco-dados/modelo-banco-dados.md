@@ -423,4 +423,4 @@ O backend NestJS usa cache em memória por processo (TTL configurável) e pool P
 
 ### Views materializadas BI (Metabase)
 
-**`V41__bi_materialized_views.sql`**: `mv_bi_weekly_reports`, `mv_bi_quiz_submissions` — agregados para dashboards; não substituem o export JSON sindrômico (`x-api-key`). Requerem refresh operacional após carga de dados.
+**`V41__bi_materialized_views.sql`** (schema **`bi_export`**): `mv_participacao`, `mv_quiz_dados`, `mv_reportes`, `mv_reportes_semanal` — agregados para dashboards; não substituem o export JSON sindrômico (`x-api-key`). Requerem `REFRESH MATERIALIZED VIEW CONCURRENTLY bi_export.mv_*` após carga de dados.

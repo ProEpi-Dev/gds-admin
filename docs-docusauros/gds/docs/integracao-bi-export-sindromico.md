@@ -157,12 +157,14 @@ O utilizador tem de ter permissão de gestão sobre o **contexto** indicado.
 
 Para painéis internos que consultam o PostgreSQL diretamente, a migração **`V41__bi_materialized_views.sql`** define:
 
-| View | Uso |
-|------|-----|
-| `mv_bi_quiz_submissions` | Submissões de quiz concluídas (contexto, nota, datas em `America/Sao_Paulo`) |
-| `mv_bi_weekly_reports` | Presença semanal agregada a partir de `participation_report_day` |
+| View (`bi_export`) | Uso |
+|--------------------|-----|
+| `mv_participacao` | Participações ativas no contexto UNB |
+| `mv_quiz_dados` | Submissões de quiz (contexto UNB) |
+| `mv_reportes` | Reportes linha a linha (contexto UNB) |
+| `mv_reportes_semanal` | Presença semanal agregada por participação (UNB) |
 
-Estas views são **independentes** do endpoint `bi-export-scores` acima. Planeje `REFRESH MATERIALIZED VIEW` na rotina de BI.
+Estas views são **independentes** do endpoint `bi-export-scores` acima. Planeje `REFRESH MATERIALIZED VIEW CONCURRENTLY bi_export.mv_*` na rotina de BI.
 
 ---
 

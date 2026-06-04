@@ -8,11 +8,11 @@ info:
   version: 1.0.0
   contact: {}
 servers:
-  - url: http://localhost:3000/v1
-    description: Local (prefixo /v1)
-  - url: https://devapi.gds.proepi.org.br/v1
+  - url: http://localhost:3000
+    description: Local
+  - url: https://devapi.gds.proepi.org.br
     description: Desenvolvimento
-  - url: https://api.gds.proepi.org.br/v1
+  - url: https://api.gds.proepi.org.br
     description: Produção
 tags: []
 paths:
