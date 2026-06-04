@@ -61,7 +61,7 @@ export class FormsService {
 
   private buildFindAllWhere(contextId: number, query: FormQueryDto): Record<string, unknown> {
     const where: Record<string, unknown> = { context_id: contextId };
-    where.active = query.active !== undefined ? query.active : true;
+    where.active = query.active ?? true;
     if (query.type !== undefined) {
       where.type = query.type;
     }
