@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "sonar": "sonar-scanner",
     "sonar:full": "yarn test:cov && sonar-scanner",
-    "security:trivy": "trivy fs --scanners vuln --severity HIGH,CRITICAL --skip-dirs node_modules --skip-dirs dist --skip-dirs coverage ."
+    "security:trivy": "trivy fs --scanners vuln --severity HIGH,CRITICAL --skip-dirs node_modules --skip-dirs dist --skip-dirs coverage .",
+    "openapi:export": "ts-node -r tsconfig-paths/register scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -68,6 +69,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.2",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.3.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.0",
@@ -77,6 +79,7 @@
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
     "jest": "^29.5.0",
+    "js-yaml": "^4.1.0",
     "prettier": "^3.0.0",
     "prisma": "^6.19.0",
     "sonarqube-scanner": "^4.3.5",

@@ -22,13 +22,26 @@ import { AuthzService } from '../authz/authz.service';
 import { ContextResponseDto } from '../contexts/dto/context-response.dto';
 import { FormVersionResponseDto } from '../form-versions/dto/form-version-response.dto';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
+import { form_type_enum } from '@prisma/client';
+import {
+  MemoryTtlCache,
+  readPositiveIntEnv,
+} from '../common/cache/memory-ttl-cache';
 
 @Injectable()
 export class FormsService {
+  private readonly signalListCache = new MemoryTtlCache<
+    ListResponseDto<FormResponseDto>
+  >(readPositiveIntEnv('FORMS_SIGNAL_CACHE_TTL_SECONDS', 3600) * 1000);
+
   constructor(
     private prisma: PrismaService,
     private authz: AuthzService,
   ) {}
+
+  private invalidateSignalListCache(): void {
+    this.signalListCache.clear();
+  }
 
   async create(
     createFormDto: CreateFormDto,
@@ -75,6 +88,7 @@ export class FormsService {
     // Criar formulário
     const form = await this.prisma.form.create({ data });
 
+    this.invalidateSignalListCache();
     return this.mapToResponseDto(form);
   }
 
@@ -166,6 +180,21 @@ export class FormsService {
       where.reference = query.reference;
     }
 
+    const cacheTtlMs =
+      readPositiveIntEnv('FORMS_SIGNAL_CACHE_TTL_SECONDS', 3600) * 1000;
+    const canUseSignalCache =
+      cacheTtlMs > 0 &&
+      query.type === form_type_enum.signal &&
+      query.reference === undefined;
+    const cacheKey = canUseSignalCache
+      ? `signal:${contextId}:${page}:${pageSize}:${query.active ?? 'default'}`
+      : null;
+
+    if (cacheKey) {
+      const cached = this.signalListCache.get(cacheKey);
+      if (cached) return cached;
+    }
+
     // Buscar formulários e total
     const [forms, totalItems] = await Promise.all([
       this.prisma.form.findMany({
@@ -193,7 +222,7 @@ export class FormsService {
     if (query.reference !== undefined) queryParams.reference = query.reference;
     if (query.contextId !== undefined) queryParams.contextId = query.contextId;
 
-    return {
+    const response: ListResponseDto<FormResponseDto> = {
       data: forms.map((form) => this.mapToResponseDto(form)),
       meta: createPaginationMeta({
         page,
@@ -210,6 +239,12 @@ export class FormsService {
         queryParams,
       }),
     };
+
+    if (cacheKey) {
+      this.signalListCache.set(cacheKey, response, cacheTtlMs);
+    }
+
+    return response;
   }
 
   async findOne(id: number, userId: number): Promise<FormResponseDto> {
@@ -295,6 +330,7 @@ export class FormsService {
       data: updateData,
     });
 
+    this.invalidateSignalListCache();
     return this.mapToResponseDto(form);
   }
 
@@ -350,6 +386,8 @@ export class FormsService {
       where: { id },
       data: { active: false },
     });
+
+    this.invalidateSignalListCache();
   }
 
   private mapToResponseDto(form: any): FormResponseDto {

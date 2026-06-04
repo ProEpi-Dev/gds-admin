@@ -70,7 +70,10 @@ Artigos e materiais educacionais com versionamento e publicação.
 | `id` | INT | Identificador único (PK) |
 | `title` | VARCHAR(200) | Título do conteúdo |
 | `reference` | VARCHAR(50) | Código de referência único (ex: "CON-001") |
-| `content` | TEXT | Conteúdo HTML formatado |
+| `content` | TEXT | Conteúdo HTML formatado (corpo completo; omitido na listagem participante — ver abaixo) |
+| `thumbnail_url` | TEXT | URL ou dados da miniatura (opcional) |
+| `track_exclusive` | BOOLEAN | Se `true`, o conteúdo só aparece em trilhas, não na biblioteca `/app/conteudos` (**`V40__content_track_exclusive.sql`**) |
+| `type_id` | INT | Tipo/categoria (FK → `content_type.id`, opcional) |
 | `active` | BOOLEAN | Status de publicação (default: false) |
 | `summary` | VARCHAR(500) | Resumo do conteúdo |
 | `slug` | VARCHAR(255) | Slug único para URLs amigáveis |
@@ -92,6 +95,11 @@ Artigos e materiais educacionais com versionamento e publicação.
 - `idx_content_reference` (reference)
 - `idx_content_slug_idx` (slug)
 - `idx_content_title` (title)
+- `idx_content_type_id` (type_id)
+
+### API `GET /v1/contents` (participante)
+
+Utilizadores **sem** permissão `content:write` recebem listagem com `track_exclusive = false`, **`select` sem o campo `content`** (apenas metadados + relação `content_type`). Quem gere conteúdos no admin recebe includes completos (tags, trilhas associadas, quizzes). Detalhe do conteúdo na página `/app/conteudos/:id` via `GET` por id.
 
 ### TAG
 

@@ -29,6 +29,11 @@ import {
   AuditLogService,
   AuditRequestContext,
 } from '../audit-log/audit-log.service';
+import { MergeDuplicateUsersDto } from './dto/merge-duplicate-users.dto';
+import {
+  MergeDuplicateUsersResponseDto,
+  MergeDuplicateUsersStatsDto,
+} from './dto/merge-duplicate-users-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -982,5 +987,199 @@ export class UsersService {
     }
 
     return false;
+  }
+
+  /**
+   * [Provisório] Mescla usuários duplicados via stored procedure `merge_duplicate_users`.
+   * Endpoint destinado a cenários legados de cadastros repetidos antes da verificação de email.
+   */
+  async mergeDuplicateUsers(
+    dto: MergeDuplicateUsersDto,
+    actorUserId: number,
+    auditRequest?: AuditRequestContext | null,
+  ): Promise<MergeDuplicateUsersResponseDto> {
+    const duplicateUserIds = [...new Set(dto.duplicateUserIds)];
+
+    if (duplicateUserIds.includes(dto.canonicalUserId)) {
+      throw new BadRequestException(
+        'O usuário canônico não pode estar na lista de duplicados.',
+      );
+    }
+
+    const allUserIds = [dto.canonicalUserId, ...duplicateUserIds];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: { id: true, email: true, created_at: true },
+      orderBy: { id: 'asc' },
+    });
+
+    if (users.length !== allUserIds.length) {
+      const foundIds = new Set(users.map((user) => user.id));
+      const missingIds = allUserIds.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Usuário(s) não encontrado(s): ${missingIds.join(', ')}`,
+      );
+    }
+
+    const preMergeStats = await this.getMergeDuplicateUsersStats(allUserIds);
+
+    if (dto.dryRun) {
+      return {
+        dryRun: true,
+        users: users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          createdAt: user.created_at,
+        })),
+        preMergeStats,
+      };
+    }
+
+    if (dto.canonicalEmail) {
+      const emailConflict = await this.prisma.user.findFirst({
+        where: {
+          email: dto.canonicalEmail,
+          id: { notIn: allUserIds },
+        },
+        select: { id: true },
+      });
+
+      if (emailConflict) {
+        throw new ConflictException(
+          `Email ${dto.canonicalEmail} já está em uso por outro usuário.`,
+        );
+      }
+    }
+
+    const duplicateIdsArrayLiteral = `{${duplicateUserIds.join(',')}}`;
+    const mergeLogRows = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ action: string; detail: string }[]>(
+        Prisma.sql`
+          SELECT action, detail
+          FROM merge_duplicate_users(
+            p_canonical_user_id := ${dto.canonicalUserId},
+            p_duplicate_user_ids := ${duplicateIdsArrayLiteral}::int[]
+          )
+        `,
+      );
+
+      if (dto.canonicalEmail) {
+        await tx.user.update({
+          where: { id: dto.canonicalUserId },
+          data: { email: dto.canonicalEmail },
+        });
+      }
+
+      return rows;
+    });
+
+    const mergeLog = mergeLogRows.map((row) => ({
+      action: row.action,
+      detail: row.detail,
+    }));
+
+    await this.auditLogService.record({
+      action: 'USER_MERGE',
+      targetEntityType: 'user',
+      targetEntityId: dto.canonicalUserId,
+      actor: { userId: actorUserId },
+      targetUserId: dto.canonicalUserId,
+      request: auditRequest ?? null,
+      metadata: {
+        canonicalUserId: dto.canonicalUserId,
+        duplicateUserIds,
+        canonicalEmail: dto.canonicalEmail ?? null,
+        mergeLog,
+      },
+    });
+
+    const postMergeStats = await this.getMergeDuplicateUsersStats([
+      dto.canonicalUserId,
+    ]);
+
+    return {
+      dryRun: false,
+      users: users.map((user) => ({
+        id: user.id,
+        email: user.email,
+        createdAt: user.created_at,
+      })),
+      preMergeStats,
+      postMergeStats,
+      mergeLog,
+      canonicalUser: await this.findOne(dto.canonicalUserId, actorUserId),
+    };
+  }
+
+  private async getMergeDuplicateUsersStats(
+    userIds: number[],
+  ): Promise<MergeDuplicateUsersStatsDto> {
+    if (userIds.length === 0) {
+      return {
+        participationsByUser: [],
+        reportsByParticipation: [],
+        quizSubmissionsByParticipation: [],
+      };
+    }
+
+    const userIdSqlValues = Prisma.join(userIds);
+
+    const [participationsByUser, reportsByParticipation, quizSubmissionsByParticipation] =
+      await Promise.all([
+        this.prisma.$queryRaw<
+          { user_id: number; participation_id: number }[]
+        >(
+          Prisma.sql`
+            SELECT user_id, id AS participation_id
+            FROM participation
+            WHERE user_id IN (${userIdSqlValues})
+            ORDER BY user_id, id
+          `,
+        ),
+        this.prisma.$queryRaw<
+          { participation_id: number; count: number }[]
+        >(
+          Prisma.sql`
+            SELECT participation_id, COUNT(*)::int AS count
+            FROM report
+            WHERE participation_id IN (
+              SELECT id FROM participation WHERE user_id IN (${userIdSqlValues})
+            )
+            GROUP BY participation_id
+            ORDER BY participation_id
+          `,
+        ),
+        this.prisma.$queryRaw<
+          { participation_id: number; count: number }[]
+        >(
+          Prisma.sql`
+            SELECT participation_id, COUNT(*)::int AS count
+            FROM quiz_submission
+            WHERE participation_id IN (
+              SELECT id FROM participation WHERE user_id IN (${userIdSqlValues})
+            )
+            GROUP BY participation_id
+            ORDER BY participation_id
+          `,
+        ),
+      ]);
+
+    return {
+      participationsByUser: participationsByUser.map((row) => ({
+        userId: row.user_id,
+        participationId: row.participation_id,
+        count: 1,
+      })),
+      reportsByParticipation: reportsByParticipation.map((row) => ({
+        participationId: row.participation_id,
+        count: row.count,
+      })),
+      quizSubmissionsByParticipation: quizSubmissionsByParticipation.map(
+        (row) => ({
+          participationId: row.participation_id,
+          count: row.count,
+        }),
+      ),
+    };
   }
 }

@@ -153,4 +153,17 @@ O utilizador tem de ter permissão de gestão sobre o **contexto** indicado.
 
 ---
 
-**Última atualização**: Abril 2026
+## 5. Dashboards Metabase (complementar)
+
+Para painéis internos que consultam o PostgreSQL diretamente, a migração **`V41__bi_materialized_views.sql`** define:
+
+| View | Uso |
+|------|-----|
+| `mv_bi_quiz_submissions` | Submissões de quiz concluídas (contexto, nota, datas em `America/Sao_Paulo`) |
+| `mv_bi_weekly_reports` | Presença semanal agregada a partir de `participation_report_day` |
+
+Estas views são **independentes** do endpoint `bi-export-scores` acima. Planeje `REFRESH MATERIALIZED VIEW` na rotina de BI.
+
+---
+
+**Última atualização**: Junho 2026

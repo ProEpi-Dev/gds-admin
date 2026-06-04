@@ -1,0 +1,24 @@
+meta {
+  name: Mesclar usuarios duplicados (dry run)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/users/merge-duplicates
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "canonicalUserId": 100,
+    "duplicateUserIds": [101],
+    "dryRun": true
+  }
+}
+
+docs {
+  Simula merge sem alterar o banco. Ajuste IDs após GET /users?search=...
+  Documentação: docs/resolvendo-duplicados/README.md
+}

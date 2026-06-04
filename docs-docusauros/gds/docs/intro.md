@@ -69,23 +69,30 @@ O sistema tem sido utilizado desde 2007 em diferentes contextos de vigilância, 
 
 Esta documentação está organizada em seções:
 
+- **[Desenvolvimento local](/desenvolvimento-local)**: bootstrap PostgreSQL, Flyway, backend, frontend e setup inicial
 - **[Ambientes (desenvolvimento e produção)](/ambientes)**: URLs do console admin e da API, branches Git, tags de imagem Docker (`:develop` / `:prod`) e deploy
+- **[Ferramentas — API (Swagger e Bruno)](/ferramentas-api)**: testar rotas com Swagger e coleção em `docs/gds-bruno-collection/`
+- **[Desenvolvimento — performance da API](/desenvolvimento-performance-api)**: cache em memória, pool Prisma, home do participante e variáveis `*_CACHE_TTL_SECONDS`
+- **[Observabilidade (OpenTelemetry)](/observabilidade)**: stack Grafana LGTM local e variáveis `OTEL_*`
+- **[Operações — mesclar usuários duplicados](/operacoes-usuarios-duplicados)**: endpoint provisório `POST /users/merge-duplicates` e scripts SQL no repositório
 - **[Integração BI — export sindrômico](/integracao-bi-export-sindromico)**: endpoint JSON de scores para ferramentas de BI, cabeçalho `x-api-key` e geração de chaves no console admin (`/admin/syndromic/bi-export-api-keys`)
 - **Arquitetura**: Modelo de banco de dados, estrutura de APIs e organização do código
 - **[Configuração de contexto e integrações](/arquitetura/configuracao-contexto-e-integracoes)**: Módulos do contexto, chaves `context_configuration` (perfil, e-mail, regras de reports) e `integration_config` (integração externa de sinais)
 - **Guias de Desenvolvimento**: Padrões, convenções e boas práticas
-- **API Reference**: Documentação completa dos endpoints
+- **API Reference**: Swagger interativo no backend (`/api` em desenvolvimento local; prefixo REST **`/v1`**). Coleção Bruno em `docs/gds-bruno-collection/` no repositório
 
 ## Começando
 
 Para começar a explorar a documentação, recomendamos:
 
-1. Consultar **[Ambientes](/ambientes)** se precisar das URLs públicas (dev/prod), do alinhamento com branches ou das tags de imagem usadas no deploy
-2. Ver o [Modelo de Banco de Dados](/arquitetura/modelagem-banco-dados/modelo-banco-dados) para entender a estrutura de dados
-3. Para a **área do cidadão na web**, ver [Funcionalidades — área web do participante](/funcionalidades-app-web-participante)
-4. Explorar a seção de Arquitetura para entender a organização do sistema
-5. Consultar os guias de desenvolvimento para padrões e convenções
+1. **[Desenvolvimento local](/desenvolvimento-local)** — subir o monorepo na máquina
+2. **[Ambientes](/ambientes)** — URLs públicas (dev/prod) e deploy
+3. [Modelo de Banco de Dados](/arquitetura/modelagem-banco-dados/modelo-banco-dados) — estrutura de dados
+4. [Funcionalidades — área web do participante](/funcionalidades-app-web-participante) — rotas `/app`
+5. [Ferramentas — API](/ferramentas-api) e [Performance](/desenvolvimento-performance-api) conforme a tarefa
+
+No repositório de código, **`AGENTS.md`** resume convenções para contribuidores e agentes de IA.
 
 ---
 
-**Última atualização**: Abril 2026
+**Última atualização**: Junho 2026

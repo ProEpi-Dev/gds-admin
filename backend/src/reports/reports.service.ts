@@ -34,6 +34,10 @@ import { SyndromicClassificationService } from '../syndromic-classification/synd
 import { buildAppListPreviewText } from './helpers/report-app-list-preview.helper';
 import { addDays, parseISO } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import {
+  MemoryTtlCache,
+  readPositiveIntEnv,
+} from '../common/cache/memory-ttl-cache';
 
 type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
 
@@ -50,6 +54,9 @@ const DEFAULT_NEGATIVE_BLOCK_IF_POSITIVE_WITHIN_MIN = 60;
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
+  private readonly pointsCache = new MemoryTtlCache<ReportPointResponseDto[]>(
+    readPositiveIntEnv('REPORTS_POINTS_CACHE_TTL_SECONDS', 90) * 1000,
+  );
 
   constructor(
     private prisma: PrismaService,
@@ -328,180 +335,137 @@ export class ReportsService {
     return value ? value.toISOString().split('T')[0] : null;
   }
 
-  private calculateStreakMetrics(reportDays: Array<{ report_date: Date }>): {
-    currentStreak: number;
-    longestStreak: number;
-    reportedDaysCount: number;
-    lastReportedDate: Date | null;
-    currentStreakStartDate: Date | null;
-  } {
-    if (reportDays.length === 0) {
-      return {
-        currentStreak: 0,
-        longestStreak: 0,
-        reportedDaysCount: 0,
-        lastReportedDate: null,
-        currentStreakStartDate: null,
-      };
-    }
-
-    const dates = reportDays.map((item) =>
-      this.normalizeDateOnly(item.report_date),
-    );
-    const dayInMs = 24 * 60 * 60 * 1000;
-
-    let longestStreak = 1;
-    let runningStreak = 1;
-
-    for (let index = 1; index < dates.length; index += 1) {
-      const diffInDays = Math.round(
-        (dates[index].getTime() - dates[index - 1].getTime()) / dayInMs,
-      );
-
-      if (diffInDays === 1) {
-        runningStreak += 1;
-      } else {
-        runningStreak = 1;
-      }
-
-      if (runningStreak > longestStreak) {
-        longestStreak = runningStreak;
-      }
-    }
-
-    let currentStreak = 1;
-
-    for (let index = dates.length - 1; index > 0; index -= 1) {
-      const diffInDays = Math.round(
-        (dates[index].getTime() - dates[index - 1].getTime()) / dayInMs,
-      );
-
-      if (diffInDays !== 1) {
-        break;
-      }
-
-      currentStreak += 1;
-    }
-
-    return {
-      currentStreak,
-      longestStreak,
-      reportedDaysCount: dates.length,
-      lastReportedDate: dates[dates.length - 1],
-      currentStreakStartDate: dates[dates.length - currentStreak],
-    };
+  private invalidatePointsCacheForContext(contextId: number): void {
+    this.pointsCache.deleteByPrefix(`${contextId}|`);
   }
 
-  private async refreshParticipationReportDay(
+  private async incrementParticipationReportDay(
     prisma: ReportMetricsClient,
     participationId: number,
     reportDate: Date,
-  ): Promise<void> {
+    reportType: report_type_enum,
+  ): Promise<boolean> {
     const normalizedDate = this.toSaoPauloCalendarDateForDb(reportDate);
-    const { start, endExclusive } =
-      this.getSaoPauloDayUtcBounds(reportDate);
-
-    const reports = await prisma.report.findMany({
-      where: {
-        participation_id: participationId,
-        active: true,
-        created_at: {
-          gte: start,
-          lt: endExclusive,
-        },
-      },
-      select: {
-        report_type: true,
-      },
-    });
-
-    if (reports.length === 0) {
-      await prisma.participation_report_day.deleteMany({
-        where: {
-          participation_id: participationId,
-          report_date: normalizedDate,
-        },
-      });
-      return;
-    }
-
-    const positiveCount = reports.filter(
-      (report) => report.report_type === report_type_enum.POSITIVE,
-    ).length;
-
-    await prisma.participation_report_day.upsert({
+    const existing = await prisma.participation_report_day.findUnique({
       where: {
         participation_id_report_date: {
           participation_id: participationId,
           report_date: normalizedDate,
         },
       },
-      create: {
+    });
+
+    if (existing) {
+      await prisma.participation_report_day.update({
+        where: {
+          participation_id_report_date: {
+            participation_id: participationId,
+            report_date: normalizedDate,
+          },
+        },
+        data: {
+          report_count: existing.report_count + 1,
+          positive_count:
+            existing.positive_count +
+            (reportType === report_type_enum.POSITIVE ? 1 : 0),
+          negative_count:
+            existing.negative_count +
+            (reportType === report_type_enum.NEGATIVE ? 1 : 0),
+        },
+      });
+      return false;
+    }
+
+    await prisma.participation_report_day.create({
+      data: {
         participation_id: participationId,
         report_date: normalizedDate,
-        report_count: reports.length,
-        positive_count: positiveCount,
-        negative_count: reports.length - positiveCount,
-      },
-      update: {
-        report_count: reports.length,
-        positive_count: positiveCount,
-        negative_count: reports.length - positiveCount,
+        report_count: 1,
+        positive_count: reportType === report_type_enum.POSITIVE ? 1 : 0,
+        negative_count: reportType === report_type_enum.NEGATIVE ? 1 : 0,
       },
     });
+    return true;
   }
 
-  private async refreshParticipationReportStreak(
-    prisma: ReportMetricsClient,
-    participationId: number,
-  ): Promise<void> {
-    const reportDays = await prisma.participation_report_day.findMany({
-      where: {
-        participation_id: participationId,
-      },
-      select: {
-        report_date: true,
-      },
-      orderBy: {
-        report_date: 'asc',
-      },
-    });
-
-    const metrics = this.calculateStreakMetrics(reportDays);
-
-    await prisma.participation_report_streak.upsert({
-      where: {
-        participation_id: participationId,
-      },
-      create: {
-        participation_id: participationId,
-        current_streak: metrics.currentStreak,
-        longest_streak: metrics.longestStreak,
-        reported_days_count: metrics.reportedDaysCount,
-        last_reported_date: metrics.lastReportedDate,
-        current_streak_start_date: metrics.currentStreakStartDate,
-      },
-      update: {
-        current_streak: metrics.currentStreak,
-        longest_streak: metrics.longestStreak,
-        reported_days_count: metrics.reportedDaysCount,
-        last_reported_date: metrics.lastReportedDate,
-        current_streak_start_date: metrics.currentStreakStartDate,
-      },
-    });
-  }
-
-  private async refreshParticipationReportMetrics(
+  private async incrementParticipationReportStreak(
     prisma: ReportMetricsClient,
     participationId: number,
     reportDate: Date,
+    isNewReportDay: boolean,
   ): Promise<void> {
-    await this.refreshParticipationReportDay(
+    if (!isNewReportDay) return;
+
+    const normalizedDate = this.toSaoPauloCalendarDateForDb(reportDate);
+    const existing = await prisma.participation_report_streak.findUnique({
+      where: { participation_id: participationId },
+    });
+
+    if (!existing) {
+      await prisma.participation_report_streak.create({
+        data: {
+          participation_id: participationId,
+          current_streak: 1,
+          longest_streak: 1,
+          reported_days_count: 1,
+          last_reported_date: normalizedDate,
+          current_streak_start_date: normalizedDate,
+        },
+      });
+      return;
+    }
+
+    const lastDate = existing.last_reported_date
+      ? this.normalizeDateOnly(existing.last_reported_date)
+      : null;
+    const dayInMs = 24 * 60 * 60 * 1000;
+
+    let currentStreak = 1;
+    let currentStreakStartDate = normalizedDate;
+
+    if (lastDate) {
+      const diffInDays = Math.round(
+        (normalizedDate.getTime() - lastDate.getTime()) / dayInMs,
+      );
+      if (diffInDays === 0) return;
+      if (diffInDays === 1) {
+        currentStreak = existing.current_streak + 1;
+        currentStreakStartDate = existing.current_streak_start_date
+          ? this.normalizeDateOnly(existing.current_streak_start_date)
+          : normalizedDate;
+      }
+    }
+
+    await prisma.participation_report_streak.update({
+      where: { participation_id: participationId },
+      data: {
+        current_streak: currentStreak,
+        longest_streak: Math.max(existing.longest_streak, currentStreak),
+        reported_days_count: existing.reported_days_count + 1,
+        last_reported_date: normalizedDate,
+        current_streak_start_date: currentStreakStartDate,
+      },
+    });
+  }
+
+  private async incrementParticipationReportMetrics(
+    prisma: ReportMetricsClient,
+    participationId: number,
+    reportDate: Date,
+    reportType: report_type_enum,
+  ): Promise<void> {
+    const isNewReportDay = await this.incrementParticipationReportDay(
       prisma,
       participationId,
       reportDate,
+      reportType,
     );
-    await this.refreshParticipationReportStreak(prisma, participationId);
+    await this.incrementParticipationReportStreak(
+      prisma,
+      participationId,
+      reportDate,
+      isNewReportDay,
+    );
   }
 
   private mapToReportStreakSummaryDto(
@@ -596,6 +560,8 @@ export class ReportsService {
 
     const report = await this.prisma.report.create({ data });
 
+    this.invalidatePointsCacheForContext(participation.context_id);
+
     const reportChannel = this.normalizeReportChannel(channel);
     this.businessMetrics.recordReportCreated(
       createReportDto.reportType,
@@ -603,10 +569,11 @@ export class ReportsService {
     );
 
     try {
-      await this.refreshParticipationReportMetrics(
+      await this.incrementParticipationReportMetrics(
         this.prisma,
         report.participation_id,
         report.created_at,
+        createReportDto.reportType,
       );
     } catch (error: unknown) {
       this.logger.error(
@@ -631,7 +598,9 @@ export class ReportsService {
         ),
       );
 
-    this.syndromicClassification.triggerClassification(report.id);
+    if (createReportDto.reportType === report_type_enum.NEGATIVE) {
+      this.syndromicClassification.triggerClassification(report.id);
+    }
 
     return this.mapToResponseDto(report);
   }
@@ -1070,6 +1039,16 @@ export class ReportsService {
     );
 
     const hasFormFilter = !!(query.formId || query.formReference);
+    const pointsCacheTtlMs =
+      readPositiveIntEnv('REPORTS_POINTS_CACHE_TTL_SECONDS', 90) * 1000;
+    const cacheKey = `${filterContextId}|${query.startDate}|${query.endDate}|${take}|${query.formId ?? ''}|${query.formReference ?? ''}`;
+
+    if (!hasFormFilter && pointsCacheTtlMs > 0) {
+      const cached = this.pointsCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
 
     const reports = hasFormFilter
       ? await this.prisma.report.findMany({
@@ -1110,6 +1089,10 @@ export class ReportsService {
       }
     }
 
+    if (!hasFormFilter && pointsCacheTtlMs > 0) {
+      this.pointsCache.set(cacheKey, points, pointsCacheTtlMs);
+    }
+
     return points;
   }
 
@@ -1130,13 +1113,17 @@ export class ReportsService {
     >(Prisma.sql`
       SELECT r.report_type::text AS report_type, r.occurrence_location
       FROM report r
-      INNER JOIN participation p ON p.id = r.participation_id
       WHERE r.active = true
-        AND p.active = true
-        AND p.context_id = ${contextId}
+        AND r.occurrence_location IS NOT NULL
         AND r.created_at >= ${startDate}
         AND r.created_at <= ${endDate}
-        AND r.occurrence_location IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM participation p
+          WHERE p.id = r.participation_id
+            AND p.active = true
+            AND p.context_id = ${contextId}
+        )
       ORDER BY r.created_at DESC
       LIMIT ${take}
     `);

@@ -19,6 +19,25 @@ export class ContentService {
     private authz: AuthzService,
   ) {}
 
+  /** Listagem participante/mobile: metadados + tipo; sem corpo HTML (`content`). */
+  private readonly participantListSelect = {
+    id: true,
+    title: true,
+    reference: true,
+    thumbnail_url: true,
+    track_exclusive: true,
+    active: true,
+    summary: true,
+    slug: true,
+    author_id: true,
+    context_id: true,
+    type_id: true,
+    created_at: true,
+    updated_at: true,
+    published_at: true,
+    content_type: true,
+  } as const;
+
   private readonly contentInclude = {
     content_tag: {
       include: {
@@ -221,9 +240,17 @@ export class ContentService {
       where.track_exclusive = false;
     }
 
+    if (hasContentWrite) {
+      return this.prisma.content.findMany({
+        where,
+        include: { ...this.contentInclude },
+        orderBy: { updated_at: 'desc' },
+      });
+    }
+
     return this.prisma.content.findMany({
       where,
-      include: { ...this.contentInclude },
+      select: { ...this.participantListSelect },
       orderBy: { updated_at: 'desc' },
     });
   }

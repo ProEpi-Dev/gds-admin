@@ -2,16 +2,36 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateContentTypeDto, UpdateContentTypeDto } from './content-type.dto';
+import {
+  MemoryTtlCache,
+  readPositiveIntEnv,
+} from '../common/cache/memory-ttl-cache';
 
 @Injectable()
 export class ContentTypeService {
+  private readonly listCache = new MemoryTtlCache<
+    Awaited<ReturnType<PrismaService['content_type']['findMany']>>
+  >(readPositiveIntEnv('CONTENT_TYPES_CACHE_TTL_SECONDS', 3600) * 1000);
+
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.content_type.findMany({
+    const ttlMs =
+      readPositiveIntEnv('CONTENT_TYPES_CACHE_TTL_SECONDS', 3600) * 1000;
+    if (ttlMs > 0) {
+      const cached = this.listCache.get('active');
+      if (cached) return cached;
+    }
+
+    const rows = await this.prisma.content_type.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
     });
+
+    if (ttlMs > 0) {
+      this.listCache.set('active', rows, ttlMs);
+    }
+    return rows;
   }
 
   async findAllForAdmin() {
@@ -37,7 +57,7 @@ export class ContentTypeService {
 
     if (existingByName) {
       if (!existingByName.active) {
-        return this.prisma.content_type.update({
+        const reactivated = await this.prisma.content_type.update({
           where: { id: existingByName.id },
           data: {
             name: normalizedName,
@@ -46,6 +66,8 @@ export class ContentTypeService {
             updated_at: new Date(),
           },
         });
+        this.listCache.clear();
+        return reactivated;
       }
 
       throw new BadRequestException(
@@ -54,12 +76,14 @@ export class ContentTypeService {
     }
 
     try {
-      return await this.prisma.content_type.create({
+      const created = await this.prisma.content_type.create({
         data: {
           ...data,
           name: normalizedName,
         },
       });
+      this.listCache.clear();
+      return created;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -102,7 +126,7 @@ export class ContentTypeService {
     }
 
     try {
-      return await this.prisma.content_type.update({
+      const updated = await this.prisma.content_type.update({
         where: { id },
         data: {
           ...data,
@@ -110,6 +134,8 @@ export class ContentTypeService {
           updated_at: new Date(),
         },
       });
+      this.listCache.clear();
+      return updated;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -125,7 +151,9 @@ export class ContentTypeService {
 
   async remove(id: number) {
     try {
-      return await this.prisma.content_type.delete({ where: { id } });
+      const removed = await this.prisma.content_type.delete({ where: { id } });
+      this.listCache.clear();
+      return removed;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -154,6 +182,7 @@ export class ContentTypeService {
       }),
     ]);
 
+    this.listCache.clear();
     return updatedType;
   }
 }

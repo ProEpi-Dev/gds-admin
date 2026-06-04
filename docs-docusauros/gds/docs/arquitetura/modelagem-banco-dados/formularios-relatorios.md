@@ -176,6 +176,7 @@ Relatórios gerados a partir de formulários do tipo "signal".
 **Índices:**
 - `idx_report_form_version_id` (form_version_id)
 - `idx_report_participation_id` (participation_id)
+- `idx_report_points_map` (parcial: reports ativos com `occurrence_location`, por `created_at`) — migração **`V20__idx_report_points_map.sql`**
 
 :::tip Classificação sindrômica
 
@@ -297,6 +298,9 @@ Formulários **por contexto** para campos extras de perfil do cidadão:
 - O campo `occurrence_location` armazena dados geográficos da ocorrência
 - O campo `form_response` armazena todas as respostas do formulário
 - Ao excluir uma participação, seus relatórios são excluídos (CASCADE)
+- **`GET /v1/reports/points`**: devolve latitude/longitude/tipo para mapas; `limit` padrão 500; ver [Performance da API](/desenvolvimento-performance-api)
+- **Agregados de calendário/ofensiva**: tabelas `participation_report_day` e `participation_report_streak` (**`V18__report_streaks.sql`**) atualizadas por incremento ao criar report (dia civil em `America/Sao_Paulo`)
+- **Idempotência / anti-abuso**: índices e regras por contexto em **`V29__report_idempotency_indexes.sql`** e chaves em `context_configuration` (ver [Configuração de contexto](/arquitetura/configuracao-contexto-e-integracoes))
 
 ### Submissões de Quiz
 
