@@ -51,44 +51,55 @@ describe('UsersService', () => {
       .fn()
       .mockResolvedValue(null);
 
+    const prismaMock = {
+      user: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      gender: {
+        findUnique: jest.fn(),
+      },
+      location: {
+        findUnique: jest.fn(),
+      },
+      user_legal_acceptance: {
+        findMany: jest.fn(),
+        upsert: jest.fn(),
+      },
+      participation: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+      },
+      role: {
+        findUnique: jest.fn(),
+      },
+      context: {
+        findMany: jest.fn(),
+      },
+      context_configuration: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      $queryRaw: jest.fn(),
+      $transaction: jest.fn(),
+    };
+    prismaMock.$transaction.mockImplementation((fn: (tx: typeof prismaMock) => unknown) =>
+      fn({
+        $queryRaw: prismaMock.$queryRaw,
+        user: prismaMock.user,
+      } as typeof prismaMock),
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         {
           provide: PrismaService,
-          useValue: {
-            user: {
-              findUnique: jest.fn(),
-              findMany: jest.fn(),
-              create: jest.fn(),
-              update: jest.fn(),
-              delete: jest.fn(),
-              count: jest.fn(),
-            },
-            gender: {
-              findUnique: jest.fn(),
-            },
-            location: {
-              findUnique: jest.fn(),
-            },
-            user_legal_acceptance: {
-              findMany: jest.fn(),
-              upsert: jest.fn(),
-            },
-            participation: {
-              findMany: jest.fn(),
-              count: jest.fn(),
-            },
-            role: {
-              findUnique: jest.fn(),
-            },
-            context: {
-              findMany: jest.fn(),
-            },
-            context_configuration: {
-              findMany: jest.fn().mockResolvedValue([]),
-            },
-          },
+          useValue: prismaMock,
         },
         {
           provide: AuthzService,
@@ -1202,6 +1213,127 @@ describe('UsersService', () => {
       expect(result.isParticipant).toBe(false);
       expect(result.contexts.asManager).toEqual([]);
       expect(result.contexts.asParticipant).toEqual([]);
+    });
+  });
+
+  describe('mergeDuplicateUsers', () => {
+    const statsMock = {
+      participationsByUser: [],
+      reportsByParticipation: [],
+      quizSubmissionsByParticipation: [],
+    };
+
+    beforeEach(() => {
+      (prismaService.$queryRaw as jest.Mock).mockImplementation((query) => {
+        const queryText = String(query?.strings?.join('') ?? query);
+        if (queryText.includes('FROM participation')) {
+          return Promise.resolve([]);
+        }
+        if (queryText.includes('FROM report')) {
+          return Promise.resolve([]);
+        }
+        if (queryText.includes('FROM quiz_submission')) {
+          return Promise.resolve([]);
+        }
+        if (queryText.includes('merge_duplicate_users')) {
+          return Promise.resolve([
+            { action: 'done', detail: 'merge concluido' },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+    });
+
+    it('deve retornar estatísticas sem executar merge quando dryRun=true', async () => {
+      (prismaService.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 42570, email: 'joao@example.com', created_at: new Date() },
+        { id: 1182, email: 'Joao@example.com', created_at: new Date() },
+      ]);
+
+      const result = await service.mergeDuplicateUsers(
+        {
+          canonicalUserId: 42570,
+          duplicateUserIds: [1182],
+          dryRun: true,
+        },
+        1,
+      );
+
+      expect(result.dryRun).toBe(true);
+      expect(result.users).toHaveLength(2);
+      expect(result.preMergeStats).toEqual(statsMock);
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it('deve rejeitar quando canônico está na lista de duplicados', async () => {
+      await expect(
+        service.mergeDuplicateUsers(
+          {
+            canonicalUserId: 42570,
+            duplicateUserIds: [42570, 1182],
+          },
+          1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('deve executar merge, normalizar email e registrar auditoria', async () => {
+      const canonicalUser = {
+        id: 42570,
+        email: 'Joao@example.com',
+        created_at: new Date(),
+        name: 'João',
+        active: true,
+        gender_id: null,
+        location_id: null,
+        country_location_id: null,
+        external_identifier: null,
+        phone: null,
+        role_id: null,
+        updated_at: new Date(),
+        role: null,
+      };
+
+      (prismaService.user.findMany as jest.Mock).mockResolvedValue([
+        canonicalUser,
+        { id: 1182, email: 'joao@example.com', created_at: new Date() },
+      ]);
+      (prismaService.user.findFirst as jest.Mock).mockResolvedValue(null);
+      (prismaService.user.findUnique as jest.Mock).mockResolvedValue(
+        canonicalUser,
+      );
+      (prismaService.user.update as jest.Mock).mockResolvedValue({
+        ...canonicalUser,
+        email: 'joao@example.com',
+      });
+
+      const auditLogService = moduleRef.get(AuditLogService);
+
+      const result = await service.mergeDuplicateUsers(
+        {
+          canonicalUserId: 42570,
+          duplicateUserIds: [1182],
+          canonicalEmail: 'joao@example.com',
+        },
+        1,
+        { channel: 'web' },
+      );
+
+      expect(result.dryRun).toBe(false);
+      expect(result.mergeLog).toEqual([
+        { action: 'done', detail: 'merge concluido' },
+      ]);
+      expect(prismaService.$transaction).toHaveBeenCalled();
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 42570 },
+        data: { email: 'joao@example.com' },
+      });
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'USER_MERGE',
+          targetEntityId: 42570,
+        }),
+      );
     });
   });
 });

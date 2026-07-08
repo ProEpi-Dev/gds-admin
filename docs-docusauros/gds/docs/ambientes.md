@@ -28,6 +28,8 @@ O projeto **GDS Admin** (frontend React de administração + API NestJS) é impl
 
 A API expõe rotas sob o prefixo global **`/v1`** (por exemplo, `GET https://devapi.gds.proepi.org.br/v1/...`). A documentação interativa Swagger no backend costuma estar em **`/api`** relativa à origem do serviço (ex.: desenvolvimento local).
 
+Pedidos autenticados exigem o cabeçalho **`x-gds-channel`** (ex.: `web` no console, `app` no mobile).
+
 :::
 
 ## Branches Git e deploy

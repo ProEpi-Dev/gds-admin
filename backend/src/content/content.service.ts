@@ -19,6 +19,31 @@ export class ContentService {
     private authz: AuthzService,
   ) {}
 
+  /** Listagem participante (web): metadados + tipo; sem corpo HTML (`content`). */
+  private readonly participantListSelect = {
+    id: true,
+    title: true,
+    reference: true,
+    thumbnail_url: true,
+    track_exclusive: true,
+    active: true,
+    summary: true,
+    slug: true,
+    author_id: true,
+    context_id: true,
+    type_id: true,
+    created_at: true,
+    updated_at: true,
+    published_at: true,
+    content_type: true,
+  } as const;
+
+  /** Listagem app legado (Expo): inclui `content` — o cliente abre o artigo sem GET /:id. */
+  private readonly participantListSelectApp = {
+    ...this.participantListSelect,
+    content: true,
+  } as const;
+
   private readonly contentInclude = {
     content_tag: {
       include: {
@@ -190,7 +215,7 @@ export class ContentService {
   async list(
     contextId: number | undefined,
     userId: number,
-    options?: { includeInactive?: boolean },
+    options?: { includeInactive?: boolean; channel?: 'web' | 'app' },
   ) {
     const filterContextId = await this.authz.resolveListContextId(
       userId,
@@ -221,9 +246,22 @@ export class ContentService {
       where.track_exclusive = false;
     }
 
+    if (hasContentWrite) {
+      return this.prisma.content.findMany({
+        where,
+        include: { ...this.contentInclude },
+        orderBy: { updated_at: 'desc' },
+      });
+    }
+
+    const participantSelect =
+      options?.channel === 'web'
+        ? this.participantListSelect
+        : this.participantListSelectApp;
+
     return this.prisma.content.findMany({
       where,
-      include: { ...this.contentInclude },
+      select: { ...participantSelect },
       orderBy: { updated_at: 'desc' },
     });
   }

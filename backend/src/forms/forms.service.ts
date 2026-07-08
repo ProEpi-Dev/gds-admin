@@ -22,13 +22,104 @@ import { AuthzService } from '../authz/authz.service';
 import { ContextResponseDto } from '../contexts/dto/context-response.dto';
 import { FormVersionResponseDto } from '../form-versions/dto/form-version-response.dto';
 import { FormWithVersionDto } from './dto/form-with-version.dto';
+import { form_type_enum } from '@prisma/client';
+import {
+  MemoryTtlCache,
+  readPositiveIntEnv,
+} from '../common/cache/memory-ttl-cache';
 
 @Injectable()
 export class FormsService {
+  private readonly signalListCache = new MemoryTtlCache<
+    ListResponseDto<FormResponseDto>
+  >(readPositiveIntEnv('FORMS_SIGNAL_CACHE_TTL_SECONDS', 3600) * 1000);
+
   constructor(
     private prisma: PrismaService,
     private authz: AuthzService,
   ) {}
+
+  private invalidateSignalListCache(): void {
+    this.signalListCache.clear();
+  }
+
+  private async resolveFindAllContextId(
+    query: FormQueryDto,
+    userId: number,
+  ): Promise<number> {
+    const isAdmin = await this.authz.isAdmin(userId);
+    if (!isAdmin) {
+      return getUserContextId(this.prisma, userId);
+    }
+    if (query.contextId == null) {
+      throw new BadRequestException(
+        'contextId é obrigatório para listar formulários. O backend sempre restringe a um contexto para evitar vazamento de dados.',
+      );
+    }
+    return query.contextId;
+  }
+
+  private buildFindAllWhere(contextId: number, query: FormQueryDto): Record<string, unknown> {
+    const where: Record<string, unknown> = { context_id: contextId };
+    where.active = query.active ?? true;
+    if (query.type !== undefined) {
+      where.type = query.type;
+    }
+    if (query.reference !== undefined) {
+      where.reference = query.reference;
+    }
+    return where;
+  }
+
+  private buildSignalListCacheKey(
+    contextId: number,
+    query: FormQueryDto,
+    page: number,
+    pageSize: number,
+    cacheTtlMs: number,
+  ): string | null {
+    if (
+      cacheTtlMs <= 0 ||
+      query.type !== form_type_enum.signal ||
+      query.reference !== undefined
+    ) {
+      return null;
+    }
+    return `signal:${contextId}:${page}:${pageSize}:${query.active ?? 'default'}`;
+  }
+
+  private buildFormsListResponse(
+    forms: Awaited<ReturnType<PrismaService['form']['findMany']>>,
+    totalItems: number,
+    page: number,
+    pageSize: number,
+    query: FormQueryDto,
+  ): ListResponseDto<FormResponseDto> {
+    const baseUrl = '/v1/forms';
+    const queryParams: Record<string, unknown> = {};
+    if (query.active !== undefined) queryParams.active = query.active;
+    if (query.type !== undefined) queryParams.type = query.type;
+    if (query.reference !== undefined) queryParams.reference = query.reference;
+    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
+
+    return {
+      data: forms.map((form) => this.mapToResponseDto(form)),
+      meta: createPaginationMeta({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+      links: createPaginationLinks({
+        page,
+        pageSize,
+        totalItems,
+        baseUrl,
+        queryParams,
+      }),
+    };
+  }
 
   async create(
     createFormDto: CreateFormDto,
@@ -75,6 +166,7 @@ export class FormsService {
     // Criar formulário
     const form = await this.prisma.form.create({ data });
 
+    this.invalidateSignalListCache();
     return this.mapToResponseDto(form);
   }
 
@@ -135,38 +227,24 @@ export class FormsService {
     const pageSize = query.pageSize || 20;
     const skip = (page - 1) * pageSize;
 
-    const isAdmin = await this.authz.isAdmin(userId);
-    let contextId: number;
-    if (isAdmin) {
-      if (query.contextId == null) {
-        throw new BadRequestException(
-          'contextId é obrigatório para listar formulários. O backend sempre restringe a um contexto para evitar vazamento de dados.',
-        );
-      }
-      contextId = query.contextId;
-    } else {
-      contextId = await getUserContextId(this.prisma, userId);
+    const contextId = await this.resolveFindAllContextId(query, userId);
+    const where = this.buildFindAllWhere(contextId, query);
+
+    const cacheTtlMs =
+      readPositiveIntEnv('FORMS_SIGNAL_CACHE_TTL_SECONDS', 3600) * 1000;
+    const cacheKey = this.buildSignalListCacheKey(
+      contextId,
+      query,
+      page,
+      pageSize,
+      cacheTtlMs,
+    );
+
+    if (cacheKey) {
+      const cached = this.signalListCache.get(cacheKey);
+      if (cached) return cached;
     }
 
-    // Construir filtros (sempre por contexto)
-    const where: any = { context_id: contextId };
-
-    if (query.active !== undefined) {
-      where.active = query.active;
-    } else {
-      // Por padrão, mostrar apenas formulários ativos
-      where.active = true;
-    }
-
-    if (query.type !== undefined) {
-      where.type = query.type;
-    }
-
-    if (query.reference !== undefined) {
-      where.reference = query.reference;
-    }
-
-    // Buscar formulários e total
     const [forms, totalItems] = await Promise.all([
       this.prisma.form.findMany({
         where,
@@ -185,31 +263,19 @@ export class FormsService {
       this.prisma.form.count({ where }),
     ]);
 
-    // Criar resposta paginada
-    const baseUrl = '/v1/forms';
-    const queryParams: Record<string, any> = {};
-    if (query.active !== undefined) queryParams.active = query.active;
-    if (query.type !== undefined) queryParams.type = query.type;
-    if (query.reference !== undefined) queryParams.reference = query.reference;
-    if (query.contextId !== undefined) queryParams.contextId = query.contextId;
+    const response = this.buildFormsListResponse(
+      forms,
+      totalItems,
+      page,
+      pageSize,
+      query,
+    );
 
-    return {
-      data: forms.map((form) => this.mapToResponseDto(form)),
-      meta: createPaginationMeta({
-        page,
-        pageSize,
-        totalItems,
-        baseUrl,
-        queryParams,
-      }),
-      links: createPaginationLinks({
-        page,
-        pageSize,
-        totalItems,
-        baseUrl,
-        queryParams,
-      }),
-    };
+    if (cacheKey) {
+      this.signalListCache.set(cacheKey, response, cacheTtlMs);
+    }
+
+    return response;
   }
 
   async findOne(id: number, userId: number): Promise<FormResponseDto> {
@@ -295,6 +361,7 @@ export class FormsService {
       data: updateData,
     });
 
+    this.invalidateSignalListCache();
     return this.mapToResponseDto(form);
   }
 
@@ -350,6 +417,8 @@ export class FormsService {
       where: { id },
       data: { active: false },
     });
+
+    this.invalidateSignalListCache();
   }
 
   private mapToResponseDto(form: any): FormResponseDto {

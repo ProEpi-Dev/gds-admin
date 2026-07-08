@@ -1,0 +1,24 @@
+meta {
+  name: Mesclar usuarios duplicados
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/users/merge-duplicates
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "canonicalUserId": 100,
+    "duplicateUserIds": [101],
+    "canonicalEmail": "joao@example.com"
+  }
+}
+
+docs {
+  Executa merge_duplicate_users no PostgreSQL. Requer funções SQL instaladas.
+  Execute o pedido dry run antes. Papel admin obrigatório.
+}

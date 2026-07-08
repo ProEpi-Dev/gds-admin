@@ -82,16 +82,28 @@ A documentação será publicada em: **https://proepi-dev.github.io/gds-admin/**
 
 ```
 docs/
-├── intro.md                              # Página inicial
-└── arquitetura/                         # Seção de arquitetura
-    └── modelagem-banco-dados/           # Modelagem do banco de dados
-        ├── modelo-banco-dados.md         # Diagrama completo
-        ├── usuarios-autenticacao.md      # Usuários e autenticação
-        ├── localizacao.md                # Localização geográfica
-        ├── contextos-participacao.md     # Contextos e participação
-        ├── conteudo-tags.md              # Conteúdo e tags
-        ├── formularios-relatorios.md     # Formulários e relatórios
-        └── trilhas-aprendizado.md        # Trilhas de aprendizado
+├── intro.md
+├── desenvolvimento-local.md
+├── ambientes.md
+├── ferramentas-api.md
+├── desenvolvimento-performance-api.md
+├── observabilidade.md
+├── funcionalidades-app-web-participante.md
+├── integracao-bi-export-sindromico.md
+├── operacoes-usuarios-duplicados.md
+└── arquitetura/
+    ├── configuracao-contexto-e-integracoes.md
+    └── modelagem-banco-dados/
+        ├── modelo-banco-dados.md
+        ├── usuarios-autenticacao.md
+        ├── localizacao.md
+        ├── contextos-participacao.md
+        ├── conteudo-tags.md
+        ├── formularios-relatorios.md
+        ├── trilhas-aprendizado.md
+        ├── classificacao-sindromica.md
+        ├── dados-adicionais-perfil.md
+        └── papeis-permissoes-rbac.md
 ```
 
 ## Sobre o Projeto

@@ -27,7 +27,7 @@ Motivações que as telas de admin cobrem:
 5. **Mapeamento valor → sintoma (`form_symptom_mapping`)** — quando o valor gravado no JSON **não** é idêntico ao `symptom.code`, o mapeamento associa o valor da opção ao sintoma canônico. Se não houver mapeamento, o backend aceita **fallback**: valor **igual** ao `symptom.code` (caso típico de multiselect que grava códigos estáveis).
 6. **Relatórios e vigilância** — série **diária** de contagens por síndrome, **listagem paginada** dos registros de score, filtros (período, síndrome, acima do limiar, status de processamento), visualização de localização do report e **reprocessamento em lote** após mudanças de pesos ou de configuração.
 
-O processamento roda **de forma assíncrona** após a criação/atualização relevante do report (disparo no backend); o resultado fica materializado em **`report_syndrome_score`**.
+O processamento roda **de forma assíncrona** após a **criação** de um report **`NEGATIVE`** (disparo `triggerClassification` no `ReportsService`); reprocessamento em lote ou após atualização usa outros fluxos do serviço sindrômico. O resultado fica materializado em **`report_syndrome_score`**.
 
 ## Fluxo resumido
 

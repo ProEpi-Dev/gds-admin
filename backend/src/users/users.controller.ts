@@ -34,6 +34,8 @@ import { ProfileStatusResponseDto } from './dto/profile-status-response.dto';
 import { AcceptLegalDocumentsDto } from './dto/accept-legal-documents.dto';
 import { LegalAcceptanceStatusResponseDto } from './dto/legal-acceptance-status-response.dto';
 import { UserRoleResponseDto } from './dto/user-role-response.dto';
+import { MergeDuplicateUsersDto } from './dto/merge-duplicate-users.dto';
+import { MergeDuplicateUsersResponseDto } from './dto/merge-duplicate-users-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Request } from 'express';
@@ -105,6 +107,35 @@ export class UsersController {
     @Query() query: UserQueryDto,
   ): Promise<ListResponseDto<UserResponseDto>> {
     return this.usersService.findAdmins(query);
+  }
+
+  @Post('merge-duplicates')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '[Provisório] Mesclar usuários duplicados',
+    description:
+      'Executa a stored procedure merge_duplicate_users no banco. Use dryRun=true para validar IDs e ver estatísticas antes do merge. Exclusivo para administradores.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Merge executado ou simulação concluída',
+    type: MergeDuplicateUsersResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Parâmetros inválidos' })
+  @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
+  @ApiResponse({ status: 409, description: 'Email canônico já em uso' })
+  async mergeDuplicates(
+    @CurrentUser() currentUser: { userId: number },
+    @Body() dto: MergeDuplicateUsersDto,
+    @Req() req: Request,
+  ): Promise<MergeDuplicateUsersResponseDto> {
+    return this.usersService.mergeDuplicateUsers(
+      dto,
+      currentUser.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Get(':id')

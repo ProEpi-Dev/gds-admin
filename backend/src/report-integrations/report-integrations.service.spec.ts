@@ -60,6 +60,7 @@ describe('ReportIntegrationsService', () => {
 
     ephemClient = {
       createEvent: jest.fn(),
+      getEvent: jest.fn(),
       getMessages: jest.fn(),
       sendMessage: jest.fn(),
       listSignals: jest.fn(),
@@ -1643,6 +1644,135 @@ describe('ReportIntegrationsService', () => {
           update: expect.objectContaining({ body: 'só body' }),
         }),
       );
+    });
+  });
+
+  describe('getRemoteEventStatus', () => {
+    it('lança NotFound quando o evento não existe', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue(null);
+      await expect(service.getRemoteEventStatus(1, 1)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('lança Forbidden quando o utilizador não pode aceder ao evento', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: 'x',
+        environment: 'production',
+        report: { participation: { context_id: 1, user_id: 50 } },
+      });
+      await expect(service.getRemoteEventStatus(1, 99)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('retorna vazio quando não há external_event_id', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: null,
+        report: { participation: { context_id: 1, user_id: 1 } },
+      });
+      await expect(service.getRemoteEventStatus(1, 1)).resolves.toEqual({
+        remoteStatus: null,
+        remoteStatusMessage: null,
+        remoteSignalId: null,
+      });
+      expect(ephemClient.getEvent).not.toHaveBeenCalled();
+    });
+
+    it('retorna vazio sem config ativa', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 1,
+        external_event_id: '99',
+        environment: 'production',
+        report: { participation: { context_id: 1, user_id: 1 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue(null);
+      await expect(service.getRemoteEventStatus(1, 1)).resolves.toEqual({
+        remoteStatus: null,
+        remoteStatusMessage: null,
+        remoteSignalId: null,
+      });
+    });
+
+    it('mapeia PROCESSADO + signalId do Ephem', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 7,
+        external_event_id: '887',
+        environment: 'homologation',
+        report: { participation: { context_id: 4, user_id: 60 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: null,
+        base_url_homologation: 'https://vbe',
+        auth_config: { token: 'tok' },
+        timeout_ms: 8000,
+      });
+      ephemClient.getEvent.mockResolvedValue({
+        id: 887,
+        status: 'PROCESSADO',
+        statusMessage: 'signal criado com sucesso com id: 285',
+        signalId: 285,
+      });
+
+      await expect(service.getRemoteEventStatus(7, 60)).resolves.toEqual({
+        remoteStatus: 'PROCESSADO',
+        remoteStatusMessage: 'signal criado com sucesso com id: 285',
+        remoteSignalId: 285,
+      });
+      expect(ephemClient.getEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: 'https://vbe', authToken: 'tok' }),
+        '887',
+      );
+    });
+
+    it('expõe o ERRO de validação do Ephem sem signalId', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 8,
+        external_event_id: '883',
+        environment: 'homologation',
+        report: { participation: { context_id: 4, user_id: 60 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: null,
+        base_url_homologation: 'https://vbe',
+        auth_config: { token: 'tok' },
+        timeout_ms: 8000,
+      });
+      ephemClient.getEvent.mockResolvedValue({
+        id: 883,
+        status: 'ERRO',
+        statusMessage: '[$.country_ids[0]: integer found, array expected]',
+        signalId: null,
+      });
+
+      const res = await service.getRemoteEventStatus(8, 60);
+      expect(res.remoteStatus).toBe('ERRO');
+      expect(res.remoteStatusMessage).toContain('country_ids');
+      expect(res.remoteSignalId).toBeNull();
+    });
+
+    it('retorna vazio quando o Ephem não devolve detalhe', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 9,
+        external_event_id: '1',
+        environment: 'homologation',
+        report: { participation: { context_id: 4, user_id: 1 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: null,
+        base_url_homologation: 'https://vbe',
+        auth_config: { token: 'tok' },
+        timeout_ms: 8000,
+      });
+      ephemClient.getEvent.mockResolvedValue(null);
+
+      await expect(service.getRemoteEventStatus(9, 1)).resolves.toEqual({
+        remoteStatus: null,
+        remoteStatusMessage: null,
+        remoteSignalId: null,
+      });
     });
   });
 

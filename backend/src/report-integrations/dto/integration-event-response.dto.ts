@@ -23,6 +23,24 @@ export class IntegrationMessageResponseDto {
   createdAt: Date;
 }
 
+/** Desfecho real no sistema externo (Ephem), relido via `GET /eventos/{id}`. */
+export class IntegrationRemoteStatusDto {
+  @ApiPropertyOptional({
+    description:
+      'Status no Ephem (ex.: CRIADO, PROCESSADO, ERRO). Null se indisponível.',
+  })
+  remoteStatus: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Mensagem do Ephem (ex.: "signal criado" ou detalhe do erro de validação).',
+  })
+  remoteStatusMessage: string | null;
+
+  @ApiPropertyOptional({ description: 'ID do signal criado no Ephem, se houver.' })
+  remoteSignalId: number | null;
+}
+
 export class IntegrationEventResponseDto {
   @ApiProperty()
   id: number;

@@ -2,8 +2,9 @@ import 'dotenv/config';
 import './tracing';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { buildOpenApiDocument } from './openapi/build-openapi-document';
 import { Logger } from 'nestjs-pino';
 import * as bodyParser from 'body-parser';
 import { applyGdsChannelMiddleware } from './common/http/gds-channel.middleware';
@@ -52,28 +53,7 @@ async function bootstrap() {
     }),
   );
 
-  // Configurar Swagger/OpenAPI
-  const config = new DocumentBuilder()
-    .setTitle('Vigilância Participativa API')
-    .setDescription(
-      'API REST para o backend do Guardiões da Saúde - Vigilância Participativa em Saúde Pública.',
-    )
-    .setVersion('1.0.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        description: 'Token JWT no formato Bearer',
-      },
-      'bearerAuth',
-    )
-    .addServer('http://localhost:3000', 'Local development server')
-    .addServer('https://devapi.gds.proepi.org.br', 'Development server')
-    .addServer('https://api.gds.propepi.org.br', 'Production server')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
+  const document = buildOpenApiDocument(app);
   SwaggerModule.setup('api', app, document);
 
   app.use(bodyParser.json({ limit: '10mb' }));

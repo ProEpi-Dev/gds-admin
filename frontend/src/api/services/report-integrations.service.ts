@@ -28,6 +28,13 @@ export interface IntegrationEvent {
   messages?: IntegrationMessage[];
 }
 
+export interface IntegrationRemoteStatus {
+  /** Status no Ephem: CRIADO, PROCESSADO, ERRO (ou null se indisponível). */
+  remoteStatus: string | null;
+  remoteStatusMessage: string | null;
+  remoteSignalId: number | null;
+}
+
 export interface IntegrationConfig {
   id: number;
   contextId: number;
@@ -116,6 +123,13 @@ export const reportIntegrationsService = {
     eventId: number,
   ): Promise<IntegrationMessage[]> => {
     const { data } = await api.get(`${BASE_URL}/${eventId}/messages`);
+    return data;
+  },
+
+  getRemoteStatus: async (
+    eventId: number,
+  ): Promise<IntegrationRemoteStatus> => {
+    const { data } = await api.get(`${BASE_URL}/${eventId}/remote-status`);
     return data;
   },
 

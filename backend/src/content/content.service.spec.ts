@@ -288,44 +288,41 @@ describe('ContentService', () => {
       expect(result).toEqual(mockContents);
       expect(prismaService.content.findMany).toHaveBeenCalledWith({
         where: { active: true, context_id: 1, track_exclusive: false },
-        include: {
-          content_tag: {
-            include: {
-              tag: true,
-            },
-          },
+        select: expect.objectContaining({
           content_type: true,
-          sequence: {
-            include: {
-              section: {
-                include: {
-                  track: {
-                    select: {
-                      id: true,
-                      name: true,
-                      active: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-          content_quiz: {
-            where: { active: true },
-            orderBy: { display_order: 'asc' },
-            include: {
-              form: {
-                select: {
-                  id: true,
-                  title: true,
-                  active: true,
-                },
-              },
-            },
-          },
-        },
+        }),
         orderBy: { updated_at: 'desc' },
       });
+      const callArgs = (prismaService.content.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(callArgs.select.content).toBe(true);
+    });
+
+    it('deve omitir corpo HTML na listagem quando canal é web', async () => {
+      jest.spyOn(prismaService.content, 'findMany').mockResolvedValue([]);
+
+      await service.list(1, 1, { channel: 'web' });
+
+      const callArgs = (prismaService.content.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(callArgs.select.content).toBeUndefined();
+    });
+
+    it('deve usar include completo quando usuário tem content:write', async () => {
+      jest.spyOn(authzService, 'hasPermission').mockResolvedValue(true);
+      jest.spyOn(prismaService.content, 'findMany').mockResolvedValue([]);
+
+      await service.list(1, 1);
+
+      expect(prismaService.content.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            content_tag: expect.any(Object),
+            sequence: expect.any(Object),
+            content_quiz: expect.any(Object),
+          }),
+        }),
+      );
     });
 
     it('deve retornar array vazio quando não há conteúdos', async () => {

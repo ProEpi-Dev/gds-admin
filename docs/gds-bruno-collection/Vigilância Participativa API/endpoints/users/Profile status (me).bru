@@ -1,0 +1,15 @@
+meta {
+  name: Profile status (me)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/users/me/profile-status
+  body: none
+  auth: inherit
+}
+
+docs {
+  Usado na home /app/inicio para redirecionar a completar perfil.
+}

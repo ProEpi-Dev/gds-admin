@@ -53,6 +53,14 @@ export function useIntegrationMessages(eventId: number | null) {
   });
 }
 
+export function useIntegrationRemoteStatus(eventId: number | null) {
+  return useQuery({
+    queryKey: ['integration-remote-status', eventId],
+    queryFn: () => reportIntegrationsService.getRemoteStatus(eventId!),
+    enabled: !!eventId,
+  });
+}
+
 export function useSendIntegrationMessage() {
   const queryClient = useQueryClient();
   const { showError } = useSnackbar();

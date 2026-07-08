@@ -17,6 +17,11 @@ describe('ReportIntegrationsController', () => {
       findEventsByParticipationForUser: jest.fn().mockResolvedValue([]),
       retryIntegration: jest.fn().mockResolvedValue({}),
       syncMessages: jest.fn().mockResolvedValue([]),
+      getRemoteEventStatus: jest.fn().mockResolvedValue({
+        remoteStatus: null,
+        remoteStatusMessage: null,
+        remoteSignalId: null,
+      }),
       sendMessage: jest.fn().mockResolvedValue({}),
       getConfigByContext: jest.fn().mockResolvedValue(null),
       upsertConfig: jest.fn().mockResolvedValue({}),
@@ -77,6 +82,13 @@ describe('ReportIntegrationsController', () => {
     it('deve chamar service.syncMessages com utilizador', async () => {
       await controller.getMessages(7, { userId: 3 });
       expect(service.syncMessages).toHaveBeenCalledWith(7, 3);
+    });
+  });
+
+  describe('getRemoteStatus', () => {
+    it('deve chamar service.getRemoteEventStatus com utilizador', async () => {
+      await controller.getRemoteStatus(7, { userId: 3 });
+      expect(service.getRemoteEventStatus).toHaveBeenCalledWith(7, 3);
     });
   });
 
