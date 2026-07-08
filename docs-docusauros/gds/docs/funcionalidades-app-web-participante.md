@@ -49,6 +49,20 @@ Esta página resume **funcionalidades entregues na aplicação web React** volta
   - Células com **sinal positivo** (vermelho) e **sem ocorrência / nada ocorreu** (verde) com **texto branco** para contraste.
   - **Legenda** discreta (vermelho = sinal de alerta; verde = nada ocorreu).
 - **Carregamento inicial em rede lenta**: a lista de **formulários de sinal** é obtida antes de mostrar o aviso “não encontramos formulário…” e de ativar os botões de ação; enquanto carrega, exibe-se estado explícito (“Carregando formulário…”) em vez de botões desativados que parecem erro.
+- **Mapa de pontos**: `GET /v1/reports/points` com janela de cerca de **7 dias** e `limit` padrão **500** (ver [Performance da API](/desenvolvimento-performance-api)).
+
+### Chamadas paralelas na home
+
+Após login, a página costuma disparar em paralelo (TanStack Query):
+
+| API | Uso na UI |
+|-----|-----------|
+| `GET /v1/reports/points` | Mapa de ocorrências (módulo comunitário) |
+| `GET /v1/forms?type=signal&active=true` | Botões BEM/MAL e formulários de sinal |
+| `GET /v1/users/me/profile-status` | Redirecionamento para completar perfil |
+| `GET /v1/track-progress/mandatory-compliance` | Bloqueio / aviso de trilha obrigatória |
+
+Todas exigem JWT e cabeçalho **`x-gds-channel: web`**.
 
 ---
 
@@ -72,4 +86,4 @@ Esta página resume **funcionalidades entregues na aplicação web React** volta
 
 ---
 
-**Última atualização**: documentação alinhada às entregas da área web do participante (2026).
+**Última atualização**: Junho 2026

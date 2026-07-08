@@ -18,6 +18,7 @@ import {
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import { ReportIntegrationsService } from '../report-integrations/report-integrations.service';
 import { SyndromicClassificationService } from '../syndromic-classification/syndromic-classification.service';
+import { Prisma } from '@prisma/client';
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -83,11 +84,16 @@ describe('ReportsService', () => {
       },
       participation_report_day: {
         findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+        update: jest.fn(),
         upsert: jest.fn(),
         deleteMany: jest.fn(),
       },
       participation_report_streak: {
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+        update: jest.fn(),
         upsert: jest.fn(),
       },
       context: {
@@ -172,6 +178,30 @@ describe('ReportsService', () => {
 
       expect(result).toHaveProperty('id', 1);
       expect(businessMetrics.recordReportCreated).toHaveBeenCalledWith('POSITIVE', 'app');
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+    });
+
+    it('deve disparar classificação sindrômica apenas para report NEGATIVE', async () => {
+      const createDto: CreateReportDto = {
+        participationId: 1,
+        formVersionId: 1,
+        reportType: 'NEGATIVE',
+        formResponse: {},
+        active: true,
+      };
+
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(mockParticipation as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue({ ...mockReport, report_type: 'NEGATIVE' } as any);
+
+      await service.create(createDto, 1);
+
       expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
     });
 
@@ -234,7 +264,7 @@ describe('ReportsService', () => {
 
       expect(prismaService.participation.findUnique).toHaveBeenCalled();
       expect(prismaService.form_version.findUnique).toHaveBeenCalled();
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve incluir occurrenceLocation quando fornecido', async () => {
@@ -263,10 +293,10 @@ describe('ReportsService', () => {
           occurrence_location: createDto.occurrenceLocation,
         }),
       });
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
-    it('deve atualizar agregados de dias e ofensiva ao criar report', async () => {
+    it('deve incrementar agregados de dias e ofensiva ao criar report em dia novo', async () => {
       const createDto: CreateReportDto = {
         participationId: 1,
         formVersionId: 1,
@@ -285,54 +315,38 @@ describe('ReportsService', () => {
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
-        .spyOn(prismaService.report, 'findMany')
-        .mockResolvedValueOnce([] as any)
-        .mockResolvedValue([
-          { report_type: 'POSITIVE' },
-          { report_type: 'NEGATIVE' },
-          { report_type: 'POSITIVE' },
-        ] as any);
-      jest
-        .spyOn(prismaService.participation_report_day, 'findMany')
-        .mockResolvedValue([
-          { report_date: new Date('2026-03-10T00:00:00.000Z') },
-          { report_date: new Date('2026-03-11T00:00:00.000Z') },
-          { report_date: new Date('2026-03-13T00:00:00.000Z') },
-          { report_date: new Date('2026-03-14T00:00:00.000Z') },
-        ] as any);
+        .spyOn(prismaService.participation_report_streak, 'findUnique')
+        .mockResolvedValue({
+          participation_id: 1,
+          current_streak: 2,
+          longest_streak: 3,
+          reported_days_count: 5,
+          last_reported_date: new Date('2026-03-13T00:00:00.000Z'),
+          current_streak_start_date: new Date('2026-03-12T00:00:00.000Z'),
+        } as any);
 
       await service.create(createDto, 1);
 
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
-      expect(
-        prismaService.participation_report_day.upsert,
-      ).toHaveBeenCalledWith(
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+      expect(prismaService.participation_report_day.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          create: expect.objectContaining({
-            report_count: 3,
-            positive_count: 2,
-            negative_count: 1,
-          }),
-          update: expect.objectContaining({
-            report_count: 3,
-            positive_count: 2,
-            negative_count: 1,
+          data: expect.objectContaining({
+            report_count: 1,
+            positive_count: 1,
+            negative_count: 0,
+            report_date: new Date('2026-03-14T00:00:00.000Z'),
           }),
         }),
       );
-
-      const streakUpsertCall = (
-        prismaService.participation_report_streak.upsert as jest.Mock
-      ).mock.calls[0][0];
-
-      expect(streakUpsertCall.update.current_streak).toBe(2);
-      expect(streakUpsertCall.update.longest_streak).toBe(2);
-      expect(streakUpsertCall.update.reported_days_count).toBe(4);
-      expect(streakUpsertCall.update.last_reported_date).toEqual(
-        new Date('2026-03-14T00:00:00.000Z'),
-      );
-      expect(streakUpsertCall.update.current_streak_start_date).toEqual(
-        new Date('2026-03-13T00:00:00.000Z'),
+      expect(prismaService.participation_report_streak.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            current_streak: 3,
+            longest_streak: 3,
+            reported_days_count: 6,
+            last_reported_date: new Date('2026-03-14T00:00:00.000Z'),
+          }),
+        }),
       );
     });
 
@@ -344,8 +358,6 @@ describe('ReportsService', () => {
         formResponse: {},
       };
 
-      const findManySpy = jest.spyOn(prismaService.report, 'findMany');
-
       jest
         .spyOn(prismaService.participation, 'findUnique')
         .mockResolvedValue(mockParticipation as any);
@@ -356,38 +368,16 @@ describe('ReportsService', () => {
         ...mockReport,
         created_at: new Date('2026-03-14T02:30:00.000Z'),
       } as any);
-      findManySpy
-        .mockResolvedValueOnce([] as any)
-        .mockResolvedValueOnce([{ report_type: 'POSITIVE' }] as any);
       jest
-        .spyOn(prismaService.participation_report_day, 'findMany')
-        .mockResolvedValue([
-          { report_date: new Date('2026-03-13T00:00:00.000Z') },
-        ] as any);
+        .spyOn(prismaService.participation_report_streak, 'findUnique')
+        .mockResolvedValue(null);
 
       await service.create(createDto, 1);
 
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
-      expect(findManySpy).toHaveBeenCalledWith(
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+      expect(prismaService.participation_report_day.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            created_at: {
-              gte: new Date('2026-03-13T03:00:00.000Z'),
-              lt: new Date('2026-03-14T03:00:00.000Z'),
-            },
-          }),
-        }),
-      );
-
-      expect(prismaService.participation_report_day.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            participation_id_report_date: {
-              participation_id: 1,
-              report_date: new Date('2026-03-13T00:00:00.000Z'),
-            },
-          },
-          create: expect.objectContaining({
+          data: expect.objectContaining({
             report_date: new Date('2026-03-13T00:00:00.000Z'),
           }),
         }),
@@ -418,13 +408,12 @@ describe('ReportsService', () => {
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
-        .spyOn(prismaService.report, 'findMany')
-        .mockResolvedValueOnce([] as any)
-        .mockRejectedValueOnce(new Error('erro ao agregar'));
+        .spyOn(prismaService.participation_report_day, 'create')
+        .mockRejectedValue(new Error('erro ao agregar'));
 
       const result = await service.create(createDto, 1);
 
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(42);
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
       expect(result.id).toBe(42);
       expect(logErrorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -438,7 +427,7 @@ describe('ReportsService', () => {
       logErrorSpy.mockRestore();
     });
 
-    it('deve chamar deleteMany em participation_report_day quando não há reports ativos no dia civil', async () => {
+    it('deve incrementar contadores quando já existe registro do dia civil', async () => {
       const createDto: CreateReportDto = {
         participationId: 1,
         formVersionId: 1,
@@ -456,27 +445,29 @@ describe('ReportsService', () => {
         ...mockReport,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
+      const uniqueViolation = Object.assign(
+        new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed',
+          { code: 'P2002', clientVersion: 'test' },
+        ),
+        { code: 'P2002' },
+      );
       jest
-        .spyOn(prismaService.report, 'findMany')
-        .mockResolvedValueOnce([] as any)
-        .mockResolvedValueOnce([] as any);
-      jest
-        .spyOn(prismaService.participation_report_day, 'deleteMany')
-        .mockResolvedValue({ count: 1 } as any);
-      jest
-        .spyOn(prismaService.participation_report_day, 'findMany')
-        .mockResolvedValue([] as any);
+        .spyOn(prismaService.participation_report_day, 'create')
+        .mockRejectedValue(uniqueViolation);
 
       await service.create(createDto, 1);
 
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
-      expect(prismaService.participation_report_day.deleteMany).toHaveBeenCalledWith({
-        where: {
-          participation_id: 1,
-          report_date: new Date('2026-03-14T00:00:00.000Z'),
-        },
-      });
-      expect(prismaService.participation_report_day.upsert).not.toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+      expect(prismaService.participation_report_day.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            report_count: { increment: 1 },
+            positive_count: { increment: 1 },
+          }),
+        }),
+      );
+      expect(prismaService.participation_report_streak.update).not.toHaveBeenCalled();
     });
 
     it('deve persistir active false quando informado no DTO', async () => {
@@ -494,16 +485,19 @@ describe('ReportsService', () => {
       jest
         .spyOn(prismaService.form_version, 'findUnique')
         .mockResolvedValue(mockFormVersion as any);
-      jest
-        .spyOn(prismaService.report, 'create')
-        .mockResolvedValue(mockReport as any);
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        active: false,
+      } as any);
 
       await service.create(createDto, 1);
 
       expect(prismaService.report.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ active: false }),
       });
-      expect(syndromicClassification.triggerClassification).toHaveBeenCalledWith(1);
+      expect(prismaService.participation_report_day.create).not.toHaveBeenCalled();
+      expect(prismaService.participation_report_day.update).not.toHaveBeenCalled();
+      expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
     });
 
     it('deve lançar BadRequestException quando participation não existe', async () => {

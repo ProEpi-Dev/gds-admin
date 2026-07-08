@@ -19,13 +19,25 @@ import {
   resolveSequenceEffectiveWindow,
   toDateOnlyUtc,
 } from './track-cycle-schedule.util';
+import {
+  MemoryTtlCache,
+  readPositiveIntEnv,
+} from '../common/cache/memory-ttl-cache';
 
 @Injectable()
 export class TrackCyclesService {
+  private readonly listCache = new MemoryTtlCache<
+    Awaited<ReturnType<PrismaService['track_cycle']['findMany']>>
+  >(readPositiveIntEnv('TRACK_CYCLES_CACHE_TTL_SECONDS', 300) * 1000);
+
   constructor(
     private prisma: PrismaService,
     private authz: AuthzService,
   ) {}
+
+  private invalidateListCache(): void {
+    this.listCache.clear();
+  }
 
   /**
    * Verifica se o usuário gerencia (manager ou content_manager) o contexto do ciclo.
@@ -110,7 +122,7 @@ export class TrackCyclesService {
       }
     }
 
-    return this.prisma.track_cycle.create({
+    const created = await this.prisma.track_cycle.create({
       data: {
         track_id: createDto.trackId,
         context_id: createDto.contextId,
@@ -126,6 +138,8 @@ export class TrackCyclesService {
         context: true,
       },
     });
+    this.invalidateListCache();
+    return created;
   }
 
   async findAll(query: TrackCycleQueryDto, userId: number) {
@@ -163,16 +177,46 @@ export class TrackCyclesService {
       where.active = query.active;
     }
 
-    return this.prisma.track_cycle.findMany({
+    const cacheTtlMs =
+      readPositiveIntEnv('TRACK_CYCLES_CACHE_TTL_SECONDS', 300) * 1000;
+    const canUseListCache =
+      cacheTtlMs > 0 && !query.trackId && query.status === undefined;
+    const cacheKey = canUseListCache ? JSON.stringify(where) : null;
+
+    if (cacheKey) {
+      const cached = this.listCache.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const rows = await this.prisma.track_cycle.findMany({
       where,
       include: {
-        track: true,
-        context: true,
+        track: {
+          select: {
+            id: true,
+            name: true,
+            active: true,
+            has_progression: true,
+          },
+        },
+        context: {
+          select: {
+            id: true,
+            name: true,
+            active: true,
+          },
+        },
       },
       orderBy: {
         start_date: 'desc',
       },
     });
+
+    if (cacheKey) {
+      this.listCache.set(cacheKey, rows, cacheTtlMs);
+    }
+
+    return rows;
   }
 
   async findOne(id: number, userId: number) {
@@ -558,7 +602,7 @@ export class TrackCyclesService {
 
     updateData.updated_at = new Date();
 
-    return this.prisma.track_cycle.update({
+    const updated = await this.prisma.track_cycle.update({
       where: { id },
       data: updateData,
       include: {
@@ -566,6 +610,8 @@ export class TrackCyclesService {
         context: true,
       },
     });
+    this.invalidateListCache();
+    return updated;
   }
 
   async updateStatus(id: number, statusDto: UpdateTrackCycleStatusDto, userId: number) {
@@ -600,7 +646,7 @@ export class TrackCyclesService {
       }
     }
 
-    return this.prisma.track_cycle.update({
+    const updated = await this.prisma.track_cycle.update({
       where: { id },
       data: {
         status: statusDto.status,
@@ -611,6 +657,8 @@ export class TrackCyclesService {
         context: true,
       },
     });
+    this.invalidateListCache();
+    return updated;
   }
 
   async remove(id: number, userId: number) {
@@ -635,9 +683,11 @@ export class TrackCyclesService {
     }
 
     // Hard delete - exclusão física do banco de dados
-    return this.prisma.track_cycle.delete({
+    const removed = await this.prisma.track_cycle.delete({
       where: { id },
     });
+    this.invalidateListCache();
+    return removed;
   }
 
   async getStudentsProgress(cycleId: number, userId: number) {

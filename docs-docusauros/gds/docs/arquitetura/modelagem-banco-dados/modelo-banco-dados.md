@@ -414,3 +414,13 @@ O banco de dados possui índices estratégicos em:
 - Campos de busca frequente (email, slug, reference)
 - Campos de filtro (active, created_at)
 - Combinações únicas (user_id + context_id, content_id + tag_id, etc.)
+- **Mapa de reports**: índice parcial `idx_report_points_map` (**`V20__idx_report_points_map.sql`**) para `GET /v1/reports/points`
+- **Idempotência de reports**: **`V29__report_idempotency_indexes.sql`**
+
+### Cache e pool (aplicação)
+
+O backend NestJS usa cache em memória por processo (TTL configurável) e pool Prisma via `connection_limit` na `DATABASE_URL`. Ver **[Desenvolvimento — performance da API](/desenvolvimento-performance-api)**.
+
+### Views materializadas BI (Metabase)
+
+**`V41__bi_materialized_views.sql`** (schema **`bi_export`**): `mv_participacao`, `mv_quiz_dados`, `mv_reportes`, `mv_reportes_semanal` — agregados para dashboards; não substituem o export JSON sindrômico (`x-api-key`). Requerem `REFRESH MATERIALIZED VIEW CONCURRENTLY bi_export.mv_*` após carga de dados.

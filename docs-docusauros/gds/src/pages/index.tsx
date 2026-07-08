@@ -20,8 +20,18 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
+            to="/intro">
+            Começar
+          </Link>
+          <Link
+            className="button button--outline button--secondary button--lg margin-left--md"
+            to="/desenvolvimento-local">
+            Setup local
+          </Link>
+          <Link
+            className="button button--outline button--secondary button--lg margin-left--md"
             to="/arquitetura/modelagem-banco-dados/modelo-banco-dados">
-            Ver Documentação
+            Modelo de dados
           </Link>
         </div>
       </div>

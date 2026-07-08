@@ -201,6 +201,16 @@ Registro de aceitação de documentos legais pelos usuários.
 
 O perfil do **usuário** inclui gênero, localização e identificador externo na tabela `user`. Quando a **participação ativa** do usuário está em um contexto que define um formulário **`profile_extra`**, o sistema pode exigir o preenchimento de campos extras (armazenados em `participation_profile_extra`). O endpoint agregador **`GET /v1/users/me/profile-status`** indica se falta `profileExtra` junto dos demais campos; o fluxo completo, payloads e erros estão em [Dados adicionais de perfil](dados-adicionais-perfil).
 
+## Autenticação (API)
+
+| Tema | Detalhe |
+|------|---------|
+| **JWT** | `Authorization: Bearer` em pedidos autenticados |
+| **`x-gds-channel`** | Cabeçalho obrigatório (ex.: `web`, `app`) |
+| **Refresh token** | Rotação em `user_refresh_token` (**`V19__user_refresh_token.sql`**) |
+| **Verificação de e-mail** | Fluxo por contexto quando `require_email_verification` (**`V31__user_email_verification.sql`**) — ver [Área web do participante](/funcionalidades-app-web-participante) |
+| **Duplicatas legadas** | Mesclagem operacional via `POST /v1/users/merge-duplicates` (admin) — [Operações — usuários duplicados](/operacoes-usuarios-duplicados) |
+
 ## Regras de Negócio
 
 - Um usuário deve ter email único no sistema

@@ -554,7 +554,8 @@ describe('SyndromicClassificationService', () => {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: { latitude: -15.5, longitude: -47.8 },
             participation: {
-              user: { gender: { name: 'Feminino' } },
+              id: 555,
+              user: { id: 42, gender: { name: 'Feminino' } },
             },
           },
         },
@@ -598,6 +599,8 @@ describe('SyndromicClassificationService', () => {
         location_index: string | null;
         sintomas_codigos: string[];
         faixa_etaria: null;
+        usuario_ref: string | null;
+        participacao_ref: string | null;
         modelo?: string;
         score_modelo?: number | null;
         score_tipo?: string;
@@ -615,6 +618,9 @@ describe('SyndromicClassificationService', () => {
       expect(lineFull.limiar_decisao).toBeUndefined();
       expect(typeof lineFull.location_index).toBe('string');
       expect(lineFull.location_index!.length).toBeGreaterThan(0);
+      expect(lineFull.usuario_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(lineFull.participacao_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(lineFull.usuario_ref).not.toBe(lineFull.participacao_ref);
     });
 
     it('onlySymptoms: uma linha por report com sintomas agregados', async () => {
@@ -635,7 +641,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: { latitude: -15.5, longitude: -47.8 },
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 555,
+              user: { id: 42, gender: { name: 'Feminino' } },
+            },
           },
         },
         {
@@ -647,7 +656,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: { latitude: -15.5, longitude: -47.8 },
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 555,
+              user: { id: 42, gender: { name: 'Feminino' } },
+            },
           },
         },
       ]);
@@ -671,6 +683,8 @@ describe('SyndromicClassificationService', () => {
       expect((out.items[0] as { sindrome_codigo?: string }).sindrome_codigo).toBeUndefined();
       expect(out.items[0].sintomas_codigos).toEqual(['febre', 'tosse']);
       expect(out.items[0].report_id).toBe(100);
+      expect(out.items[0].usuario_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(out.items[0].participacao_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
       expect(prisma.report_syndrome_score.count).not.toHaveBeenCalled();
     });
 
@@ -716,7 +730,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: { latitude: -15.5, longitude: -47.8 },
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 501,
+              user: { id: 42, gender: { name: 'Feminino' } },
+            },
           },
         },
         {
@@ -731,7 +748,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: { latitude: -15.5, longitude: -47.8 },
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 501,
+              user: { id: 42, gender: { name: 'Feminino' } },
+            },
           },
         },
         {
@@ -746,7 +766,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T11:00:00.000Z'),
             occurrence_location: null,
-            participation: { user: { gender: { name: 'Masculino' } } },
+            participation: {
+              id: 502,
+              user: { id: 88, gender: { name: 'Masculino' } },
+            },
           },
         },
         {
@@ -761,7 +784,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T11:00:00.000Z'),
             occurrence_location: null,
-            participation: { user: { gender: { name: 'Masculino' } } },
+            participation: {
+              id: 502,
+              user: { id: 88, gender: { name: 'Masculino' } },
+            },
           },
         },
       ]);
@@ -783,19 +809,32 @@ describe('SyndromicClassificationService', () => {
       expect(out.totals.positive).toBe(2);
       expect(out.items).toHaveLength(2);
 
+      type TopScoreItem = {
+        sindrome_codigo: string;
+        sintomas_codigos: string[];
+        classificacao_positiva: boolean;
+        usuario_ref: string | null;
+        participacao_ref: string | null;
+      };
       const item1 = (out.items as unknown[]).find(
         (i) => (i as { report_id: number }).report_id === 1,
-      ) as { sindrome_codigo: string; sintomas_codigos: string[]; classificacao_positiva: boolean };
+      ) as TopScoreItem;
       expect(item1.sindrome_codigo).toBe('gripe');
       expect(item1.classificacao_positiva).toBe(true);
       expect(item1.sintomas_codigos).toEqual(['tosse']);
 
       const item2 = (out.items as unknown[]).find(
         (i) => (i as { report_id: number }).report_id === 2,
-      ) as { sindrome_codigo: string; sintomas_codigos: string[]; classificacao_positiva: boolean };
+      ) as TopScoreItem;
       expect(item2.sindrome_codigo).toBe('diarreia');
       expect(item2.classificacao_positiva).toBe(true);
       expect(item2.sintomas_codigos).toEqual(['febre']);
+
+      expect(item1.usuario_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(item2.usuario_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(item1.usuario_ref).not.toBe(item2.usuario_ref);
+      expect(item1.participacao_ref).not.toBe(item2.participacao_ref);
+      expect(item1.usuario_ref).not.toBe(item1.participacao_ref);
     });
 
     it('topScore: report sem nenhum score acima do limiar retorna sindrome_codigo null e união dos sintomas', async () => {
@@ -816,7 +855,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: null,
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 901,
+              user: { id: 200, gender: { name: 'Feminino' } },
+            },
           },
         },
         {
@@ -831,7 +873,10 @@ describe('SyndromicClassificationService', () => {
           report: {
             created_at: new Date('2026-04-22T10:00:00.000Z'),
             occurrence_location: null,
-            participation: { user: { gender: { name: 'Feminino' } } },
+            participation: {
+              id: 901,
+              user: { id: 200, gender: { name: 'Feminino' } },
+            },
           },
         },
       ]);
@@ -853,11 +898,138 @@ describe('SyndromicClassificationService', () => {
         sindrome_codigo: string | null;
         sintomas_codigos: string[];
         classificacao_positiva: boolean;
+        usuario_ref: string | null;
+        participacao_ref: string | null;
       };
       expect(item.report_id).toBe(3);
       expect(item.sindrome_codigo).toBeNull();
       expect(item.classificacao_positiva).toBe(false);
       expect(item.sintomas_codigos).toEqual(['febre', 'tosse']);
+      expect(item.usuario_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+      expect(item.participacao_ref).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    });
+
+    it('topScore: dois reports do mesmo usuário no mesmo contexto compartilham usuario_ref', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([]);
+      prisma.report_syndrome_score.groupBy.mockResolvedValue([
+        {
+          report_id: 401,
+          _max: { processed_at: new Date('2026-04-22T12:00:00.000Z') },
+        },
+        {
+          report_id: 402,
+          _max: { processed_at: new Date('2026-04-22T18:00:00.000Z') },
+        },
+      ]);
+      prisma.report_syndrome_score.findMany.mockResolvedValueOnce([
+        {
+          id: 41,
+          report_id: 401,
+          syndrome_id: 10,
+          score: 0.7,
+          threshold_score_snapshot: 0.3,
+          is_above_threshold: true,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'gripe' },
+          report: {
+            created_at: new Date('2026-04-22T10:00:00.000Z'),
+            occurrence_location: null,
+            participation: {
+              id: 999,
+              user: { id: 77, gender: { name: 'Feminino' } },
+            },
+          },
+        },
+        {
+          id: 42,
+          report_id: 402,
+          syndrome_id: 10,
+          score: 0.55,
+          threshold_score_snapshot: 0.3,
+          is_above_threshold: true,
+          matched_symptom_ids: [1],
+          syndrome: { code: 'gripe' },
+          report: {
+            created_at: new Date('2026-04-22T16:00:00.000Z'),
+            occurrence_location: null,
+            participation: {
+              id: 999,
+              user: { id: 77, gender: { name: 'Feminino' } },
+            },
+          },
+        },
+      ]);
+      prisma.symptom.findMany.mockResolvedValue([{ id: 1, code: 'febre' }]);
+
+      const out = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-22',
+        endDate: '2026-04-22',
+        contextId: 10,
+        topScore: true,
+      } as BiExportSyndromeScoresQueryDto);
+
+      const items = out.items as Array<{
+        report_id: number;
+        usuario_ref: string;
+        participacao_ref: string;
+      }>;
+      expect(items).toHaveLength(2);
+      const a = items.find((i) => i.report_id === 401)!;
+      const b = items.find((i) => i.report_id === 402)!;
+      expect(a.usuario_ref).toBe(b.usuario_ref);
+      expect(a.participacao_ref).toBe(b.participacao_ref);
+    });
+
+    it('refs mudam quando o BI_EXPORT_PSEUDONYM_SECRET muda (rotação)', async () => {
+      const buildMocks = () => {
+        prisma.$queryRaw.mockResolvedValueOnce([]);
+        prisma.report_syndrome_score.count.mockResolvedValue(1);
+        prisma.report_syndrome_score.findMany.mockResolvedValueOnce([
+          {
+            id: 1,
+            report_id: 100,
+            syndrome_id: 1,
+            score: 0.5,
+            threshold_score_snapshot: 0.3,
+            is_above_threshold: true,
+            matched_symptom_ids: [1],
+            syndrome: { code: 'gripe' },
+            report: {
+              created_at: new Date('2026-04-22T10:00:00.000Z'),
+              occurrence_location: null,
+              participation: {
+                id: 555,
+                user: { id: 42, gender: { name: 'Feminino' } },
+              },
+            },
+          },
+        ]);
+        prisma.symptom.findMany.mockResolvedValue([{ id: 1, code: 'febre' }]);
+      };
+
+      configGet.mockImplementation((key: string) =>
+        key === 'BI_EXPORT_PSEUDONYM_SECRET' ? 'segredo-A' : undefined,
+      );
+      buildMocks();
+      const outA = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-22',
+        endDate: '2026-04-22',
+        contextId: 10,
+      } as BiExportSyndromeScoresQueryDto);
+
+      configGet.mockImplementation((key: string) =>
+        key === 'BI_EXPORT_PSEUDONYM_SECRET' ? 'segredo-B' : undefined,
+      );
+      buildMocks();
+      const outB = await service.getBiExportSyndromeScores({
+        startDate: '2026-04-22',
+        endDate: '2026-04-22',
+        contextId: 10,
+      } as BiExportSyndromeScoresQueryDto);
+
+      const a = outA.items[0] as { usuario_ref: string };
+      const b = outB.items[0] as { usuario_ref: string };
+      expect(a.usuario_ref).not.toBe(b.usuario_ref);
     });
   });
 

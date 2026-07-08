@@ -26,6 +26,18 @@ export interface EphemSignal {
   [key: string]: any;
 }
 
+/**
+ * Detalhe de `GET .../eventos/{id}` — reflete o desfecho assíncrono do processamento
+ * no Ephem (`CRIADO` → `PROCESSADO`/`ERRO`), que não vem na resposta da criação.
+ */
+export interface EphemEventDetail {
+  id: string | number;
+  status?: string;
+  statusMessage?: string;
+  signalId?: number | null;
+  [key: string]: any;
+}
+
 interface EphemConfig {
   baseUrl: string;
   authToken?: string;
@@ -76,6 +88,43 @@ export class EphemClient {
       }
 
       return (await response.json()) as EphemEventResponse;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Relê o evento no Ephem para obter o status assíncrono (`PROCESSADO`/`ERRO`) e o `signalId`. */
+  async getEvent(
+    config: EphemConfig,
+    eventId: string,
+  ): Promise<EphemEventDetail | null> {
+    const url = `${config.baseUrl}/${API_PATH}/eventos/${eventId}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      config.timeoutMs,
+    );
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.buildHeaders(config.authToken),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        this.logger.error(
+          `Ephem getEvent failed: HTTP ${response.status} – ${body}`,
+        );
+        return null;
+      }
+
+      const parsed: unknown = await response.json();
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      return parsed as EphemEventDetail;
     } finally {
       clearTimeout(timeout);
     }

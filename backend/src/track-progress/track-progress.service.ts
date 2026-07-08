@@ -651,6 +651,84 @@ export class TrackProgressService {
    * Inclui sequence_locked (ordem e/ou agenda) e sequence_order_locked (só ordem, respeita track.has_progression).
    */
   async findByUserAndCycle(participationId: number, trackCycleId: number) {
+    const progressInclude = {
+      track_cycle: {
+        include: {
+          track: {
+            select: {
+              id: true,
+              name: true,
+              active: true,
+              has_progression: true,
+              section: {
+                where: { active: true },
+                select: {
+                  id: true,
+                  order: true,
+                  active: true,
+                  sequence: {
+                    where: { active: true },
+                    select: {
+                      id: true,
+                      order: true,
+                      active: true,
+                      section_id: true,
+                      content_id: true,
+                      form_id: true,
+                    },
+                    orderBy: { order: 'asc' as const },
+                  },
+                },
+                orderBy: { order: 'asc' as const },
+              },
+            },
+          },
+        },
+      },
+      sequence_progress: {
+        include: {
+          sequence: {
+            select: {
+              id: true,
+              order: true,
+              active: true,
+              section_id: true,
+              content_id: true,
+              form_id: true,
+            },
+          },
+          quiz_submission: {
+            where: {
+              active: true,
+              completed_at: { not: null },
+            },
+            orderBy: { completed_at: 'desc' as const },
+            take: 1,
+            select: {
+              id: true,
+              score: true,
+              percentage: true,
+              is_passed: true,
+              attempt_number: true,
+              completed_at: true,
+              started_at: true,
+            },
+          },
+        },
+      },
+      participation: {
+        select: {
+          id: true,
+          user_id: true,
+          context_id: true,
+          active: true,
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
+    } as const;
+
     const trackProgress = await this.prisma.track_progress.findUnique({
       where: {
         participation_id_track_cycle_id: {
@@ -658,62 +736,15 @@ export class TrackProgressService {
           track_cycle_id: trackCycleId,
         },
       },
-      include: {
-        track_cycle: {
-          include: {
-            track: {
-              include: {
-                section: {
-                  where: { active: true },
-                  include: {
-                    sequence: {
-                      where: { active: true },
-                      orderBy: { order: 'asc' },
-                    },
-                  },
-                  orderBy: { order: 'asc' },
-                },
-              },
-            },
-          },
-        },
-        sequence_progress: {
-          include: {
-            sequence: true,
-            quiz_submission: {
-              where: {
-                active: true,
-                completed_at: { not: null },
-              },
-              orderBy: { completed_at: 'desc' },
-              take: 1,
-              select: {
-                id: true,
-                score: true,
-                percentage: true,
-                is_passed: true,
-                attempt_number: true,
-                completed_at: true,
-                started_at: true,
-              },
-            },
-          },
-        },
-        participation: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true },
-            },
-          },
-        },
-      },
+      include: progressInclude,
     });
 
     const serialized = this.serializeProgressPercentage(trackProgress) as any;
     if (!serialized) return serialized;
 
-    const sequentialLocked = this.computeSequenceLocked(serialized);
     const maps = await this.loadScheduleMaps(trackCycleId);
+
+    const sequentialLocked = this.computeSequenceLocked(serialized);
     const today = todayDateOnlyUtc();
     const cycle = serialized.track_cycle;
     const statusBySequenceId = new Map<number, string>();

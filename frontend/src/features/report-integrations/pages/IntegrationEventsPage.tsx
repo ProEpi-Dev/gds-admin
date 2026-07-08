@@ -40,6 +40,7 @@ import {
   useIntegrationEvents,
   useRetryIntegration,
   useIntegrationMessages,
+  useIntegrationRemoteStatus,
   useSendIntegrationMessage,
 } from '../hooks/useReportIntegrations';
 import { useCurrentContext } from '../../../contexts/CurrentContextContext';
@@ -60,6 +61,23 @@ const STATUS_LABEL: Record<string, string> = {
   sent: 'Enviado',
   failed: 'Falhou',
 };
+
+/** Mapeia o status do sistema externo (Ephem) para severidade e rótulo do Alert. */
+function remoteStatusPresentation(remoteStatus: string | null): {
+  severity: 'success' | 'error' | 'warning' | 'info';
+  label: string;
+} {
+  switch ((remoteStatus ?? '').toUpperCase()) {
+    case 'PROCESSADO':
+      return { severity: 'success', label: 'Integrado' };
+    case 'ERRO':
+      return { severity: 'error', label: 'Erro na integração' };
+    case 'CRIADO':
+      return { severity: 'warning', label: 'Recebido, processando…' };
+    default:
+      return { severity: 'info', label: remoteStatus || 'Status indisponível' };
+  }
+}
 
 export default function IntegrationEventsPage() {
   const { currentContext } = useCurrentContext();
@@ -83,6 +101,11 @@ export default function IntegrationEventsPage() {
     data: messages,
     isLoading: messagesLoading,
   } = useIntegrationMessages(selectedEvent?.id ?? null);
+
+  const {
+    data: remoteStatus,
+    isLoading: remoteStatusLoading,
+  } = useIntegrationRemoteStatus(selectedEvent?.id ?? null);
 
   const visibleMessages = useMemo(
     () => filterEchoInboundMessages(messages ?? []),
@@ -250,6 +273,47 @@ export default function IntegrationEventsPage() {
           Mensagens — Evento #{selectedEvent?.id}
         </DialogTitle>
         <DialogContent dividers>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Resultado da integração
+            </Typography>
+            {remoteStatusLoading ? (
+              <CircularProgress size={20} />
+            ) : (
+              (() => {
+                const { severity, label } = remoteStatusPresentation(
+                  remoteStatus?.remoteStatus ?? null,
+                );
+                return (
+                  <Alert severity={severity} sx={{ '& .MuiAlert-message': { width: '100%' } }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {label}
+                    </Typography>
+                    {remoteStatus?.remoteSignalId != null && (
+                      <Typography variant="caption" display="block">
+                        Signal #{remoteStatus.remoteSignalId}
+                      </Typography>
+                    )}
+                    {remoteStatus?.remoteStatusMessage && (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ wordBreak: 'break-word' }}
+                      >
+                        {remoteStatus.remoteStatusMessage}
+                      </Typography>
+                    )}
+                  </Alert>
+                );
+              })()
+            )}
+          </Box>
+
+          <Divider sx={{ mb: 2 }} />
+
+          <Typography variant="subtitle2" gutterBottom>
+            Mensagens
+          </Typography>
           {messagesLoading ? (
             <CircularProgress />
           ) : (

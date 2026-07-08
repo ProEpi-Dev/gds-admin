@@ -11,6 +11,7 @@ import { EphemClient, EphemEventPayload, EphemSignal } from './ephem.client';
 import {
   IntegrationEventResponseDto,
   IntegrationMessageResponseDto,
+  IntegrationRemoteStatusDto,
 } from './dto/integration-event-response.dto';
 import { IntegrationConfigResponseDto } from './dto/integration-config-response.dto';
 import { UpsertIntegrationConfigDto } from './dto/upsert-integration-config.dto';
@@ -877,6 +878,84 @@ export class ReportIntegrationsService {
       });
 
     return allMessages.map((m) => this.mapMessageToDto(m));
+  }
+
+  /**
+   * Relê o evento no Ephem para expor o desfecho assíncrono (`PROCESSADO`/`ERRO`)
+   * no admin. Nosso `status` local só reflete o aceite inicial (`sent` = "CRIADO"),
+   * então o erro real de processamento não aparece sem esta consulta.
+   */
+  async getRemoteEventStatus(
+    eventId: number,
+    userId: number,
+  ): Promise<IntegrationRemoteStatusDto> {
+    const event = await this.integrationEvent.findUnique({
+      where: { id: eventId },
+      include: {
+        report: {
+          include: {
+            participation: {
+              include: { context: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException(
+        `Evento de integração com ID ${eventId} não encontrado`,
+      );
+    }
+
+    await this.assertUserCanAccessParticipationIntegration(
+      userId,
+      event.report?.participation,
+    );
+
+    const empty: IntegrationRemoteStatusDto = {
+      remoteStatus: null,
+      remoteStatusMessage: null,
+      remoteSignalId: null,
+    };
+
+    if (!event.external_event_id) {
+      return empty;
+    }
+
+    const config = await this.getActiveConfig(
+      event.report.participation.context_id,
+    );
+    if (!config) return empty;
+
+    const isTraining = event.environment === 'homologation';
+    const baseUrl = isTraining
+      ? config.base_url_homologation
+      : config.base_url_production;
+    if (!baseUrl) return empty;
+
+    const authToken = authTokenFromIntegrationConfig(config.auth_config);
+
+    const detail = await this.ephemClient.getEvent(
+      { baseUrl, authToken, timeoutMs: config.timeout_ms },
+      event.external_event_id,
+    );
+
+    if (!detail) return empty;
+
+    const signalId =
+      typeof detail.signalId === 'number' ? detail.signalId : null;
+
+    return {
+      remoteStatus:
+        typeof detail.status === 'string' ? detail.status : null,
+      remoteStatusMessage:
+        typeof detail.statusMessage === 'string' &&
+        detail.statusMessage.trim().length > 0
+          ? detail.statusMessage
+          : null,
+      remoteSignalId: signalId,
+    };
   }
 
   async sendMessage(

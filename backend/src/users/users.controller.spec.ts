@@ -60,6 +60,7 @@ describe('UsersController', () => {
             getLegalAcceptanceStatus: jest.fn(),
             acceptLegalDocuments: jest.fn(),
             getUserRole: jest.fn(),
+            mergeDuplicateUsers: jest.fn(),
           },
         },
       ],

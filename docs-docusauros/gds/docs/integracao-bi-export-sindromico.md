@@ -116,6 +116,25 @@ O corpo é um **objeto JSON** com, entre outros:
   - `by_day`: lista por dia civil em America/Sao_Paulo (`{ "date": "yyyy-MM-dd", "positive": n, "negative": n }`); só dias com pelo menos um report
 - `items` — lista de objetos; o conjunto de campos por linha depende dos modos `only_symptoms` / `top_score` (ver contrato na documentação Swagger do backend)
 
+### Identificadores pseudonimizados (`usuario_ref` / `participacao_ref`)
+
+Cada linha de `items` traz dois campos derivados, pensados para permitir métricas por pessoa **sem expor IDs internos**:
+
+| Campo | Descrição |
+|-------|-----------|
+| `usuario_ref` | Pseudônimo estável do usuário **dentro deste contexto** (mesmo usuário em outro contexto recebe outro `usuario_ref`). |
+| `participacao_ref` | Pseudônimo estável da participação do usuário no contexto. |
+
+Propriedades garantidas:
+
+- **Determinístico**: a mesma pessoa no mesmo contexto gera sempre o mesmo `usuario_ref` durante a vida útil da chave HMAC do servidor. Permite `COUNT(DISTINCT usuario_ref)` por dia para contar **pessoas distintas** em vez de **notificações**.
+- **Pseudonimizado**: o servidor calcula via `HMAC-SHA256(chave, "{contextId}:u:{userId}")` → base64url (22 caracteres). Quem consome o export **não** consegue reverter para o `user_id` real sem a chave do servidor.
+- **Rotação**: trocar a chave HMAC no servidor **invalida o histórico** de pseudônimos (mesma pessoa passa a ter outro `usuario_ref`). Planeje a rotação junto com o consumidor de BI.
+
+:::caution LGPD
+O `usuario_ref` ainda é **dado pessoal pseudonimizado**, não anônimo: o servidor pode reverter (tem a chave). Trate-o como informação sensível, especialmente em populações pequenas combinadas com sintomas, dia e `location_index` em resolução alta — que podem **reidentificar** indivíduos. Documente a finalidade no RIPD/DPIA e inclua cláusulas de uso no contrato com o consumidor.
+:::
+
 Em caso de erro, a API devolve o código HTTP habitual (**400** validação, **401** chave inválida/ausente, **403** `contextId` incompatível com a chave, **404** contexto inexistente) com mensagem no corpo quando aplicável.
 
 ---
@@ -134,4 +153,19 @@ O utilizador tem de ter permissão de gestão sobre o **contexto** indicado.
 
 ---
 
-**Última atualização**: Abril 2026
+## 5. Dashboards Metabase (complementar)
+
+Para painéis internos que consultam o PostgreSQL diretamente, a migração **`V41__bi_materialized_views.sql`** define:
+
+| View (`bi_export`) | Uso |
+|--------------------|-----|
+| `mv_participacao` | Participações ativas no contexto UNB |
+| `mv_quiz_dados` | Submissões de quiz (contexto UNB) |
+| `mv_reportes` | Reportes linha a linha (contexto UNB) |
+| `mv_reportes_semanal` | Presença semanal agregada por participação (UNB) |
+
+Estas views são **independentes** do endpoint `bi-export-scores` acima. Planeje `REFRESH MATERIALIZED VIEW CONCURRENTLY bi_export.mv_*` na rotina de BI.
+
+---
+
+**Última atualização**: Junho 2026

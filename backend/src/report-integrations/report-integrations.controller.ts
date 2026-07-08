@@ -26,6 +26,7 @@ import { ReportIntegrationsService } from './report-integrations.service';
 import {
   IntegrationEventResponseDto,
   IntegrationMessageResponseDto,
+  IntegrationRemoteStatusDto,
 } from './dto/integration-event-response.dto';
 import { IntegrationEventQueryDto } from './dto/integration-event-query.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -122,6 +123,22 @@ export class ReportIntegrationsController {
     @CurrentUser() user: { userId: number },
   ): Promise<IntegrationMessageResponseDto[]> {
     return this.service.syncMessages(eventId, user.userId);
+  }
+
+  @Get(':eventId/remote-status')
+  @ApiOperation({
+    summary: 'Consultar desfecho da integração no sistema externo (Ephem)',
+    description:
+      'Relê o evento no Ephem para expor status/mensagem reais (PROCESSADO/ERRO) e o signalId. Mesmas regras de acesso que by-report.',
+  })
+  @ApiParam({ name: 'eventId', type: Number })
+  @ApiResponse({ status: 200, type: IntegrationRemoteStatusDto })
+  @ApiResponse({ status: 403, description: 'Sem permissão para este evento' })
+  async getRemoteStatus(
+    @Param('eventId', ParseIntPipe) eventId: number,
+    @CurrentUser() user: { userId: number },
+  ): Promise<IntegrationRemoteStatusDto> {
+    return this.service.getRemoteEventStatus(eventId, user.userId);
   }
 
   @Post(':eventId/messages')

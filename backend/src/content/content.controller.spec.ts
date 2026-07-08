@@ -80,20 +80,26 @@ describe('ContentController', () => {
       jest.spyOn(service, 'list').mockResolvedValue(mockContents as any);
       const user = { userId: 1 };
 
-      const result = await controller.list(undefined, undefined, user);
+      const result = await controller.list(
+        undefined,
+        undefined,
+        user,
+        'app',
+      );
 
       expect(result).toEqual(mockContents);
-      expect(service.list).toHaveBeenCalledWith(undefined, 1, undefined);
+      expect(service.list).toHaveBeenCalledWith(undefined, 1, { channel: 'app' });
     });
 
     it('deve repassar includeInactive quando query true', async () => {
       jest.spyOn(service, 'list').mockResolvedValue([] as any);
       const user = { userId: 2 };
 
-      await controller.list('5', 'true', user);
+      await controller.list('5', 'true', user, 'web');
 
       expect(service.list).toHaveBeenCalledWith(5, 2, {
         includeInactive: true,
+        channel: 'web',
       });
     });
   });
