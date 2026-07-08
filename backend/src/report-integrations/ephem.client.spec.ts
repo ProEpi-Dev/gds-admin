@@ -109,6 +109,47 @@ describe('EphemClient', () => {
     });
   });
 
+  describe('getEvent', () => {
+    it('GET eventos/{id} e retorna o detalhe (status/statusMessage/signalId)', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 887,
+          status: 'PROCESSADO',
+          statusMessage: 'signal criado com sucesso com id: 285',
+          signalId: 285,
+        }),
+      });
+
+      const detail = await client.getEvent(baseConfig, '887');
+      expect(detail?.status).toBe('PROCESSADO');
+      expect(detail?.signalId).toBe(285);
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.example/api-integracao/v1/eventos/887',
+      );
+      expect(fetchMock.mock.calls[0][1].method).toBe('GET');
+    });
+
+    it('retorna null quando HTTP não OK', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => 'nope',
+      });
+
+      await expect(client.getEvent(baseConfig, '1')).resolves.toBeNull();
+    });
+
+    it('retorna null quando corpo não é objeto', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => null,
+      });
+
+      await expect(client.getEvent(baseConfig, '1')).resolves.toBeNull();
+    });
+  });
+
   describe('sendMessage', () => {
     it('POST mensagem e retorna JSON', async () => {
       fetchMock.mockResolvedValue({
