@@ -1955,6 +1955,28 @@ paths:
       security: *ref_14
       summary: Enviar mensagem para evento de integração
       tags: *ref_15
+  /v1/report-integrations/{eventId}/remote-status:
+    get:
+      description: Relê o evento no Ephem para expor status/mensagem reais (PROCESSADO/ERRO) e o signalId. Mesmas regras de acesso que by-report.
+      operationId: ReportIntegrationsController_getRemoteStatus
+      parameters:
+        - name: eventId
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationRemoteStatusDto'
+        '403':
+          description: Sem permissão para este evento
+      security: *ref_14
+      summary: Consultar desfecho da integração no sistema externo (Ephem)
+      tags: *ref_15
   /v1/report-integrations/config/{contextId}:
     get:
       operationId: ReportIntegrationsController_getConfig
@@ -7043,6 +7065,18 @@ components:
         - attemptCount
         - createdAt
         - updatedAt
+    IntegrationRemoteStatusDto:
+      type: object
+      properties:
+        remoteStatus:
+          type: string
+          description: 'Status no Ephem (ex.: CRIADO, PROCESSADO, ERRO). Null se indisponível.'
+        remoteStatusMessage:
+          type: string
+          description: 'Mensagem do Ephem (ex.: "signal criado" ou detalhe do erro de validação).'
+        remoteSignalId:
+          type: number
+          description: ID do signal criado no Ephem, se houver.
     SendMessageDto:
       type: object
       properties:
