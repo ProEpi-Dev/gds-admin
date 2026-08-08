@@ -124,6 +124,12 @@ paths:
           description: Dados inválidos ou nova senha igual à atual
         '401':
           description: Senha atual incorreta ou usuário não autenticado
+        '503': &ref_1
+          description: Janela de indisponibilidade ativa. O corpo traz `error.code = MAINTENANCE` e o bloco `error.maintenance`, o que permite distinguir esta resposta de um 503 emitido pelo proxy quando o backend está fora do ar. Quando há fim previsto, acompanha o header `Retry-After`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
       security:
         - bearerAuth: []
       summary: Alterar senha do usuário logado
@@ -142,6 +148,7 @@ paths:
       responses:
         '200':
           description: Se o email estiver cadastrado, as instruções serão enviadas
+        '503': *ref_1
       summary: Solicitar redefinição de senha
       tags: *ref_0
   /v1/auth/reset-password:
@@ -160,6 +167,7 @@ paths:
           description: Senha redefinida com sucesso
         '400':
           description: Token inválido ou expirado
+        '503': *ref_1
       summary: Redefinir senha com token
       tags: *ref_0
   /v1/auth/signup:
@@ -191,6 +199,7 @@ paths:
           description: Contexto não é público
         '409':
           description: Email já está em uso
+        '503': *ref_1
       summary: Criar nova conta de usuário
       tags: *ref_0
   /v1/auth/verify-email:
@@ -208,6 +217,7 @@ paths:
           description: Email confirmado
         '400':
           description: Token inválido ou expirado
+        '503': *ref_1
       summary: Confirmar email com token recebido por email
       tags: *ref_0
   /v1/auth/request-email-verification:
@@ -224,6 +234,7 @@ paths:
       responses:
         '200':
           description: ''
+        '503': *ref_1
       summary: Solicitar reenvio do email de confirmação
       tags: *ref_0
   /v1/legal-documents/active:
@@ -240,8 +251,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LegalDocumentResponseDto'
+        '503': *ref_1
       summary: Listar documentos legais ativos
-      tags: &ref_1
+      tags: &ref_2
         - Legal Documents
   /v1/legal-documents/types:
     get:
@@ -257,8 +269,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LegalDocumentTypeResponseDto'
+        '503': *ref_1
       summary: Listar tipos de documentos legais
-      tags: *ref_1
+      tags: *ref_2
   /v1/legal-documents/type/{typeCode}:
     get:
       description: Retorna o documento legal ativo de um tipo específico. Endpoint público.
@@ -280,8 +293,9 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentResponseDto'
         '404':
           description: Documento não encontrado
+        '503': *ref_1
       summary: Buscar documento por tipo
-      tags: *ref_1
+      tags: *ref_2
   /v1/legal-documents/{id}:
     get:
       description: Retorna um documento legal específico por ID. Endpoint público.
@@ -302,8 +316,9 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentResponseDto'
         '404':
           description: Documento não encontrado
+        '503': *ref_1
       summary: Buscar documento por ID
-      tags: *ref_1
+      tags: *ref_2
   /v1/admin/legal-documents:
     get:
       description: Retorna todos os documentos legais (incluindo inativos)
@@ -318,10 +333,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LegalDocumentResponseDto'
-      security: &ref_2
+        '503': *ref_1
+      security: &ref_3
         - bearer: []
       summary: '[Admin] Listar todos os documentos legais'
-      tags: &ref_3
+      tags: &ref_4
         - Legal Documents Admin
     post:
       description: Cria um novo documento legal
@@ -344,9 +360,10 @@ paths:
           description: Tipo de documento não encontrado
         '409':
           description: Conflito de versão
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Criar documento legal'
-      tags: *ref_3
+      tags: *ref_4
   /v1/admin/legal-documents/{id}:
     get:
       description: Retorna um documento legal específico por ID
@@ -367,9 +384,10 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentResponseDto'
         '404':
           description: Documento não encontrado
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Buscar documento por ID'
-      tags: *ref_3
+      tags: *ref_4
     put:
       description: Atualiza um documento legal existente
       operationId: LegalDocumentsAdminController_updateDocument
@@ -397,9 +415,10 @@ paths:
           description: Documento não encontrado
         '409':
           description: Conflito de versão
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Atualizar documento legal'
-      tags: *ref_3
+      tags: *ref_4
     delete:
       description: Remove um documento legal
       operationId: LegalDocumentsAdminController_deleteDocument
@@ -417,9 +436,10 @@ paths:
           description: Não é possível deletar documento com aceitações vinculadas
         '404':
           description: Documento não encontrado
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Deletar documento legal'
-      tags: *ref_3
+      tags: *ref_4
   /v1/admin/legal-documents/types/all:
     get:
       description: Retorna todos os tipos de documentos legais (incluindo inativos)
@@ -434,9 +454,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LegalDocumentTypeResponseDto'
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Listar todos os tipos de documentos'
-      tags: *ref_3
+      tags: *ref_4
   /v1/admin/legal-documents/types/{id}:
     get:
       description: Retorna um tipo de documento específico por ID
@@ -457,9 +478,10 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentTypeResponseDto'
         '404':
           description: Tipo não encontrado
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Buscar tipo por ID'
-      tags: *ref_3
+      tags: *ref_4
     put:
       description: Atualiza um tipo de documento legal existente
       operationId: LegalDocumentsAdminController_updateDocumentType
@@ -485,9 +507,10 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentTypeResponseDto'
         '404':
           description: Tipo não encontrado
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Atualizar tipo de documento'
-      tags: *ref_3
+      tags: *ref_4
     delete:
       description: Remove um tipo de documento legal
       operationId: LegalDocumentsAdminController_deleteDocumentType
@@ -505,9 +528,10 @@ paths:
           description: Não é possível deletar tipo com documentos vinculados
         '404':
           description: Tipo não encontrado
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Deletar tipo de documento'
-      tags: *ref_3
+      tags: *ref_4
   /v1/admin/legal-documents/types:
     post:
       description: Cria um novo tipo de documento legal
@@ -528,9 +552,10 @@ paths:
                 $ref: '#/components/schemas/LegalDocumentTypeResponseDto'
         '409':
           description: Código já existe
-      security: *ref_2
+        '503': *ref_1
+      security: *ref_3
       summary: '[Admin] Criar tipo de documento'
-      tags: *ref_3
+      tags: *ref_4
   /v1/setup:
     post:
       description: Cria um contexto padrão e um manager default para o sistema. Só pode ser executado uma vez.
@@ -551,6 +576,7 @@ paths:
                 $ref: '#/components/schemas/SetupResponseDto'
         '400':
           description: Sistema já foi inicializado ou dados inválidos
+        '503': *ref_1
       summary: Inicializar sistema
       tags:
         - Setup
@@ -576,10 +602,11 @@ paths:
           description: Dados inválidos
         '409':
           description: Email já está em uso
-      security: &ref_4
+        '503': *ref_1
+      security: &ref_5
         - bearerAuth: []
       summary: Criar usuário
-      tags: &ref_5
+      tags: &ref_6
         - Users
     get:
       description: 'Admin: todos. Manager: usuários dos contextos que gerencia. Participant: apenas o próprio usuário quando search=seu email.'
@@ -625,9 +652,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Listar usuários
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/admins:
     get:
       description: Retorna apenas usuários com papel de administrador. Exclusivo para superadmin.
@@ -673,9 +701,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Listar administradores
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/merge-duplicates:
     post:
       description: Executa a stored procedure merge_duplicate_users no banco. Use dryRun=true para validar IDs e ver estatísticas antes do merge. Exclusivo para administradores.
@@ -700,9 +729,10 @@ paths:
           description: Usuário não encontrado
         '409':
           description: Email canônico já em uso
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: '[Provisório] Mesclar usuários duplicados'
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/{id}:
     get:
       description: 'Admin: qualquer usuário. Manager: apenas se o usuário participa de algum contexto que ele gerencia.'
@@ -723,9 +753,10 @@ paths:
                 $ref: '#/components/schemas/UserResponseDto'
         '404':
           description: Usuário não encontrado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Obter usuário por ID
-      tags: *ref_5
+      tags: *ref_6
     patch:
       description: 'Admin: qualquer usuário e pode alterar papel global. Manager: apenas usuários que participam dos seus contextos; não pode alterar papel global. Participant: apenas o próprio perfil (name, email, password).'
       operationId: UsersController_update
@@ -755,9 +786,10 @@ paths:
           description: Usuário não encontrado
         '409':
           description: Email já está em uso
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Atualizar usuário
-      tags: *ref_5
+      tags: *ref_6
     delete:
       description: 'Admin: qualquer usuário. Manager: apenas usuários que participam dos seus contextos. Ativo: desativa; inativo: exclusão permanente se não houver dependências.'
       operationId: UsersController_remove
@@ -775,9 +807,10 @@ paths:
           description: Usuário inativo com vínculos que impedem exclusão permanente
         '404':
           description: Usuário não encontrado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Deletar usuário
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/me/profile-status:
     get:
       description: Retorna o status de completude do perfil do usuário logado
@@ -792,9 +825,10 @@ paths:
                 $ref: '#/components/schemas/ProfileStatusResponseDto'
         '401':
           description: Usuário não autenticado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Verificar status do perfil
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/me/profile:
     patch:
       description: Atualiza dados do perfil do usuário logado
@@ -817,9 +851,10 @@ paths:
           description: Dados inválidos
         '401':
           description: Usuário não autenticado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Atualizar perfil
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/me/legal-acceptances/status:
     get:
       description: Retorna o status de aceite de documentos legais do usuário logado
@@ -834,9 +869,10 @@ paths:
                 $ref: '#/components/schemas/LegalAcceptanceStatusResponseDto'
         '401':
           description: Usuário não autenticado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Verificar status de aceite de termos
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/me/legal-acceptances:
     post:
       description: Registra o aceite de documentos legais pelo usuário logado
@@ -860,9 +896,10 @@ paths:
           description: Documentos inválidos
         '401':
           description: Usuário não autenticado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Aceitar documentos legais
-      tags: *ref_5
+      tags: *ref_6
   /v1/users/me/role:
     get:
       description: Retorna informações sobre o papel do usuário logado (manager ou participante) e seus contextos
@@ -877,9 +914,10 @@ paths:
                 $ref: '#/components/schemas/UserRoleResponseDto'
         '401':
           description: Usuário não autenticado
-      security: *ref_4
+        '503': *ref_1
+      security: *ref_5
       summary: Obter papel do usuário
-      tags: *ref_5
+      tags: *ref_6
   /v1/participation-profile-extra/me:
     get:
       description: Retorna o formulário profile_extra do contexto da participação ativa e a submissão existente, se houver.
@@ -892,10 +930,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ParticipationProfileExtraMeResponseDto'
-      security: &ref_6
+        '503': *ref_1
+      security: &ref_7
         - bearerAuth: []
       summary: Dados adicionais de perfil (me)
-      tags: &ref_7
+      tags: &ref_8
         - Participation profile extra
     put:
       operationId: ParticipationProfileExtraController_saveMe
@@ -913,9 +952,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProfileExtraSubmissionDto'
-      security: *ref_6
+        '503': *ref_1
+      security: *ref_7
       summary: Salvar dados adicionais de perfil (me)
-      tags: *ref_7
+      tags: *ref_8
   /v1/audit-logs:
     get:
       description: Retorna logs administrativos com filtros e paginação.
@@ -997,6 +1037,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
+        '503': *ref_1
       security:
         - bearerAuth: []
       summary: Listar logs de auditoria
@@ -1022,10 +1063,11 @@ paths:
                 $ref: '#/components/schemas/LocationResponseDto'
         '400':
           description: Dados inválidos ou localização pai não encontrada
-      security: &ref_8
+        '503': *ref_1
+      security: &ref_9
         - bearerAuth: []
       summary: Criar localização
-      tags: &ref_9
+      tags: &ref_10
         - Locations
     get:
       description: Retorna lista paginada de localizações com filtros opcionais
@@ -1083,9 +1125,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_8
+        '503': *ref_1
+      security: *ref_9
       summary: Listar localizações
-      tags: *ref_9
+      tags: *ref_10
   /v1/locations/{id}:
     get:
       description: Retorna detalhes de uma localização específica
@@ -1106,9 +1149,10 @@ paths:
                 $ref: '#/components/schemas/LocationResponseDto'
         '404':
           description: Localização não encontrada
-      security: *ref_8
+        '503': *ref_1
+      security: *ref_9
       summary: Obter localização por ID
-      tags: *ref_9
+      tags: *ref_10
     patch:
       description: Atualiza uma localização existente
       operationId: LocationsController_update
@@ -1136,9 +1180,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Localização não encontrada
-      security: *ref_8
+        '503': *ref_1
+      security: *ref_9
       summary: Atualizar localização
-      tags: *ref_9
+      tags: *ref_10
     delete:
       description: Remove uma localização (soft delete - desativa). Não permite deletar se houver localizações filhas.
       operationId: LocationsController_remove
@@ -1156,9 +1201,10 @@ paths:
           description: Localização possui filhos
         '404':
           description: Localização não encontrada
-      security: *ref_8
+        '503': *ref_1
+      security: *ref_9
       summary: Deletar localização
-      tags: *ref_9
+      tags: *ref_10
   /v1/contexts:
     post:
       description: Cria um novo contexto no sistema
@@ -1179,10 +1225,11 @@ paths:
                 $ref: '#/components/schemas/ContextResponseDto'
         '400':
           description: Dados inválidos ou localização não encontrada
-      security: &ref_10
+        '503': *ref_1
+      security: &ref_11
         - bearerAuth: []
       summary: Criar contexto
-      tags: &ref_11
+      tags: &ref_12
         - Contexts
     get:
       description: Retorna contextos públicos e ativos para seleção no login ou cadastro. Não requer autenticação.
@@ -1195,9 +1242,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Listar contextos (login/seleção)
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/public:
     get:
       description: Retorna contextos públicos e ativos para seleção no cadastro. Não requer autenticação.
@@ -1210,9 +1258,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Listar contextos públicos (signup)
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/admin:
     get:
       description: Retorna lista paginada de contextos. Apenas admin.
@@ -1275,9 +1324,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Listar contextos (admin)
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/{contextId}/report-streaks:
     get:
       description: Retorna a ofensiva atual, maior ofensiva e total de dias reportados para as participações do contexto. Métricas de dia seguem o calendário America/Sao_Paulo.
@@ -1329,9 +1379,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Listar ofensivas de reports do contexto
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/{contextId}/report-streaks/{participationId}:
     get:
       description: Retorna a ofensiva da participação e os dias em que houve report, com filtro opcional por período. Datas agregadas seguem o dia civil em America/Sao_Paulo (parâmetros startDate/endDate filtram nessa mesma convenção).
@@ -1372,9 +1423,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ParticipationReportStreakResponseDto'
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Obter ofensiva e calendário de reports da participação
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/{id}/configuration:
     get:
       description: Retorna pares chave/valor (JSON) da tabela context_configuration. Apenas admin.
@@ -1397,9 +1449,10 @@ paths:
                   $ref: '#/components/schemas/ContextConfigurationEntryDto'
         '404':
           description: Contexto não encontrado
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Listar configurações do contexto
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/{id}/configuration/{key}:
     put:
       description: Faz upsert de uma chave para o contexto. A chave na URL deve usar apenas a-z, 0-9 e underscore.
@@ -1434,9 +1487,10 @@ paths:
           description: Chave ou valor inválido
         '404':
           description: Contexto não encontrado
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Criar ou atualizar uma configuração
-      tags: *ref_11
+      tags: *ref_12
   /v1/contexts/{id}:
     get:
       description: Retorna detalhes de um contexto específico. Apenas admin.
@@ -1457,9 +1511,10 @@ paths:
                 $ref: '#/components/schemas/ContextResponseDto'
         '404':
           description: Contexto não encontrado
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Obter contexto por ID
-      tags: *ref_11
+      tags: *ref_12
     patch:
       description: Atualiza um contexto existente
       operationId: ContextsController_update
@@ -1487,9 +1542,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Contexto não encontrado
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Atualizar contexto
-      tags: *ref_11
+      tags: *ref_12
     delete:
       description: Remove um contexto (soft delete - desativa). Não permite deletar se houver participações ou formulários associados.
       operationId: ContextsController_remove
@@ -1507,9 +1563,10 @@ paths:
           description: Contexto possui relacionamentos
         '404':
           description: Contexto não encontrado
-      security: *ref_10
+        '503': *ref_1
+      security: *ref_11
       summary: Deletar contexto
-      tags: *ref_11
+      tags: *ref_12
   /v1/reports:
     post:
       description: Cria um novo report no sistema
@@ -1530,10 +1587,11 @@ paths:
                 $ref: '#/components/schemas/ReportResponseDto'
         '400':
           description: Dados inválidos ou entidades relacionadas não encontradas
-      security: &ref_12
+        '503': *ref_1
+      security: &ref_13
         - bearerAuth: []
       summary: Criar report
-      tags: &ref_13
+      tags: &ref_14
         - Reports
     get:
       description: Retorna lista paginada de reports com filtros opcionais
@@ -1633,9 +1691,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Listar reports
-      tags: *ref_13
+      tags: *ref_14
   /v1/reports/points:
     get:
       description: Retorna latitude, longitude e status de reports ativos em um período específico. Pode ser filtrado por ID do formulário (formId) ou referência do formulário (formReference).
@@ -1696,9 +1755,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReportPointResponseDto'
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Obter pontos de reports para mapa
-      tags: *ref_13
+      tags: *ref_14
   /v1/reports/{id}:
     get:
       description: Retorna detalhes de um report específico. Participantes só podem ver reports da própria participação; gestores/administradores veem conforme permissão no contexto.
@@ -1719,9 +1779,10 @@ paths:
                 $ref: '#/components/schemas/ReportResponseDto'
         '404':
           description: Report não encontrado
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Obter report por ID
-      tags: *ref_13
+      tags: *ref_14
     patch:
       description: Atualiza um report existente
       operationId: ReportsController_update
@@ -1749,9 +1810,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Report não encontrado
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Atualizar report
-      tags: *ref_13
+      tags: *ref_14
     delete:
       description: Remove um report permanentemente do banco de dados (hard delete)
       operationId: ReportsController_remove
@@ -1767,9 +1829,10 @@ paths:
           description: Report deletado com sucesso
         '404':
           description: Report não encontrado
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Deletar report
-      tags: *ref_13
+      tags: *ref_14
   /v1/reports/{id}/syndrome-scores:
     get:
       operationId: ReportsController_findSyndromeScores
@@ -1789,9 +1852,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReportSyndromeScoreResponseDto'
-      security: *ref_12
+        '503': *ref_1
+      security: *ref_13
       summary: Obter scores sindrômicos mais recentes do report
-      tags: *ref_13
+      tags: *ref_14
   /v1/report-integrations:
     get:
       operationId: ReportIntegrationsController_findEvents
@@ -1839,10 +1903,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/IntegrationEventResponseDto'
-      security: &ref_14
+        '503': *ref_1
+      security: &ref_15
         - bearerAuth: []
       summary: Listar eventos de integração (admin)
-      tags: &ref_15
+      tags: &ref_16
         - Report Integrations
   /v1/report-integrations/by-report/{reportId}:
     get:
@@ -1863,9 +1928,10 @@ paths:
                 $ref: '#/components/schemas/IntegrationEventResponseDto'
         '403':
           description: Sem permissão para este report
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Obter evento de integração por report
-      tags: *ref_15
+      tags: *ref_16
   /v1/report-integrations/by-participation/{participationId}:
     get:
       operationId: ReportIntegrationsController_findByParticipation
@@ -1884,9 +1950,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/IntegrationEventResponseDto'
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Listar eventos de integração dos reports da minha participação (app)
-      tags: *ref_15
+      tags: *ref_16
   /v1/report-integrations/{eventId}/retry:
     post:
       operationId: ReportIntegrationsController_retryIntegration
@@ -1903,9 +1970,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IntegrationEventResponseDto'
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Reenviar evento de integração (retry)
-      tags: *ref_15
+      tags: *ref_16
   /v1/report-integrations/{eventId}/messages:
     get:
       description: 'Mesmas regras de acesso que by-report: dono do report, admin ou gestor do contexto.'
@@ -1927,9 +1995,10 @@ paths:
                   $ref: '#/components/schemas/IntegrationMessageResponseDto'
         '403':
           description: Sem permissão para este evento
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Buscar e sincronizar mensagens de um evento
-      tags: *ref_15
+      tags: *ref_16
     post:
       description: 'Mesmas regras de acesso que by-report: dono do report, admin ou gestor do contexto.'
       operationId: ReportIntegrationsController_sendMessage
@@ -1954,9 +2023,10 @@ paths:
                 $ref: '#/components/schemas/IntegrationMessageResponseDto'
         '403':
           description: Sem permissão para este evento
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Enviar mensagem para evento de integração
-      tags: *ref_15
+      tags: *ref_16
   /v1/report-integrations/{eventId}/remote-status:
     get:
       description: Relê o evento no Ephem para expor status/mensagem reais (PROCESSADO/ERRO) e o signalId. Mesmas regras de acesso que by-report.
@@ -1976,9 +2046,10 @@ paths:
                 $ref: '#/components/schemas/IntegrationRemoteStatusDto'
         '403':
           description: Sem permissão para este evento
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Consultar desfecho da integração no sistema externo (Ephem)
-      tags: *ref_15
+      tags: *ref_16
   /v1/report-integrations/config/{contextId}:
     get:
       operationId: ReportIntegrationsController_getConfig
@@ -1995,9 +2066,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IntegrationConfigResponseDto'
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Obter configuração de integração do contexto
-      tags: *ref_15
+      tags: *ref_16
     put:
       operationId: ReportIntegrationsController_upsertConfig
       parameters:
@@ -2019,9 +2091,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IntegrationConfigResponseDto'
-      security: *ref_14
+        '503': *ref_1
+      security: *ref_15
       summary: Criar/atualizar configuração de integração (versionada)
-      tags: *ref_15
+      tags: *ref_16
   /v1/syndromic-classification/reports/daily-syndrome-counts:
     get:
       operationId: SyndromicClassificationController_getDailySyndromeCounts
@@ -2060,10 +2133,11 @@ paths:
       responses:
         '200':
           description: ''
-      security: &ref_16
+        '503': *ref_1
+      security: &ref_17
         - bearerAuth: []
       summary: Série diária de totalizadores por síndrome
-      tags: &ref_17
+      tags: &ref_18
         - SyndromicClassification
   /v1/syndromic-classification/reports/scores:
     get:
@@ -2137,9 +2211,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar registros da tabela report_syndrome_score
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/reports/bi-export-scores:
     get:
       description: |-
@@ -2234,9 +2309,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Export de scores (JSON com H3) para consumo em ferramentas de BI
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/reprocess:
     post:
       operationId: SyndromicClassificationController_reprocess
@@ -2250,9 +2326,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Reprocessar classificação sindrômica em lote
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/symptoms:
     get:
       operationId: SyndromicClassificationController_listSymptoms
@@ -2260,9 +2337,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar sintomas canônicos
-      tags: *ref_17
+      tags: *ref_18
     post:
       operationId: SyndromicClassificationController_createSymptom
       parameters: []
@@ -2275,9 +2353,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Criar sintoma canônico
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/symptoms/{id}:
     patch:
       operationId: SyndromicClassificationController_updateSymptom
@@ -2296,9 +2375,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualizar sintoma canônico
-      tags: *ref_17
+      tags: *ref_18
     delete:
       operationId: SyndromicClassificationController_removeSymptom
       parameters:
@@ -2310,9 +2390,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Desativar sintoma canônico
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndromes:
     get:
       operationId: SyndromicClassificationController_listSyndromes
@@ -2320,9 +2401,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar síndromes
-      tags: *ref_17
+      tags: *ref_18
     post:
       operationId: SyndromicClassificationController_createSyndrome
       parameters: []
@@ -2335,9 +2417,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Criar síndrome
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndromes/{id}:
     patch:
       operationId: SyndromicClassificationController_updateSyndrome
@@ -2356,9 +2439,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualizar síndrome
-      tags: *ref_17
+      tags: *ref_18
     delete:
       operationId: SyndromicClassificationController_removeSyndrome
       parameters:
@@ -2370,9 +2454,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Desativar síndrome
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndrome-symptom-weights:
     get:
       operationId: SyndromicClassificationController_listWeights
@@ -2380,9 +2465,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar pesos síndrome x sintoma
-      tags: *ref_17
+      tags: *ref_18
     post:
       operationId: SyndromicClassificationController_createWeight
       parameters: []
@@ -2395,9 +2481,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Criar peso síndrome x sintoma
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndrome-symptom-weights/{id}:
     patch:
       operationId: SyndromicClassificationController_updateWeight
@@ -2416,9 +2503,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualizar peso síndrome x sintoma
-      tags: *ref_17
+      tags: *ref_18
     delete:
       operationId: SyndromicClassificationController_removeWeight
       parameters:
@@ -2430,9 +2518,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Desativar peso síndrome x sintoma
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndrome-symptom-weights/matrix:
     get:
       operationId: SyndromicClassificationController_getWeightMatrix
@@ -2440,9 +2529,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Carregar matriz síndrome x sintoma (estilo planilha)
-      tags: *ref_17
+      tags: *ref_18
     put:
       operationId: SyndromicClassificationController_upsertWeightMatrix
       parameters: []
@@ -2455,9 +2545,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualização em lote da matriz síndrome x sintoma
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndrome-form-configs:
     get:
       operationId: SyndromicClassificationController_listFormConfigs
@@ -2465,9 +2556,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar configurações de extração por form_version
-      tags: *ref_17
+      tags: *ref_18
     post:
       operationId: SyndromicClassificationController_createFormConfig
       parameters: []
@@ -2480,9 +2572,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Criar configuração de extração por form_version
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/syndrome-form-configs/{id}:
     patch:
       operationId: SyndromicClassificationController_updateFormConfig
@@ -2501,9 +2594,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualizar configuração de extração por form_version
-      tags: *ref_17
+      tags: *ref_18
     delete:
       operationId: SyndromicClassificationController_removeFormConfig
       parameters:
@@ -2515,9 +2609,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Desativar configuração de extração por form_version
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/form-symptom-mappings:
     get:
       operationId: SyndromicClassificationController_listFormSymptomMappings
@@ -2525,9 +2620,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Listar mapeamentos de valor de formulário para sintoma
-      tags: *ref_17
+      tags: *ref_18
     post:
       operationId: SyndromicClassificationController_createFormSymptomMapping
       parameters: []
@@ -2540,9 +2636,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Criar mapeamento de valor de formulário para sintoma
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/form-symptom-mappings/{id}:
     patch:
       operationId: SyndromicClassificationController_updateFormSymptomMapping
@@ -2561,9 +2658,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Atualizar mapeamento de valor de formulário para sintoma
-      tags: *ref_17
+      tags: *ref_18
     delete:
       operationId: SyndromicClassificationController_removeFormSymptomMapping
       parameters:
@@ -2575,9 +2673,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_16
+        '503': *ref_1
+      security: *ref_17
       summary: Desativar mapeamento de valor de formulário para sintoma
-      tags: *ref_17
+      tags: *ref_18
   /v1/syndromic-classification/bi-export-api-keys:
     get:
       operationId: BiExportApiKeyController_list
@@ -2597,10 +2696,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BiExportApiKeyListItemDto'
-      security: &ref_18
+        '503': *ref_1
+      security: &ref_19
         - bearerAuth: []
       summary: Listar chaves de API de exportação (BI) por contexto
-      tags: &ref_19
+      tags: &ref_20
         - SyndromicClassification
     post:
       operationId: BiExportApiKeyController_create
@@ -2618,9 +2718,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateBiExportApiKeyResponseDto'
-      security: *ref_18
+        '503': *ref_1
+      security: *ref_19
       summary: Criar chave de API (segredo exibido apenas nesta resposta)
-      tags: *ref_19
+      tags: *ref_20
   /v1/syndromic-classification/bi-export-api-keys/{publicId}:
     delete:
       operationId: BiExportApiKeyController_revoke
@@ -2634,9 +2735,10 @@ paths:
       responses:
         '204':
           description: Revogada ou já estava revogada
-      security: *ref_18
+        '503': *ref_1
+      security: *ref_19
       summary: Revogar chave de API
-      tags: *ref_19
+      tags: *ref_20
   /v1/participations:
     post:
       description: Cria uma nova participação de usuário em um contexto
@@ -2657,10 +2759,11 @@ paths:
                 $ref: '#/components/schemas/ParticipationResponseDto'
         '400':
           description: Dados inválidos ou entidades relacionadas não encontradas
-      security: &ref_20
+        '503': *ref_1
+      security: &ref_21
         - bearerAuth: []
       summary: Criar participação
-      tags: &ref_21
+      tags: &ref_22
         - Participations
     get:
       description: 'Admin/manager/content_manager: participações dos contextos. Participant: apenas as próprias participações.'
@@ -2734,9 +2837,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Listar participações
-      tags: *ref_21
+      tags: *ref_22
   /v1/participations/{id}:
     get:
       description: Retorna detalhes de uma participação específica
@@ -2757,9 +2861,10 @@ paths:
                 $ref: '#/components/schemas/ParticipationResponseDto'
         '404':
           description: Participação não encontrada
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Obter participação por ID
-      tags: *ref_21
+      tags: *ref_22
     patch:
       description: Atualiza uma participação existente
       operationId: ParticipationsController_update
@@ -2787,9 +2892,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Participação não encontrada
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Atualizar participação
-      tags: *ref_21
+      tags: *ref_22
     delete:
       description: Desativa uma participação (soft delete).
       operationId: ParticipationsController_remove
@@ -2805,9 +2911,10 @@ paths:
           description: Participação deletada com sucesso
         '404':
           description: Participação não encontrada
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Deletar participação
-      tags: *ref_21
+      tags: *ref_22
   /v1/participations/{id}/permanent:
     delete:
       description: Exclui a participação do banco de dados de forma irreversível. Só é permitido para participações inativas.
@@ -2826,9 +2933,10 @@ paths:
           description: Participação ativa não pode ser excluída permanentemente
         '404':
           description: Participação não encontrada
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Excluir participação permanentemente
-      tags: *ref_21
+      tags: *ref_22
   /v1/participations/{id}/roles:
     get:
       description: Retorna os papéis atribuídos a uma participação.
@@ -2851,9 +2959,10 @@ paths:
                   $ref: '#/components/schemas/RoleResponseDto'
         '404':
           description: Participação não encontrada
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Listar papéis da participação
-      tags: *ref_21
+      tags: *ref_22
     post:
       description: Adiciona um papel a uma participação. Apenas admin.
       operationId: ParticipationsController_addRole
@@ -2883,9 +2992,10 @@ paths:
           description: Participação ou papel não encontrado
         '409':
           description: A participação já possui o papel
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Atribuir papel à participação
-      tags: *ref_21
+      tags: *ref_22
   /v1/participations/{id}/roles/{roleId}:
     delete:
       description: Remove um papel de uma participação. Apenas admin.
@@ -2914,9 +3024,10 @@ paths:
                   $ref: '#/components/schemas/RoleResponseDto'
         '404':
           description: Participação ou papel não encontrado
-      security: *ref_20
+        '503': *ref_1
+      security: *ref_21
       summary: Remover papel da participação
-      tags: *ref_21
+      tags: *ref_22
   /v1/contexts/{contextId}/managers:
     post:
       description: Adiciona um usuário como manager de um contexto
@@ -2947,10 +3058,11 @@ paths:
           description: Contexto não encontrado
         '409':
           description: Usuário já é manager deste contexto
-      security: &ref_22
+        '503': *ref_1
+      security: &ref_23
         - bearerAuth: []
       summary: Adicionar manager ao contexto
-      tags: &ref_23
+      tags: &ref_24
         - Context Managers
     get:
       description: Retorna lista paginada de managers de um contexto
@@ -2997,9 +3109,10 @@ paths:
                 $ref: '#/components/schemas/ListResponseDto'
         '404':
           description: Contexto não encontrado
-      security: *ref_22
+        '503': *ref_1
+      security: *ref_23
       summary: Listar managers do contexto
-      tags: *ref_23
+      tags: *ref_24
   /v1/contexts/{contextId}/managers/{id}:
     get:
       description: Retorna detalhes de um manager específico de um contexto
@@ -3026,9 +3139,10 @@ paths:
                 $ref: '#/components/schemas/ContextManagerResponseDto'
         '404':
           description: Contexto ou manager não encontrado
-      security: *ref_22
+        '503': *ref_1
+      security: *ref_23
       summary: Obter manager por ID
-      tags: *ref_23
+      tags: *ref_24
     patch:
       description: Atualiza um manager de contexto existente
       operationId: ContextManagersController_update
@@ -3060,9 +3174,10 @@ paths:
                 $ref: '#/components/schemas/ContextManagerResponseDto'
         '404':
           description: Contexto ou manager não encontrado
-      security: *ref_22
+        '503': *ref_1
+      security: *ref_23
       summary: Atualizar manager
-      tags: *ref_23
+      tags: *ref_24
     delete:
       description: Remove um manager de um contexto (soft delete - desativa)
       operationId: ContextManagersController_remove
@@ -3084,9 +3199,10 @@ paths:
           description: Manager removido com sucesso
         '404':
           description: Contexto ou manager não encontrado
-      security: *ref_22
+        '503': *ref_1
+      security: *ref_23
       summary: Remover manager do contexto
-      tags: *ref_23
+      tags: *ref_24
   /v1/forms:
     post:
       description: Cria um novo formulário no sistema
@@ -3107,10 +3223,11 @@ paths:
                 $ref: '#/components/schemas/FormResponseDto'
         '400':
           description: Dados inválidos ou contexto não encontrado
-      security: &ref_24
+        '503': *ref_1
+      security: &ref_25
         - bearerAuth: []
       summary: Criar formulário
-      tags: &ref_25
+      tags: &ref_26
         - Forms
     get:
       description: Retorna lista paginada de formulários com filtros opcionais
@@ -3174,9 +3291,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_24
+        '503': *ref_1
+      security: *ref_25
       summary: Listar formulários
-      tags: *ref_25
+      tags: *ref_26
   /v1/forms/with-latest-versions:
     get:
       description: Retorna lista de formulários ativos com suas últimas versões ativas. Admin pode passar contextId opcional para filtrar pelo contexto selecionado no frontend.
@@ -3196,9 +3314,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FormWithVersionDto'
-      security: *ref_24
+        '503': *ref_1
+      security: *ref_25
       summary: Listar formulários com últimas versões
-      tags: *ref_25
+      tags: *ref_26
   /v1/forms/{id}:
     get:
       description: Retorna detalhes de um formulário específico
@@ -3219,9 +3338,10 @@ paths:
                 $ref: '#/components/schemas/FormResponseDto'
         '404':
           description: Formulário não encontrado
-      security: *ref_24
+        '503': *ref_1
+      security: *ref_25
       summary: Obter formulário por ID
-      tags: *ref_25
+      tags: *ref_26
     patch:
       description: Atualiza um formulário existente
       operationId: FormsController_update
@@ -3249,9 +3369,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Formulário não encontrado
-      security: *ref_24
+        '503': *ref_1
+      security: *ref_25
       summary: Atualizar formulário
-      tags: *ref_25
+      tags: *ref_26
     delete:
       description: Remove um formulário (soft delete - desativa). Deleta automaticamente todas as versões associadas antes de deletar o formulário. Não permite deletar se alguma versão possuir reports associados.
       operationId: FormsController_remove
@@ -3269,9 +3390,10 @@ paths:
           description: Alguma versão do formulário possui reports associados
         '404':
           description: Formulário não encontrado
-      security: *ref_24
+        '503': *ref_1
+      security: *ref_25
       summary: Deletar formulário
-      tags: *ref_25
+      tags: *ref_26
   /v1/forms/{formId}/versions:
     post:
       description: Cria uma nova versão de um formulário
@@ -3302,10 +3424,11 @@ paths:
           description: Formulário não encontrado
         '409':
           description: Versão com este número já existe
-      security: &ref_26
+        '503': *ref_1
+      security: &ref_27
         - bearerAuth: []
       summary: Criar versão do formulário
-      tags: &ref_27
+      tags: &ref_28
         - Form Versions
     get:
       description: Retorna lista paginada de versões de um formulário
@@ -3352,9 +3475,10 @@ paths:
                 $ref: '#/components/schemas/ListResponseDto'
         '404':
           description: Formulário não encontrado
-      security: *ref_26
+        '503': *ref_1
+      security: *ref_27
       summary: Listar versões do formulário
-      tags: *ref_27
+      tags: *ref_28
   /v1/forms/{formId}/versions/{id}:
     get:
       description: Retorna detalhes de uma versão específica de um formulário
@@ -3381,9 +3505,10 @@ paths:
                 $ref: '#/components/schemas/FormVersionResponseDto'
         '404':
           description: Formulário ou versão não encontrado
-      security: *ref_26
+        '503': *ref_1
+      security: *ref_27
       summary: Obter versão do formulário por ID
-      tags: *ref_27
+      tags: *ref_28
     patch:
       description: Atualiza uma versão de formulário existente
       operationId: FormVersionsController_update
@@ -3419,9 +3544,10 @@ paths:
           description: Formulário ou versão não encontrado
         '409':
           description: Versão com este número já existe
-      security: *ref_26
+        '503': *ref_1
+      security: *ref_27
       summary: Atualizar versão do formulário
-      tags: *ref_27
+      tags: *ref_28
     delete:
       description: Remove uma versão de formulário (soft delete - desativa). Não permite deletar se houver reports associados.
       operationId: FormVersionsController_remove
@@ -3445,9 +3571,10 @@ paths:
           description: Versão possui reports associados
         '404':
           description: Formulário ou versão não encontrado
-      security: *ref_26
+        '503': *ref_1
+      security: *ref_27
       summary: Deletar versão do formulário
-      tags: *ref_27
+      tags: *ref_28
   /v1/contents:
     post:
       operationId: ContentController_create
@@ -3455,10 +3582,11 @@ paths:
       responses:
         '201':
           description: ''
-      security: &ref_28
+        '503': *ref_1
+      security: &ref_29
         - bearer: []
       summary: Criar conteúdo (manager, content_manager ou admin)
-      tags: &ref_29
+      tags: &ref_30
         - Contents
     get:
       description: Por padrão retorna só ativos. Com includeInactive=true, quem tem content:write também vê inativos (exclusão lógica).
@@ -3478,9 +3606,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Listar conteúdos do contexto (admin/manager/content_manager/participant)
-      tags: *ref_29
+      tags: *ref_30
   /v1/contents/{id}/reactivate:
     post:
       description: Define active=true e publica novamente se não houver published_at.
@@ -3494,9 +3623,10 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Reativar conteúdo
-      tags: *ref_29
+      tags: *ref_30
   /v1/contents/{id}/permanent:
     delete:
       description: Remove o registro do banco. Só para conteúdos já inativos, sem vínculo em trilhas (sequence) nem em quizzes (content_quiz).
@@ -3510,9 +3640,10 @@ paths:
       responses:
         '204':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Excluir conteúdo permanentemente
-      tags: *ref_29
+      tags: *ref_30
   /v1/contents/{id}:
     get:
       operationId: ContentController_get
@@ -3525,9 +3656,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Buscar conteúdo por ID
-      tags: *ref_29
+      tags: *ref_30
     put:
       operationId: ContentController_update
       parameters:
@@ -3539,9 +3671,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Atualizar conteúdo (manager, content_manager ou admin)
-      tags: *ref_29
+      tags: *ref_30
     delete:
       description: Define active=false. Exige que não haja vínculo em trilhas (sequence) nem quizzes (content_quiz).
       operationId: ContentController_delete
@@ -3554,9 +3687,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_28
+        '503': *ref_1
+      security: *ref_29
       summary: Desativar conteúdo (exclusão lógica)
-      tags: *ref_29
+      tags: *ref_30
   /v1/content-types:
     get:
       operationId: ContentTypeController_findAll
@@ -3570,8 +3704,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ContentTypeResponseDto'
+        '503': *ref_1
       summary: Listar todos os tipos de conteúdo ativos
-      tags: &ref_30
+      tags: &ref_31
         - Content Types
   /v1/content-types/{id}:
     get:
@@ -3589,8 +3724,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContentTypeResponseDto'
+        '503': *ref_1
       summary: Buscar tipo de conteúdo por ID
-      tags: *ref_30
+      tags: *ref_31
   /v1/admin/content-types:
     get:
       operationId: ContentTypeAdminController_findAllAdmin
@@ -3604,8 +3740,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ContentTypeResponseDto'
+        '503': *ref_1
       summary: '[Admin] Listar todos os tipos de conteúdo (incluindo inativos)'
-      tags: &ref_31
+      tags: &ref_32
         - Content Types Admin
     post:
       operationId: ContentTypeAdminController_create
@@ -3623,8 +3760,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContentTypeResponseDto'
+        '503': *ref_1
       summary: '[Admin] Criar novo tipo de conteúdo'
-      tags: *ref_31
+      tags: *ref_32
   /v1/admin/content-types/{id}:
     put:
       operationId: ContentTypeAdminController_update
@@ -3647,8 +3785,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContentTypeResponseDto'
+        '503': *ref_1
       summary: '[Admin] Atualizar tipo de conteúdo'
-      tags: *ref_31
+      tags: *ref_32
     delete:
       operationId: ContentTypeAdminController_remove
       parameters:
@@ -3660,8 +3799,9 @@ paths:
       responses:
         '200':
           description: Tipo de conteúdo marcado como inativo
+        '503': *ref_1
       summary: '[Admin] Deletar tipo de conteúdo (soft delete)'
-      tags: *ref_31
+      tags: *ref_32
   /v1/tags:
     get:
       operationId: TagController_findAll
@@ -3669,9 +3809,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: &ref_32
+        '503': *ref_1
+      security: &ref_33
         - bearer: []
-      tags: &ref_33
+      tags: &ref_34
         - Tags
     post:
       operationId: TagController_create
@@ -3685,8 +3826,9 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_32
-      tags: *ref_33
+        '503': *ref_1
+      security: *ref_33
+      tags: *ref_34
   /v1/tags/{id}:
     get:
       operationId: TagController_findOne
@@ -3699,8 +3841,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_32
-      tags: *ref_33
+        '503': *ref_1
+      security: *ref_33
+      tags: *ref_34
     put:
       operationId: TagController_update
       parameters:
@@ -3718,8 +3861,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_32
-      tags: *ref_33
+        '503': *ref_1
+      security: *ref_33
+      tags: *ref_34
     delete:
       operationId: TagController_remove
       parameters:
@@ -3731,8 +3875,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_32
-      tags: *ref_33
+        '503': *ref_1
+      security: *ref_33
+      tags: *ref_34
   /v1/content-quiz:
     post:
       description: Cria uma nova associação entre um conteúdo e um quiz
@@ -3753,10 +3898,11 @@ paths:
                 $ref: '#/components/schemas/ContentQuizResponseDto'
         '400':
           description: Dados inválidos ou entidades relacionadas não encontradas
-      security: &ref_34
+        '503': *ref_1
+      security: &ref_35
         - bearerAuth: []
       summary: Criar associação conteúdo-quiz
-      tags: &ref_35
+      tags: &ref_36
         - Content-Quiz
     get:
       description: Retorna lista paginada de associações com filtros opcionais
@@ -3816,9 +3962,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_34
+        '503': *ref_1
+      security: *ref_35
       summary: Listar associações conteúdo-quiz
-      tags: *ref_35
+      tags: *ref_36
   /v1/content-quiz/{id}:
     get:
       description: Retorna detalhes de uma associação específica
@@ -3839,9 +3986,10 @@ paths:
                 $ref: '#/components/schemas/ContentQuizResponseDto'
         '404':
           description: Associação não encontrada
-      security: *ref_34
+        '503': *ref_1
+      security: *ref_35
       summary: Obter associação por ID
-      tags: *ref_35
+      tags: *ref_36
     patch:
       description: Atualiza uma associação existente
       operationId: ContentQuizController_update
@@ -3869,9 +4017,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Associação não encontrada
-      security: *ref_34
+        '503': *ref_1
+      security: *ref_35
       summary: Atualizar associação
-      tags: *ref_35
+      tags: *ref_36
     delete:
       description: Remove uma associação (soft delete)
       operationId: ContentQuizController_remove
@@ -3887,9 +4036,10 @@ paths:
           description: Associação deletada com sucesso
         '404':
           description: Associação não encontrada
-      security: *ref_34
+        '503': *ref_1
+      security: *ref_35
       summary: Deletar associação
-      tags: *ref_35
+      tags: *ref_36
   /v1/quiz-submissions:
     post:
       description: Cria uma nova submissão de quiz. A pontuação é calculada automaticamente se o quiz foi completado.
@@ -3910,10 +4060,11 @@ paths:
                 $ref: '#/components/schemas/QuizSubmissionResponseDto'
         '400':
           description: Dados inválidos, limite de tentativas atingido ou tempo limite excedido
-      security: &ref_36
+        '503': *ref_1
+      security: &ref_37
         - bearerAuth: []
       summary: Criar submissão de quiz
-      tags: &ref_37
+      tags: &ref_38
         - Quiz-Submissions
     get:
       description: 'Admin/manager/content_manager: submissões do contexto. Participant: apenas as próprias submissões.'
@@ -4001,9 +4152,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-      security: *ref_36
+        '503': *ref_1
+      security: *ref_37
       summary: Listar submissões de quiz
-      tags: *ref_37
+      tags: *ref_38
   /v1/quiz-submissions/{id}:
     get:
       description: Retorna detalhes de uma submissão específica
@@ -4024,9 +4176,10 @@ paths:
                 $ref: '#/components/schemas/QuizSubmissionResponseDto'
         '404':
           description: Submissão não encontrada
-      security: *ref_36
+        '503': *ref_1
+      security: *ref_37
       summary: Obter submissão por ID
-      tags: *ref_37
+      tags: *ref_38
     patch:
       description: Atualiza uma submissão existente. A pontuação é recalculada automaticamente se as respostas ou data de conclusão forem atualizadas.
       operationId: QuizSubmissionsController_update
@@ -4054,9 +4207,10 @@ paths:
           description: Dados inválidos
         '404':
           description: Submissão não encontrada
-      security: *ref_36
+        '503': *ref_1
+      security: *ref_37
       summary: Atualizar submissão
-      tags: *ref_37
+      tags: *ref_38
     delete:
       description: Remove uma submissão (soft delete)
       operationId: QuizSubmissionsController_remove
@@ -4072,9 +4226,10 @@ paths:
           description: Submissão deletada com sucesso
         '404':
           description: Submissão não encontrada
-      security: *ref_36
+        '503': *ref_1
+      security: *ref_37
       summary: Deletar submissão
-      tags: *ref_37
+      tags: *ref_38
   /v1/track-progress/start:
     post:
       description: Cria registro de progresso e sequências para um usuário em um ciclo específico
@@ -4095,10 +4250,11 @@ paths:
           description: Participação ou ciclo não encontrado
         '409':
           description: Já existe progresso para este usuário neste ciclo
-      security: &ref_38
+        '503': *ref_1
+      security: &ref_39
         - bearer: []
       summary: Iniciar progresso em um ciclo de trilha
-      tags: &ref_39
+      tags: &ref_40
         - Track Progress
   /v1/track-progress:
     get:
@@ -4140,9 +4296,10 @@ paths:
       responses:
         '200':
           description: Lista de progressos
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Listar progressos
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/my-progress:
     get:
       description: Lista todos os progressos do usuário autenticado
@@ -4151,9 +4308,10 @@ paths:
       responses:
         '200':
           description: Lista de progressos do usuário
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Meu progresso
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/history:
     get:
       description: Lista todos os ciclos completados pelo usuário autenticado
@@ -4162,9 +4320,10 @@ paths:
       responses:
         '200':
           description: Lista de ciclos completados
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Histórico de ciclos completados
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/mandatory-compliance:
     get:
       description: Para uma participação, lista os slugs obrigatórios do contexto e indica se o usuário já completou um ciclo com cada slug. Usado pelo app e pela tela Welcome para validar regras de trilhas obrigatórias.
@@ -4183,9 +4342,10 @@ paths:
           description: Participação não pertence ao usuário autenticado
         '404':
           description: Participação não encontrada
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Conformidade de trilhas obrigatórias
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/executions:
     get:
       description: 'Visão geral de conclusões de atividades (quiz/conteúdo) por ciclo, participante e data. Filtros: ciclo, participante, tipo, nome da atividade, período.'
@@ -4239,9 +4399,10 @@ paths:
       responses:
         '200':
           description: Lista de execuções
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Listar execuções (conclusões de sequências)
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/participation/{participationId}/cycle/{cycleId}:
     get:
       description: Retorna progresso detalhado de um usuário em um ciclo específico
@@ -4264,9 +4425,10 @@ paths:
           description: Progresso encontrado
         '404':
           description: Progresso não encontrado
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Buscar progresso por participação e ciclo
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/{id}/can-access/sequence/{sequenceId}:
     get:
       description: Verifica se o usuário pode acessar uma sequência específica (bloqueio sequencial)
@@ -4287,9 +4449,10 @@ paths:
       responses:
         '200':
           description: Resultado da verificação de acesso
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Verificar acesso a sequência
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/{id}/sequence/{sequenceId}:
     put:
       description: Atualiza status, tempo gasto e incrementa contador de visitas de uma sequência
@@ -4318,9 +4481,10 @@ paths:
           description: Progresso de sequência atualizado
         '404':
           description: Progresso ou sequência não encontrado
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Atualizar progresso de sequência
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/{id}/sequence/{sequenceId}/complete-content:
     post:
       description: Marca uma sequência de conteúdo como completada automaticamente ao visualizar
@@ -4343,9 +4507,10 @@ paths:
           description: Conteúdo marcado como completado
         '400':
           description: Sequência não é um conteúdo
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Marcar conteúdo como completado
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/{id}/sequence/{sequenceId}/complete-quiz:
     post:
       description: Marca uma sequência de quiz como completada e vincula a submissão
@@ -4374,9 +4539,10 @@ paths:
           description: Quiz marcado como completado
         '400':
           description: Sequência não é um quiz
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Marcar quiz como completado
-      tags: *ref_39
+      tags: *ref_40
   /v1/track-progress/{id}/recalculate:
     post:
       description: Força recálculo do percentual de progresso baseado nas sequências completadas
@@ -4391,9 +4557,10 @@ paths:
       responses:
         '200':
           description: Progresso recalculado
-      security: *ref_38
+        '503': *ref_1
+      security: *ref_39
       summary: Recalcular progresso da trilha
-      tags: *ref_39
+      tags: *ref_40
   /v1/tracks:
     post:
       description: Cria uma nova trilha. O context_id é opcional - se não fornecido, será inferido automaticamente do usuário logado (se gerenciar apenas 1 contexto)
@@ -4408,10 +4575,11 @@ paths:
       responses:
         '201':
           description: ''
-      security: &ref_40
+        '503': *ref_1
+      security: &ref_41
         - bearer: []
       summary: Criar nova trilha
-      tags: &ref_41
+      tags: &ref_42
         - Tracks
     get:
       description: Lista trilhas filtradas pelo contexto do usuário
@@ -4427,9 +4595,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
+        '503': *ref_1
+      security: *ref_41
       summary: Listar trilhas
-      tags: *ref_41
+      tags: *ref_42
   /v1/tracks/{id}:
     get:
       operationId: TrackController_get
@@ -4442,9 +4611,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
+        '503': *ref_1
+      security: *ref_41
       summary: Obter trilha por ID
-      tags: *ref_41
+      tags: *ref_42
     put:
       description: Atualiza os dados de uma trilha existente
       operationId: TrackController_update
@@ -4463,9 +4633,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
+        '503': *ref_1
+      security: *ref_41
       summary: Atualizar trilha
-      tags: *ref_41
+      tags: *ref_42
     delete:
       operationId: TrackController_delete
       parameters:
@@ -4477,8 +4648,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/tracks/{trackId}/sections/{sectionId}/content/{contentId}:
     post:
       operationId: TrackController_addContentToSection
@@ -4501,8 +4673,9 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
     delete:
       operationId: TrackController_removeContentFromSection
       parameters:
@@ -4524,8 +4697,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/tracks/{trackId}/sections/{sectionId}/form/{formId}:
     post:
       operationId: TrackController_addFormToSection
@@ -4548,8 +4722,9 @@ paths:
       responses:
         '201':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/tracks/{trackId}/sections/reorder:
     put:
       operationId: TrackController_reorderSections
@@ -4562,8 +4737,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/tracks/{trackId}/sections/{sectionId}/sequences/{sequenceId}:
     delete:
       operationId: TrackController_removeSequence
@@ -4586,8 +4762,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/tracks/{trackId}/sections/{sectionId}/sequences/reorder:
     put:
       operationId: TrackController_reorderSequences
@@ -4605,8 +4782,9 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_40
-      tags: *ref_41
+        '503': *ref_1
+      security: *ref_41
+      tags: *ref_42
   /v1/track-cycles:
     post:
       description: Cria uma nova instância/oferta de trilha em um contexto específico. Requer permissão de administrador.
@@ -4625,10 +4803,11 @@ paths:
           description: Dados inválidos
         '409':
           description: Já existe um ciclo com este nome para esta trilha/contexto
-      security: &ref_42
+        '503': *ref_1
+      security: &ref_43
         - bearer: []
       summary: Criar novo ciclo de trilha
-      tags: &ref_43
+      tags: &ref_44
         - Track Cycles
     get:
       description: 'Lista ciclos. Admin/manager/content_manager: por contexto. Participant: ciclos dos contextos em que participa.'
@@ -4670,9 +4849,10 @@ paths:
       responses:
         '200':
           description: Lista de ciclos
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Listar ciclos de trilhas
-      tags: *ref_43
+      tags: *ref_44
   /v1/track-cycles/active:
     get:
       description: Lista apenas ciclos com status "active" e dentro do período de vigência
@@ -4693,9 +4873,10 @@ paths:
       responses:
         '200':
           description: Lista de ciclos ativos
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Listar ciclos ativos
-      tags: *ref_43
+      tags: *ref_44
   /v1/track-cycles/{id}:
     get:
       description: Retorna detalhes de um ciclo específico incluindo trilha e seções
@@ -4712,9 +4893,10 @@ paths:
           description: Ciclo encontrado
         '404':
           description: Ciclo não encontrado
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Buscar ciclo por ID
-      tags: *ref_43
+      tags: *ref_44
     put:
       description: Atualiza informações de um ciclo. Requer permissão de administrador.
       operationId: TrackCyclesController_update
@@ -4736,9 +4918,10 @@ paths:
           description: Ciclo atualizado com sucesso
         '404':
           description: Ciclo não encontrado
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Atualizar ciclo
-      tags: *ref_43
+      tags: *ref_44
     delete:
       description: Remove permanentemente um ciclo do banco de dados (hard delete). Não permite deletar se houver progresso associado. Requer permissão de administrador.
       operationId: TrackCyclesController_remove
@@ -4756,9 +4939,10 @@ paths:
           description: 'Não é possível deletar: existem registros de progresso associados. Remova ou migre os registros de progresso primeiro.'
         '404':
           description: Ciclo não encontrado
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Deletar ciclo permanentemente
-      tags: *ref_43
+      tags: *ref_44
   /v1/track-cycles/{id}/students:
     get:
       description: Retorna lista de alunos e seus progressos em um ciclo específico. Requer permissão de professor/administrador.
@@ -4775,9 +4959,10 @@ paths:
           description: Lista de alunos e progressos
         '404':
           description: Ciclo não encontrado
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Listar progresso de alunos no ciclo
-      tags: *ref_43
+      tags: *ref_44
   /v1/track-cycles/{id}/schedules:
     put:
       description: Remove agendamentos anteriores do ciclo e grava os informados. Datas opcionais por seção/sequência herdam o nível superior (ciclo → seção → item). Corpo idempotente. Compatível com camelCase (sectionSchedules, sectionId, startDate) ou snake_case (section_schedules, section_id, start_date), como no JSON do GET.
@@ -4798,9 +4983,10 @@ paths:
       responses:
         '200':
           description: Ciclo com agendamentos atualizados
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Substituir agendamentos de seções e conteúdos do ciclo
-      tags: *ref_43
+      tags: *ref_44
   /v1/track-cycles/{id}/status:
     patch:
       description: Altera o status de um ciclo (draft, active, closed, archived). Requer permissão de administrador.
@@ -4825,9 +5011,10 @@ paths:
           description: Ciclo não encontrado
         '409':
           description: Já existe outro ciclo ativo para esta trilha/contexto
-      security: *ref_42
+        '503': *ref_1
+      security: *ref_43
       summary: Alterar status do ciclo
-      tags: *ref_43
+      tags: *ref_44
   /v1/genders:
     get:
       description: Retorna todos os gêneros ativos disponíveis para seleção. Endpoint público para uso em formulários.
@@ -4848,10 +5035,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GenderResponseDto'
-      security: &ref_44
+        '503': *ref_1
+      security: &ref_45
         - bearerAuth: []
       summary: Listar gêneros
-      tags: &ref_45
+      tags: &ref_46
         - Genders
     post:
       description: Cria um novo gênero no sistema.
@@ -4872,9 +5060,10 @@ paths:
                 $ref: '#/components/schemas/GenderResponseDto'
         '400':
           description: Dados inválidos ou gênero já existe
-      security: *ref_44
+        '503': *ref_1
+      security: *ref_45
       summary: Criar novo gênero
-      tags: *ref_45
+      tags: *ref_46
   /v1/genders/{id}:
     get:
       description: Retorna um gênero específico pelo ID.
@@ -4895,9 +5084,10 @@ paths:
                 $ref: '#/components/schemas/GenderResponseDto'
         '404':
           description: Gênero não encontrado
-      security: *ref_44
+        '503': *ref_1
+      security: *ref_45
       summary: Buscar gênero por ID
-      tags: *ref_45
+      tags: *ref_46
     put:
       description: Atualiza um gênero existente.
       operationId: GendersController_update
@@ -4925,9 +5115,10 @@ paths:
           description: Dados inválidos ou nome já existe
         '404':
           description: Gênero não encontrado
-      security: *ref_44
+        '503': *ref_1
+      security: *ref_45
       summary: Atualizar gênero
-      tags: *ref_45
+      tags: *ref_46
     delete:
       description: Remove um gênero do sistema. Não permite deletar se houver usuários associados.
       operationId: GendersController_remove
@@ -4945,9 +5136,10 @@ paths:
           description: Não é possível deletar gênero com usuários associados
         '404':
           description: Gênero não encontrado
-      security: *ref_44
+        '503': *ref_1
+      security: *ref_45
       summary: Deletar gênero
-      tags: *ref_45
+      tags: *ref_46
   /v1/roles:
     get:
       description: Retorna todos os papéis disponíveis. Admin e gerente podem listar (gerente precisa para atribuir papéis ao criar participações).
@@ -4962,10 +5154,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RoleResponseDto'
-      security: &ref_46
+        '503': *ref_1
+      security: &ref_47
         - bearerAuth: []
       summary: Listar papéis
-      tags: &ref_47
+      tags: &ref_48
         - Roles
   /v1/roles/{id}/permissions:
     get:
@@ -4986,9 +5179,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PermissionResponseDto'
-      security: *ref_46
+        '503': *ref_1
+      security: *ref_47
       summary: Permissões vinculadas ao papel
-      tags: *ref_47
+      tags: *ref_48
     put:
       description: Substitui todo o conjunto de permissões do papel. Somente administrador global.
       operationId: RolesController_setRolePermissions
@@ -5013,9 +5207,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PermissionResponseDto'
-      security: *ref_46
+        '503': *ref_1
+      security: *ref_47
       summary: Definir permissões do papel
-      tags: *ref_47
+      tags: *ref_48
   /v1/permissions:
     get:
       description: Somente administrador global.
@@ -5030,6 +5225,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PermissionResponseDto'
+        '503': *ref_1
       security:
         - bearerAuth: []
       summary: Listar permissões do sistema
@@ -8374,7 +8570,7 @@ components:
         status:
           type: string
           description: Status do ciclo
-          enum: &ref_48
+          enum: &ref_49
             - draft
             - active
             - closed
@@ -8470,7 +8666,7 @@ components:
         status:
           type: string
           description: Status do ciclo
-          enum: *ref_48
+          enum: *ref_49
           example: draft
           default: draft
         startDate:
@@ -8583,3 +8779,64 @@ components:
             type: number
       required:
         - permissionIds
+    MaintenanceInfoDto:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Grau da janela em vigor
+          enum:
+            - banner
+            - read_only
+            - full
+          example: full
+        title:
+          type: string
+          description: Título da janela, já resolvido pelo Accept-Language
+          example: Manutenção programada
+        startsAt:
+          type: string
+          description: Início da janela (UTC, ISO 8601)
+          example: '2026-08-10T02:00:00.000Z'
+        endsAt:
+          type: string
+          description: Fim previsto (UTC, ISO 8601). Nulo quando não há previsão de retorno.
+          example: '2026-08-10T06:00:00.000Z'
+          nullable: true
+      required:
+        - mode
+        - title
+        - startsAt
+        - endsAt
+    ErrorDetailDto:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Código do erro
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Mensagem de erro
+          example: Invalid input data
+        details:
+          description: Detalhes adicionais do erro
+          type: array
+          items:
+            type: object
+        maintenance:
+          description: Presente apenas quando code é MAINTENANCE. Permite ao cliente distinguir a indisponibilidade anunciada de um 503 incidental do proxy.
+          allOf:
+            - $ref: '#/components/schemas/MaintenanceInfoDto'
+      required:
+        - code
+        - message
+    ErrorResponseDto:
+      type: object
+      properties:
+        error:
+          description: Informações do erro
+          allOf:
+            - $ref: '#/components/schemas/ErrorDetailDto'
+      required:
+        - error
