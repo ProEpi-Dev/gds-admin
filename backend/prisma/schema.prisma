@@ -891,6 +891,21 @@ model integration_config {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_window {
+  id         Int                   @id @default(autoincrement())
+  mode       maintenance_mode_enum
+  starts_at  DateTime              @db.Timestamptz(6)
+  ends_at    DateTime?             @db.Timestamptz(6)
+  title      Json
+  message    Json
+  active     Boolean               @default(true)
+  created_at DateTime              @default(now()) @db.Timestamp(6)
+  updated_at DateTime              @default(now()) @db.Timestamp(6)
+
+  @@index([active], map: "idx_maintenance_window_active")
+  @@index([active, starts_at, ends_at], map: "idx_maintenance_window_lookup")
+}
+
 enum location_org_level {
   COUNTRY
   STATE_DISTRICT
@@ -953,4 +968,10 @@ enum integration_event_status {
 enum integration_message_direction {
   inbound
   outbound
+}
+
+enum maintenance_mode_enum {
+  banner
+  read_only
+  full
 }
