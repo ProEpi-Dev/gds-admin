@@ -20,7 +20,8 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     )
     .addServer('http://localhost:3000', 'Local')
     .addServer('https://devapi.gds.proepi.org.br', 'Desenvolvimento')
-    .addServer('https://api.gds.proepi.org.br', 'Produção')
+    .addServer('https://apiprod.gds.proepi.org.br', 'Produção')
+    .addServer('https://api.gds.proepi.org.br', 'Produção (legado)')
     .build();
 
   return SwaggerModule.createDocument(app, config);

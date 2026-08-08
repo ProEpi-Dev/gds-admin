@@ -12,8 +12,10 @@ servers:
     description: Local
   - url: https://devapi.gds.proepi.org.br
     description: Desenvolvimento
-  - url: https://api.gds.proepi.org.br
+  - url: https://apiprod.gds.proepi.org.br
     description: Produção
+  - url: https://api.gds.proepi.org.br
+    description: Produção (legado)
 tags: []
 paths:
   /v1/health:
