@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
         'funcionalidades-app-web-participante',
         'integracao-bi-export-sindromico',
         'operacoes-usuarios-duplicados',
+        'operacoes-janelas-indisponibilidade',
       ],
     },
     {
