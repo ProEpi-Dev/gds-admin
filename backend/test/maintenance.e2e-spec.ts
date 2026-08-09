@@ -193,7 +193,9 @@ describe('Maintenance (e2e)', () => {
     });
 
     it('health continua respondendo', async () => {
-      await request(app.getHttpServer()).get('/health').expect(200);
+      const response = await request(app.getHttpServer()).get('/health');
+
+      expect(response.status).toBe(200);
     });
 
     it('login não é bloqueado', async () => {
@@ -217,10 +219,11 @@ describe('Maintenance (e2e)', () => {
     it('admin alcança o CRUD pelo bypass de papel', async () => {
       await openWindow('full');
 
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .get('/maintenance-windows')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
     });
 
     it('admin consegue encerrar a janela em vigor', async () => {
@@ -290,7 +293,7 @@ describe('Maintenance (e2e)', () => {
     });
 
     it('rejeita título sem o locale pt antes de chegar no banco', async () => {
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/maintenance-windows')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
@@ -298,12 +301,13 @@ describe('Maintenance (e2e)', () => {
           startsAt: '2027-01-01T00:00:00.000Z',
           title: { en: 'only english' },
           message: { pt: 'Mensagem' },
-        })
-        .expect(400);
+        });
+
+      expect(response.status).toBe(400);
     });
 
     it('rejeita período invertido', async () => {
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/maintenance-windows')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
@@ -312,21 +316,25 @@ describe('Maintenance (e2e)', () => {
           endsAt: '2027-01-01T00:00:00.000Z',
           title: { pt: 'Título' },
           message: { pt: 'Mensagem' },
-        })
-        .expect(400);
+        });
+
+      expect(response.status).toBe(400);
     });
 
     it('exige autenticação', async () => {
-      await request(app.getHttpServer())
-        .get('/maintenance-windows')
-        .expect(401);
+      const response = await request(app.getHttpServer()).get(
+        '/maintenance-windows',
+      );
+
+      expect(response.status).toBe(401);
     });
 
     it('nega participante fora de janela de manutenção', async () => {
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .get('/maintenance-windows')
-        .set('Authorization', `Bearer ${participantToken}`)
-        .expect(403);
+        .set('Authorization', `Bearer ${participantToken}`);
+
+      expect(response.status).toBe(403);
     });
   });
 });

@@ -125,9 +125,9 @@ export class MaintenanceWindowsService {
     const data = MaintenanceWindowsService.buildUpdateData(dto);
     MaintenanceWindowsService.assertPeriod(
       (data.starts_at as Date) ?? current.starts_at,
-      data.ends_at !== undefined
-        ? (data.ends_at as Date | null)
-        : current.ends_at,
+      data.ends_at === undefined
+        ? current.ends_at
+        : (data.ends_at as Date | null),
     );
 
     const row = await this.prisma.maintenance_window.update({

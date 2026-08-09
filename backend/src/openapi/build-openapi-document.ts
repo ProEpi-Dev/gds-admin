@@ -14,12 +14,12 @@ type Operation = NonNullable<PathItem['get']>;
  * Precisa acompanhar os decorators: o comportamento vem de um guard global, e
  * guard não é enxergado pelos decorators de Swagger, que são por endpoint.
  */
-const MAINTENANCE_EXEMPT_PATHS = [
+const MAINTENANCE_EXEMPT_PATHS = new Set([
   '/v1/health',
   '/v1/auth/login',
   '/v1/auth/refresh',
   '/v1/auth/logout',
-];
+]);
 
 const HTTP_METHODS = [
   'get',
@@ -72,10 +72,10 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   return applyMaintenanceResponses(document);
 }
 
-/** Declara o 503 do MaintenanceGuard em todo endpoint que ele pode bloquear. */
+/** Declara o 503 do MaintenanceGuard em cada endpoint que ele pode bloquear. */
 function applyMaintenanceResponses(document: OpenAPIObject): OpenAPIObject {
   for (const [path, pathItem] of Object.entries(document.paths ?? {})) {
-    if (MAINTENANCE_EXEMPT_PATHS.includes(path)) {
+    if (MAINTENANCE_EXEMPT_PATHS.has(path)) {
       continue;
     }
     addMaintenanceResponseToPath(pathItem);
@@ -85,7 +85,7 @@ function applyMaintenanceResponses(document: OpenAPIObject): OpenAPIObject {
 
 function addMaintenanceResponseToPath(pathItem: PathItem): void {
   for (const method of HTTP_METHODS) {
-    const operation = pathItem[method] as Operation | undefined;
+    const operation: Operation | undefined = pathItem[method];
     if (!operation) {
       continue;
     }
