@@ -31,15 +31,20 @@ import { ListResponseDto } from '../common/dto/list-response.dto';
 import { RolesGuard } from '../authz/guards/roles.guard';
 import { Roles } from '../authz/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AllowDuringMaintenance } from '../common/decorators/allow-during-maintenance.decorator';
 import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
 /**
- * Não usa `@AllowDuringMaintenance()`: quem precisa alcançar estes endpoints
- * durante uma janela é o admin, e ele já passa pelo bypass de papel do
- * MaintenanceGuard. Liberar o path inteiro exporia o CRUD além do necessário.
+ * Liberado durante a manutenção: junto com o login, é a única porta de saída de
+ * uma janela `full`. Sem isso, ligar o modo total trancaria todos os
+ * administradores do lado de fora, sem como desligá-lo.
+ *
+ * O acesso segue restrito a admin pelo RolesGuard — `@AllowDuringMaintenance()`
+ * apenas isenta do bloqueio por janela, não da autorização.
  */
 @ApiTags('Maintenance windows')
 @ApiBearerAuth('bearerAuth')
+@AllowDuringMaintenance()
 @UseGuards(RolesGuard)
 @Roles('admin')
 @Controller('maintenance-windows')

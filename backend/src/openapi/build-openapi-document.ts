@@ -19,6 +19,14 @@ const MAINTENANCE_EXEMPT_PATHS = new Set([
   '/v1/auth/login',
   '/v1/auth/refresh',
   '/v1/auth/logout',
+  '/v1/maintenance/current',
+  // Sem o próprio papel o console não monta a navegação, e o admin não
+  // alcançaria a tela que desliga a janela.
+  '/v1/users/me/role',
+  // O CRUD é a porta de saída de uma janela `full`; sem ele o admin ficaria
+  // trancado do lado de fora, sem como desligar a manutenção.
+  '/v1/maintenance-windows',
+  '/v1/maintenance-windows/{id}',
 ]);
 
 const HTTP_METHODS = [

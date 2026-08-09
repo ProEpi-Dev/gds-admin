@@ -5,7 +5,6 @@ import {
   ActiveMaintenanceWindow,
   MaintenanceService,
 } from './maintenance.service';
-import { AuthzService } from '../authz/authz.service';
 
 const WINDOW: ActiveMaintenanceWindow = {
   mode: 'full',
@@ -19,7 +18,6 @@ describe('MaintenanceGuard', () => {
   let guard: MaintenanceGuard;
   let reflector: { getAllAndOverride: jest.Mock };
   let maintenance: { getActiveWindow: jest.Mock; resolveText: jest.Mock };
-  let authz: { isAdmin: jest.Mock };
   let logger: { warn: jest.Mock };
 
   const buildContext = (
@@ -39,13 +37,11 @@ describe('MaintenanceGuard', () => {
       getActiveWindow: jest.fn().mockResolvedValue(null),
       resolveText: jest.fn((value: Record<string, string>) => value?.pt ?? ''),
     };
-    authz = { isAdmin: jest.fn().mockResolvedValue(false) };
     logger = { warn: jest.fn() };
 
     guard = new MaintenanceGuard(
       reflector as unknown as Reflector,
       maintenance as unknown as MaintenanceService,
-      authz as unknown as AuthzService,
       logger as never,
     );
   });
@@ -105,26 +101,18 @@ describe('MaintenanceGuard', () => {
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 
-    it('libera admin para que ele possa encerrar a janela', async () => {
-      authz.isAdmin.mockResolvedValue(true);
-
-      await expect(
-        guard.canActivate(buildContext({ user: { userId: 7 } })),
-      ).resolves.toBe(true);
-      expect(authz.isAdmin).toHaveBeenCalledWith(7);
-    });
-
-    it('não libera usuário autenticado que não é admin', async () => {
+    // `full` existe para congelar o sistema: abrir exceção por papel deixaria
+    // vários admins seguirem alterando dados durante a própria janela.
+    it('bloqueia inclusive admin autenticado', async () => {
       await expect(
         guard.canActivate(buildContext({ user: { userId: 7 } })),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 
-    it('não consulta papel quando não há usuário resolvido', async () => {
+    it('bloqueia requisição sem usuário resolvido', async () => {
       await expect(guard.canActivate(buildContext())).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
-      expect(authz.isAdmin).not.toHaveBeenCalled();
     });
 
     it('monta o payload que o cliente usa para distinguir de um 503 do proxy', async () => {

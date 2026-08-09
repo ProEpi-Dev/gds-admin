@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
-import { AuthzService } from '../authz/authz.service';
 import { ALLOW_DURING_MAINTENANCE_KEY } from '../common/decorators/allow-during-maintenance.decorator';
 import {
   ActiveMaintenanceWindow,
@@ -16,11 +15,13 @@ import {
 /**
  * Responde 503 enquanto houver janela de indisponibilidade ativa.
  *
- * Registrado depois do JwtAuthGuard de propósito: só assim `request.user` já
- * está resolvido e o bypass de admin funciona. O efeito colateral é que uma
- * requisição sem token para endpoint protegido recebe 401 em vez de 503 —
- * aceitável, já que os endpoints que o cliente usa para descobrir a manutenção
- * (health e login) estão liberados.
+ * O bloqueio vale para todo mundo, inclusive administradores: `full` existe para
+ * congelar o sistema, e abrir exceção por papel permitiria vários admins
+ * seguirem alterando dados durante a própria janela.
+ *
+ * A única saída é o allowlist declarativo (`@AllowDuringMaintenance()`), hoje em
+ * autenticação, health, status público e o CRUD de janelas — o suficiente para
+ * um admin entrar e desligar a manutenção, e nada além disso.
  *
  * Não alcança o Swagger UI em `/api`, que é rota Express e não passa por guards.
  */
@@ -31,7 +32,6 @@ export class MaintenanceGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly maintenance: MaintenanceService,
-    private readonly authz: AuthzService,
     @InjectPinoLogger(MaintenanceGuard.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -48,9 +48,6 @@ export class MaintenanceGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     if (MaintenanceGuard.isReadAllowed(window, request)) {
-      return true;
-    }
-    if (await this.isMaintenanceAdmin(request)) {
       return true;
     }
 
@@ -75,17 +72,6 @@ export class MaintenanceGuard implements CanActivate {
       window.mode === 'read_only' &&
       MaintenanceGuard.SAFE_METHODS.has(request.method ?? '')
     );
-  }
-
-  /** Sem esse bypass o admin não consegue encerrar a própria janela. */
-  private async isMaintenanceAdmin(request: {
-    user?: { userId?: unknown };
-  }): Promise<boolean> {
-    const userId = request.user?.userId;
-    if (typeof userId !== 'number') {
-      return false;
-    }
-    return this.authz.isAdmin(userId);
   }
 
   private buildException(

@@ -4,10 +4,11 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { MaintenanceService } from './maintenance.service';
 import { MaintenanceWindowsService } from './maintenance-windows.service';
 import { MaintenanceWindowsController } from './maintenance-windows.controller';
+import { MaintenanceStatusController } from './maintenance-status.controller';
 
 @Module({
   imports: [PrismaModule, AuditLogModule],
-  controllers: [MaintenanceWindowsController],
+  controllers: [MaintenanceWindowsController, MaintenanceStatusController],
   providers: [MaintenanceService, MaintenanceWindowsService],
   exports: [MaintenanceService],
 })

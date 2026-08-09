@@ -18,6 +18,12 @@ describe('Maintenance (e2e)', () => {
   let adminToken: string;
   let participantToken: string;
   const createdIds: number[] = [];
+  /**
+   * Janelas que já existiam no banco. A resolução escolhe a mais restritiva
+   * entre as vigentes, então uma janela deixada por alguém no ambiente venceria
+   * as criadas aqui. São desativadas durante a suíte e restauradas no fim.
+   */
+  const suspendedIds: number[] = [];
 
   const BLOCKED_ROUTE = '/auth/forgot-password';
   const BLOCKED_BODY = { email: 'ninguem@example.com' };
@@ -89,6 +95,19 @@ describe('Maintenance (e2e)', () => {
     maintenance = app.get(MaintenanceService);
     adminToken = signFor(await findUserByGlobalRole(true));
     participantToken = signFor(await findUserByGlobalRole(false));
+
+    const preexisting = await prisma.maintenance_window.findMany({
+      where: { active: true },
+      select: { id: true },
+    });
+    suspendedIds.push(...preexisting.map((row) => row.id));
+    if (suspendedIds.length > 0) {
+      await prisma.maintenance_window.updateMany({
+        where: { id: { in: suspendedIds } },
+        data: { active: false },
+      });
+    }
+    maintenance.invalidateCache();
   });
 
   afterEach(async () => {
@@ -102,6 +121,12 @@ describe('Maintenance (e2e)', () => {
   });
 
   afterAll(async () => {
+    if (suspendedIds.length > 0) {
+      await prisma.maintenance_window.updateMany({
+        where: { id: { in: suspendedIds } },
+        data: { active: true },
+      });
+    }
     await app.close();
   });
 
@@ -213,10 +238,20 @@ describe('Maintenance (e2e)', () => {
 
       expect(response.status).not.toBe(503);
     });
+
+    // Sem o próprio papel o console não monta a navegação, e o admin não
+    // chegaria à tela que desliga a janela.
+    it('users/me/role continua respondendo', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/users/me/role')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+    });
   });
 
   describe('CRUD durante janela full — o caminho de saída da manutenção', () => {
-    it('admin alcança o CRUD pelo bypass de papel', async () => {
+    it('CRUD segue acessível ao admin, por estar no allowlist', async () => {
       await openWindow('full');
 
       const response = await request(app.getHttpServer())
@@ -242,15 +277,69 @@ describe('Maintenance (e2e)', () => {
       expect(afterwards.status).not.toBe(503);
     });
 
-    it('participante recebe 503, não 403 — a manutenção vem antes do papel', async () => {
+    // O bloqueio não abre exceção por papel: `full` congela o sistema para
+    // todos, senão vários admins seguiriam alterando dados durante a janela.
+    it('admin é bloqueado fora do allowlist', async () => {
+      await openWindow('full');
+
+      const response = await request(app.getHttpServer())
+        .get('/users?page=1&pageSize=1')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(503);
+      expect(response.body.error.code).toBe('MAINTENANCE');
+    });
+
+    it('não-admin no CRUD recebe 403 do RolesGuard, não 503', async () => {
       await openWindow('full');
 
       const response = await request(app.getHttpServer())
         .get('/maintenance-windows')
         .set('Authorization', `Bearer ${participantToken}`);
 
-      expect(response.status).toBe(503);
-      expect(response.body.error.code).toBe('MAINTENANCE');
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('GET /maintenance/current', () => {
+    it('é público e responde fora de janela', async () => {
+      const response = await request(app.getHttpServer()).get(
+        '/maintenance/current',
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.inMaintenance).toBe(false);
+    });
+
+    // Sem este endpoint o cliente não teria como descobrir uma janela `banner`,
+    // que por definição não faz nenhuma requisição falhar.
+    it('reporta janela banner', async () => {
+      await openWindow('banner');
+
+      const response = await request(app.getHttpServer()).get(
+        '/maintenance/current',
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(
+        expect.objectContaining({
+          inMaintenance: true,
+          mode: 'banner',
+          title: 'Manutenção programada',
+          message: 'Voltamos em uma hora',
+        }),
+      );
+    });
+
+    it('continua acessível durante janela full', async () => {
+      await openWindow('full');
+
+      const response = await request(app.getHttpServer()).get(
+        '/maintenance/current',
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body.mode).toBe('full');
     });
   });
 
