@@ -914,7 +914,6 @@ paths:
                 $ref: '#/components/schemas/UserRoleResponseDto'
         '401':
           description: Usuário não autenticado
-        '503': *ref_1
       security: *ref_5
       summary: Obter papel do usuário
       tags: *ref_6
@@ -5278,7 +5277,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListResponseDto'
-        '503': *ref_1
       security: &ref_49
         - bearerAuth: []
       summary: Listar janelas de indisponibilidade
@@ -5303,7 +5301,6 @@ paths:
                 $ref: '#/components/schemas/MaintenanceWindowResponseDto'
         '400':
           description: Período inválido ou dados incompletos
-        '503': *ref_1
       security: *ref_49
       summary: Agendar janela de indisponibilidade
       tags: *ref_50
@@ -5325,7 +5322,6 @@ paths:
                 $ref: '#/components/schemas/MaintenanceWindowResponseDto'
         '404':
           description: Janela não encontrada
-        '503': *ref_1
       security: *ref_49
       summary: Detalhar janela de indisponibilidade
       tags: *ref_50
@@ -5355,7 +5351,6 @@ paths:
           description: Período inválido
         '404':
           description: Janela não encontrada
-        '503': *ref_1
       security: *ref_49
       summary: Alterar janela de indisponibilidade
       tags: *ref_50
@@ -5372,10 +5367,29 @@ paths:
           description: Janela removida
         '404':
           description: Janela não encontrada
-        '503': *ref_1
       security: *ref_49
       summary: Remover janela de indisponibilidade
       tags: *ref_50
+  /v1/maintenance/current:
+    get:
+      description: Único jeito de o cliente descobrir uma janela `banner`, que por definição não faz nenhuma requisição falhar. Textos já resolvidos por Accept-Language, com fallback pt.
+      operationId: MaintenanceStatusController_current
+      parameters:
+        - name: accept-language
+          required: true
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceStatusDto'
+      summary: Janela de indisponibilidade em vigor
+      tags:
+        - Maintenance
 components:
   securitySchemes:
     bearerAuth:
@@ -9040,6 +9054,45 @@ components:
           type: boolean
           description: Permite cadastrar a janela desativada e habilitar depois
           default: true
+    MaintenanceStatusDto:
+      type: object
+      properties:
+        inMaintenance:
+          type: boolean
+          description: true quando há janela habilitada e vigente neste instante
+          example: true
+        mode:
+          type: string
+          description: Grau da janela em vigor. Nulo fora de janela.
+          enum: *ref_52
+          nullable: true
+          example: full
+        title:
+          type: string
+          description: Título já resolvido pelo Accept-Language. Nulo fora de janela.
+          nullable: true
+          example: Manutenção programada
+        message:
+          type: string
+          description: Mensagem já resolvida pelo Accept-Language. Nulo fora de janela.
+          nullable: true
+          example: Voltamos às 6h.
+        startsAt:
+          type: string
+          nullable: true
+          example: '2026-08-10T02:00:00.000Z'
+        endsAt:
+          type: string
+          description: Nulo quando não há previsão de retorno.
+          nullable: true
+          example: '2026-08-10T06:00:00.000Z'
+      required:
+        - inMaintenance
+        - mode
+        - title
+        - message
+        - startsAt
+        - endsAt
     MaintenanceInfoDto:
       type: object
       properties:
