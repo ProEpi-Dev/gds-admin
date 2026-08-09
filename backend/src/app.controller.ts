@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { Public } from './common/decorators/public.decorator';
+import { AllowDuringMaintenance } from './common/decorators/allow-during-maintenance.decorator';
 
 @ApiTags('Health')
 @Controller()
@@ -9,6 +10,7 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Public()
+  @AllowDuringMaintenance()
   @Get('health')
   @ApiOperation({
     summary: 'Health check',

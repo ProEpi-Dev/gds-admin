@@ -45,6 +45,7 @@ import {
   Vaccines as VaccinesIcon,
   QueryStats as QueryStatsIcon,
   Key as KeyIcon,
+  Build as BuildIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -145,6 +146,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         path: "/admins",
         label: "Administradores",
         icon: <SecurityIcon />,
+        roles: ["admin"],
+      },
+      {
+        path: "/maintenance-windows",
+        label: t("navigation.maintenanceWindows"),
+        icon: <BuildIcon />,
         roles: ["admin"],
       },
       {

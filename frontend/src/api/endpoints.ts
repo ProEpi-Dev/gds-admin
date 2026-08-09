@@ -192,6 +192,20 @@ export const API_ENDPOINTS = {
     TYPE_DELETE: (id: number) => `/admin/legal-documents/types/${id}`,
   },
 
+  // Maintenance
+  MAINTENANCE: {
+    CURRENT: "/maintenance/current",
+  },
+
+  // Maintenance windows
+  MAINTENANCE_WINDOWS: {
+    LIST: "/maintenance-windows",
+    DETAIL: (id: number) => `/maintenance-windows/${id}`,
+    CREATE: "/maintenance-windows",
+    UPDATE: (id: number) => `/maintenance-windows/${id}`,
+    DELETE: (id: number) => `/maintenance-windows/${id}`,
+  },
+
   // Genders
   GENDERS: {
     LIST: "/genders",

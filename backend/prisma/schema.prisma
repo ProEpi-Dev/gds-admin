@@ -9,25 +9,26 @@ datasource db {
 }
 
 model context {
-  id              Int                 @id @default(autoincrement())
-  location_id     Int?
-  name            String              @db.VarChar(255)
-  description     String?
-  type            String?             @db.VarChar(255)
-  access_type     context_access_type
-  created_at      DateTime            @default(now()) @db.Timestamp(6)
-  updated_at      DateTime            @default(now()) @db.Timestamp(6)
-  active          Boolean             @default(true)
-  content            content[]
-  location           location?           @relation(fields: [location_id], references: [id], onUpdate: NoAction)
-  form               form[]
-  context_configuration context_configuration[]
-  context_module     context_module[]
-  integration_config integration_config[]
-  participation      participation[]
-  track              track[]
-  track_cycle        track_cycle[]
+  id                         Int                          @id @default(autoincrement())
+  location_id                Int?
+  name                       String                       @db.VarChar(255)
+  description                String?
+  type                       String?                      @db.VarChar(255)
+  access_type                context_access_type
+  created_at                 DateTime                     @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamp(6)
+  active                     Boolean                      @default(true)
+  admin_action_log           admin_action_log[]
+  content                    content[]
+  location                   location?                    @relation(fields: [location_id], references: [id], onUpdate: NoAction)
+  context_configuration      context_configuration[]
+  context_module             context_module[]
+  form                       form[]
+  integration_config         integration_config[]
+  participation              participation[]
   syndrome_bi_export_api_key syndrome_bi_export_api_key[]
+  track                      track[]
+  track_cycle                track_cycle[]
 
   @@index([location_id], map: "idx_context_location_id")
 }
@@ -58,7 +59,6 @@ model context_configuration {
   @@index([key], map: "idx_context_configuration_key")
 }
 
-
 model flyway_schema_history {
   installed_rank Int      @id(map: "flyway_schema_history_pk")
   version        String?  @db.VarChar(50)
@@ -75,101 +75,94 @@ model flyway_schema_history {
 }
 
 model form {
-  id           Int            @id @default(autoincrement())
-  context_id   Int?
-  title        String         @db.VarChar(255)
-  reference    String?        @db.VarChar(255)
-  description  String?
-  type         form_type_enum
-  created_at   DateTime       @default(now()) @db.Timestamp(6)
-  updated_at   DateTime       @default(now()) @db.Timestamp(6)
-  active       Boolean        @default(true)
-  context      context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
-  form_version                form_version[]
+  id                          Int                           @id @default(autoincrement())
+  context_id                  Int?
+  title                       String                        @db.VarChar(255)
+  reference                   String?                       @db.VarChar(255)
+  description                 String?
+  type                        form_type_enum
+  created_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  active                      Boolean                       @default(true)
   content_quiz                content_quiz[]
-  sequence                    sequence[]
+  context                     context?                      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  form_version                form_version[]
   participation_profile_extra participation_profile_extra[]
-  syndrome_form_config        syndrome_form_config[]
+  sequence                    sequence[]
+  syndrome_form_config        syndrome_form_config?
 
   @@index([context_id], map: "idx_form_context_id")
 }
 
 model form_version {
-  id                  Int                      @id @default(autoincrement())
-  form_id             Int
-  version_number       Int
-  definition           Json
-  access_type          form_version_access_type
-  passing_score        Decimal?                 @db.Decimal(5, 2)
-  max_attempts         Int?
-  time_limit_minutes  Int?
-  show_feedback        Boolean                  @default(true)
-  randomize_questions  Boolean                  @default(false)
-  created_at           DateTime                 @default(now()) @db.Timestamp(6)
-  updated_at           DateTime                 @default(now()) @db.Timestamp(6)
-  active               Boolean                  @default(true)
-  form                 form                     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  report                      report[]
-  quiz_submission             quiz_submission[]
+  id                          Int                           @id @default(autoincrement())
+  form_id                     Int
+  version_number              Int
+  definition                  Json
+  access_type                 form_version_access_type
+  created_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  active                      Boolean                       @default(true)
+  passing_score               Decimal?                      @db.Decimal(5, 2)
+  max_attempts                Int?
+  time_limit_minutes          Int?
+  show_feedback               Boolean?                      @default(true)
+  randomize_questions         Boolean?                      @default(false)
+  form                        form                          @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   participation_profile_extra participation_profile_extra[]
+  quiz_submission             quiz_submission[]
+  report                      report[]
 
   @@unique([form_id, version_number])
   @@index([form_id], map: "idx_form_version_form_id")
 }
 
 model location {
-  id             Int        @id @default(autoincrement())
-  parent_id      Int?
-  name           String     @db.VarChar(255)
-  org_level      location_org_level @default(CITY_COUNCIL)
-  latitude       Decimal?   @db.Decimal(10, 8)
-  longitude      Decimal?   @db.Decimal(11, 8)
-  polygons       Json?
-  created_at     DateTime   @default(now()) @db.Timestamp(6)
-  updated_at     DateTime   @default(now()) @db.Timestamp(6)
-  active         Boolean    @default(true)
-  context        context[]
-  location       location?  @relation("locationTolocation", fields: [parent_id], references: [id], onUpdate: NoAction)
-  other_location location[] @relation("locationTolocation")
-  users_by_location         user[] @relation("userLocation")
-  users_by_country_location user[] @relation("userCountryLocation")
+  id                        Int                @id @default(autoincrement())
+  parent_id                 Int?
+  name                      String             @db.VarChar(255)
+  latitude                  Decimal?           @db.Decimal(10, 8)
+  longitude                 Decimal?           @db.Decimal(11, 8)
+  polygons                  Json?
+  created_at                DateTime           @default(now()) @db.Timestamp(6)
+  updated_at                DateTime           @default(now()) @db.Timestamp(6)
+  active                    Boolean            @default(true)
+  org_level                 location_org_level @default(CITY_COUNCIL)
+  context                   context[]
+  location                  location?          @relation("locationTolocation", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_location            location[]         @relation("locationTolocation")
+  users_by_country_location user[]             @relation("userCountryLocation")
+  users_by_location         user[]             @relation("userLocation")
 
   @@index([parent_id], map: "idx_location_parent_id")
   @@index([org_level], map: "idx_location_org_level")
 }
 
-enum location_org_level {
-  COUNTRY
-  STATE_DISTRICT
-  CITY_COUNCIL
-  SITE
-}
-
 model role {
-  id              Int                 @id @default(autoincrement())
-  code            String              @unique @db.VarChar(50)
-  name            String              @db.VarChar(100)
-  description     String?            @db.VarChar(255)
-  scope           String?             @db.VarChar(20)
-  created_at      DateTime            @default(now()) @db.Timestamp(6)
-  updated_at      DateTime            @default(now()) @db.Timestamp(6)
-  active          Boolean             @default(true)
-  role_permission role_permission[]
+  id                 Int                  @id @default(autoincrement())
+  code               String               @unique @db.VarChar(50)
+  name               String               @db.VarChar(100)
+  description        String?              @db.VarChar(255)
+  scope              String?              @db.VarChar(20)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  updated_at         DateTime             @default(now()) @db.Timestamp(6)
+  active             Boolean              @default(true)
   participation_role participation_role[]
-  user            user[]
+  role_permission    role_permission[]
+  user               user[]
 
   @@index([code], map: "idx_role_code")
   @@index([scope], map: "idx_role_scope")
 }
 
 model permission {
-  id              Int                 @id @default(autoincrement())
-  code            String              @unique @db.VarChar(100)
-  name            String              @db.VarChar(255)
-  description     String?            @db.VarChar(255)
-  created_at      DateTime            @default(now()) @db.Timestamp(6)
-  updated_at      DateTime            @default(now()) @db.Timestamp(6)
-  active          Boolean             @default(true)
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(100)
+  name            String            @db.VarChar(255)
+  description     String?           @db.VarChar(255)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  active          Boolean           @default(true)
   role_permission role_permission[]
 
   @@index([code], map: "idx_permission_code")
@@ -178,49 +171,49 @@ model permission {
 model role_permission {
   role_id       Int
   permission_id Int
-  role         role       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  permission   permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  permission    permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role          role       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([role_id, permission_id])
   @@index([permission_id], map: "idx_role_permission_permission_id")
 }
 
 model participation {
-  id                          Int               @id @default(autoincrement())
+  id                          Int                           @id @default(autoincrement())
   user_id                     Int
   context_id                  Int
-  start_date                  DateTime          @db.Date
-  end_date                    DateTime?         @db.Date
-  active                      Boolean           @default(true)
-  integration_training_mode   Boolean           @default(false)
-  created_at                  DateTime          @default(now()) @db.Timestamp(6)
-  updated_at                  DateTime          @default(now()) @db.Timestamp(6)
-  context                     context           @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  user                        user              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  participation_role          participation_role[]
-  report                      report[]
+  start_date                  DateTime                      @db.Date
+  end_date                    DateTime?                     @db.Date
+  active                      Boolean                       @default(true)
+  created_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime                      @default(now()) @db.Timestamp(6)
+  integration_training_mode   Boolean                       @default(false)
+  context                     context                       @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                        user                          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  participation_profile_extra participation_profile_extra[]
   participation_report_day    participation_report_day[]
   participation_report_streak participation_report_streak?
+  participation_role          participation_role[]
   quiz_submission             quiz_submission[]
+  report                      report[]
   track_progress              track_progress[]
-  participation_profile_extra participation_profile_extra[]
 
   @@index([context_id], map: "idx_participation_context_id")
   @@index([user_id], map: "idx_participation_user_id")
 }
 
 model participation_profile_extra {
-  id                Int           @id @default(autoincrement())
-  participation_id  Int
-  form_id           Int
-  form_version_id   Int
-  response          Json
-  created_at        DateTime      @default(now()) @db.Timestamp(6)
-  updated_at        DateTime      @default(now()) @updatedAt @db.Timestamp(6)
-  active            Boolean       @default(true)
-  participation     participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  form              form          @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  form_version      form_version  @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id               Int           @id @default(autoincrement())
+  participation_id Int
+  form_id          Int
+  form_version_id  Int
+  response         Json
+  created_at       DateTime      @default(now()) @db.Timestamp(6)
+  updated_at       DateTime      @default(now()) @updatedAt @db.Timestamp(6)
+  active           Boolean       @default(true)
+  form             form          @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_participation_profile_extra_form")
+  form_version     form_version  @relation(fields: [form_version_id], references: [id], onUpdate: NoAction, map: "fk_participation_profile_extra_form_version")
+  participation    participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_participation_profile_extra_participation")
 
   @@unique([participation_id, form_id], map: "uq_participation_profile_extra_form")
   @@index([participation_id], map: "idx_participation_profile_extra_participation_id")
@@ -228,73 +221,75 @@ model participation_profile_extra {
 
 model participation_role {
   participation_id Int
-  role_id         Int
-  participation   participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  role           role           @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role_id          Int
+  participation    participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role             role          @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([participation_id, role_id])
   @@index([role_id], map: "idx_participation_role_role_id")
 }
 
 model report {
-  id                          Int                        @id @default(autoincrement())
-  participation_id            Int
-  report_type                 report_type_enum
-  occurrence_location         Json?
-  form_version_id             Int
-  form_response               Json
-  created_at                  DateTime                   @default(now()) @db.Timestamp(6)
-  updated_at                  DateTime                   @default(now()) @db.Timestamp(6)
-  active                      Boolean                    @default(true)
-  form_version                form_version               @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
-  participation               participation              @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  report_integration_event    report_integration_event?
-  report_syndrome_score       report_syndrome_score[]
+  id                       Int                       @id @default(autoincrement())
+  participation_id         Int
+  report_type              report_type_enum
+  occurrence_location      Json?
+  form_version_id          Int
+  form_response            Json
+  created_at               DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime                  @default(now()) @db.Timestamp(6)
+  active                   Boolean                   @default(true)
+  form_version             form_version              @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
+  participation            participation             @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  report_integration_event report_integration_event?
+  report_syndrome_score    report_syndrome_score[]
 
   @@index([form_version_id], map: "idx_report_form_version_id")
   @@index([participation_id], map: "idx_report_participation_id")
   @@index([participation_id, report_type, active, created_at(sort: Desc)], map: "idx_report_participation_type_active_created_desc")
+  @@index([active, created_at, participation_id], map: "idx_report_active_created_at_participation")
+  @@index([participation_id, active, created_at], map: "idx_report_participation_active_created_at")
 }
 
 model symptom {
-  id                     Int                      @id @default(autoincrement())
-  code                   String                   @unique(map: "uq_symptom_code") @db.VarChar(80)
-  name                   String                   @db.VarChar(150)
-  description            String?                  @db.VarChar(255)
-  created_at             DateTime                 @default(now()) @db.Timestamp(6)
-  updated_at             DateTime                 @default(now()) @db.Timestamp(6)
-  active                 Boolean                  @default(true)
+  id                      Int                       @id @default(autoincrement())
+  code                    String                    @unique(map: "uq_symptom_code") @db.VarChar(80)
+  name                    String                    @db.VarChar(150)
+  description             String?                   @db.VarChar(255)
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  active                  Boolean                   @default(true)
+  form_symptom_mapping    form_symptom_mapping[]
   syndrome_symptom_weight syndrome_symptom_weight[]
-  form_symptom_mapping   form_symptom_mapping[]
 
   @@index([active], map: "idx_symptom_active")
 }
 
 model syndrome {
-  id                      Int                     @id @default(autoincrement())
-  code                    String                  @unique(map: "uq_syndrome_code") @db.VarChar(80)
-  name                    String                  @db.VarChar(150)
-  description             String?                 @db.VarChar(255)
-  threshold_score         Decimal                 @default(0) @db.Decimal(5, 4)
-  created_at              DateTime                @default(now()) @db.Timestamp(6)
-  updated_at              DateTime                @default(now()) @db.Timestamp(6)
-  active                  Boolean                 @default(true)
-  syndrome_symptom_weight syndrome_symptom_weight[]
+  id                      Int                       @id @default(autoincrement())
+  code                    String                    @unique(map: "uq_syndrome_code") @db.VarChar(80)
+  name                    String                    @db.VarChar(150)
+  description             String?                   @db.VarChar(255)
+  threshold_score         Decimal                   @default(0.0000) @db.Decimal(5, 4)
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  active                  Boolean                   @default(true)
   report_syndrome_score   report_syndrome_score[]
+  syndrome_symptom_weight syndrome_symptom_weight[]
 
   @@index([active], map: "idx_syndrome_active")
 }
 
 model syndrome_symptom_weight {
-  id         Int      @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   syndrome_id Int
-  symptom_id Int
-  weight     Decimal  @default(0) @db.Decimal(8, 4)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
-  active     Boolean  @default(true)
-  syndrome   syndrome @relation(fields: [syndrome_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  symptom    symptom  @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  symptom_id  Int
+  weight      Decimal  @default(0.0000) @db.Decimal(8, 4)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  active      Boolean  @default(true)
+  symptom     symptom  @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  syndrome    syndrome @relation(fields: [syndrome_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([syndrome_id, symptom_id], map: "uq_syndrome_symptom_weight")
   @@index([syndrome_id], map: "idx_ssw_syndrome_id")
@@ -303,33 +298,33 @@ model syndrome_symptom_weight {
 }
 
 model syndrome_form_config {
-  id                            Int      @id @default(autoincrement())
-  form_id                       Int      @unique(map: "uq_syndrome_form_config_form")
-  symptoms_field_name           String?  @db.VarChar(120)
-  symptoms_field_id             String?  @db.VarChar(120)
-  symptom_onset_date_field_name String?  @db.VarChar(120)
-  symptom_onset_date_field_id   String?  @db.VarChar(120)
-  created_at                    DateTime @default(now()) @db.Timestamp(6)
-  updated_at                    DateTime @default(now()) @db.Timestamp(6)
-  active                        Boolean  @default(true)
-  form                          form     @relation(fields: [form_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id                            Int                    @id @default(autoincrement())
+  symptoms_field_name           String?                @db.VarChar(120)
+  symptoms_field_id             String?                @db.VarChar(120)
+  symptom_onset_date_field_name String?                @db.VarChar(120)
+  symptom_onset_date_field_id   String?                @db.VarChar(120)
+  created_at                    DateTime               @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime               @default(now()) @db.Timestamp(6)
+  active                        Boolean                @default(true)
+  form_id                       Int                    @unique(map: "uq_syndrome_form_config_form")
   form_symptom_mapping          form_symptom_mapping[]
+  form                          form                   @relation(fields: [form_id], references: [id], onUpdate: NoAction)
 
   @@index([active], map: "idx_sfc_active")
   @@index([form_id], map: "idx_sfc_form_id")
 }
 
 model form_symptom_mapping {
-  id                      Int      @id @default(autoincrement())
+  id                      Int                  @id @default(autoincrement())
   syndrome_form_config_id Int
-  form_option_value       String   @db.VarChar(160)
-  form_option_label       String?  @db.VarChar(255)
+  form_option_value       String               @db.VarChar(160)
+  form_option_label       String?              @db.VarChar(255)
   symptom_id              Int
-  created_at              DateTime @default(now()) @db.Timestamp(6)
-  updated_at              DateTime @default(now()) @db.Timestamp(6)
-  active                  Boolean  @default(true)
+  created_at              DateTime             @default(now()) @db.Timestamp(6)
+  updated_at              DateTime             @default(now()) @db.Timestamp(6)
+  active                  Boolean              @default(true)
+  symptom                 symptom              @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   syndrome_form_config    syndrome_form_config @relation(fields: [syndrome_form_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  symptom                 symptom  @relation(fields: [symptom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([syndrome_form_config_id, form_option_value], map: "uq_form_symptom_mapping")
   @@index([syndrome_form_config_id], map: "idx_fsm_config_id")
@@ -354,7 +349,7 @@ model report_syndrome_score {
   processed_at             DateTime                   @default(now()) @db.Timestamp(6)
   created_at               DateTime                   @default(now()) @db.Timestamp(6)
   report                   report                     @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  syndrome                 syndrome?                  @relation(fields: [syndrome_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  syndrome                 syndrome?                  @relation(fields: [syndrome_id], references: [id], onUpdate: NoAction)
 
   @@index([report_id], map: "idx_rss_report_id")
   @@index([report_id, is_latest], map: "idx_rss_report_latest")
@@ -378,7 +373,7 @@ model syndrome_bi_export_api_key {
   updated_at         DateTime  @default(now()) @updatedAt @db.Timestamp(6)
   created_by_user_id Int?
   context            context   @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  created_by_user    user?     @relation("SyndromeBiExportApiKeyCreatedBy", fields: [created_by_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  created_by_user    user?     @relation("SyndromeBiExportApiKeyCreatedBy", fields: [created_by_user_id], references: [id], onUpdate: NoAction)
 
   @@index([context_id], map: "idx_sbeak_context_id")
 }
@@ -401,46 +396,48 @@ model participation_report_day {
 
 model participation_report_streak {
   participation_id          Int           @id
-  current_streak           Int           @default(0)
-  longest_streak           Int           @default(0)
-  reported_days_count      Int           @default(0)
-  last_reported_date       DateTime?     @db.Date
-  current_streak_start_date DateTime?    @db.Date
-  created_at               DateTime      @default(now()) @db.Timestamp(6)
-  updated_at               DateTime      @default(now()) @db.Timestamp(6)
-  participation            participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  current_streak            Int           @default(0)
+  longest_streak            Int           @default(0)
+  reported_days_count       Int           @default(0)
+  last_reported_date        DateTime?     @db.Date
+  current_streak_start_date DateTime?     @db.Date
+  created_at                DateTime      @default(now()) @db.Timestamp(6)
+  updated_at                DateTime      @default(now()) @db.Timestamp(6)
+  participation             participation @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([last_reported_date], map: "idx_participation_report_streak_last_reported_date")
 }
 
 model user {
-  id                    Int                     @id @default(autoincrement())
-  name                  String                  @db.VarChar(255)
-  email                 String                  @unique @db.VarChar(255)
-  password              String                  @db.VarChar(255)
-  phone                 String?                 @db.VarChar(30)
-  gender_id             Int?
-  location_id           Int?
-  country_location_id   Int?
-  role_id               Int?
-  external_identifier   String?                 @db.VarChar(100)
-  created_at            DateTime                @default(now()) @db.Timestamp(6)
-  updated_at            DateTime                @default(now()) @db.Timestamp(6)
-  active                    Boolean                 @default(true)
-  email_verified_at         DateTime?               @db.Timestamp(6)
-  email_verification_token  String?                 @db.VarChar(255)
-  email_verification_expires DateTime?              @db.Timestamp(6)
-  password_reset_token      String?                 @db.VarChar(255)
-  password_reset_expires    DateTime?               @db.Timestamp(6)
-  content                   content[]
-  participation             participation[]
-  gender                    gender?                 @relation(fields: [gender_id], references: [id], onUpdate: NoAction)
-  location                  location?               @relation("userLocation", fields: [location_id], references: [id], onUpdate: NoAction)
-  country_location          location?               @relation("userCountryLocation", fields: [country_location_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  role                      role?                   @relation(fields: [role_id], references: [id], onUpdate: NoAction)
-  user_legal_acceptance     user_legal_acceptance[]
-  user_refresh_token        user_refresh_token[]
-  syndrome_bi_export_api_keys_created syndrome_bi_export_api_key[] @relation("SyndromeBiExportApiKeyCreatedBy")
+  id                                                     Int                          @id @default(autoincrement())
+  name                                                   String                       @db.VarChar(255)
+  email                                                  String                       @unique @db.VarChar(255)
+  password                                               String                       @db.VarChar(255)
+  created_at                                             DateTime                     @default(now()) @db.Timestamp(6)
+  updated_at                                             DateTime                     @default(now()) @db.Timestamp(6)
+  active                                                 Boolean                      @default(true)
+  gender_id                                              Int?
+  location_id                                            Int?
+  external_identifier                                    String?                      @db.VarChar(100)
+  password_reset_token                                   String?                      @db.VarChar(255)
+  password_reset_expires                                 DateTime?                    @db.Timestamp(6)
+  role_id                                                Int?
+  phone                                                  String?                      @db.VarChar(30)
+  country_location_id                                    Int?
+  email_verified_at                                      DateTime?                    @db.Timestamp(6)
+  email_verification_token                               String?                      @db.VarChar(255)
+  email_verification_expires                             DateTime?                    @db.Timestamp(6)
+  admin_action_log_admin_action_log_actor_user_idTouser  admin_action_log[]           @relation("admin_action_log_actor_user_idTouser")
+  admin_action_log_admin_action_log_target_user_idTouser admin_action_log[]           @relation("admin_action_log_target_user_idTouser")
+  content                                                content[]
+  participation                                          participation[]
+  syndrome_bi_export_api_keys_created                    syndrome_bi_export_api_key[] @relation("SyndromeBiExportApiKeyCreatedBy")
+  country_location                                       location?                    @relation("userCountryLocation", fields: [country_location_id], references: [id], onUpdate: NoAction)
+  gender                                                 gender?                      @relation(fields: [gender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location                                               location?                    @relation("userLocation", fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  role                                                   role?                        @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_legal_acceptance                                  user_legal_acceptance[]
+  user_refresh_token                                     user_refresh_token[]
 
   @@index([email], map: "idx_user_email")
   @@index([gender_id], map: "idx_user_gender_id")
@@ -453,27 +450,27 @@ model user {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model content {
-  id           Int           @id @default(autoincrement())
-  title        String        @db.VarChar(200)
-  reference    String        @unique(map: "uq_content_reference") @db.VarChar(50)
-  content      String
-  thumbnail_url String?      @db.Text
-  track_exclusive Boolean    @default(false)
-  active       Boolean       @default(false)
-  summary      String?       @db.VarChar(500)
-  slug         String        @unique(map: "uq_content_slug") @db.VarChar(255)
-  author_id    Int
-  context_id   Int?
-  type_id      Int?
-  created_at   DateTime      @default(now()) @db.Timestamp(6)
-  updated_at   DateTime      @default(now()) @db.Timestamp(6)
-  published_at DateTime?     @db.Timestamp(6)
-  user         user          @relation(fields: [author_id], references: [id], onUpdate: NoAction)
-  context      context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
-  content_type content_type? @relation(fields: [type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  content_tag  content_tag[]
-  content_quiz content_quiz[]
-  sequence     sequence[]
+  id              Int            @id @default(autoincrement())
+  title           String         @db.VarChar(200)
+  reference       String         @unique(map: "uq_content_reference") @db.VarChar(50)
+  content         String
+  active          Boolean        @default(false)
+  summary         String?        @db.VarChar(500)
+  slug            String         @unique(map: "uq_content_slug") @db.VarChar(255)
+  author_id       Int
+  context_id      Int?
+  created_at      DateTime       @default(now()) @db.Timestamp(6)
+  updated_at      DateTime       @default(now()) @db.Timestamp(6)
+  published_at    DateTime?      @db.Timestamp(6)
+  type_id         Int?
+  thumbnail_url   String?
+  track_exclusive Boolean        @default(false)
+  user            user           @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  context         context?       @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  content_type    content_type?  @relation(fields: [type_id], references: [id], onUpdate: NoAction, map: "fk_content_type_id")
+  content_quiz    content_quiz[]
+  content_tag     content_tag[]
+  sequence        sequence[]
 
   @@index([active], map: "idx_content_active")
   @@index([author_id], map: "idx_content_author_id")
@@ -490,9 +487,9 @@ model content_type {
   name        String    @unique @db.VarChar(100)
   description String?   @db.VarChar(255)
   color       String?   @db.VarChar(7)
-  created_at  DateTime  @default(now()) @db.Timestamp(6)
-  updated_at  DateTime  @default(now()) @db.Timestamp(6)
-  active      Boolean   @default(true)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  active      Boolean?  @default(true)
   content     content[]
 
   @@index([name], map: "idx_content_type_name")
@@ -525,6 +522,395 @@ model tag {
   content_tag content_tag[]
 
   @@index([name], map: "idx_tag_name_idx")
+}
+
+model gender {
+  id         Int       @id @default(autoincrement())
+  name       String    @unique @db.VarChar(50)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  active     Boolean?  @default(true)
+  user       user[]
+}
+
+model legal_document_type {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique @db.VarChar(50)
+  name           String           @db.VarChar(100)
+  description    String?
+  is_required    Boolean?         @default(true)
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(6)
+  active         Boolean?         @default(true)
+  legal_document legal_document[]
+
+  @@index([code], map: "idx_legal_document_type_code")
+  @@index([active], map: "idx_legal_document_type_active")
+}
+
+model legal_document {
+  id                    Int                     @id @default(autoincrement())
+  type_id               Int
+  version               String                  @db.VarChar(20)
+  title                 String                  @db.VarChar(255)
+  content               String
+  effective_date        DateTime                @db.Date
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamp(6)
+  active                Boolean?                @default(true)
+  legal_document_type   legal_document_type     @relation(fields: [type_id], references: [id], onUpdate: NoAction)
+  user_legal_acceptance user_legal_acceptance[]
+
+  @@unique([type_id, version])
+  @@index([type_id], map: "idx_legal_document_type_id")
+  @@index([active], map: "idx_legal_document_active")
+  @@index([effective_date], map: "idx_legal_document_effective_date")
+}
+
+model user_legal_acceptance {
+  id                Int            @id @default(autoincrement())
+  user_id           Int
+  legal_document_id Int
+  accepted_at       DateTime?      @default(now()) @db.Timestamp(6)
+  ip_address        String?        @db.VarChar(45)
+  user_agent        String?
+  legal_document    legal_document @relation(fields: [legal_document_id], references: [id], onUpdate: NoAction)
+  user              user           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, legal_document_id])
+  @@index([user_id], map: "idx_user_legal_acceptance_user_id")
+  @@index([legal_document_id], map: "idx_user_legal_acceptance_document_id")
+  @@index([accepted_at], map: "idx_user_legal_acceptance_accepted_at")
+}
+
+model user_refresh_token {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  token_hash String    @unique(map: "uq_user_refresh_token_hash") @db.VarChar(64)
+  expires_at DateTime  @db.Timestamp(6)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  revoked_at DateTime? @db.Timestamp(6)
+  user       user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_refresh_token_user")
+
+  @@index([user_id], map: "idx_user_refresh_token_user_id")
+  @@index([expires_at], map: "idx_user_refresh_token_expires_at")
+}
+
+model content_quiz {
+  id            Int      @id @default(autoincrement())
+  content_id    Int
+  form_id       Int
+  display_order Int      @default(0)
+  is_required   Boolean  @default(false)
+  weight        Decimal  @default(1.0) @db.Decimal(5, 2)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  updated_at    DateTime @default(now()) @db.Timestamp(6)
+  active        Boolean  @default(true)
+  content       content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  form          form     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([content_id, form_id], map: "uq_content_quiz_unique")
+  @@index([content_id], map: "idx_content_quiz_content_id")
+  @@index([form_id], map: "idx_content_quiz_form_id")
+  @@index([content_id, display_order], map: "idx_content_quiz_display_order")
+}
+
+model quiz_submission {
+  id                   Int                @id @default(autoincrement())
+  participation_id     Int
+  form_version_id      Int
+  quiz_response        Json
+  question_results     Json?              @db.Json
+  score                Decimal?           @db.Decimal(5, 2)
+  percentage           Decimal?           @db.Decimal(5, 2)
+  is_passed            Boolean?
+  attempt_number       Int
+  time_spent_seconds   Int?
+  started_at           DateTime           @db.Timestamp(6)
+  completed_at         DateTime?          @db.Timestamp(6)
+  created_at           DateTime           @default(now()) @db.Timestamp(6)
+  updated_at           DateTime           @default(now()) @db.Timestamp(6)
+  active               Boolean            @default(true)
+  sequence_progress_id Int?
+  form_version         form_version       @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
+  participation        participation      @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence_progress    sequence_progress? @relation(fields: [sequence_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([participation_id], map: "idx_quiz_submission_participation_id")
+  @@index([form_version_id], map: "idx_quiz_submission_form_version_id")
+  @@index([sequence_progress_id], map: "idx_quiz_submission_sequence_progress")
+  @@index([score], map: "idx_quiz_submission_score")
+  @@index([is_passed], map: "idx_quiz_submission_is_passed")
+  @@index([participation_id, form_version_id, attempt_number], map: "idx_quiz_submission_attempt")
+  @@index([completed_at], map: "idx_quiz_submission_completed_at")
+}
+
+model track {
+  id                    Int           @id @default(autoincrement())
+  name                  String        @db.VarChar(255)
+  description           String?
+  context_id            Int?
+  control_period        Boolean       @default(false)
+  start_date            DateTime?     @db.Date
+  end_date              DateTime?     @db.Date
+  show_after_completion Boolean       @default(false)
+  created_at            DateTime      @default(now()) @db.Timestamp(6)
+  updated_at            DateTime      @default(now()) @db.Timestamp(6)
+  active                Boolean       @default(true)
+  has_progression       Boolean       @default(true)
+  section               section[]
+  context               context?      @relation(fields: [context_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  track_cycle           track_cycle[]
+
+  @@index([context_id], map: "idx_track_context_id")
+  @@index([active], map: "idx_track_active")
+}
+
+model section {
+  id                           Int                            @id @default(autoincrement())
+  track_id                     Int
+  name                         String                         @db.VarChar(255)
+  order                        Int                            @default(0)
+  created_at                   DateTime                       @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime                       @default(now()) @db.Timestamp(6)
+  active                       Boolean                        @default(true)
+  track                        track                          @relation(fields: [track_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence                     sequence[]
+  track_cycle_section_schedule track_cycle_section_schedule[]
+  track_progress               track_progress[]
+
+  @@index([track_id], map: "idx_section_track_id")
+  @@index([order], map: "idx_section_order")
+}
+
+model sequence {
+  id                            Int                             @id @default(autoincrement())
+  section_id                    Int
+  content_id                    Int?
+  form_id                       Int?
+  order                         Int                             @default(0)
+  created_at                    DateTime                        @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime                        @default(now()) @db.Timestamp(6)
+  active                        Boolean                         @default(true)
+  content                       content?                        @relation(fields: [content_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  form                          form?                           @relation(fields: [form_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  section                       section                         @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sequence_progress             sequence_progress[]
+  track_cycle_sequence_schedule track_cycle_sequence_schedule[]
+  track_progress_last           track_progress[]                @relation("last_sequence")
+
+  @@index([section_id], map: "idx_sequence_section_id")
+  @@index([content_id], map: "idx_sequence_content_id")
+  @@index([form_id], map: "idx_sequence_form_id")
+  @@index([order], map: "idx_sequence_order")
+}
+
+model track_cycle {
+  id                            Int                             @id @default(autoincrement())
+  track_id                      Int
+  context_id                    Int
+  name                          String                          @db.VarChar(100)
+  description                   String?
+  status                        track_cycle_status_enum         @default(draft)
+  start_date                    DateTime                        @db.Date
+  end_date                      DateTime                        @db.Date
+  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  active                        Boolean?                        @default(true)
+  mandatory_slug                String?                         @db.VarChar(80)
+  context                       context                         @relation(fields: [context_id], references: [id], onUpdate: NoAction)
+  track                         track                           @relation(fields: [track_id], references: [id], onUpdate: NoAction)
+  track_cycle_section_schedule  track_cycle_section_schedule[]
+  track_cycle_sequence_schedule track_cycle_sequence_schedule[]
+  track_progress                track_progress[]
+
+  @@unique([track_id, context_id, name], map: "uq_track_cycle_track_context_name")
+  @@index([track_id], map: "idx_track_cycle_track_id")
+  @@index([context_id], map: "idx_track_cycle_context_id")
+  @@index([status], map: "idx_track_cycle_status")
+  @@index([start_date, end_date], map: "idx_track_cycle_dates")
+}
+
+model track_cycle_section_schedule {
+  id             Int         @id @default(autoincrement())
+  track_cycle_id Int
+  section_id     Int
+  start_date     DateTime?   @db.Date
+  end_date       DateTime?   @db.Date
+  created_at     DateTime    @default(now()) @db.Timestamp(6)
+  updated_at     DateTime    @default(now()) @db.Timestamp(6)
+  section        section     @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  track_cycle    track_cycle @relation(fields: [track_cycle_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([track_cycle_id, section_id], map: "uq_track_cycle_section_schedule")
+  @@index([track_cycle_id], map: "idx_tc_section_sched_cycle")
+}
+
+model track_cycle_sequence_schedule {
+  id             Int         @id @default(autoincrement())
+  track_cycle_id Int
+  sequence_id    Int
+  start_date     DateTime?   @db.Date
+  end_date       DateTime?   @db.Date
+  created_at     DateTime    @default(now()) @db.Timestamp(6)
+  updated_at     DateTime    @default(now()) @db.Timestamp(6)
+  sequence       sequence    @relation(fields: [sequence_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  track_cycle    track_cycle @relation(fields: [track_cycle_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([track_cycle_id, sequence_id], map: "uq_track_cycle_sequence_schedule")
+  @@index([track_cycle_id], map: "idx_tc_sequence_sched_cycle")
+}
+
+model track_progress {
+  id                  Int                  @id @default(autoincrement())
+  participation_id    Int
+  track_cycle_id      Int
+  status              progress_status_enum @default(in_progress)
+  progress_percentage Decimal              @default(0.00) @db.Decimal(5, 2)
+  last_sequence_id    Int?
+  current_section_id  Int?
+  started_at          DateTime?            @db.Timestamp(6)
+  completed_at        DateTime?            @db.Timestamp(6)
+  created_at          DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?            @default(now()) @db.Timestamp(6)
+  sequence_progress   sequence_progress[]
+  current_section     section?             @relation(fields: [current_section_id], references: [id], onUpdate: NoAction)
+  last_sequence       sequence?            @relation("last_sequence", fields: [last_sequence_id], references: [id], onUpdate: NoAction)
+  participation       participation        @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  track_cycle         track_cycle          @relation(fields: [track_cycle_id], references: [id], onUpdate: NoAction)
+
+  @@unique([participation_id, track_cycle_id], map: "uq_track_progress_participation_cycle")
+  @@index([participation_id], map: "idx_track_progress_participation")
+  @@index([track_cycle_id], map: "idx_track_progress_cycle")
+  @@index([status], map: "idx_track_progress_status")
+  @@index([completed_at], map: "idx_track_progress_completed_at")
+}
+
+model sequence_progress {
+  id                 Int                  @id @default(autoincrement())
+  track_progress_id  Int
+  sequence_id        Int
+  status             progress_status_enum @default(not_started)
+  started_at         DateTime?            @db.Timestamp(6)
+  completed_at       DateTime?            @db.Timestamp(6)
+  time_spent_seconds Int?
+  visits_count       Int                  @default(0)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  quiz_submission    quiz_submission[]
+  sequence           sequence             @relation(fields: [sequence_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  track_progress     track_progress       @relation(fields: [track_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([track_progress_id, sequence_id], map: "uq_sequence_progress_track_sequence")
+  @@index([track_progress_id], map: "idx_sequence_progress_track_progress")
+  @@index([sequence_id], map: "idx_sequence_progress_sequence")
+  @@index([status], map: "idx_sequence_progress_status")
+  @@index([completed_at], map: "idx_sequence_progress_completed_at")
+}
+
+model admin_action_log {
+  id                                         Int      @id @default(autoincrement())
+  action                                     String   @db.VarChar(80)
+  target_entity_type                         String   @db.VarChar(40)
+  target_entity_id                           String   @db.VarChar(64)
+  actor_user_id                              Int?
+  context_id                                 Int?
+  target_user_id                             Int?
+  request_id                                 String?  @db.VarChar(100)
+  channel                                    String?  @db.VarChar(20)
+  ip_address                                 String?  @db.VarChar(64)
+  user_agent                                 String?  @db.VarChar(512)
+  metadata                                   Json?
+  occurred_at                                DateTime @default(now()) @db.Timestamp(6)
+  user_admin_action_log_actor_user_idTouser  user?    @relation("admin_action_log_actor_user_idTouser", fields: [actor_user_id], references: [id], onUpdate: NoAction, map: "fk_admin_action_log_actor_user")
+  context                                    context? @relation(fields: [context_id], references: [id], onUpdate: NoAction, map: "fk_admin_action_log_context")
+  user_admin_action_log_target_user_idTouser user?    @relation("admin_action_log_target_user_idTouser", fields: [target_user_id], references: [id], onUpdate: NoAction, map: "fk_admin_action_log_target_user")
+
+  @@index([occurred_at(sort: Desc)], map: "idx_admin_action_log_occurred_at")
+  @@index([target_entity_type, target_entity_id], map: "idx_admin_action_log_target")
+  @@index([actor_user_id], map: "idx_admin_action_log_actor_user")
+  @@index([context_id], map: "idx_admin_action_log_context")
+  @@index([action], map: "idx_admin_action_log_action")
+}
+
+model report_integration_event {
+  id                Int                          @id @default(autoincrement())
+  report_id         Int                          @unique(map: "uq_report_integration_event_report")
+  external_event_id String?                      @db.VarChar(255)
+  status            integration_event_status     @default(pending)
+  environment       String                       @default("production") @db.VarChar(20)
+  attempt_count     Int                          @default(0)
+  last_attempt_at   DateTime?                    @db.Timestamp(6)
+  last_error        String?
+  request_payload   Json?
+  response_payload  Json?
+  created_at        DateTime                     @default(now()) @db.Timestamp(6)
+  updated_at        DateTime                     @default(now()) @db.Timestamp(6)
+  report            report                       @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages          report_integration_message[]
+
+  @@index([report_id], map: "idx_rie_report_id")
+  @@index([status], map: "idx_rie_status")
+  @@index([external_event_id], map: "idx_rie_external_event_id")
+}
+
+model report_integration_message {
+  id                   Int                           @id @default(autoincrement())
+  integration_event_id Int
+  external_message_id  String?                       @db.VarChar(255)
+  direction            integration_message_direction
+  body                 String
+  author               String?                       @db.VarChar(255)
+  remote_created_at    DateTime?                     @db.Timestamp(6)
+  created_at           DateTime                      @default(now()) @db.Timestamp(6)
+  updated_at           DateTime                      @default(now()) @db.Timestamp(6)
+  integration_event    report_integration_event      @relation(fields: [integration_event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([integration_event_id, external_message_id], map: "uq_rim_external_message")
+  @@index([integration_event_id], map: "idx_rim_event_id")
+}
+
+model integration_config {
+  id                    Int      @id @default(autoincrement())
+  context_id            Int
+  version               Int      @default(1)
+  is_active             Boolean  @default(true)
+  base_url_production   String?  @db.VarChar(500)
+  base_url_homologation String?  @db.VarChar(500)
+  auth_config           Json?
+  payload_mapping       Json     @default("{}")
+  timeout_ms            Int      @default(30000)
+  max_retries           Int      @default(3)
+  created_at            DateTime @default(now()) @db.Timestamp(6)
+  updated_at            DateTime @default(now()) @db.Timestamp(6)
+  context               context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([context_id, version], map: "uq_integration_config_version")
+  @@index([context_id], map: "idx_ic_context_id")
+  @@index([is_active], map: "idx_ic_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance_window {
+  id         Int                   @id @default(autoincrement())
+  mode       maintenance_mode_enum
+  starts_at  DateTime              @db.Timestamptz(6)
+  ends_at    DateTime?             @db.Timestamptz(6)
+  title      Json
+  message    Json
+  active     Boolean               @default(true)
+  created_at DateTime              @default(now()) @db.Timestamp(6)
+  updated_at DateTime              @default(now()) @db.Timestamp(6)
+
+  @@index([active], map: "idx_maintenance_window_active")
+  @@index([active, starts_at, ends_at], map: "idx_maintenance_window_lookup")
+}
+
+enum location_org_level {
+  COUNTRY
+  STATE_DISTRICT
+  CITY_COUNCIL
+  SITE
 }
 
 enum context_access_type {
@@ -572,317 +958,6 @@ enum track_cycle_status_enum {
   archived
 }
 
-model gender {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique @db.VarChar(50)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
-  active     Boolean  @default(true)
-  user       user[]
-
-  @@index([name], map: "idx_gender_name")
-}
-
-model legal_document_type {
-  id             Int              @id @default(autoincrement())
-  code           String           @unique @db.VarChar(50)
-  name           String           @db.VarChar(100)
-  description    String?
-  is_required    Boolean          @default(true)
-  created_at     DateTime         @default(now()) @db.Timestamp(6)
-  updated_at     DateTime         @default(now()) @db.Timestamp(6)
-  active         Boolean          @default(true)
-  legal_document legal_document[]
-
-  @@index([code], map: "idx_legal_document_type_code")
-  @@index([active], map: "idx_legal_document_type_active")
-}
-
-model legal_document {
-  id                     Int                     @id @default(autoincrement())
-  type_id                Int
-  version                String                  @db.VarChar(20)
-  title                  String                  @db.VarChar(255)
-  content                String
-  effective_date         DateTime                @db.Date
-  created_at             DateTime                @default(now()) @db.Timestamp(6)
-  updated_at             DateTime                @default(now()) @db.Timestamp(6)
-  active                 Boolean                 @default(true)
-  legal_document_type    legal_document_type     @relation(fields: [type_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  user_legal_acceptance  user_legal_acceptance[]
-
-  @@unique([type_id, version])
-  @@index([type_id], map: "idx_legal_document_type_id")
-  @@index([active], map: "idx_legal_document_active")
-  @@index([effective_date], map: "idx_legal_document_effective_date")
-}
-
-model user_legal_acceptance {
-  id                 Int            @id @default(autoincrement())
-  user_id            Int
-  legal_document_id  Int
-  accepted_at        DateTime       @default(now()) @db.Timestamp(6)
-  ip_address         String?        @db.VarChar(45)
-  user_agent         String?
-  user               user           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  legal_document     legal_document @relation(fields: [legal_document_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-
-  @@unique([user_id, legal_document_id])
-  @@index([user_id], map: "idx_user_legal_acceptance_user_id")
-  @@index([legal_document_id], map: "idx_user_legal_acceptance_document_id")
-  @@index([accepted_at], map: "idx_user_legal_acceptance_accepted_at")
-}
-
-model user_refresh_token {
-  id         Int       @id @default(autoincrement())
-  user_id    Int
-  token_hash String    @db.VarChar(64)
-  expires_at DateTime  @db.Timestamp(6)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  revoked_at DateTime? @db.Timestamp(6)
-  user       user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([token_hash], map: "uq_user_refresh_token_hash")
-  @@index([user_id], map: "idx_user_refresh_token_user_id")
-  @@index([expires_at], map: "idx_user_refresh_token_expires_at")
-}
-
-model content_quiz {
-  id           Int      @id @default(autoincrement())
-  content_id   Int
-  form_id      Int
-  display_order Int     @default(0)
-  is_required  Boolean  @default(false)
-  weight       Decimal  @default(1.0) @db.Decimal(5, 2)
-  created_at   DateTime @default(now()) @db.Timestamp(6)
-  updated_at   DateTime @default(now()) @db.Timestamp(6)
-  active       Boolean  @default(true)
-  content      content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  form         form     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([content_id, form_id], map: "uq_content_quiz_unique")
-  @@index([content_id], map: "idx_content_quiz_content_id")
-  @@index([form_id], map: "idx_content_quiz_form_id")
-  @@index([content_id, display_order], map: "idx_content_quiz_display_order")
-}
-
-model quiz_submission {
-  id                   Int                @id @default(autoincrement())
-  participation_id     Int
-  form_version_id      Int
-  sequence_progress_id Int?
-  quiz_response        Json
-  question_results     Json?              // Resultados detalhados por questão: [{questionName, isCorrect, pointsEarned, userAnswer, correctAnswer, feedback}]
-  score                Decimal?           @db.Decimal(5, 2)
-  percentage           Decimal?           @db.Decimal(5, 2)
-  is_passed            Boolean?
-  attempt_number       Int
-  time_spent_seconds   Int?
-  started_at           DateTime           @db.Timestamp(6)
-  completed_at         DateTime?          @db.Timestamp(6)
-  created_at           DateTime           @default(now()) @db.Timestamp(6)
-  updated_at           DateTime           @default(now()) @db.Timestamp(6)
-  active               Boolean            @default(true)
-  participation        participation      @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  form_version         form_version       @relation(fields: [form_version_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  sequence_progress    sequence_progress? @relation(fields: [sequence_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([participation_id], map: "idx_quiz_submission_participation_id")
-  @@index([form_version_id], map: "idx_quiz_submission_form_version_id")
-  @@index([sequence_progress_id], map: "idx_quiz_submission_sequence_progress")
-  @@index([score], map: "idx_quiz_submission_score")
-  @@index([is_passed], map: "idx_quiz_submission_is_passed")
-  @@index([participation_id, form_version_id, attempt_number], map: "idx_quiz_submission_attempt")
-  @@index([completed_at], map: "idx_quiz_submission_completed_at")
-}
-
-model track {
-  id                    Int           @id @default(autoincrement())
-  name                  String        @db.VarChar(255)
-  description           String?
-  context_id            Int?
-  control_period        Boolean       @default(false)
-  start_date            DateTime?     @db.Date
-  end_date              DateTime?     @db.Date
-  show_after_completion Boolean       @default(false)
-  has_progression       Boolean       @default(true)
-  created_at            DateTime      @default(now()) @db.Timestamp(6)
-  updated_at            DateTime      @default(now()) @db.Timestamp(6)
-  active                Boolean       @default(true)
-  context               context?      @relation(fields: [context_id], references: [id], onUpdate: NoAction)
-  section               section[]
-  track_cycle           track_cycle[]
-
-  @@index([context_id], map: "idx_track_context_id")
-  @@index([active], map: "idx_track_active")
-}
-
-model section {
-  id             Int              @id @default(autoincrement())
-  track_id       Int
-  name           String           @db.VarChar(255)
-  order          Int              @default(0)
-  created_at     DateTime         @default(now()) @db.Timestamp(6)
-  updated_at     DateTime         @default(now()) @db.Timestamp(6)
-  active         Boolean          @default(true)
-  track          track            @relation(fields: [track_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sequence                      sequence[]
-  track_progress                track_progress[]
-  track_cycle_section_schedule  track_cycle_section_schedule[]
-
-  @@index([track_id], map: "idx_section_track_id")
-  @@index([order], map: "idx_section_order")
-}
-
-model sequence {
-  id                Int                 @id @default(autoincrement())
-  section_id        Int
-  content_id        Int?
-  form_id           Int?                // Quiz
-  order             Int                 @default(0)
-  created_at        DateTime            @default(now()) @db.Timestamp(6)
-  updated_at        DateTime            @default(now()) @db.Timestamp(6)
-  active            Boolean             @default(true)
-  section           section             @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  content           content?            @relation(fields: [content_id], references: [id], onUpdate: NoAction)
-  form              form?               @relation(fields: [form_id], references: [id], onUpdate: NoAction)
-  sequence_progress               sequence_progress[]
-  track_progress_last             track_progress[]                 @relation("last_sequence")
-  track_cycle_sequence_schedule   track_cycle_sequence_schedule[]
-
-  @@index([section_id], map: "idx_sequence_section_id")
-  @@index([content_id], map: "idx_sequence_content_id")
-  @@index([form_id], map: "idx_sequence_form_id")
-  @@index([order], map: "idx_sequence_order")
-}
-
-model track_cycle {
-  id             Int                      @id @default(autoincrement())
-  track_id       Int
-  context_id     Int
-  name           String                   @db.VarChar(100)
-  description    String?
-  mandatory_slug String?                  @unique @db.VarChar(80)
-  status         track_cycle_status_enum  @default(draft)
-  start_date     DateTime                 @db.Date
-  end_date       DateTime                 @db.Date
-  created_at     DateTime                 @default(now()) @db.Timestamp(6)
-  updated_at     DateTime                 @default(now()) @db.Timestamp(6)
-  active         Boolean                  @default(true)
-  track                           track                             @relation(fields: [track_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  context                         context                           @relation(fields: [context_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  track_progress                  track_progress[]
-  track_cycle_section_schedule    track_cycle_section_schedule[]
-  track_cycle_sequence_schedule   track_cycle_sequence_schedule[]
-
-  @@unique([track_id, context_id, name], map: "uq_track_cycle_track_context_name")
-  @@index([track_id], map: "idx_track_cycle_track_id")
-  @@index([context_id], map: "idx_track_cycle_context_id")
-  @@index([status], map: "idx_track_cycle_status")
-  @@index([start_date, end_date], map: "idx_track_cycle_dates")
-}
-
-model track_cycle_section_schedule {
-  id             Int         @id @default(autoincrement())
-  track_cycle_id Int
-  section_id     Int
-  start_date     DateTime?   @db.Date
-  end_date       DateTime?   @db.Date
-  created_at     DateTime    @default(now()) @db.Timestamp(6)
-  updated_at     DateTime    @default(now()) @db.Timestamp(6)
-  track_cycle    track_cycle @relation(fields: [track_cycle_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  section        section     @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([track_cycle_id, section_id], map: "uq_track_cycle_section_schedule")
-  @@index([track_cycle_id], map: "idx_tc_section_sched_cycle")
-}
-
-model track_cycle_sequence_schedule {
-  id             Int         @id @default(autoincrement())
-  track_cycle_id Int
-  sequence_id    Int
-  start_date     DateTime?   @db.Date
-  end_date       DateTime?   @db.Date
-  created_at     DateTime    @default(now()) @db.Timestamp(6)
-  updated_at     DateTime    @default(now()) @db.Timestamp(6)
-  track_cycle    track_cycle @relation(fields: [track_cycle_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sequence       sequence    @relation(fields: [sequence_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([track_cycle_id, sequence_id], map: "uq_track_cycle_sequence_schedule")
-  @@index([track_cycle_id], map: "idx_tc_sequence_sched_cycle")
-}
-
-model track_progress {
-  id                  Int                   @id @default(autoincrement())
-  participation_id    Int
-  track_cycle_id      Int
-  status              progress_status_enum  @default(in_progress)
-  progress_percentage Decimal               @default(0.00) @db.Decimal(5, 2)
-  last_sequence_id    Int?
-  current_section_id  Int?
-  started_at          DateTime?             @db.Timestamp(6)
-  completed_at        DateTime?             @db.Timestamp(6)
-  created_at          DateTime              @default(now()) @db.Timestamp(6)
-  updated_at          DateTime              @default(now()) @db.Timestamp(6)
-  participation       participation         @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  track_cycle         track_cycle           @relation(fields: [track_cycle_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  last_sequence       sequence?             @relation("last_sequence", fields: [last_sequence_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  current_section     section?              @relation(fields: [current_section_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  sequence_progress   sequence_progress[]
-
-  @@unique([participation_id, track_cycle_id], map: "uq_track_progress_participation_cycle")
-  @@index([participation_id], map: "idx_track_progress_participation")
-  @@index([track_cycle_id], map: "idx_track_progress_cycle")
-  @@index([status], map: "idx_track_progress_status")
-  @@index([completed_at], map: "idx_track_progress_completed_at")
-}
-
-model sequence_progress {
-  id                 Int                  @id @default(autoincrement())
-  track_progress_id  Int
-  sequence_id        Int
-  status             progress_status_enum @default(not_started)
-  started_at         DateTime?            @db.Timestamp(6)
-  completed_at       DateTime?            @db.Timestamp(6)
-  time_spent_seconds Int?
-  visits_count       Int                  @default(0)
-  created_at         DateTime             @default(now()) @db.Timestamp(6)
-  updated_at         DateTime             @default(now()) @db.Timestamp(6)
-  track_progress     track_progress       @relation(fields: [track_progress_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  sequence           sequence             @relation(fields: [sequence_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  quiz_submission    quiz_submission[]
-
-  @@unique([track_progress_id, sequence_id], map: "uq_sequence_progress_track_sequence")
-  @@index([track_progress_id], map: "idx_sequence_progress_track_progress")
-  @@index([sequence_id], map: "idx_sequence_progress_sequence")
-  @@index([status], map: "idx_sequence_progress_status")
-  @@index([completed_at], map: "idx_sequence_progress_completed_at")
-}
-
-model admin_action_log {
-  id                 Int      @id @default(autoincrement())
-  action             String   @db.VarChar(80)
-  target_entity_type String   @db.VarChar(40)
-  target_entity_id   String   @db.VarChar(64)
-  actor_user_id      Int?
-  context_id         Int?
-  target_user_id     Int?
-  request_id         String?  @db.VarChar(100)
-  channel            String?  @db.VarChar(20)
-  ip_address         String?  @db.VarChar(64)
-  user_agent         String?  @db.VarChar(512)
-  metadata           Json?
-  occurred_at        DateTime @default(now()) @db.Timestamp(6)
-
-  @@index([occurred_at(sort: Desc)], map: "idx_admin_action_log_occurred_at")
-  @@index([target_entity_type, target_entity_id], map: "idx_admin_action_log_target")
-  @@index([actor_user_id], map: "idx_admin_action_log_actor_user")
-  @@index([context_id], map: "idx_admin_action_log_context")
-  @@index([action], map: "idx_admin_action_log_action")
-}
-
-// ─── Integration enums & models ────────────────────────────────
-
 enum integration_event_status {
   pending
   processing
@@ -895,59 +970,8 @@ enum integration_message_direction {
   outbound
 }
 
-model report_integration_event {
-  id                Int                            @id @default(autoincrement())
-  report_id         Int                            @unique(map: "uq_report_integration_event_report")
-  external_event_id String?                        @db.VarChar(255)
-  status            integration_event_status       @default(pending)
-  environment       String                         @default("production") @db.VarChar(20)
-  attempt_count     Int                            @default(0)
-  last_attempt_at   DateTime?                      @db.Timestamp(6)
-  last_error        String?
-  request_payload   Json?
-  response_payload  Json?
-  created_at        DateTime                       @default(now()) @db.Timestamp(6)
-  updated_at        DateTime                       @default(now()) @db.Timestamp(6)
-  report            report                         @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  messages          report_integration_message[]
-
-  @@index([report_id], map: "idx_rie_report_id")
-  @@index([status], map: "idx_rie_status")
-  @@index([external_event_id], map: "idx_rie_external_event_id")
-}
-
-model report_integration_message {
-  id                   Int                            @id @default(autoincrement())
-  integration_event_id Int
-  external_message_id  String?                        @db.VarChar(255)
-  direction            integration_message_direction
-  body                 String
-  author               String?                        @db.VarChar(255)
-  remote_created_at    DateTime?                      @db.Timestamp(6)
-  created_at           DateTime                       @default(now()) @db.Timestamp(6)
-  updated_at           DateTime                       @default(now()) @db.Timestamp(6)
-  integration_event    report_integration_event       @relation(fields: [integration_event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([integration_event_id, external_message_id], map: "uq_rim_external_message")
-  @@index([integration_event_id], map: "idx_rim_event_id")
-}
-
-model integration_config {
-  id                    Int      @id @default(autoincrement())
-  context_id            Int
-  version               Int      @default(1)
-  is_active             Boolean  @default(true)
-  base_url_production   String?  @db.VarChar(500)
-  base_url_homologation String?  @db.VarChar(500)
-  auth_config           Json?
-  payload_mapping       Json     @default("{}")
-  timeout_ms            Int      @default(30000)
-  max_retries           Int      @default(3)
-  created_at            DateTime @default(now()) @db.Timestamp(6)
-  updated_at            DateTime @default(now()) @db.Timestamp(6)
-  context               context  @relation(fields: [context_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([context_id, version], map: "uq_integration_config_version")
-  @@index([context_id], map: "idx_ic_context_id")
-  @@index([is_active], map: "idx_ic_active")
+enum maintenance_mode_enum {
+  banner
+  read_only
+  full
 }
