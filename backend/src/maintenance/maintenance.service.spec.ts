@@ -18,9 +18,11 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 describe('MaintenanceService', () => {
   let service: MaintenanceService;
   let findMany: jest.Mock;
+  let logger: { error: jest.Mock };
 
   beforeEach(async () => {
     findMany = jest.fn().mockResolvedValue([]);
+    logger = { error: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -28,6 +30,10 @@ describe('MaintenanceService', () => {
         {
           provide: PrismaService,
           useValue: { maintenance_window: { findMany } },
+        },
+        {
+          provide: `PinoLogger:${MaintenanceService.name}`,
+          useValue: logger,
         },
       ],
     }).compile();
@@ -87,6 +93,48 @@ describe('MaintenanceService', () => {
       const window = await service.getActiveWindow(NOW);
 
       expect(window?.startsAt).toEqual(new Date('2026-08-10T01:00:00.000Z'));
+    });
+  });
+
+  describe('falha aberto', () => {
+    it('libera a requisição quando a consulta estoura', async () => {
+      findMany.mockRejectedValue(
+        new Error('relation "maintenance_window" does not exist'),
+      );
+
+      await expect(service.getActiveWindow(NOW)).resolves.toBeNull();
+    });
+
+    it('registra o erro para a falha não passar despercebida', async () => {
+      findMany.mockRejectedValue(new Error('conexão recusada'));
+
+      await service.getActiveWindow(NOW);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'MAINTENANCE_LOOKUP_FAILED' }),
+        expect.any(String),
+      );
+    });
+
+    it('não reconsulta o banco a cada requisição enquanto ele está fora', async () => {
+      findMany.mockRejectedValue(new Error('conexão recusada'));
+
+      await service.getActiveWindow(NOW);
+      await service.getActiveWindow(new Date(NOW.getTime() + 1_000));
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('volta a consultar depois do TTL curto de erro', async () => {
+      findMany.mockRejectedValue(new Error('conexão recusada'));
+
+      await service.getActiveWindow(NOW);
+      findMany.mockResolvedValue([row()]);
+      const recovered = await service.getActiveWindow(
+        new Date(NOW.getTime() + 6_000),
+      );
+
+      expect(recovered?.mode).toBe('full');
     });
   });
 

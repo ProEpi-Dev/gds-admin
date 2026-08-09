@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type MaintenanceMode = 'banner' | 'read_only' | 'full';
@@ -28,6 +29,12 @@ export class MaintenanceService {
    */
   private static readonly CACHE_TTL_MS = 15_000;
 
+  /**
+   * TTL curto após falha de consulta: evita marretar o banco a cada requisição
+   * enquanto ele está indisponível, sem prolongar a cegueira do guard.
+   */
+  private static readonly ERROR_CACHE_TTL_MS = 5_000;
+
   private static readonly SEVERITY: Record<MaintenanceMode, number> = {
     banner: 1,
     read_only: 2,
@@ -40,8 +47,21 @@ export class MaintenanceService {
   private cached: ActiveMaintenanceWindow | null = null;
   private cacheExpiresAt = 0;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectPinoLogger(MaintenanceService.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
+  /**
+   * Falha aberto de propósito.
+   *
+   * Este método roda em toda requisição, atrás de um guard. Se a consulta
+   * estourar — tabela ainda não migrada, banco fora — propagar o erro faria a
+   * API inteira responder 500. O papel do guard é bloquear durante janelas
+   * anunciadas, não virar um novo ponto único de falha: sem conseguir
+   * determinar o estado, o certo é deixar passar.
+   */
   async getActiveWindow(
     now: Date = new Date(),
   ): Promise<ActiveMaintenanceWindow | null> {
@@ -49,10 +69,21 @@ export class MaintenanceService {
       return this.cached;
     }
 
-    const window = await this.loadActiveWindow(now);
-    this.cached = window;
-    this.cacheExpiresAt = MaintenanceService.resolveCacheExpiry(window, now);
-    return window;
+    try {
+      const window = await this.loadActiveWindow(now);
+      this.cached = window;
+      this.cacheExpiresAt = MaintenanceService.resolveCacheExpiry(window, now);
+      return window;
+    } catch (error) {
+      this.logger.error(
+        { event: 'MAINTENANCE_LOOKUP_FAILED', err: error },
+        'Falha ao consultar janela de indisponibilidade; liberando a requisição',
+      );
+      this.cached = null;
+      this.cacheExpiresAt =
+        now.getTime() + MaintenanceService.ERROR_CACHE_TTL_MS;
+      return null;
+    }
   }
 
   /** Usado pelo CRUD: alteração de janela deve valer sem esperar o TTL. */
