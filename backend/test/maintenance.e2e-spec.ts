@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
@@ -14,10 +15,39 @@ describe('Maintenance (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let maintenance: MaintenanceService;
+  let adminToken: string;
+  let participantToken: string;
   const createdIds: number[] = [];
 
   const BLOCKED_ROUTE = '/auth/forgot-password';
   const BLOCKED_BODY = { email: 'ninguem@example.com' };
+
+  /**
+   * Token assinado direto pelo JwtService da app: torna o teste independente
+   * de senha de seed. O payload replica o que a JwtStrategy espera (`sub`).
+   */
+  function signFor(user: { id: number; email: string }): string {
+    return app.get(JwtService).sign({ sub: user.id, email: user.email });
+  }
+
+  async function findUserByGlobalRole(admin: boolean) {
+    const adminRole = await prisma.role.findFirst({ where: { code: 'admin' } });
+    // Papel global fica em user.role_id; participante não tem papel global —
+    // o dele vem por participação, então aqui basta a ausência do papel admin.
+    const user = await prisma.user.findFirst({
+      where: {
+        active: true,
+        role_id: admin ? adminRole?.id : null,
+      },
+    });
+
+    if (!user) {
+      throw new Error(
+        `Nenhum usuário ativo ${admin ? 'admin' : 'sem papel global'} no banco`,
+      );
+    }
+    return user;
+  }
 
   async function openWindow(
     mode: 'banner' | 'read_only' | 'full',
@@ -43,10 +73,22 @@ describe('Maintenance (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // createNestApplication() não herda o que é configurado no main.ts. Sem
+    // repetir o pipe aqui, nenhuma validação de DTO rodaria e o teste passaria
+    // por caminhos que não existem em produção.
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     prisma = app.get(PrismaService);
     maintenance = app.get(MaintenanceService);
+    adminToken = signFor(await findUserByGlobalRole(true));
+    participantToken = signFor(await findUserByGlobalRole(false));
   });
 
   afterEach(async () => {
@@ -168,6 +210,123 @@ describe('Maintenance (e2e)', () => {
         .send({ refreshToken: 'token-invalido' });
 
       expect(response.status).not.toBe(503);
+    });
+  });
+
+  describe('CRUD durante janela full — o caminho de saída da manutenção', () => {
+    it('admin alcança o CRUD pelo bypass de papel', async () => {
+      await openWindow('full');
+
+      await request(app.getHttpServer())
+        .get('/maintenance-windows')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+    });
+
+    it('admin consegue encerrar a janela em vigor', async () => {
+      const row = await openWindow('full');
+
+      await request(app.getHttpServer())
+        .patch(`/maintenance-windows/${row.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ active: false })
+        .expect(200);
+
+      const afterwards = await request(app.getHttpServer())
+        .post(BLOCKED_ROUTE)
+        .send(BLOCKED_BODY);
+
+      expect(afterwards.status).not.toBe(503);
+    });
+
+    it('participante recebe 503, não 403 — a manutenção vem antes do papel', async () => {
+      await openWindow('full');
+
+      const response = await request(app.getHttpServer())
+        .get('/maintenance-windows')
+        .set('Authorization', `Bearer ${participantToken}`);
+
+      expect(response.status).toBe(503);
+      expect(response.body.error.code).toBe('MAINTENANCE');
+    });
+  });
+
+  describe('CRUD', () => {
+    it('cria, lista e remove uma janela', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/maintenance-windows')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 'banner',
+          startsAt: '2027-01-01T00:00:00.000Z',
+          endsAt: '2027-01-01T06:00:00.000Z',
+          title: { pt: 'Aviso' },
+          message: { pt: 'Manutenção no domingo' },
+        })
+        .expect(201);
+
+      expect(created.body).toEqual(
+        expect.objectContaining({
+          mode: 'banner',
+          active: true,
+          inEffect: false,
+        }),
+      );
+
+      await request(app.getHttpServer())
+        .get(`/maintenance-windows/${created.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .delete(`/maintenance-windows/${created.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .get(`/maintenance-windows/${created.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+    });
+
+    it('rejeita título sem o locale pt antes de chegar no banco', async () => {
+      await request(app.getHttpServer())
+        .post('/maintenance-windows')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 'full',
+          startsAt: '2027-01-01T00:00:00.000Z',
+          title: { en: 'only english' },
+          message: { pt: 'Mensagem' },
+        })
+        .expect(400);
+    });
+
+    it('rejeita período invertido', async () => {
+      await request(app.getHttpServer())
+        .post('/maintenance-windows')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          mode: 'full',
+          startsAt: '2027-01-01T06:00:00.000Z',
+          endsAt: '2027-01-01T00:00:00.000Z',
+          title: { pt: 'Título' },
+          message: { pt: 'Mensagem' },
+        })
+        .expect(400);
+    });
+
+    it('exige autenticação', async () => {
+      await request(app.getHttpServer())
+        .get('/maintenance-windows')
+        .expect(401);
+    });
+
+    it('nega participante fora de janela de manutenção', async () => {
+      await request(app.getHttpServer())
+        .get('/maintenance-windows')
+        .set('Authorization', `Bearer ${participantToken}`)
+        .expect(403);
     });
   });
 });

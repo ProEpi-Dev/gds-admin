@@ -26,7 +26,10 @@ export type AuditAction =
   | 'SYNDROME_CONFIG_UPDATE'
   | 'SYNDROME_CONFIG_DELETE'
   | 'SYNDROME_MATRIX_UPDATE'
-  | 'SYNDROME_REPROCESS_TRIGGER';
+  | 'SYNDROME_REPROCESS_TRIGGER'
+  | 'MAINTENANCE_WINDOW_CREATE'
+  | 'MAINTENANCE_WINDOW_UPDATE'
+  | 'MAINTENANCE_WINDOW_DELETE';
 
 export type AuditTargetEntityType =
   | 'participation'
@@ -41,6 +44,7 @@ export type AuditTargetEntityType =
   | 'form_symptom_mapping'
   | 'syndrome_symptom_weight'
   | 'report_syndrome_score'
+  | 'maintenance_window'
   | 'other';
 
 export interface AuditActor {
@@ -66,7 +70,9 @@ export interface AuditLogInput {
   occurredAt?: Date;
 }
 
-type PrismaRawExecutor = Pick<PrismaService, '$executeRaw'> | Prisma.TransactionClient;
+type PrismaRawExecutor =
+  | Pick<PrismaService, '$executeRaw'>
+  | Prisma.TransactionClient;
 
 type AuditLogCountRow = { total: number };
 type AuditLogRawRow = {
@@ -98,7 +104,10 @@ export class AuditLogService {
     await this.insert(this.prisma, input);
   }
 
-  async recordWithTx(tx: Prisma.TransactionClient, input: AuditLogInput): Promise<void> {
+  async recordWithTx(
+    tx: Prisma.TransactionClient,
+    input: AuditLogInput,
+  ): Promise<void> {
     await this.insert(tx, input);
   }
 
@@ -108,13 +117,18 @@ export class AuditLogService {
     }
   }
 
-  async findAll(query: AuditLogQueryDto): Promise<ListResponseDto<AuditLogResponseDto>> {
+  async findAll(
+    query: AuditLogQueryDto,
+  ): Promise<ListResponseDto<AuditLogResponseDto>> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const offset = (page - 1) * pageSize;
     const searchTerm = query.search?.trim();
 
-    const whereConditions = this.buildAuditLogWhereSqlFragments(query, searchTerm);
+    const whereConditions = this.buildAuditLogWhereSqlFragments(
+      query,
+      searchTerm,
+    );
     const whereSql =
       whereConditions.length > 0
         ? Prisma.sql`WHERE ${Prisma.join(whereConditions, ' AND ')}`
@@ -194,11 +208,17 @@ export class AuditLogService {
     if (!input.targetEntityType) {
       throw new BadRequestException('AuditLog.targetEntityType é obrigatório');
     }
-    if (input.targetEntityId === null || input.targetEntityId === undefined || input.targetEntityId === '') {
+    if (
+      input.targetEntityId === null ||
+      input.targetEntityId === undefined ||
+      input.targetEntityId === ''
+    ) {
       throw new BadRequestException('AuditLog.targetEntityId é obrigatório');
     }
     if (input.actor?.userId === undefined) {
-      throw new BadRequestException('AuditLog.actor.userId é obrigatório (pode ser null para sistema)');
+      throw new BadRequestException(
+        'AuditLog.actor.userId é obrigatório (pode ser null para sistema)',
+      );
     }
   }
 
@@ -223,10 +243,14 @@ export class AuditLogService {
       whereConditions.push(Prisma.sql`a.context_id = ${query.contextId}`);
     }
     if (query.dateFrom) {
-      whereConditions.push(Prisma.sql`a.occurred_at >= ${new Date(query.dateFrom)}`);
+      whereConditions.push(
+        Prisma.sql`a.occurred_at >= ${new Date(query.dateFrom)}`,
+      );
     }
     if (query.dateTo) {
-      whereConditions.push(Prisma.sql`a.occurred_at <= ${new Date(query.dateTo)}`);
+      whereConditions.push(
+        Prisma.sql`a.occurred_at <= ${new Date(query.dateTo)}`,
+      );
     }
     if (searchTerm) {
       const like = `%${searchTerm}%`;
@@ -252,7 +276,8 @@ export class AuditLogService {
   ): Record<string, unknown> {
     const queryParams: Record<string, unknown> = {};
     if (query.action) queryParams.action = query.action;
-    if (query.targetEntityType) queryParams.targetEntityType = query.targetEntityType;
+    if (query.targetEntityType)
+      queryParams.targetEntityType = query.targetEntityType;
     if (query.actorUserId != null) queryParams.actorUserId = query.actorUserId;
     if (query.contextId != null) queryParams.contextId = query.contextId;
     if (query.dateFrom) queryParams.dateFrom = query.dateFrom;
@@ -262,7 +287,10 @@ export class AuditLogService {
     return queryParams;
   }
 
-  private async insert(executor: PrismaRawExecutor, input: AuditLogInput): Promise<void> {
+  private async insert(
+    executor: PrismaRawExecutor,
+    input: AuditLogInput,
+  ): Promise<void> {
     this.validateInput(input);
 
     const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
