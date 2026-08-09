@@ -5231,6 +5231,151 @@ paths:
       summary: Listar permissões do sistema
       tags:
         - Permissions
+  /v1/maintenance-windows:
+    get:
+      description: Ordenadas da mais recente para a mais antiga. `inEffect` indica qual está valendo agora.
+      operationId: MaintenanceWindowsController_findAll
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Número da página
+          schema:
+            minimum: 1
+            default: 1
+            example: 1
+            type: number
+        - name: pageSize
+          required: false
+          in: query
+          description: Tamanho da página
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+            type: number
+        - name: active
+          required: false
+          in: query
+          description: Filtra por situação de habilitação
+          schema:
+            type: boolean
+        - name: mode
+          required: false
+          in: query
+          description: Filtra por grau da janela
+          schema:
+            type: string
+            enum:
+              - banner
+              - read_only
+              - full
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponseDto'
+        '503': *ref_1
+      security: &ref_49
+        - bearerAuth: []
+      summary: Listar janelas de indisponibilidade
+      tags: &ref_50
+        - Maintenance windows
+    post:
+      description: Passa a valer assim que o período começar. Omitir `endsAt` para indisponibilidade sem previsão de retorno.
+      operationId: MaintenanceWindowsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaintenanceWindowDto'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceWindowResponseDto'
+        '400':
+          description: Período inválido ou dados incompletos
+        '503': *ref_1
+      security: *ref_49
+      summary: Agendar janela de indisponibilidade
+      tags: *ref_50
+  /v1/maintenance-windows/{id}:
+    get:
+      operationId: MaintenanceWindowsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceWindowResponseDto'
+        '404':
+          description: Janela não encontrada
+        '503': *ref_1
+      security: *ref_49
+      summary: Detalhar janela de indisponibilidade
+      tags: *ref_50
+    patch:
+      description: 'Use `active: false` para encerrar uma janela em vigor sem apagar o registro.'
+      operationId: MaintenanceWindowsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMaintenanceWindowDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceWindowResponseDto'
+        '400':
+          description: Período inválido
+        '404':
+          description: Janela não encontrada
+        '503': *ref_1
+      security: *ref_49
+      summary: Alterar janela de indisponibilidade
+      tags: *ref_50
+    delete:
+      operationId: MaintenanceWindowsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '204':
+          description: Janela removida
+        '404':
+          description: Janela não encontrada
+        '503': *ref_1
+      security: *ref_49
+      summary: Remover janela de indisponibilidade
+      tags: *ref_50
 components:
   securitySchemes:
     bearerAuth:
@@ -8570,7 +8715,7 @@ components:
         status:
           type: string
           description: Status do ciclo
-          enum: &ref_49
+          enum: &ref_51
             - draft
             - active
             - closed
@@ -8666,7 +8811,7 @@ components:
         status:
           type: string
           description: Status do ciclo
-          enum: *ref_49
+          enum: *ref_51
           example: draft
           default: draft
         startDate:
@@ -8779,6 +8924,122 @@ components:
             type: number
       required:
         - permissionIds
+    LocalizedTextDto:
+      type: object
+      properties:
+        pt:
+          type: string
+          description: Texto em português
+          example: Manutenção programada
+        en:
+          type: string
+          description: Texto em inglês
+        es:
+          type: string
+          description: Texto em espanhol
+      required:
+        - pt
+    MaintenanceWindowResponseDto:
+      type: object
+      properties:
+        id:
+          type: number
+          example: 1
+        mode:
+          type: string
+          enum: &ref_52
+            - banner
+            - read_only
+            - full
+          example: full
+        startsAt:
+          type: string
+          example: '2026-08-10T02:00:00.000Z'
+        endsAt:
+          type: string
+          example: '2026-08-10T06:00:00.000Z'
+          nullable: true
+        title:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        message:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        active:
+          type: boolean
+          example: true
+        inEffect:
+          type: boolean
+          description: true quando a janela está habilitada e o instante atual está dentro do período — é esta que o guard aplica
+          example: false
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - mode
+        - startsAt
+        - endsAt
+        - title
+        - message
+        - active
+        - inEffect
+        - createdAt
+        - updatedAt
+    CreateMaintenanceWindowDto:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: banner apenas avisa; read_only bloqueia mutações; full bloqueia tudo
+          enum: *ref_52
+          example: full
+        startsAt:
+          type: string
+          description: Início da janela (UTC, ISO 8601)
+          example: '2026-08-10T02:00:00.000Z'
+        endsAt:
+          type: string
+          description: Fim previsto (UTC, ISO 8601). Omitir para indisponibilidade sem previsão de retorno.
+          example: '2026-08-10T06:00:00.000Z'
+          nullable: true
+        title:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        message:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        active:
+          type: boolean
+          description: Permite cadastrar a janela desativada e habilitar depois
+          default: true
+      required:
+        - mode
+        - startsAt
+        - title
+        - message
+    UpdateMaintenanceWindowDto:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: banner apenas avisa; read_only bloqueia mutações; full bloqueia tudo
+          enum: *ref_52
+          example: full
+        startsAt:
+          type: string
+          description: Início da janela (UTC, ISO 8601)
+          example: '2026-08-10T02:00:00.000Z'
+        endsAt:
+          type: string
+          description: Fim previsto (UTC, ISO 8601). Omitir para indisponibilidade sem previsão de retorno.
+          example: '2026-08-10T06:00:00.000Z'
+          nullable: true
+        title:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        message:
+          $ref: '#/components/schemas/LocalizedTextDto'
+        active:
+          type: boolean
+          description: Permite cadastrar a janela desativada e habilitar depois
+          default: true
     MaintenanceInfoDto:
       type: object
       properties:
