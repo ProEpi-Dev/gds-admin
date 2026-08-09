@@ -28,6 +28,7 @@ import { RequestEmailVerificationDto } from './dto/request-email-verification.dt
 import { RefreshTokenBodyDto } from './dto/refresh-token.dto';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowDuringMaintenance } from '../common/decorators/allow-during-maintenance.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Request } from 'express';
 
@@ -37,6 +38,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @AllowDuringMaintenance()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Autenticar usuário' })
@@ -63,6 +65,7 @@ export class AuthController {
   }
 
   @Public()
+  @AllowDuringMaintenance()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -76,7 +79,10 @@ export class AuthController {
     description: 'Novos tokens emitidos',
     type: RefreshResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido ou expirado',
+  })
   async refresh(
     @Body() body: RefreshTokenBodyDto,
   ): Promise<RefreshResponseDto> {
@@ -84,11 +90,13 @@ export class AuthController {
   }
 
   @Public()
+  @AllowDuringMaintenance()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Encerrar sessão (refresh)',
-    description: 'Revoga o refresh token informado. O JWT de acesso continua válido até expirar.',
+    description:
+      'Revoga o refresh token informado. O JWT de acesso continua válido até expirar.',
   })
   @ApiBody({ type: RefreshTokenBodyDto })
   @ApiResponse({ status: 204, description: 'Refresh token revogado' })
@@ -213,9 +221,7 @@ export class AuthController {
   @ApiBody({ type: VerifyEmailDto })
   @ApiResponse({ status: 200, description: 'Email confirmado' })
   @ApiResponse({ status: 400, description: 'Token inválido ou expirado' })
-  async verifyEmail(
-    @Body() dto: VerifyEmailDto,
-  ): Promise<{ message: string }> {
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
     return this.authService.verifyEmail(dto.token);
   }
 

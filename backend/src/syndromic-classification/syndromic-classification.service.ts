@@ -1536,7 +1536,9 @@ export class SyndromicClassificationService {
         : {};
     fv.form = {
       ...formMerged,
-      syndrome_form_config: { some: { active: true } },
+      // Relação 1:1 (uq_syndrome_form_config_form), então o filtro é `is` e não
+      // `some` — o schema.prisma modelava como lista até a sincronização com o banco.
+      syndrome_form_config: { is: { active: true } },
     };
     return fv;
   }

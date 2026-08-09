@@ -33,6 +33,8 @@ import { RolesModule } from './roles/roles.module';
 import { ReportIntegrationsModule } from './report-integrations/report-integrations.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { SyndromicClassificationModule } from './syndromic-classification/syndromic-classification.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { MaintenanceGuard } from './maintenance/maintenance.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -97,6 +99,7 @@ const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
     ReportIntegrationsModule,
     AuditLogModule,
     SyndromicClassificationModule,
+    MaintenanceModule,
   ],
   controllers: [AppController],
   providers: [
@@ -104,6 +107,11 @@ const pinoOtelErrorHooks = buildPinoOtelErrorHooks();
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Depois do JwtAuthGuard: precisa de request.user para o bypass de admin.
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
     {
       provide: APP_FILTER,

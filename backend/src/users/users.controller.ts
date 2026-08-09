@@ -38,6 +38,7 @@ import { MergeDuplicateUsersDto } from './dto/merge-duplicate-users.dto';
 import { MergeDuplicateUsersResponseDto } from './dto/merge-duplicate-users-response.dto';
 import { ListResponseDto } from '../common/dto/list-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AllowDuringMaintenance } from '../common/decorators/allow-during-maintenance.decorator';
 import { Request } from 'express';
 import { buildAuditRequestContext } from '../audit-log/audit-request-context.util';
 
@@ -323,6 +324,10 @@ export class UsersController {
     );
   }
 
+  // Liberado durante manutenção junto com o login: sem saber o próprio papel, o
+  // console não consegue nem montar a navegação, e o admin ficaria sem alcançar
+  // a tela que desliga a janela. É leitura da própria identidade, sem escrita.
+  @AllowDuringMaintenance()
   @Get('me/role')
   @ApiOperation({
     summary: 'Obter papel do usuário',

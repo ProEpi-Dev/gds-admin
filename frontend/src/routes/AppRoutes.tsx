@@ -69,6 +69,9 @@ import GendersListPage from "../features/genders/pages/GendersListPage";
 import GenderCreatePage from "../features/genders/pages/GenderCreatePage";
 import GenderEditPage from "../features/genders/pages/GenderEditPage";
 import GenderViewPage from "../features/genders/pages/GenderViewPage";
+import MaintenanceWindowsListPage from "../features/maintenance-windows/pages/MaintenanceWindowsListPage";
+import MaintenanceWindowCreatePage from "../features/maintenance-windows/pages/MaintenanceWindowCreatePage";
+import MaintenanceWindowEditPage from "../features/maintenance-windows/pages/MaintenanceWindowEditPage";
 import TrackView from "../features/tracks/TrackView";
 import TrackExecutionRegistry from "../features/tracks/TrackRegister";
 import TrackCyclesListPage from "../features/track-cycles/pages/TrackCyclesListPage";
@@ -484,6 +487,30 @@ export default function AppRoutes() {
         element={
           <AdminRoute>
             <GenderEditPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/maintenance-windows"
+        element={
+          <AdminRoute>
+            <MaintenanceWindowsListPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/maintenance-windows/new"
+        element={
+          <AdminRoute>
+            <MaintenanceWindowCreatePage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/maintenance-windows/:id/edit"
+        element={
+          <AdminRoute>
+            <MaintenanceWindowEditPage />
           </AdminRoute>
         }
       />

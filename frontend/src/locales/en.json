@@ -119,7 +119,8 @@
     "legalDocuments": "Legal Documents",
     "legalDocumentTypes": "Document Types",
     "basicTables": "Basic Tables",
-    "genders": "Genders"
+    "genders": "Genders",
+    "maintenanceWindows": "Maintenance"
   },
   "reports": {
     "title": "Reports",
@@ -448,6 +449,52 @@
     "updateSuccess": "Gender updated successfully",
     "errorUpdating": "Error updating gender",
     "errorLoading": "Error loading gender"
+  },
+  "maintenanceWindows": {
+    "title": "Maintenance windows",
+    "newWindow": "New window",
+    "mode": "Mode",
+    "modes": {
+      "banner": "Banner",
+      "read_only": "Read-only",
+      "full": "Full lockout"
+    },
+    "modeDescriptions": {
+      "banner": "Blocks nothing; just warns users in the app.",
+      "read_only": "Blocks write requests only (POST/PUT/PATCH/DELETE); reads keep working.",
+      "full": "Blocks the whole API, except login, refresh, health and this CRUD for admins."
+    },
+    "startsAt": "Starts at",
+    "endsAt": "Ends at",
+    "hasEndDate": "Has an expected end",
+    "noEndDateHint": "Unplanned downtime — stays active until manually disabled.",
+    "noEndDateShort": "no ETA",
+    "localePt": "Portuguese",
+    "localeEn": "English",
+    "localeEs": "Spanish",
+    "message": "Message",
+    "active": "Enabled",
+    "period": "Period",
+    "status": "Status",
+    "statuses": {
+      "inEffect": "In effect",
+      "scheduled": "Scheduled",
+      "ended": "Ended",
+      "disabled": "Disabled"
+    },
+    "allModes": "All modes",
+    "bannerFallbackTitle": "System under maintenance",
+    "bannerBlockingHint": "Operations are blocked until the window ends. Only login and the maintenance windows screen remain reachable.",
+    "empty": "No maintenance windows registered",
+    "deleteConfirm": "Confirm deletion",
+    "deleteMessage": "Are you sure you want to delete the window \"{{title}}\"?",
+    "deleteSuccess": "Window deleted successfully",
+    "deleteError": "Error deleting window",
+    "createSuccess": "Window created successfully",
+    "errorCreating": "Error creating window",
+    "updateSuccess": "Window updated successfully",
+    "errorUpdating": "Error updating window",
+    "errorLoading": "Error loading window"
   },
   "errors": {
     "uniqueConstraint": {
