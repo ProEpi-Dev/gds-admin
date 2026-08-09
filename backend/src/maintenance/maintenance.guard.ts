@@ -15,8 +15,8 @@ import {
 /**
  * Responde 503 enquanto houver janela de indisponibilidade ativa.
  *
- * O bloqueio vale para todo mundo, inclusive administradores: `full` existe para
- * congelar o sistema, e abrir exceção por papel permitiria vários admins
+ * O bloqueio vale para qualquer pessoa, inclusive administradores: `full` existe
+ * para congelar o sistema, e abrir exceção por papel permitiria vários admins
  * seguirem alterando dados durante a própria janela.
  *
  * A única saída é o allowlist declarativo (`@AllowDuringMaintenance()`), hoje em
