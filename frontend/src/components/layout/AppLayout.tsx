@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import MaintenanceBanner from './MaintenanceBanner';
 import { CurrentContextProvider } from '../../contexts/CurrentContextContext';
 import { useUserRole } from '../../hooks/useUserRole';
 import { contextsService } from '../../api/services/contexts.service';
@@ -26,12 +27,12 @@ function AppLayoutInner({ children }: AppLayoutProps) {
         sx={{
           flex: 1,
           minWidth: 0,
-          p: 3,
           bgcolor: 'background.default',
           mt: '64px',
         }}
       >
-        {children}
+        <MaintenanceBanner />
+        <Box sx={{ p: 3 }}>{children}</Box>
       </Box>
     </Box>
   );
