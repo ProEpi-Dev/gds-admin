@@ -71,6 +71,14 @@ spec:
         - pg_stat_statements.max=5000
         - -c
         - pg_stat_statements.track=top
+        # Sessao aberta pelo k9s/kubectl exec fica orfa quando a janela fecha: o
+        # psql dentro do container sobrevive e segura o backend do Postgres.
+        # Em 24/08 havia 22 assim, a mais antiga de 02/02 — 22% do
+        # max_connections parado. 24h e folgado de proposito: vale para todas as
+        # sessoes, inclusive as do pool do Prisma, que ficam ociosas entre
+        # requisicoes e sao reutilizadas muito antes disso sob qualquer trafego.
+        - -c
+        - idle_session_timeout=24h
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
