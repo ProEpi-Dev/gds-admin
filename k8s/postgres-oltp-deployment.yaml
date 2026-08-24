@@ -7,6 +7,12 @@ metadata:
     app: postgres-oltp
 spec:
   replicas: 1
+  # O PVC e local-path (hostPath) com RWO: num RollingUpdate o pod novo sobe no
+  # mesmo node e monta o mesmo PGDATA que o antigo ainda segura. Recreate derruba
+  # o antigo antes — custa alguns segundos de indisponibilidade, que so existem
+  # porque trocar os -c exige reiniciar o Postgres de qualquer forma.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres-oltp
@@ -38,16 +44,46 @@ spec:
               key: DB_PASS
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
+        # Tudo abaixo estava no default do Postgres: shared_buffers 128MB,
+        # work_mem 4MB, effective_cache_size 4GB (mentira, o container so tinha
+        # 512Mi). Resultado: 41 GB gravados em arquivos temporarios porque
+        # ordenacoes e hashes nao cabiam em 4MB. Passar por -c sobrepoe o
+        # postgresql.conf que mora dentro do PVC, sem precisar editar o volume.
+        args:
+        - -c
+        - shared_buffers=768MB
+        - -c
+        - effective_cache_size=2GB
+        - -c
+        - work_mem=16MB
+        - -c
+        - maintenance_work_mem=256MB
+        # Disco e SSD: o default 4.0 faz o planner preferir seq scan sem motivo.
+        - -c
+        - random_page_cost=1.1
+        # shared_preload_libraries so pode ser trocado com restart do postmaster
+        # (context=postmaster, nao aceita reload). Como esta mudanca ja reinicia
+        # o Postgres de qualquer forma, a extensao pega carona sem custo extra.
+        # Sem isso, CREATE EXTENSION ate funciona mas a view levanta erro.
+        - -c
+        - shared_preload_libraries=pg_stat_statements
+        - -c
+        - pg_stat_statements.max=5000
+        - -c
+        - pg_stat_statements.track=top
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
         resources:
           requests:
-            memory: "256Mi"
+            memory: "1Gi"
             cpu: "250m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            # Estava colado no teto: memory.current 531MB de 537MB (98,9%) e
+            # memory.peak ja tinha ultrapassado o limite. CPU nao e o problema
+            # aqui (0,13 core, 1,7% throttled), memoria e.
+            memory: "3Gi"
+            cpu: "1500m"
         livenessProbe:
           exec:
             command:
