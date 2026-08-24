@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
+import { cachedForRequest } from '../common/request-cache/request-cache';
 
 /**
  * Serviço de autorização RBAC.
@@ -18,6 +19,23 @@ export class AuthzService {
   ) {}
 
   /**
+   * Papel global do usuario, resolvido uma vez por requisicao.
+   *
+   * `hasPermission`, `hasAnyRole`, `isAdmin` e `getUserRoleSummary` faziam cada
+   * um a sua propria consulta, e numa mesma requisicao pelo menos dois deles
+   * rodam. Todos precisam so de `active` e `role.code`, entao um `select`
+   * enxuto atende os quatro.
+   */
+  private loadUserRole(userId: number) {
+    return cachedForRequest(`authz:user:${userId}`, () =>
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { active: true, role: { select: { code: true } } },
+      }),
+    );
+  }
+
+  /**
    * Verifica se o usuário tem a permissão indicada.
    * - Admin global (user.role_id = admin): sempre true.
    * - contextId null: só permissões globais (admin).
@@ -28,10 +46,7 @@ export class AuthzService {
     contextId: number | null,
     permissionCode: string,
   ): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { role: true },
-    });
+    const user = await this.loadUserRole(userId);
     if (!user?.active) return false;
 
     if (user.role?.code === 'admin') return true;
@@ -85,10 +100,7 @@ export class AuthzService {
     todas_perm_distintas_em_participacoes: string[];
     nota?: string;
   }> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: { select: { code: true } } },
-    });
+    const user = await this.loadUserRole(userId);
     if (user?.role?.code === 'admin') {
       return {
         contexto_usado_na_checagem: requestContextId ?? 'nenhum',
@@ -187,10 +199,19 @@ export class AuthzService {
     contextId: number | null,
     roleCodes: string[],
   ): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { role: true },
-    });
+    const codes = [...roleCodes].sort().join(',');
+    return cachedForRequest(
+      `authz:roles:${userId}:${contextId ?? 'any'}:${codes}`,
+      () => this.resolveAnyRole(userId, contextId, roleCodes),
+    );
+  }
+
+  private async resolveAnyRole(
+    userId: number,
+    contextId: number | null,
+    roleCodes: string[],
+  ): Promise<boolean> {
+    const user = await this.loadUserRole(userId);
     if (!user?.active) return false;
 
     if (user.role && roleCodes.includes(user.role.code)) return true;
@@ -309,10 +330,7 @@ export class AuthzService {
    * Verifica se o usuário é admin global.
    */
   async isAdmin(userId: number): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: { select: { code: true } } },
-    });
+    const user = await this.loadUserRole(userId);
     return user?.role?.code === 'admin';
   }
 
@@ -320,10 +338,7 @@ export class AuthzService {
    * Retorna um rótulo do papel do usuário para uso em logs (ex.: "admin", "manager", "participant").
    */
   async getUserRoleSummary(userId: number): Promise<string> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: { select: { code: true } } },
-    });
+    const user = await this.loadUserRole(userId);
     if (user?.role?.code === 'admin') return 'admin';
 
     const managerParticipation = await this.prisma.participation_role.findFirst({

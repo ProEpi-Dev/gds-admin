@@ -1,5 +1,6 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { ForbiddenException } from '@nestjs/common';
+import { cachedForRequest } from '../request-cache/request-cache';
 
 /**
  * Obtém o context_id do usuário (manager/content_manager OU participante).
@@ -7,6 +8,15 @@ import { ForbiddenException } from '@nestjs/common';
  * Prioriza o papel de gerenciador (participation_role).
  */
 export async function getUserContextId(
+  prisma: PrismaService,
+  userId: number,
+): Promise<number> {
+  return cachedForRequest(`ctx:view:${userId}`, () =>
+    resolveUserContextId(prisma, userId),
+  );
+}
+
+async function resolveUserContextId(
   prisma: PrismaService,
   userId: number,
 ): Promise<number> {
@@ -58,6 +68,15 @@ export async function getUserContextAsManager(
   prisma: PrismaService,
   userId: number,
 ): Promise<number> {
+  return cachedForRequest(`ctx:manager:${userId}`, () =>
+    resolveUserContextAsManager(prisma, userId),
+  );
+}
+
+async function resolveUserContextAsManager(
+  prisma: PrismaService,
+  userId: number,
+): Promise<number> {
   const asManager = await prisma.participation.findFirst({
     where: {
       user_id: userId,
@@ -88,6 +107,16 @@ export async function getUserContextAsManager(
  * Verifica se a participação está dentro do período ativo.
  */
 export async function getUserParticipationId(
+  prisma: PrismaService,
+  userId: number,
+  contextId?: number,
+): Promise<number> {
+  return cachedForRequest(`participation:${userId}:${contextId ?? 'any'}`, () =>
+    resolveUserParticipationId(prisma, userId, contextId),
+  );
+}
+
+async function resolveUserParticipationId(
   prisma: PrismaService,
   userId: number,
   contextId?: number,

@@ -6,6 +6,7 @@ import {
   getUserParticipationId,
   getUserContext,
 } from './user-context.helper';
+import { runWithRequestCache } from '../request-cache/request-cache';
 
 describe('UserContextHelper', () => {
   let prismaService: PrismaService;
@@ -270,6 +271,53 @@ describe('UserContextHelper', () => {
 
       expect(result).toBe(1);
       expect(prismaService.participation.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('memoização por requisição', () => {
+    it('resolve o contexto uma vez só quando chamado várias vezes na requisição', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 9 } as any);
+
+      await runWithRequestCache(async () => {
+        expect(await getUserContextId(prismaService, 1)).toBe(9);
+        expect(await getUserContextId(prismaService, 1)).toBe(9);
+        expect(await getUserContextId(prismaService, 1)).toBe(9);
+      });
+
+      expect(prismaService.participation.findFirst).toHaveBeenCalledTimes(1);
+    });
+
+    it('não memoiza o ForbiddenException entre chamadas', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue(null as any);
+
+      await runWithRequestCache(async () => {
+        await expect(getUserContextId(prismaService, 1)).rejects.toThrow(
+          ForbiddenException,
+        );
+        await expect(getUserContextId(prismaService, 1)).rejects.toThrow(
+          ForbiddenException,
+        );
+      });
+
+      // duas tentativas, duas consultas por tentativa (manager e participante)
+      expect(prismaService.participation.findFirst).toHaveBeenCalledTimes(4);
+    });
+
+    it('separa contexto de visualização e de gestão', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findFirst')
+        .mockResolvedValue({ context_id: 3 } as any);
+
+      await runWithRequestCache(async () => {
+        await getUserContextId(prismaService, 1);
+        await getUserContextAsManager(prismaService, 1);
+      });
+
+      expect(prismaService.participation.findFirst).toHaveBeenCalledTimes(2);
     });
   });
 });
