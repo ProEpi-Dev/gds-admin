@@ -38,8 +38,10 @@ export function cachedForRequest<T>(
   const store = storage.getStore();
   if (!store) return factory();
 
+  // Comparar com `undefined` em vez de testar a Promise: uma Promise e sempre
+  // truthy, entao `if (hit)` funcionaria por acidente e leria como bug.
   const hit = store.get(key);
-  if (hit) return hit as Promise<T>;
+  if (hit !== undefined) return hit as Promise<T>;
 
   const pending = factory().catch((error) => {
     store.delete(key);

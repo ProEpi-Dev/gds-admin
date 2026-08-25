@@ -199,7 +199,10 @@ export class AuthzService {
     contextId: number | null,
     roleCodes: string[],
   ): Promise<boolean> {
-    const codes = [...roleCodes].sort().join(',');
+    // `sort()` sem comparador ordena por unidade de codigo UTF-16; com
+    // comparador explicito a chave do cache fica estavel por definicao, e nao
+    // por sorte de os codigos de papel serem todos ASCII.
+    const codes = [...roleCodes].sort((a, b) => a.localeCompare(b)).join(',');
     return cachedForRequest(
       `authz:roles:${userId}:${contextId ?? 'any'}:${codes}`,
       () => this.resolveAnyRole(userId, contextId, roleCodes),
