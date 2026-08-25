@@ -57,6 +57,18 @@ export class ReportsService {
   private readonly pointsCache = new MemoryTtlCache<ReportPointResponseDto[]>(
     readPositiveIntEnv('REPORTS_POINTS_CACHE_TTL_SECONDS', 90) * 1000,
   );
+  /**
+   * Contagem total da listagem, para quem enxerga o contexto inteiro.
+   *
+   * O card do dashboard administrativo chama GET /reports com pageSize=1 só para
+   * ler `meta.totalItems`. Como `active` e `context_id` praticamente não filtram
+   * (medido em produção: removem 3 de 244 mil e 54 de 40.948), o COUNT varre a
+   * tabela toda — 7,4s quando as páginas não estão em cache. Nenhum índice muda
+   * isso; o que muda é não repetir a varredura a cada carga do painel.
+   */
+  private readonly countCache = new MemoryTtlCache<number>(
+    readPositiveIntEnv('REPORTS_COUNT_CACHE_TTL_SECONDS', 60) * 1000,
+  );
 
   constructor(
     private prisma: PrismaService,
@@ -606,6 +618,36 @@ export class ReportsService {
     return this.mapToResponseDto(report);
   }
 
+  /**
+   * Total da listagem, memoizado só para quem enxerga o contexto inteiro.
+   *
+   * Participante fica de fora de propósito: o `where` dele carrega `user_id`, o
+   * COUNT usa índice e é barato, e ele acabou de criar o próprio report — ver o
+   * total defasado ali seria estranho. Quem paga a varredura cara é o painel
+   * administrativo, e para um card contador alguns segundos de defasagem não
+   * mudam nada.
+   *
+   * `REPORTS_COUNT_CACHE_TTL_SECONDS=0` desliga.
+   */
+  private async countReports(
+    where: Prisma.reportWhereInput,
+    canManageContext: boolean,
+  ): Promise<number> {
+    if (!canManageContext) {
+      return this.prisma.report.count({ where });
+    }
+
+    // `where` é montado sempre na mesma ordem em findAll, então serializar
+    // direto dá uma chave estável. Datas viram ISO pelo próprio JSON.
+    const key = JSON.stringify(where);
+    const cached = this.countCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const total = await this.prisma.report.count({ where });
+    this.countCache.set(key, total);
+    return total;
+  }
+
   async findAll(
     query: ReportQueryDto,
     userId: number,
@@ -688,7 +730,7 @@ export class ReportsService {
         take: pageSize,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.report.count({ where }),
+      this.countReports(where, canManageContext),
     ]);
 
     if (query.view === REPORT_VIEW_APP) {

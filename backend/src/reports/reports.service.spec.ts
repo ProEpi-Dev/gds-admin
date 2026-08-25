@@ -681,6 +681,48 @@ describe('ReportsService', () => {
     });
   });
 
+  describe('cache da contagem em findAll', () => {
+    const baseQuery: ReportQueryDto = { page: 1, pageSize: 1 };
+
+    beforeEach(() => {
+      jest.spyOn(prismaService.report, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prismaService.report, 'count').mockResolvedValue(244000);
+    });
+
+    it('conta uma vez só para quem gerencia o contexto', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(true);
+
+      const primeira = await service.findAll(baseQuery, 1);
+      const segunda = await service.findAll(baseQuery, 1);
+
+      expect(primeira.meta.totalItems).toBe(244000);
+      expect(segunda.meta.totalItems).toBe(244000);
+      expect(prismaService.report.count).toHaveBeenCalledTimes(1);
+    });
+
+    it('não memoiza a contagem do participante', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(false);
+      (authz.hasAnyRole as jest.Mock).mockResolvedValue(false);
+
+      await service.findAll(baseQuery, 1);
+      await service.findAll(baseQuery, 1);
+
+      expect(prismaService.report.count).toHaveBeenCalledTimes(2);
+    });
+
+    it('separa filtros diferentes em chaves diferentes', async () => {
+      const authz = moduleRef.get<AuthzService>(AuthzService);
+      (authz.isAdmin as jest.Mock).mockResolvedValue(true);
+
+      await service.findAll(baseQuery, 1);
+      await service.findAll({ ...baseQuery, reportType: 'POSITIVE' } as any, 1);
+
+      expect(prismaService.report.count).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('findAll', () => {
     it('deve retornar lista paginada', async () => {
       const query: ReportQueryDto = {
