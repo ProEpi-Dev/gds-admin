@@ -24,6 +24,7 @@ describe('UsersService', () => {
   let service: UsersService;
   let moduleRef: TestingModule;
   let prismaService: PrismaService;
+  let auditLogRecordMock: jest.Mock;
   let legalDocumentsService: LegalDocumentsService;
   let getProfileExtraCompletionMock: jest.Mock;
   let getActiveParticipationContextIdMock: jest.Mock;
@@ -51,6 +52,8 @@ describe('UsersService', () => {
       .fn()
       .mockResolvedValue(null);
 
+    auditLogRecordMock = jest.fn().mockResolvedValue(undefined);
+
     const prismaMock = {
       user: {
         findUnique: jest.fn(),
@@ -72,8 +75,15 @@ describe('UsersService', () => {
         upsert: jest.fn(),
       },
       participation: {
-        findMany: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn(),
+      },
+      report: { count: jest.fn().mockResolvedValue(0) },
+      quiz_submission: { count: jest.fn().mockResolvedValue(0) },
+      track_progress: { count: jest.fn().mockResolvedValue(0) },
+      user_refresh_token: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      participation_profile_extra: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       role: {
         findUnique: jest.fn(),
@@ -91,7 +101,10 @@ describe('UsersService', () => {
       fn({
         $queryRaw: prismaMock.$queryRaw,
         user: prismaMock.user,
-      } as typeof prismaMock),
+        participation: prismaMock.participation,
+        user_refresh_token: prismaMock.user_refresh_token,
+        participation_profile_extra: prismaMock.participation_profile_extra,
+      } as unknown as typeof prismaMock),
     );
 
     const module: TestingModule = await Test.createTestingModule({
@@ -127,7 +140,7 @@ describe('UsersService', () => {
         {
           provide: AuditLogService,
           useValue: {
-            record: jest.fn().mockResolvedValue(undefined),
+            record: auditLogRecordMock,
           },
         },
       ],
@@ -1333,6 +1346,177 @@ describe('UsersService', () => {
           action: 'USER_MERGE',
           targetEntityId: 42570,
         }),
+      );
+    });
+  });
+
+
+  describe('auditoria da remoção', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = () => prismaService as any;
+
+    it('registra a desativação com o e-mail mascarado', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 7,
+        email: 'joao.silva@gmail.com',
+        active: true,
+      });
+      p().user.update.mockResolvedValue({ id: 7 });
+
+      await service.remove(7, 1, { ipAddress: '10.0.0.1' });
+
+      const chamada = auditLogRecordMock.mock.calls[0][0];
+      expect(chamada.action).toBe('USER_DEACTIVATE');
+      expect(chamada.targetUserId).toBe(7);
+      expect(chamada.metadata.email).toBe('j********a@g***l.com');
+      expect(JSON.stringify(chamada)).not.toContain('joao.silva@gmail.com');
+    });
+
+    it('registra o que a exclusão permanente destruiu', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 9,
+        email: 'ana@exemplo.com',
+        active: false,
+      });
+      p().participation.findMany.mockResolvedValue([{ id: 11 }, { id: 12 }]);
+      p().report.count.mockResolvedValue(42);
+      p().quiz_submission.count.mockResolvedValue(3);
+      p().track_progress.count.mockResolvedValue(5);
+      p().user.delete.mockResolvedValue({ id: 9 });
+
+      await service.remove(9, 1);
+
+      const chamada = auditLogRecordMock.mock.calls[0][0];
+      expect(chamada.action).toBe('USER_PERMANENT_DELETE');
+      expect(chamada.metadata.destroyed).toEqual({
+        participations: 2,
+        reports: 42,
+        quizSubmissions: 3,
+        trackProgresses: 5,
+      });
+    });
+
+    it('não aponta a FK para o usuário apagado, só o metadata', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 9,
+        email: 'ana@exemplo.com',
+        active: false,
+      });
+      p().user.delete.mockResolvedValue({ id: 9 });
+
+      await service.remove(9, 1);
+
+      const chamada = auditLogRecordMock.mock.calls[0][0];
+      // admin_action_log.target_user_id e FK com ON DELETE SET NULL: apontar
+      // para um usuario que acabou de sumir violaria a constraint.
+      expect(chamada.targetUserId).toBeNull();
+      expect(chamada.metadata.deletedUserId).toBe(9);
+    });
+
+    it('conta antes de apagar, nao depois', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 9,
+        email: 'ana@exemplo.com',
+        active: false,
+      });
+      const ordem: string[] = [];
+      p().participation.findMany.mockImplementation(async () => {
+        ordem.push('contagem');
+        return [];
+      });
+      p().user.delete.mockImplementation(async () => {
+        ordem.push('delete');
+        return { id: 9 };
+      });
+
+      await service.remove(9, 1);
+
+      expect(ordem).toEqual(['contagem', 'delete']);
+    });
+  });
+
+  describe('anonymize', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = () => prismaService as any;
+
+    beforeEach(() => {
+      p().user.update.mockResolvedValue({ id: 5 });
+      p().participation.findMany.mockResolvedValue([{ id: 3 }]);
+    });
+
+    it('apaga os dados pessoais e deixa a conta inacessível', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 5,
+        email: 'maria@exemplo.com',
+        active: true,
+      });
+
+      await service.anonymize(5, 1);
+
+      const dados = p().user.update.mock.calls[0][0].data;
+      expect(dados.name).toBe('Usuário anonimizado');
+      expect(dados.email).toBe('anonimizado-5@removido.invalid');
+      expect(dados.phone).toBeNull();
+      expect(dados.external_identifier).toBeNull();
+      expect(dados.location_id).toBeNull();
+      expect(dados.country_location_id).toBeNull();
+      expect(dados.gender_id).toBeNull();
+      expect(dados.active).toBe(false);
+      // Nenhum hash bcrypt comeca assim, entao compare() nunca casa.
+      expect(dados.password).not.toMatch(/^\$2[aby]\$/);
+    });
+
+    it('revoga sessões e apaga os dados complementares de perfil', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 5,
+        email: 'maria@exemplo.com',
+        active: true,
+      });
+
+      await service.anonymize(5, 1);
+
+      expect(p().user_refresh_token.deleteMany).toHaveBeenCalledWith({
+        where: { user_id: 5 },
+      });
+      expect(p().participation_profile_extra.deleteMany).toHaveBeenCalledWith({
+        where: { participation_id: { in: [3] } },
+      });
+    });
+
+    it('preserva o histórico, ao contrário da exclusão', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 5,
+        email: 'maria@exemplo.com',
+        active: true,
+      });
+      p().report.count.mockResolvedValue(17);
+
+      await service.anonymize(5, 1);
+
+      expect(p().user.delete).not.toHaveBeenCalled();
+      const chamada = auditLogRecordMock.mock.calls[0][0];
+      expect(chamada.action).toBe('USER_ANONYMIZE');
+      expect(chamada.metadata.preserved.reports).toBe(17);
+      expect(chamada.metadata.email).toBe('m***a@e*****o.com');
+    });
+
+    it('recusa anonimizar duas vezes', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 5,
+        email: 'anonimizado-5@removido.invalid',
+        active: false,
+      });
+
+      await expect(service.anonymize(5, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('recusa usuário inexistente', async () => {
+      p().user.findUnique.mockResolvedValue(null);
+
+      await expect(service.anonymize(404, 1)).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

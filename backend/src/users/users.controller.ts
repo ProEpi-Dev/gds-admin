@@ -214,8 +214,41 @@ export class UsersController {
   async remove(
     @CurrentUser() currentUser: { userId: number },
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.usersService.remove(id, currentUser.userId);
+    return this.usersService.remove(
+      id,
+      currentUser.userId,
+      buildAuditRequestContext(req),
+    );
+  }
+
+  @Post(':id/anonymize')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Anonimizar usuário (LGPD)',
+    description:
+      'Remove os dados pessoais do cadastro e preserva o histórico epidemiológico. ' +
+      'Diferente da exclusão permanente, que destrói reports, quizzes e trilhas por CASCADE. ' +
+      'Revoga as sessões ativas e apaga os dados complementares de perfil. Não é reversível. ' +
+      'Restrito a admin: exclusão pode ser feita por manager, anonimização não.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID do usuário' })
+  @ApiResponse({ status: 204, description: 'Usuário anonimizado' })
+  @ApiResponse({ status: 400, description: 'Usuário já anonimizado' })
+  @ApiResponse({ status: 404, description: 'Usuário não encontrado' })
+  async anonymize(
+    @CurrentUser() currentUser: { userId: number },
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ): Promise<void> {
+    return this.usersService.anonymize(
+      id,
+      currentUser.userId,
+      buildAuditRequestContext(req),
+    );
   }
 
   @Get('me/profile-status')

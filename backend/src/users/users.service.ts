@@ -29,6 +29,13 @@ import {
   AuditLogService,
   AuditRequestContext,
 } from '../audit-log/audit-log.service';
+import { maskEmail } from '../common/helpers/mask-email.helper';
+
+/** TLD reservado pela RFC 2606: garantidamente não resolve. */
+const ANONYMIZED_EMAIL_DOMAIN = 'removido.invalid';
+const ANONYMIZED_NAME = 'Usuário anonimizado';
+/** Não é um hash bcrypt válido, então nenhuma senha jamais confere. */
+const ANONYMIZED_PASSWORD = '!anonimizado!';
 import { MergeDuplicateUsersDto } from './dto/merge-duplicate-users.dto';
 import {
   MergeDuplicateUsersResponseDto,
@@ -419,7 +426,56 @@ export class UsersService {
     return this.findOne(id, currentUserId);
   }
 
-  async remove(id: number, currentUserId: number): Promise<void> {
+  /**
+   * Conta o que a exclusão permanente vai destruir junto.
+   *
+   * `participation.user_id` é CASCADE, e de participation cascateiam report,
+   * quiz_submission, track_progress e o resto. Apagar o usuário apaga o
+   * histórico de saúde dele. Contar antes é o que permite provar depois o que
+   * foi eliminado — o registro em si some.
+   */
+  private async countCascadeFootprint(userId: number): Promise<{
+    participations: number;
+    reports: number;
+    quizSubmissions: number;
+    trackProgresses: number;
+  }> {
+    const participationIds = (
+      await this.prisma.participation.findMany({
+        where: { user_id: userId },
+        select: { id: true },
+      })
+    ).map((p) => p.id);
+
+    if (participationIds.length === 0) {
+      return {
+        participations: 0,
+        reports: 0,
+        quizSubmissions: 0,
+        trackProgresses: 0,
+      };
+    }
+
+    const where = { participation_id: { in: participationIds } };
+    const [reports, quizSubmissions, trackProgresses] = await Promise.all([
+      this.prisma.report.count({ where }),
+      this.prisma.quiz_submission.count({ where }),
+      this.prisma.track_progress.count({ where }),
+    ]);
+
+    return {
+      participations: participationIds.length,
+      reports,
+      quizSubmissions,
+      trackProgresses,
+    };
+  }
+
+  async remove(
+    id: number,
+    currentUserId: number,
+    auditRequest?: AuditRequestContext | null,
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -452,10 +508,22 @@ export class UsersService {
         where: { id },
         data: { active: false },
       });
+      await this.auditLogService.record({
+        action: 'USER_DEACTIVATE',
+        targetEntityType: 'user',
+        targetEntityId: id,
+        actor: { userId: currentUserId },
+        targetUserId: id,
+        request: auditRequest ?? null,
+        metadata: { email: maskEmail(user.email) },
+      });
       return;
     }
 
-    // Usuário já inativo: tentar exclusão permanente
+    // Usuário já inativo: tentar exclusão permanente.
+    // A contagem precisa vir antes: depois do delete não há mais o que contar.
+    const footprint = await this.countCascadeFootprint(id);
+
     try {
       await this.prisma.user.delete({
         where: { id },
@@ -474,6 +542,116 @@ export class UsersService {
       }
       throw error;
     }
+
+    // `targetUserId` vai nulo de propósito: admin_action_log.target_user_id é
+    // FK com ON DELETE SET NULL, e o usuário acabou de deixar de existir —
+    // referenciá-lo aqui violaria a constraint. O id fica no metadata, que é
+    // jsonb e não tem FK.
+    await this.auditLogService.record({
+      action: 'USER_PERMANENT_DELETE',
+      targetEntityType: 'user',
+      targetEntityId: id,
+      actor: { userId: currentUserId },
+      targetUserId: null,
+      request: auditRequest ?? null,
+      metadata: {
+        deletedUserId: id,
+        email: maskEmail(user.email),
+        destroyed: footprint,
+      },
+    });
+  }
+
+  /**
+   * Anonimiza o cadastro, preservando o histórico epidemiológico.
+   *
+   * A exclusão permanente destrói os reports junto (CASCADE via participation).
+   * Para vigilância em saúde isso costuma ser o resultado errado: a pessoa tem
+   * direito à eliminação dos *dados pessoais* dela, mas os reports sem
+   * identificação são dado agregado com base legal própria de interesse
+   * público. Anonimizar atende a pessoa sem apagar a série histórica.
+   *
+   * Não é reversível.
+   *
+   * Fora do alcance desta operação, e de propósito: `report.occurrence_location`
+   * guarda a geolocalização do evento e `report.form_response` é JSON livre.
+   * Localização precisa é quase-identificadora. Generalizar isso é decisão de
+   * produto (qual raio? qual granularidade?) e mexe em dado epidemiológico —
+   * não dá para decidir dentro de uma função de anonimização de cadastro.
+   */
+  async anonymize(
+    id: number,
+    currentUserId: number,
+    auditRequest?: AuditRequestContext | null,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`Usuário com ID ${id} não encontrado`);
+    }
+
+    if (user.email.endsWith(ANONYMIZED_EMAIL_DOMAIN)) {
+      throw new BadRequestException('Este usuário já foi anonimizado.');
+    }
+
+    const footprint = await this.countCascadeFootprint(id);
+    const maskedEmail = maskEmail(user.email);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: {
+          name: ANONYMIZED_NAME,
+          // O e-mail é UNIQUE e NOT NULL, então não pode simplesmente sumir.
+          // `.invalid` é TLD reservado (RFC 2606) e nunca resolve.
+          email: `anonimizado-${id}@${ANONYMIZED_EMAIL_DOMAIN}`,
+          // Nenhum hash bcrypt válido tem este formato, então `compare` sempre
+          // falha e a conta fica permanentemente sem acesso.
+          password: ANONYMIZED_PASSWORD,
+          phone: null,
+          external_identifier: null,
+          location_id: null,
+          country_location_id: null,
+          gender_id: null,
+          password_reset_token: null,
+          password_reset_expires: null,
+          email_verification_token: null,
+          email_verification_expires: null,
+          email_verified_at: null,
+          active: false,
+        },
+      });
+
+      // Sem isso a pessoa continua logada no app com o token que já tem.
+      await tx.user_refresh_token.deleteMany({ where: { user_id: id } });
+
+      // Os dados complementares do perfil são respostas de formulário sobre a
+      // própria pessoa — é dado pessoal, vai junto.
+      const participationIds = (
+        await tx.participation.findMany({
+          where: { user_id: id },
+          select: { id: true },
+        })
+      ).map((p) => p.id);
+
+      if (participationIds.length > 0) {
+        await tx.participation_profile_extra.deleteMany({
+          where: { participation_id: { in: participationIds } },
+        });
+      }
+    });
+
+    await this.auditLogService.record({
+      action: 'USER_ANONYMIZE',
+      targetEntityType: 'user',
+      targetEntityId: id,
+      actor: { userId: currentUserId },
+      targetUserId: id,
+      request: auditRequest ?? null,
+      metadata: {
+        email: maskedEmail,
+        preserved: footprint,
+      },
+    });
   }
 
   /**
