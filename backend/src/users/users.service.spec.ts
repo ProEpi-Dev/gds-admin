@@ -81,7 +81,9 @@ describe('UsersService', () => {
       report: { count: jest.fn().mockResolvedValue(0) },
       quiz_submission: { count: jest.fn().mockResolvedValue(0) },
       track_progress: { count: jest.fn().mockResolvedValue(0) },
-      user_refresh_token: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      user_refresh_token: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
       participation_profile_extra: {
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
@@ -97,14 +99,15 @@ describe('UsersService', () => {
       $queryRaw: jest.fn(),
       $transaction: jest.fn(),
     };
-    prismaMock.$transaction.mockImplementation((fn: (tx: typeof prismaMock) => unknown) =>
-      fn({
-        $queryRaw: prismaMock.$queryRaw,
-        user: prismaMock.user,
-        participation: prismaMock.participation,
-        user_refresh_token: prismaMock.user_refresh_token,
-        participation_profile_extra: prismaMock.participation_profile_extra,
-      } as unknown as typeof prismaMock),
+    prismaMock.$transaction.mockImplementation(
+      (fn: (tx: typeof prismaMock) => unknown) =>
+        fn({
+          $queryRaw: prismaMock.$queryRaw,
+          user: prismaMock.user,
+          participation: prismaMock.participation,
+          user_refresh_token: prismaMock.user_refresh_token,
+          participation_profile_extra: prismaMock.participation_profile_extra,
+        } as unknown as typeof prismaMock),
     );
 
     const module: TestingModule = await Test.createTestingModule({

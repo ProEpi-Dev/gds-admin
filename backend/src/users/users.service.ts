@@ -598,7 +598,7 @@ export class UsersService {
     // Hash bcrypt de bytes aleatórios que são descartados em seguida: ninguém,
     // nem nós, conhece o texto que gera este hash, então a conta fica sem acesso
     // por construção. Um valor fixo aqui também funcionaria — `bcrypt.compare`
-    // devolve false para hash malformado, verificado — mas obrigaria todo
+    // devolve false para hash malformado, verificado — mas obrigaria cada
     // revisor a reconferir isso, e o SonarQube a levantar S2068 a cada vez.
     const unusablePassword = await bcrypt.hash(
       randomBytes(32).toString('hex'),
