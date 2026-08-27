@@ -31,5 +31,6 @@ export function maskEmail(email: string | null | undefined): string | null {
 /** Mantém a primeira e a última letra; o miolo vira asteriscos. */
 function maskKeepingEdges(part: string): string {
   if (part.length <= 2) return '*'.repeat(part.length);
-  return `${part[0]}${'*'.repeat(part.length - 2)}${part[part.length - 1]}`;
+  // O early return acima garante length >= 3, entao at(-1) nunca e undefined.
+  return `${part[0]}${'*'.repeat(part.length - 2)}${part.at(-1)}`;
 }
