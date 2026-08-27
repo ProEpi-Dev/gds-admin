@@ -75,6 +75,9 @@ describe('ParticipationsService', () => {
             context: {
               findUnique: jest.fn(),
             },
+            report: { count: jest.fn().mockResolvedValue(0) },
+            quiz_submission: { count: jest.fn().mockResolvedValue(0) },
+            track_progress: { count: jest.fn().mockResolvedValue(0) },
             $transaction: jest.fn((cb: (tx: any) => Promise<any>) => {
               const tx = {
                 participation: {
@@ -795,6 +798,103 @@ describe('ParticipationsService', () => {
       expect(result).toHaveProperty('userId', 1);
       expect(result).toHaveProperty('contextId', 1);
       expect(result).toHaveProperty('startDate');
+    });
+  });
+
+  describe('troca de contexto', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = () => prismaService as any;
+
+    beforeEach(() => {
+      p().participation.findUnique.mockResolvedValue({
+        ...mockParticipation,
+        id: 1,
+        context_id: 10,
+        active: true,
+      });
+      p().context.findUnique.mockResolvedValue({ id: 20 });
+      p().participation.update.mockResolvedValue({
+        ...mockParticipation,
+        id: 1,
+        context_id: 20,
+      });
+    });
+
+    it('recusa a troca quando já existe histórico', async () => {
+      p().report.count.mockResolvedValue(42);
+
+      await expect(
+        service.update(1, { contextId: 20 }, 1),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(p().participation.update).not.toHaveBeenCalled();
+    });
+
+    it('diz na mensagem quanto seria movido', async () => {
+      p().report.count.mockResolvedValue(42);
+      p().quiz_submission.count.mockResolvedValue(3);
+      p().track_progress.count.mockResolvedValue(7);
+
+      await expect(service.update(1, { contextId: 20 }, 1)).rejects.toThrow(
+        /42 reportes.*3 question.*7 progressos/s,
+      );
+    });
+
+    it('permite com a confirmação explícita', async () => {
+      p().report.count.mockResolvedValue(42);
+
+      await service.update(
+        1,
+        { contextId: 20, moveExistingHistory: true },
+        1,
+      );
+
+      expect(p().participation.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ context_id: 20 }),
+      });
+    });
+
+    it('não exige confirmação quando não há histórico', async () => {
+      p().report.count.mockResolvedValue(0);
+      p().quiz_submission.count.mockResolvedValue(0);
+      p().track_progress.count.mockResolvedValue(0);
+
+      await service.update(1, { contextId: 20 }, 1);
+
+      expect(p().participation.update).toHaveBeenCalled();
+    });
+
+    it('não interfere quando o contexto não muda', async () => {
+      p().report.count.mockResolvedValue(999);
+
+      await service.update(1, { contextId: 10, active: true }, 1);
+
+      expect(p().participation.update).toHaveBeenCalled();
+    });
+
+    it('registra a troca na auditoria com origem, destino e volume', async () => {
+      p().report.count.mockResolvedValue(42);
+      p().quiz_submission.count.mockResolvedValue(3);
+      p().track_progress.count.mockResolvedValue(7);
+
+      await service.update(
+        1,
+        { contextId: 20, moveExistingHistory: true },
+        1,
+      );
+
+      const chamada = (auditLogService.record as jest.Mock).mock.calls.find(
+        (c) => c[0].action === 'PARTICIPATION_CONTEXT_CHANGE',
+      );
+      expect(chamada).toBeDefined();
+      expect(chamada[0].metadata).toEqual(
+        expect.objectContaining({
+          previousContextId: 10,
+          newContextId: 20,
+          movedHistory: { reports: 42, quizSubmissions: 3, trackProgresses: 7 },
+        }),
+      );
     });
   });
 });
