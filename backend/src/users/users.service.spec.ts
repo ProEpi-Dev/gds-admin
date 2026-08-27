@@ -1462,8 +1462,34 @@ describe('UsersService', () => {
       expect(dados.country_location_id).toBeNull();
       expect(dados.gender_id).toBeNull();
       expect(dados.active).toBe(false);
-      // Nenhum hash bcrypt comeca assim, entao compare() nunca casa.
-      expect(dados.password).not.toMatch(/^\$2[aby]\$/);
+    });
+
+    it('gera a senha com bcrypt a partir de texto aleatório descartado', async () => {
+      p().user.findUnique.mockResolvedValue({
+        id: 5,
+        email: 'maria@exemplo.com',
+        active: true,
+      });
+      p().user.update.mockClear();
+      (bcrypt.hash as jest.Mock).mockClear();
+      (bcrypt.hash as jest.Mock)
+        .mockResolvedValueOnce('$2b$11$hashA')
+        .mockResolvedValueOnce('$2b$11$hashB');
+
+      await service.anonymize(5, 1);
+      await service.anonymize(5, 1);
+
+      const chamadasHash = (bcrypt.hash as jest.Mock).mock.calls;
+      expect(chamadasHash).toHaveLength(2);
+      // Mesmo custo do resto do sistema.
+      expect(chamadasHash[0][1]).toBe(BCRYPT_ROUNDS);
+      // O texto de origem e aleatorio e descartado: ninguem, nem nos, conhece
+      // a senha que gera este hash, e dois usuarios nunca compartilham a mesma.
+      expect(chamadasHash[0][0]).not.toBe(chamadasHash[1][0]);
+      // E o que vai para o banco e o hash, nunca o texto.
+      expect(p().user.update.mock.calls[0][0].data.password).toBe(
+        '$2b$11$hashA',
+      );
     });
 
     it('revoga sessões e apaga os dados complementares de perfil', async () => {

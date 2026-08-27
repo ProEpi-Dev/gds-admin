@@ -24,6 +24,7 @@ import { LegalDocumentsService } from '../legal-documents/legal-documents.servic
 import { AuthzService } from '../authz/authz.service';
 import { ParticipationProfileExtraService } from '../participation-profile-extra/participation-profile-extra.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'node:crypto';
 import { BCRYPT_ROUNDS } from '../auth/constants/password.constants';
 import {
   AuditLogService,
@@ -34,8 +35,6 @@ import { maskEmail } from '../common/helpers/mask-email.helper';
 /** TLD reservado pela RFC 2606: garantidamente não resolve. */
 const ANONYMIZED_EMAIL_DOMAIN = 'removido.invalid';
 const ANONYMIZED_NAME = 'Usuário anonimizado';
-/** Não é um hash bcrypt válido, então nenhuma senha jamais confere. */
-const ANONYMIZED_PASSWORD = '!anonimizado!';
 import { MergeDuplicateUsersDto } from './dto/merge-duplicate-users.dto';
 import {
   MergeDuplicateUsersResponseDto,
@@ -596,6 +595,16 @@ export class UsersService {
     const footprint = await this.countCascadeFootprint(id);
     const maskedEmail = maskEmail(user.email);
 
+    // Hash bcrypt de bytes aleatórios que são descartados em seguida: ninguém,
+    // nem nós, conhece o texto que gera este hash, então a conta fica sem acesso
+    // por construção. Um valor fixo aqui também funcionaria — `bcrypt.compare`
+    // devolve false para hash malformado, verificado — mas obrigaria todo
+    // revisor a reconferir isso, e o SonarQube a levantar S2068 a cada vez.
+    const unusablePassword = await bcrypt.hash(
+      randomBytes(32).toString('hex'),
+      BCRYPT_ROUNDS,
+    );
+
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
@@ -606,7 +615,7 @@ export class UsersService {
           email: `anonimizado-${id}@${ANONYMIZED_EMAIL_DOMAIN}`,
           // Nenhum hash bcrypt válido tem este formato, então `compare` sempre
           // falha e a conta fica permanentemente sem acesso.
-          password: ANONYMIZED_PASSWORD,
+          password: unusablePassword,
           phone: null,
           external_identifier: null,
           location_id: null,
