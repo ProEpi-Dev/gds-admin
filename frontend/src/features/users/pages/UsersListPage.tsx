@@ -17,8 +17,10 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Search as SearchIcon,
+  NoAccounts as NoAccountsIcon,
 } from '@mui/icons-material';
-import { useUsers, useDeleteUser } from '../hooks/useUsers';
+import { useUsers, useDeleteUser, useAnonymizeUser } from '../hooks/useUsers';
+import { useUserRole } from '../../../hooks/useUserRole';
 import DataTable, { type Column } from '../../../components/common/DataTable';
 import FilterChips from '../../../components/common/FilterChips';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -49,7 +51,37 @@ export default function UsersListPage() {
     search: debouncedSearch || undefined,
   });
 
+  const [anonymizeDialogOpen, setAnonymizeDialogOpen] = useState(false);
+  const [userToAnonymize, setUserToAnonymize] = useState<User | null>(null);
+  const [anonymizeError, setAnonymizeError] = useState<string | null>(null);
+
+  // O endpoint e restrito a admin; esconder o botao para os demais evita
+  // oferecer uma acao que so devolveria 403.
+  const { isAdmin } = useUserRole();
+
   const deleteMutation = useDeleteUser();
+  const anonymizeMutation = useAnonymizeUser();
+
+  const handleAnonymize = (user: User) => {
+    setUserToAnonymize(user);
+    setAnonymizeError(null);
+    setAnonymizeDialogOpen(true);
+  };
+
+  const confirmAnonymize = () => {
+    setAnonymizeError(null);
+    if (userToAnonymize) {
+      anonymizeMutation.mutate(userToAnonymize.id, {
+        onSuccess: () => {
+          setAnonymizeDialogOpen(false);
+          setUserToAnonymize(null);
+        },
+        onError: (err: unknown) => {
+          setAnonymizeError(getErrorMessage(err, t('users.errorAnonymizing')));
+        },
+      });
+    }
+  };
 
   const handleDelete = (user: User) => {
     setUserToDelete(user);
@@ -127,6 +159,16 @@ export default function UsersListPage() {
           >
             <EditIcon fontSize="small" />
           </IconButton>
+          {isAdmin && (
+            <IconButton
+              size="small"
+              onClick={() => handleAnonymize(row)}
+              color="warning"
+              title={t('users.anonymize')}
+            >
+              <NoAccountsIcon fontSize="small" />
+            </IconButton>
+          )}
           <IconButton
             size="small"
             onClick={() => handleDelete(row)}
@@ -243,6 +285,12 @@ export default function UsersListPage() {
           </Alert>
         )}
 
+        {anonymizeError && (
+          <Alert severity="error" onClose={() => setAnonymizeError(null)}>
+            {anonymizeError}
+          </Alert>
+        )}
+
         <DataTable
           columns={columns}
           data={data?.data || []}
@@ -272,6 +320,21 @@ export default function UsersListPage() {
           setDeleteError(null);
         }}
         loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={anonymizeDialogOpen}
+        title={t('users.anonymizeConfirm')}
+        message={t('users.anonymizeMessage', { name: userToAnonymize?.name })}
+        confirmText={t('users.anonymize')}
+        cancelText={t('common.cancel')}
+        onConfirm={confirmAnonymize}
+        onCancel={() => {
+          setAnonymizeDialogOpen(false);
+          setUserToAnonymize(null);
+          setAnonymizeError(null);
+        }}
+        loading={anonymizeMutation.isPending}
       />
     </>
   );
