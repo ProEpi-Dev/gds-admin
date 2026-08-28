@@ -43,6 +43,15 @@ function participationListOrderBy(
   }
 }
 
+/**
+ * Código devolvido no 400 quando a troca de contexto move histórico.
+ *
+ * O console usa isto para distinguir esta recusa de um 400 qualquer e abrir a
+ * confirmação, em vez de só mostrar o texto do erro num alerta.
+ */
+export const CONTEXT_CHANGE_NEEDS_CONFIRMATION =
+  'CONTEXT_CHANGE_NEEDS_CONFIRMATION';
+
 @Injectable()
 export class ParticipationsService {
   private readonly logger = new Logger(ParticipationsService.name);
@@ -362,6 +371,45 @@ export class ParticipationsService {
       );
     }
 
+    // Trocar o contexto move o histórico junto. O contexto de um report é
+    // derivado da participação (report -> participation -> context), então a
+    // troca reescreve retroativamente a atribuição epidemiológica dos dois
+    // contextos, em silêncio. Para quem acabou de se cadastrar no contexto
+    // errado isso é inofensivo; para quem já reporta há meses, não é.
+    const contextChanged =
+      updateParticipationDto.contextId !== undefined &&
+      updateParticipationDto.contextId !== existingParticipation.context_id;
+
+    let movedHistory: {
+      reports: number;
+      quizSubmissions: number;
+      trackProgresses: number;
+    } | null = null;
+
+    if (contextChanged) {
+      movedHistory = await this.countParticipationHistory(id);
+      const total =
+        movedHistory.reports +
+        movedHistory.quizSubmissions +
+        movedHistory.trackProgresses;
+
+      if (total > 0 && updateParticipationDto.moveExistingHistory !== true) {
+        // O código e os números vão estruturados porque o console precisa
+        // montar a confirmação com o volume real. Sem isso a tela teria que
+        // fazer parsing da mensagem, que é texto para humano e muda.
+        throw new BadRequestException({
+          code: CONTEXT_CHANGE_NEEDS_CONFIRMATION,
+          message:
+            `Esta participação já tem histórico (${movedHistory.reports} reportes, ` +
+            `${movedHistory.quizSubmissions} questionários, ${movedHistory.trackProgresses} progressos em trilhas). ` +
+            'Trocar o contexto move tudo isso para o contexto novo e remove do antigo, ' +
+            'alterando o dado epidemiológico dos dois. Se for mesmo a intenção, ' +
+            'reenvie com "moveExistingHistory": true.',
+          details: [movedHistory],
+        });
+      }
+    }
+
     // Preparar dados de atualização
     const updateData: any = {};
 
@@ -430,7 +478,45 @@ export class ParticipationsService {
       });
     }
 
+    if (contextChanged && actorUserId) {
+      await this.auditLogService.record({
+        action: 'PARTICIPATION_CONTEXT_CHANGE',
+        targetEntityType: 'participation',
+        targetEntityId: participation.id,
+        actor: { userId: actorUserId },
+        contextId: participation.context_id,
+        targetUserId: participation.user_id,
+        request: auditRequest ?? null,
+        metadata: {
+          previousContextId: existingParticipation.context_id,
+          newContextId: participation.context_id,
+          movedHistory,
+        },
+      });
+    }
+
     return this.mapToResponseDto(participation);
+  }
+
+  /**
+   * Conta o histórico preso a uma participação.
+   *
+   * Usado antes de trocar o contexto: é esse volume que muda de lado, e
+   * registrar quanto foi movido é o que permite reconstruir depois por que os
+   * números de um contexto mudaram sem ninguém ter reportado nada.
+   */
+  private async countParticipationHistory(participationId: number): Promise<{
+    reports: number;
+    quizSubmissions: number;
+    trackProgresses: number;
+  }> {
+    const where = { participation_id: participationId };
+    const [reports, quizSubmissions, trackProgresses] = await Promise.all([
+      this.prisma.report.count({ where }),
+      this.prisma.quiz_submission.count({ where }),
+      this.prisma.track_progress.count({ where }),
+    ]);
+    return { reports, quizSubmissions, trackProgresses };
   }
 
   async remove(

@@ -52,3 +52,14 @@ export function useDeleteUser() {
   });
 }
 
+export function useAnonymizeUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => usersService.anonymize(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+

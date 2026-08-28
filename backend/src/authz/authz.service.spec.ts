@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { getLoggerToken } from 'nestjs-pino';
 import { AuthzService } from './authz.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { runWithRequestCache } from '../common/request-cache/request-cache';
 
 describe('AuthzService', () => {
   let service: AuthzService;
@@ -501,6 +502,65 @@ describe('AuthzService', () => {
 
       expect(diag.permissoes_nesse_contexto).toEqual([]);
       expect(diag.nota).toContain('outros contextos');
+    });
+  });
+
+  describe('memoização por requisição', () => {
+    it('resolve o usuário uma vez só quando vários métodos são chamados', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        active: true,
+        role: { code: 'admin' },
+      });
+
+      await runWithRequestCache(async () => {
+        expect(await service.isAdmin(1)).toBe(true);
+        expect(await service.hasAnyRole(1, null, ['admin'])).toBe(true);
+        expect(await service.getUserRoleSummary(1)).toBe('admin');
+      });
+
+      expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('não vaza resultado entre requisições diferentes', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        active: true,
+        role: { code: 'admin' },
+      });
+
+      await runWithRequestCache(() => service.isAdmin(1));
+      await runWithRequestCache(() => service.isAdmin(1));
+
+      expect(prisma.user.findUnique).toHaveBeenCalledTimes(2);
+    });
+
+    it('consulta usuários distintos separadamente', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        active: true,
+        role: { code: 'admin' },
+      });
+
+      await runWithRequestCache(async () => {
+        await service.isAdmin(1);
+        await service.isAdmin(2);
+      });
+
+      expect(prisma.user.findUnique).toHaveBeenCalledTimes(2);
+    });
+
+    it('sem escopo de requisição continua consultando a cada chamada', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        active: true,
+        role: { code: 'admin' },
+      });
+
+      await service.isAdmin(1);
+      await service.isAdmin(1);
+
+      expect(prisma.user.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 });

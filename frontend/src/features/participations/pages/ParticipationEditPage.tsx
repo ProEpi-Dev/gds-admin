@@ -18,11 +18,22 @@ import {
 import { useParticipation, useUpdateParticipation } from '../hooks/useParticipations';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import ErrorAlert from '../../../components/common/ErrorAlert';
-import { getErrorMessage } from '../../../utils/errorHandler';
+import {
+  getErrorMessage,
+  getErrorCode,
+  getErrorDetails,
+} from '../../../utils/errorHandler';
+import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import { useTranslation } from '../../../hooks/useTranslation';
 import SelectUser from '../../../components/common/SelectUser';
 import SelectContext from '../../../components/common/SelectContext';
-import type { UpdateParticipationDto } from '../../../types/participation.types';
+import type {
+  UpdateParticipationDto,
+  ContextChangeHistory,
+} from '../../../types/participation.types';
+
+/** Mesmo código devolvido pelo backend em participations.service.ts. */
+const CONTEXT_CHANGE_NEEDS_CONFIRMATION = 'CONTEXT_CHANGE_NEEDS_CONFIRMATION';
 
 const formSchema = z.object({
   userId: z.number().min(1, 'Usuário é obrigatório').optional(),
@@ -48,6 +59,12 @@ export default function ParticipationEditPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  // Guarda o que seria movido e os dados do envio, para repetir a chamada com a
+  // confirmação sem obrigar o usuário a preencher o formulário de novo.
+  const [contextChange, setContextChange] = useState<{
+    history: ContextChangeHistory;
+    payload: UpdateParticipationDto;
+  } | null>(null);
 
   const participationId = id ? parseInt(id, 10) : null;
   const { data: participation, isLoading, error: queryError } = useParticipation(participationId);
@@ -114,6 +131,19 @@ export default function ParticipationEditPage() {
       updateData.integrationTrainingMode = data.integrationTrainingMode;
     }
 
+    enviar(updateData);
+  };
+
+  /**
+   * Envia a atualização e trata a recusa por troca de contexto com histórico.
+   *
+   * O backend recusa a primeira tentativa e devolve o volume que seria movido.
+   * Em vez de mostrar isso num alerta sem saída, abrimos a confirmação e, se o
+   * usuário aceitar, reenviamos o mesmo payload com a flag.
+   */
+  const enviar = (updateData: UpdateParticipationDto) => {
+    if (!participationId) return;
+
     updateMutation.mutate(
       { id: participationId, data: updateData },
       {
@@ -121,6 +151,15 @@ export default function ParticipationEditPage() {
           navigate(`/participations/${participationId}`);
         },
         onError: (err: unknown) => {
+          const history = getErrorCode(err) === CONTEXT_CHANGE_NEEDS_CONFIRMATION
+            ? getErrorDetails<ContextChangeHistory>(err)
+            : null;
+
+          if (history) {
+            setContextChange({ history, payload: updateData });
+            return;
+          }
+
           setError(getErrorMessage(err, t('participations.errorUpdatingParticipation')));
         },
       },
@@ -223,6 +262,30 @@ export default function ParticipationEditPage() {
           </Stack>
         </Box>
       </Paper>
+
+      <ConfirmDialog
+        open={contextChange !== null}
+        title={t('participations.contextChangeTitle')}
+        message={
+          contextChange
+            ? t('participations.contextChangeMessage', {
+                reports: contextChange.history.reports,
+                quizzes: contextChange.history.quizSubmissions,
+                tracks: contextChange.history.trackProgresses,
+              })
+            : ''
+        }
+        confirmText={t('participations.contextChangeConfirm')}
+        confirmColor="error"
+        loading={updateMutation.isPending}
+        onConfirm={() => {
+          if (!contextChange) return;
+          const payload = contextChange.payload;
+          setContextChange(null);
+          enviar({ ...payload, moveExistingHistory: true });
+        }}
+        onCancel={() => setContextChange(null)}
+      />
     </Box>
   );
 }

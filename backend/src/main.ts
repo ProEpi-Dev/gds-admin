@@ -8,6 +8,7 @@ import { buildOpenApiDocument } from './openapi/build-openapi-document';
 import { Logger } from 'nestjs-pino';
 import * as bodyParser from 'body-parser';
 import { applyGdsChannelMiddleware } from './common/http/gds-channel.middleware';
+import { applyRequestCacheMiddleware } from './common/request-cache/request-cache.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -56,12 +57,15 @@ async function bootstrap() {
   const document = buildOpenApiDocument(app);
   SwaggerModule.setup('api', app, document);
 
+  // Primeiro da fila: abre o escopo de memoizacao que guards e services usam.
+  app.use(applyRequestCacheMiddleware);
   app.use(bodyParser.json({ limit: '10mb' }));
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
   app.use(applyGdsChannelMiddleware);
 
-  await app.listen(3000);
-  console.log('Application is running on: http://localhost:3000');
-  console.log('Swagger documentation: http://localhost:3000/api');
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Swagger documentation: http://localhost:${port}/api`);
 }
 bootstrap();

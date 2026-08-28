@@ -40,7 +40,11 @@ export default function ConfirmDialog({
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <DialogContentText>{message}</DialogContentText>
+        {/* pre-line preserva as quebras de linha de mensagens mais longas e
+            nao altera as de uma linha so, que e o caso da maioria. */}
+        <DialogContentText sx={{ whiteSpace: 'pre-line' }}>
+          {message}
+        </DialogContentText>
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} disabled={loading}>

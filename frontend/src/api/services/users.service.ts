@@ -44,6 +44,15 @@ export const usersService = {
     return response.data;
   },
 
+  /**
+   * Anonimiza o cadastro (LGPD). Diferente de `remove`, que na segunda chamada
+   * exclui permanentemente e leva o historico de saude junto por CASCADE.
+   * Preserva reportes, questionarios e trilhas. Nao e reversivel.
+   */
+  async anonymize(id: number): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.USERS.ANONYMIZE(id));
+  },
+
   async update(id: number, data: UpdateUserDto): Promise<User> {
     const response = await apiClient.patch(API_ENDPOINTS.USERS.UPDATE(id), data);
     return response.data;

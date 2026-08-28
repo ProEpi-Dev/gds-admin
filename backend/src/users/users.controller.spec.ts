@@ -238,12 +238,28 @@ describe('UsersController', () => {
   });
 
   describe('remove', () => {
+    const mockRequest: any = { ip: '192.168.1.1' };
+
     it('deve desativar usuário (soft delete)', async () => {
       jest.spyOn(usersService, 'remove').mockResolvedValue(undefined);
 
-      await controller.remove(mockCurrentUser, 1);
+      await controller.remove(mockCurrentUser, 1, mockRequest);
 
-      expect(usersService.remove).toHaveBeenCalledWith(1, 1);
+      expect(usersService.remove).toHaveBeenCalledWith(
+        1,
+        1,
+        expect.anything(),
+      );
+    });
+
+    it('repassa o contexto da requisição para a auditoria', async () => {
+      jest.spyOn(usersService, 'remove').mockResolvedValue(undefined);
+
+      await controller.remove(mockCurrentUser, 1, mockRequest);
+
+      const contexto = (usersService.remove as jest.Mock).mock.calls[0][2];
+      expect(contexto).toBeDefined();
+      expect(contexto).toHaveProperty('ipAddress');
     });
 
     it('deve lançar NotFoundException quando não existe', async () => {
@@ -251,7 +267,9 @@ describe('UsersController', () => {
         .spyOn(usersService, 'remove')
         .mockRejectedValue(new NotFoundException('Usuário não encontrado'));
 
-      await expect(controller.remove(mockCurrentUser, 999)).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.remove(mockCurrentUser, 999, mockRequest),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

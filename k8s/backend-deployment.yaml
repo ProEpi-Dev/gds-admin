@@ -7,6 +7,14 @@ metadata:
     app: gds-backend
 spec:
   replicas: 1
+  # Com 1 replica e maxUnavailable 25% (=0 arredondado), o rollout ja sobe o novo
+  # pod antes de derrubar o antigo. Explicitar evita depender do arredondamento
+  # caso replicas mude.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: gds-backend
@@ -88,8 +96,46 @@ spec:
               key: FRONTEND_URL
         resources:
           requests:
-            memory: "256Mi"
+            # requests.cpu fica em 250m de proposito: o node ja tem 83% da CPU
+            # reservada (3320m de 4000m) e, com maxSurge 1, subir para 500m
+            # deixaria o pod novo Pending no meio do rollout. O que estrangulava
+            # era o limit, nao o request.
+            memory: "512Mi"
             cpu: "250m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            # 500m estrangulava o processo: 79% dos periodos do CFS eram
+            # congelados em horario normal (medido em /sys/fs/cgroup). Como o
+            # Node e single-thread, ele queima a quota nos primeiros ms de cada
+            # janela de 100ms e fica parado o resto — a latencia estoura mesmo
+            # com uso medio de CPU baixo. O node tem 4 cores e opera a ~33% no
+            # pico, entao ha folga para 2 cores.
+            memory: "1Gi"
+            cpu: "2000m"
+        # Sem probes o Traefik roteia para o pod antes do Nest terminar de subir
+        # (502 em todo rollout) e um event loop travado nunca e reciclado.
+        # /v1/health e @Public, esta no allowlist da manutencao e devolve 200
+        # mesmo com o banco fora — serve para medir o processo, nao o banco.
+        startupProbe:
+          httpGet:
+            path: /v1/health
+            port: 3000
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /v1/health
+            port: 3000
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /v1/health
+            port: 3000
+          periodSeconds: 20
+          timeoutSeconds: 10
+          # ~2min sem responder antes de reiniciar. Folgado de proposito: sob
+          # throttling o /v1/health chegou a passar de 30s, e um liveness curto
+          # transformaria lentidao em crash loop.
+          failureThreshold: 6

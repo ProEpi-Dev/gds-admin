@@ -56,4 +56,17 @@ export class UpdateParticipationDto {
   @IsBoolean()
   @IsOptional()
   integrationTrainingMode?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Confirma mover o histórico ao trocar de contexto. O contexto de um report ' +
+      'não fica no report: é derivado da participação. Trocar o contexto move ' +
+      'retroativamente todos os reports, quizzes e trilhas da pessoa, que somem ' +
+      'do contexto antigo e aparecem no novo como se sempre tivessem estado lá. ' +
+      'Sem esta confirmação, a troca é recusada quando já existe histórico.',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  moveExistingHistory?: boolean;
 }
