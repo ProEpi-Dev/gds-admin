@@ -78,7 +78,9 @@ export function getErrorMessage(
   return defaultMessage;
 }
 
-type ApiErrorBody = { error?: { code?: string; message?: string } };
+type ApiErrorBody = {
+  error?: { code?: string; message?: string; details?: unknown[] };
+};
 
 /** Código de negócio em `error.code` (ex.: EMAIL_VERIFICATION_REQUIRED). */
 export function getErrorCode(error: unknown): string | null {
@@ -86,4 +88,17 @@ export function getErrorCode(error: unknown): string | null {
   const data = error.response?.data as ApiErrorBody | undefined;
   const code = data?.error?.code;
   return typeof code === "string" ? code : null;
+}
+
+/**
+ * Primeiro item de `error.details`, quando o backend manda dado estruturado.
+ *
+ * O contrato usa array porque `details` nasceu para erros de validação, que são
+ * vários. Casos como o da troca de contexto mandam um objeto só.
+ */
+export function getErrorDetails<T>(error: unknown): T | null {
+  if (!isAxiosError(error)) return null;
+  const data = error.response?.data as ApiErrorBody | undefined;
+  const first = data?.error?.details?.[0];
+  return first ? (first as T) : null;
 }

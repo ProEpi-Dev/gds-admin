@@ -49,6 +49,22 @@ export interface UpdateParticipationDto {
   endDate?: string | null;
   active?: boolean;
   integrationTrainingMode?: boolean;
+  /**
+   * Confirma mover o histórico ao trocar de contexto.
+   *
+   * O contexto de um reporte é derivado da participação, então a troca move
+   * retroativamente reportes, questionários e trilhas para o contexto novo.
+   * O backend recusa com 400 e código CONTEXT_CHANGE_NEEDS_CONFIRMATION
+   * enquanto isto não vier como true.
+   */
+  moveExistingHistory?: boolean;
+}
+
+/** Volume que a troca de contexto moveria, devolvido pelo backend no 400. */
+export interface ContextChangeHistory {
+  reports: number;
+  quizSubmissions: number;
+  trackProgresses: number;
 }
 
 export interface ParticipationQuery extends PaginationQuery {
