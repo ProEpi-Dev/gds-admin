@@ -592,7 +592,12 @@ export class ParticipationsService {
         targetEntityId: pid,
         actor: { userId: actorUserId },
         contextId,
-        targetUserId,
+        // Quando esta era a última participação, o usuário acabou de ser
+        // apagado ali em cima. admin_action_log.target_user_id é FK com
+        // ON DELETE SET NULL, então referenciá-lo aqui viola a constraint e
+        // derruba a transação inteira — a exclusão falhava com 500 e nada era
+        // removido. O id sobrevive no metadata, que é jsonb e não tem FK.
+        targetUserId: deletedUserId === null ? targetUserId : null,
         request: auditRequest ?? null,
         metadata: {
           previousActive: participation.active,
