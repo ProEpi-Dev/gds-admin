@@ -5,7 +5,10 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { ParticipationsService } from './participations.service';
+import {
+  ParticipationsService,
+  CONTEXT_CHANGE_NEEDS_CONFIRMATION,
+} from './participations.service';
 
 jest.mock('bcrypt');
 import { PrismaService } from '../prisma/prisma.service';
@@ -838,6 +841,33 @@ describe('ParticipationsService', () => {
       await expect(service.update(1, { contextId: 20 }, 1)).rejects.toThrow(
         /42 reportes.*3 question.*7 progressos/s,
       );
+    });
+
+    it('devolve codigo e numeros estruturados para o console montar a confirmacao', async () => {
+      p().report.count.mockResolvedValue(42);
+      p().quiz_submission.count.mockResolvedValue(3);
+      p().track_progress.count.mockResolvedValue(7);
+
+      let capturado: BadRequestException | null = null;
+      try {
+        await service.update(1, { contextId: 20 }, 1);
+      } catch (e) {
+        capturado = e as BadRequestException;
+      }
+
+      expect(capturado).toBeInstanceOf(BadRequestException);
+      const corpo = capturado!.getResponse() as {
+        code: string;
+        details: Array<Record<string, number>>;
+      };
+      // Sem isto a tela teria que fazer parsing da mensagem, que e texto para
+      // humano e muda sem aviso.
+      expect(corpo.code).toBe(CONTEXT_CHANGE_NEEDS_CONFIRMATION);
+      expect(corpo.details[0]).toEqual({
+        reports: 42,
+        quizSubmissions: 3,
+        trackProgresses: 7,
+      });
     });
 
     it('permite com a confirmação explícita', async () => {

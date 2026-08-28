@@ -43,6 +43,15 @@ function participationListOrderBy(
   }
 }
 
+/**
+ * Código devolvido no 400 quando a troca de contexto move histórico.
+ *
+ * O console usa isto para distinguir esta recusa de um 400 qualquer e abrir a
+ * confirmação, em vez de só mostrar o texto do erro num alerta.
+ */
+export const CONTEXT_CHANGE_NEEDS_CONFIRMATION =
+  'CONTEXT_CHANGE_NEEDS_CONFIRMATION';
+
 @Injectable()
 export class ParticipationsService {
   private readonly logger = new Logger(ParticipationsService.name);
@@ -385,13 +394,19 @@ export class ParticipationsService {
         movedHistory.trackProgresses;
 
       if (total > 0 && updateParticipationDto.moveExistingHistory !== true) {
-        throw new BadRequestException(
-          `Esta participação já tem histórico (${movedHistory.reports} reportes, ` +
+        // O código e os números vão estruturados porque o console precisa
+        // montar a confirmação com o volume real. Sem isso a tela teria que
+        // fazer parsing da mensagem, que é texto para humano e muda.
+        throw new BadRequestException({
+          code: CONTEXT_CHANGE_NEEDS_CONFIRMATION,
+          message:
+            `Esta participação já tem histórico (${movedHistory.reports} reportes, ` +
             `${movedHistory.quizSubmissions} questionários, ${movedHistory.trackProgresses} progressos em trilhas). ` +
             'Trocar o contexto move tudo isso para o contexto novo e remove do antigo, ' +
             'alterando o dado epidemiológico dos dois. Se for mesmo a intenção, ' +
             'reenvie com "moveExistingHistory": true.',
-        );
+          details: [movedHistory],
+        });
       }
     }
 
