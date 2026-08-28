@@ -811,6 +811,28 @@ paths:
       security: *ref_5
       summary: Deletar usuário
       tags: *ref_6
+  /v1/users/{id}/anonymize:
+    post:
+      description: 'Remove os dados pessoais do cadastro e preserva o histórico epidemiológico. Diferente da exclusão permanente, que destrói reports, quizzes e trilhas por CASCADE. Revoga as sessões ativas e apaga os dados complementares de perfil. Não é reversível. Restrito a admin: exclusão pode ser feita por manager, anonimização não.'
+      operationId: UsersController_anonymize
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: ID do usuário
+          schema:
+            type: number
+      responses:
+        '204':
+          description: Usuário anonimizado
+        '400':
+          description: Usuário já anonimizado
+        '404':
+          description: Usuário não encontrado
+        '503': *ref_1
+      security: *ref_5
+      summary: Anonimizar usuário (LGPD)
+      tags: *ref_6
   /v1/users/me/profile-status:
     get:
       description: Retorna o status de completude do perfil do usuário logado
@@ -7958,6 +7980,10 @@ components:
         integrationTrainingMode:
           type: boolean
           description: Modo treinamento para integração externa (homologação vs produção)
+          example: false
+        moveExistingHistory:
+          type: boolean
+          description: 'Confirma mover o histórico ao trocar de contexto. O contexto de um report não fica no report: é derivado da participação. Trocar o contexto move retroativamente todos os reports, quizzes e trilhas da pessoa, que somem do contexto antigo e aparecem no novo como se sempre tivessem estado lá. Sem esta confirmação, a troca é recusada quando já existe histórico.'
           example: false
     RoleResponseDto:
       type: object

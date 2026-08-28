@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
     CREATE: "/users",
     UPDATE: (id: number) => `/users/${id}`,
     DELETE: (id: number) => `/users/${id}`,
+    ANONYMIZE: (id: number) => `/users/${id}/anonymize`,
     ROLE: "/users/me/role",
     PROFILE_STATUS: "/users/me/profile-status",
     UPDATE_PROFILE: "/users/me/profile",
