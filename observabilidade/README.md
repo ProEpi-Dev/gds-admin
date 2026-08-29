@@ -1,5 +1,9 @@
 # Observabilidade local (Grafana OTEL LGTM)
 
+> Este documento é sobre a stack **local de desenvolvimento**. Para o
+> monitoramento e os alertas **em produção** na VPS1, veja
+> [vps1-alertas.md](vps1-alertas.md).
+
 Stack em **um container** para desenvolvimento e testes: OpenTelemetry Collector, Grafana, Loki, Tempo, Prometheus e componentes auxiliares (ver [docker-otel-lgtm](https://github.com/grafana/docker-otel-lgtm)).
 
 ## Subir
