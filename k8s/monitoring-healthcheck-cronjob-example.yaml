@@ -1,0 +1,122 @@
+# CronJob de monitoramento "guarda-chuva" — pega expiração silenciosa antes de virar incidente.
+#
+# Motivação (incidentes de 07/10/2026, todos "expiração silenciosa sem ninguém olhando"):
+#   1. Cert TLS do bi.gds expirou (renovação ACME travada) e passou 43 dias despercebido.
+#   2. Chaves Tailscale das 2 VPS expiraram (~180d) -> FDW VPS2->VPS1 caiu -> refresh BI em Error 14 dias.
+# O refresh do BI JÁ pingava o healthchecks.io (secret `bi-refresh-healthcheck`), mas o alerta não
+# chegou a ninguém. Este CronJob cobre o que NADA vigiava: validade dos certs e saúde da tailnet.
+#
+# O que checa (a cada 6h):
+#   - CERT: NotAfter de cada host em CERT_HOSTS; falha se faltar menos de CERT_WARN_DAYS (default 21).
+#   - NET : reachability TCP de cada alvo em TAILNET_TARGETS (ex.: o Postgres da VPS1 pela Tailscale).
+#           É um INDICADOR ANTECEDENTE: se a tailnet cair, isto acusa antes do refresh de 4/4h falhar.
+#
+# Resultado -> Healthchecks.io: /start no início, URL base em sucesso, /fail em qualquer falha (exit 1).
+# Crie um check DEDICADO (separado do refresh), Period 6h / Grace ~30min, e configure um canal de
+# notificação de verdade (e-mail/Slack) — a lição do incidente é justamente essa.
+#
+# Namespace `analytics`: precisa enxergar a tailnet (mesmo caminho de rede do refresh). Os certs são
+# externos e funcionariam de qualquer namespace; a reachability da tailnet é que exige ficar aqui.
+#
+# Pré-requisito (opcional, mas recomendado) — Secret com a URL do check:
+#   kubectl -n analytics create secret generic gds-monitoring-healthcheck \
+#     --from-literal=HEALTHCHECK_URL=https://hc-ping.com/<uuid-do-check>
+# Sem o secret, os checks rodam e logam, só não pingam o Healthchecks.
+#
+# Aplicar:    kubectl apply -f k8s/monitoring-healthcheck-cronjob-example.yaml
+# Testar já:  kubectl -n analytics create job --from=cronjob/gds-monitoring monitoring-manual
+#             kubectl -n analytics logs job/monitoring-manual
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gds-monitoring
+  namespace: analytics
+  labels:
+    app: gds-monitoring
+spec:
+  schedule: "0 */6 * * *"
+  timeZone: America/Sao_Paulo
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: gds-monitoring
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: monitor
+              image: alpine:3.20
+              env:
+                # Hosts cujos certificados TLS devem ser vigiados (separados por espaço).
+                - name: CERT_HOSTS
+                  value: "api.gds.proepi.org.br console.gds.proepi.org.br bi.gds.proepi.org.br"
+                # Alerta se faltar menos que isto para expirar.
+                - name: CERT_WARN_DAYS
+                  value: "21"
+                # Alvos TCP que dependem da tailnet (host:porta, separados por espaço).
+                # 100.117.3.100:5432 = Postgres da VPS1 (origem do FDW do BI) via Tailscale.
+                - name: TAILNET_TARGETS
+                  value: "100.117.3.100:5432"
+                # URL do Healthchecks.io (opcional). optional:true -> roda mesmo sem o secret.
+                - name: HEALTHCHECK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: gds-monitoring-healthcheck
+                      key: HEALTHCHECK_URL
+                      optional: true
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -u
+                  apk add --no-cache openssl netcat-openbsd >/dev/null 2>&1
+                  HC="$${HEALTHCHECK_URL:-}"
+                  WARN="$${CERT_WARN_DAYS:-21}"
+                  hc(){ [ -z "$$HC" ] && return 0; wget -qO- --timeout=15 "$${HC}$${1:-}" >/dev/null 2>&1 || true; }
+                  hc /start
+                  fail=0
+                  out=""
+                  # --- Certificados TLS ---
+                  for host in $$CERT_HOSTS; do
+                    if echo | openssl s_client -connect "$${host}:443" -servername "$$host" 2>/dev/null \
+                         | openssl x509 -checkend $$(( WARN * 86400 )) >/dev/null 2>&1; then
+                      echo "[CERT] $$host OK (>$${WARN}d)"
+                    else
+                      end=$$(echo | openssl s_client -connect "$${host}:443" -servername "$$host" 2>/dev/null \
+                              | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+                      fail=1
+                      out="$$out
+                  [CERT] $$host expira em menos de $${WARN}d (NotAfter: $${end:-sem resposta})"
+                    fi
+                  done
+                  # --- Reachability da tailnet (indicador antecedente do refresh BI) ---
+                  for hp in $$TAILNET_TARGETS; do
+                    h=$${hp%:*}; p=$${hp##*:}
+                    if nc -z -w5 "$$h" "$$p" >/dev/null 2>&1; then
+                      echo "[NET] $$hp OK"
+                    else
+                      fail=1
+                      out="$$out
+                  [NET] $$hp inalcancavel (Tailscale caiu? chave expirada?)"
+                    fi
+                  done
+                  if [ "$$fail" -eq 0 ]; then
+                    echo "TUDO OK"
+                    hc ""
+                  else
+                    printf '%s\n' "FALHAS detectadas:$$out"
+                    hc /fail
+                    exit 1
+                  fi
+              resources:
+                requests:
+                  memory: "32Mi"
+                  cpu: "25m"
+                limits:
+                  memory: "64Mi"
+                  cpu: "100m"
