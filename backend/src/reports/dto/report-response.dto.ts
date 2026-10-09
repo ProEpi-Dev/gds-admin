@@ -43,7 +43,7 @@ export class ReportResponseDto {
   @ApiProperty({
     description:
       'Momento em que o participante fez o reporte no aparelho. Igual a createdAt no reporte online; anterior a ele no offline.',
-    example: '2024-01-01T00:00:00.000Z',
+    example: '2023-12-30T13:00:00.000Z',
   })
   reportDate: Date;
 
