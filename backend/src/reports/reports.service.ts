@@ -248,7 +248,7 @@ export class ReportsService {
    * Idempotência POSITIVE/NEGATIVE: devolve DTO do report existente ou null para seguir com create.
    *
    * As janelas contam a partir do reportDate do report novo, não do relógio do servidor.
-   * No reporte offline o lote chega todo junto; comparando pela chegada, reportes de dias
+   * No reporte offline o lote chega de uma vez; comparando pela chegada, reportes de dias
    * diferentes caíam na mesma janela e eram descartados como duplicados.
    */
   private async tryResolveCreateDedupReturn(
@@ -588,22 +588,22 @@ export class ReportsService {
     let current = 1;
     let longest = 1;
     let currentStart = days[0];
-    for (let i = 1; i < days.length; i++) {
-      const consecutive =
-        Math.round(
-          (days[i].getTime() - days[i - 1].getTime()) / REPORT_DAY_MS,
-        ) === 1;
+    let previous = days[0];
+    for (const day of days.slice(1)) {
+      const gapInDays = (day.getTime() - previous.getTime()) / REPORT_DAY_MS;
+      const consecutive = Math.round(gapInDays) === 1;
       current = consecutive ? current + 1 : 1;
       if (!consecutive) {
-        currentStart = days[i];
+        currentStart = day;
       }
       longest = Math.max(longest, current);
+      previous = day;
     }
     return {
       current_streak: current,
       longest_streak: longest,
       reported_days_count: days.length,
-      last_reported_date: days[days.length - 1],
+      last_reported_date: previous,
       current_streak_start_date: currentStart,
     };
   }
