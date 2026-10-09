@@ -589,13 +589,12 @@ export class ReportsService {
     let longest = 1;
     let currentStart = days[0];
     for (let i = 1; i < days.length; i++) {
-      const gapInDays = Math.round(
-        (days[i].getTime() - days[i - 1].getTime()) / REPORT_DAY_MS,
-      );
-      if (gapInDays === 1) {
-        current += 1;
-      } else {
-        current = 1;
+      const consecutive =
+        Math.round(
+          (days[i].getTime() - days[i - 1].getTime()) / REPORT_DAY_MS,
+        ) === 1;
+      current = consecutive ? current + 1 : 1;
+      if (!consecutive) {
         currentStart = days[i];
       }
       longest = Math.max(longest, current);
