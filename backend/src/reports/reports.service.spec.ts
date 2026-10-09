@@ -38,6 +38,7 @@ describe('ReportsService', () => {
     form_response: {},
     active: true,
     created_at: new Date(),
+    report_date: new Date(),
     updated_at: new Date(),
   };
 
@@ -313,6 +314,7 @@ describe('ReportsService', () => {
       jest.spyOn(prismaService.report, 'create').mockResolvedValue({
         ...mockReport,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
+        report_date: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
         .spyOn(prismaService.participation_report_streak, 'findUnique')
@@ -350,7 +352,7 @@ describe('ReportsService', () => {
       );
     });
 
-    it('deve agregar pelo dia civil em America/Sao_Paulo quando created_at em UTC já é o dia seguinte', async () => {
+    it('deve agregar pelo dia civil em America/Sao_Paulo quando report_date em UTC já é o dia seguinte', async () => {
       const createDto: CreateReportDto = {
         participationId: 1,
         formVersionId: 1,
@@ -367,6 +369,7 @@ describe('ReportsService', () => {
       jest.spyOn(prismaService.report, 'create').mockResolvedValue({
         ...mockReport,
         created_at: new Date('2026-03-14T02:30:00.000Z'),
+        report_date: new Date('2026-03-14T02:30:00.000Z'),
       } as any);
       jest
         .spyOn(prismaService.participation_report_streak, 'findUnique')
@@ -406,6 +409,7 @@ describe('ReportsService', () => {
         ...mockReport,
         id: 42,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
+        report_date: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       jest
         .spyOn(prismaService.participation_report_day, 'create')
@@ -444,6 +448,7 @@ describe('ReportsService', () => {
       jest.spyOn(prismaService.report, 'create').mockResolvedValue({
         ...mockReport,
         created_at: new Date('2026-03-14T10:30:00.000Z'),
+        report_date: new Date('2026-03-14T10:30:00.000Z'),
       } as any);
       const uniqueViolation = Object.assign(
         new Prisma.PrismaClientKnownRequestError(
@@ -576,6 +581,7 @@ describe('ReportsService', () => {
         id: 91,
         report_type: 'NEGATIVE',
         created_at: new Date(),
+        report_date: new Date(),
       };
 
       jest
@@ -615,6 +621,7 @@ describe('ReportsService', () => {
         id: 91,
         report_type: 'NEGATIVE',
         created_at: new Date(),
+        report_date: new Date(),
       };
 
       jest
@@ -653,6 +660,7 @@ describe('ReportsService', () => {
         id: 92,
         report_type: 'NEGATIVE',
         created_at: new Date(),
+        report_date: new Date(),
       };
 
       jest
@@ -678,6 +686,254 @@ describe('ReportsService', () => {
       expect(prismaService.report.create).not.toHaveBeenCalled();
       expect(businessMetrics.recordReportCreated).not.toHaveBeenCalled();
       expect(syndromicClassification.triggerClassification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create com reportDate (reporte offline)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const participationCreatedLongAgo = {
+      ...mockParticipation,
+      created_at: new Date(Date.now() - 90 * DAY),
+    };
+
+    const baseDto = (
+      overrides: Partial<CreateReportDto> = {},
+    ): CreateReportDto => ({
+      participationId: 1,
+      formVersionId: 1,
+      reportType: 'POSITIVE',
+      formResponse: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      jest
+        .spyOn(prismaService.participation, 'findUnique')
+        .mockResolvedValue(participationCreatedLongAgo as any);
+      jest
+        .spyOn(prismaService.form_version, 'findUnique')
+        .mockResolvedValue(mockFormVersion as any);
+      jest
+        .spyOn(prismaService.context_configuration, 'findMany')
+        .mockResolvedValue([
+          { key: 'negative_report_dedup_window_min', value: 60 },
+          { key: 'negative_block_if_positive_within_min', value: 60 },
+        ] as any);
+    });
+
+    it('deve gravar o reportDate enviado pelo app e devolvê-lo na resposta', async () => {
+      const reportedAt = new Date(Date.now() - 2 * DAY);
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue({ ...mockReport, report_date: reportedAt } as any);
+
+      const result = await service.create(
+        baseDto({ reportDate: reportedAt.toISOString() }),
+        1,
+      );
+
+      expect(prismaService.report.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ report_date: reportedAt }),
+      });
+      expect(result.reportDate).toEqual(reportedAt);
+    });
+
+    it('sem reportDate não envia report_date: o banco aplica o default (igual ao created_at)', async () => {
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue(mockReport as any);
+
+      await service.create(baseDto(), 1);
+
+      const { data } = (prismaService.report.create as jest.Mock).mock
+        .calls[0][0];
+      expect(data).not.toHaveProperty('report_date');
+    });
+
+    it('deve trocar reportDate no futuro (relógio adiantado) pelo horário do servidor', async () => {
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue(mockReport as any);
+      const before = Date.now();
+
+      await service.create(
+        baseDto({ reportDate: new Date(before + DAY).toISOString() }),
+        1,
+      );
+
+      const { data } = (prismaService.report.create as jest.Mock).mock
+        .calls[0][0];
+      expect(data.report_date.getTime()).toBeGreaterThanOrEqual(before);
+      expect(data.report_date.getTime()).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('deve trocar reportDate anterior à participação pelo horário do servidor', async () => {
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue(mockReport as any);
+      const before = Date.now();
+
+      await service.create(
+        baseDto({ reportDate: '2001-01-01T10:00:00-03:00' }),
+        1,
+      );
+
+      const { data } = (prismaService.report.create as jest.Mock).mock
+        .calls[0][0];
+      expect(data.report_date.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('não deve descartar POSITIVE de outro dia que chega no mesmo lote offline', async () => {
+      const reportedAt = new Date(Date.now() - 2 * DAY);
+      const syncedJustNow = {
+        ...mockReport,
+        id: 70,
+        report_type: 'POSITIVE',
+        created_at: new Date(),
+        report_date: new Date(Date.now() - 1 * DAY),
+      };
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([syncedJustNow] as any);
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        id: 71,
+        report_date: reportedAt,
+      } as any);
+
+      const result = await service.create(
+        baseDto({ reportDate: reportedAt.toISOString() }),
+        1,
+      );
+
+      expect(prismaService.report.create).toHaveBeenCalled();
+      expect(result.id).toBe(71);
+    });
+
+    it('deve procurar duplicados pela janela em torno do reportDate, não do horário do servidor', async () => {
+      const reportedAt = new Date(Date.now() - 3 * DAY);
+      jest
+        .spyOn(prismaService.report, 'create')
+        .mockResolvedValue({ ...mockReport, report_date: reportedAt } as any);
+
+      await service.create(
+        baseDto({ reportDate: reportedAt.toISOString() }),
+        1,
+      );
+
+      const { where } = (prismaService.report.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(where.report_date.gte).toEqual(
+        new Date(reportedAt.getTime() - 60 * 60 * 1000),
+      );
+      expect(where.report_date.lte).toEqual(
+        new Date(reportedAt.getTime() + 60 * 60 * 1000),
+      );
+    });
+
+    it('deve continuar ignorando o reenvio do mesmo reporte offline (mesmo tipo, dentro da janela)', async () => {
+      const reportedAt = new Date(Date.now() - 2 * DAY);
+      const alreadySaved = {
+        ...mockReport,
+        id: 80,
+        report_type: 'POSITIVE',
+        report_date: new Date(reportedAt.getTime() + 10 * 60 * 1000),
+      };
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([alreadySaved] as any);
+
+      const result = await service.create(
+        baseDto({ reportDate: reportedAt.toISOString() }),
+        1,
+      );
+
+      expect(result.id).toBe(80);
+      expect(prismaService.report.create).not.toHaveBeenCalled();
+    });
+
+    it('não deve bloquear POSITIVE feito antes de um NEGATIVE que chegou primeiro no lote', async () => {
+      const benignAt = new Date(Date.now() - 2 * DAY);
+      const alertAfterwards = {
+        ...mockReport,
+        id: 90,
+        report_type: 'NEGATIVE',
+        report_date: new Date(benignAt.getTime() + 30 * 60 * 1000),
+      };
+      jest
+        .spyOn(prismaService.report, 'findMany')
+        .mockResolvedValue([alertAfterwards] as any);
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        id: 91,
+        report_date: benignAt,
+      } as any);
+
+      const result = await service.create(
+        baseDto({ reportDate: benignAt.toISOString() }),
+        1,
+      );
+
+      expect(result.id).toBe(91);
+      expect(prismaService.report.create).toHaveBeenCalled();
+    });
+
+    it('dia anterior ao último registrado recalcula a ofensiva sem voltar last_reported_date', async () => {
+      // Já tinha 12, 13 e 14/03; chega o offline do dia 10/03 (e 09/03 já existia).
+      jest.spyOn(prismaService.report, 'create').mockResolvedValue({
+        ...mockReport,
+        report_date: new Date('2026-03-10T15:00:00.000Z'),
+      } as any);
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        created_at: new Date('2026-01-01T00:00:00.000Z'),
+      } as any);
+      jest
+        .spyOn(prismaService.participation_report_streak, 'findUnique')
+        .mockResolvedValue({
+          participation_id: 1,
+          current_streak: 3,
+          longest_streak: 5,
+          reported_days_count: 4,
+          last_reported_date: new Date('2026-03-14T00:00:00.000Z'),
+          current_streak_start_date: new Date('2026-03-12T00:00:00.000Z'),
+        } as any);
+      jest
+        .spyOn(prismaService.participation_report_day, 'findMany')
+        .mockResolvedValue([
+          { report_date: new Date('2026-03-09T00:00:00.000Z') },
+          { report_date: new Date('2026-03-10T00:00:00.000Z') },
+          { report_date: new Date('2026-03-12T00:00:00.000Z') },
+          { report_date: new Date('2026-03-13T00:00:00.000Z') },
+          { report_date: new Date('2026-03-14T00:00:00.000Z') },
+        ] as any);
+
+      await service.create(
+        baseDto({ reportDate: '2026-03-10T12:00:00-03:00' }),
+        1,
+      );
+
+      expect(
+        prismaService.participation_report_day.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            report_date: new Date('2026-03-10T00:00:00.000Z'),
+          }),
+        }),
+      );
+      expect(
+        prismaService.participation_report_streak.update,
+      ).toHaveBeenCalledWith({
+        where: { participation_id: 1 },
+        data: {
+          current_streak: 3,
+          longest_streak: 5,
+          reported_days_count: 5,
+          last_reported_date: new Date('2026-03-14T00:00:00.000Z'),
+          current_streak_start_date: new Date('2026-03-12T00:00:00.000Z'),
+        },
+      });
     });
   });
 

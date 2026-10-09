@@ -41,8 +41,12 @@ A interface de administração lista e edita essas entradas (aba de configuraç�
 
 | Chave | Tipo esperado | Efeito |
 |-------|----------------|--------|
-| `negative_report_dedup_window_min` | Inteiro **> 0** (minutos) | Evita registos repetidos de “nada ocorreu” / negativo dentro da janela (deduplicação). Default típico: **60**. |
-| `negative_block_if_positive_within_min` | Inteiro **> 0** (minutos) | Bloqueia novo report negativo (“nada ocorreu”) se existiu **sinal positivo** no mesmo utilizador dentro da janela. Default típico: **60**. |
+| `negative_report_dedup_window_min` | Inteiro **> 0** (minutos) | Deduplicação: um report do **mesmo tipo** — benigno (`POSITIVE`: "BEM", "Nada ocorreu") ou alerta (`NEGATIVE`: "MAL", "Informar") — feito a até esta distância de outro já gravado do mesmo participante é tratado como reenvio, e o backend devolve o existente. Default: **60**. |
+| `negative_block_if_positive_within_min` | Inteiro **> 0** (minutos) | Ignora um report **benigno** (`POSITIVE`) feito até esta distância **depois** de um **alerta** (`NEGATIVE`) do mesmo participante, para o benigno não encobrir o alerta. Alerta depois de benigno nunca é bloqueado. Default: **60**. |
+
+As distâncias são medidas entre os `report_date` (momento em que o participante reportou no aparelho), não pela chegada ao servidor — o que importa para o reporte offline. Detalhes em [Data do reporte e reporte offline](/arquitetura/modelagem-banco-dados/formularios-relatorios#data-do-reporte-e-reporte-offline).
+
+Os nomes das chaves são históricos (falam em "negative"), mas as regras valem como descrito acima: `POSITIVE` é o benigno e `NEGATIVE` é o alerta.
 
 **Consumidor principal:** serviço de reports (`ReportsService`), ao criar reports negativos/positivos.
 
