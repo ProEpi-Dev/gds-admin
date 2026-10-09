@@ -41,7 +41,14 @@ export class ReportResponseDto {
   active: boolean;
 
   @ApiProperty({
-    description: 'Data de criação',
+    description:
+      'Momento em que o participante fez o reporte no aparelho. Igual a createdAt no reporte online; anterior a ele no offline.',
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  reportDate: Date;
+
+  @ApiProperty({
+    description: 'Momento em que o registro foi gravado no backend',
     example: '2024-01-01T00:00:00.000Z',
   })
   createdAt: Date;

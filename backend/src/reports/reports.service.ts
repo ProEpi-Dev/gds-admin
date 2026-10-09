@@ -50,6 +50,9 @@ type ReportMetricsClient = Prisma.TransactionClient | PrismaService;
 export const REPORT_STREAK_AGGREGATION_TZ = 'America/Sao_Paulo' as const;
 const DEFAULT_NEGATIVE_REPORT_DEDUP_WINDOW_MIN = 60;
 const DEFAULT_NEGATIVE_BLOCK_IF_POSITIVE_WITHIN_MIN = 60;
+/** Relógio do aparelho pode estar um pouco adiantado; além disso o reportDate é descartado. */
+const REPORT_DATE_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+const REPORT_DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ReportsService {
@@ -243,104 +246,180 @@ export class ReportsService {
 
   /**
    * Idempotência POSITIVE/NEGATIVE: devolve DTO do report existente ou null para seguir com create.
+   *
+   * As janelas contam a partir do reportDate do report novo, não do relógio do servidor.
+   * No reporte offline o lote chega todo junto; comparando pela chegada, reportes de dias
+   * diferentes caíam na mesma janela e eram descartados como duplicados.
    */
   private async tryResolveCreateDedupReturn(
     createReportDto: CreateReportDto,
     contextId: number,
+    reportDate: Date,
   ): Promise<ReportResponseDto | null> {
+    const reportType = createReportDto.reportType;
     if (
-      createReportDto.reportType !== report_type_enum.POSITIVE &&
-      createReportDto.reportType !== report_type_enum.NEGATIVE
+      reportType !== report_type_enum.POSITIVE &&
+      reportType !== report_type_enum.NEGATIVE
     ) {
       return null;
     }
 
-    const now = new Date();
-    const {
+    const { negativeDedupWindowMin, negativeBlockIfPositiveWithinMin } =
+      await this.getContextReportRules(contextId);
+    const nearbyReports = await this.findReportsAroundReportDate(
+      createReportDto.participationId,
+      reportDate,
+      Math.max(negativeDedupWindowMin, negativeBlockIfPositiveWithinMin),
+    );
+
+    const duplicate = this.findSameTypeWithinWindow(
+      nearbyReports,
+      reportType,
+      reportDate,
       negativeDedupWindowMin,
-      negativeBlockIfPositiveWithinMin,
-    } = await this.getContextReportRules(contextId);
-
-    const biggestWindow = Math.max(
-      negativeDedupWindowMin,
-      negativeBlockIfPositiveWithinMin,
     );
-    const lookupStart = this.subtractMinutes(now, biggestWindow);
-    const dedupStart = this.subtractMinutes(now, negativeDedupWindowMin);
-    const blockBenignAfterAlertStart = this.subtractMinutes(
-      now,
-      negativeBlockIfPositiveWithinMin,
-    );
-
-    const recentReports = await this.prisma.report.findMany({
-      where: {
-        participation_id: createReportDto.participationId,
-        active: true,
-        created_at: {
-          gte: lookupStart,
-        },
-        report_type: {
-          in: [report_type_enum.NEGATIVE, report_type_enum.POSITIVE],
-        },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    if (createReportDto.reportType === report_type_enum.POSITIVE) {
-      const recentPositive = recentReports.find(
-        (report) =>
-          report.report_type === report_type_enum.POSITIVE &&
-          report.created_at >= dedupStart,
-      );
-      if (recentPositive) {
-        this.logger.debug(
-          {
-            participationId: createReportDto.participationId,
-            reportId: recentPositive.id,
-            dedupWindowMin: negativeDedupWindowMin,
-          },
-          'Report POSITIVE ignorado por idempotência na janela temporal',
-        );
-        return this.mapToResponseDto(recentPositive);
-      }
-
-      const recentNegative = recentReports.find(
-        (report) =>
-          report.report_type === report_type_enum.NEGATIVE &&
-          report.created_at >= blockBenignAfterAlertStart,
-      );
-      if (recentNegative) {
-        this.logger.debug(
-          {
-            participationId: createReportDto.participationId,
-            alertReportId: recentNegative.id,
-            blockWindowMin: negativeBlockIfPositiveWithinMin,
-          },
-          'Report POSITIVE ignorado por existência de NEGATIVE recente',
-        );
-        return this.mapToResponseDto(recentNegative);
-      }
-      return null;
-    }
-
-    const recentNegative = recentReports.find(
-      (report) =>
-        report.report_type === report_type_enum.NEGATIVE &&
-        report.created_at >= dedupStart,
-    );
-    if (recentNegative) {
+    if (duplicate) {
       this.logger.debug(
         {
           participationId: createReportDto.participationId,
-          reportId: recentNegative.id,
+          reportId: duplicate.id,
           dedupWindowMin: negativeDedupWindowMin,
         },
-        'Report NEGATIVE ignorado por idempotência na janela temporal',
+        `Report ${reportType} ignorado por idempotência na janela temporal`,
       );
-      return this.mapToResponseDto(recentNegative);
+      return this.mapToResponseDto(duplicate);
     }
 
-    return null;
+    if (reportType !== report_type_enum.POSITIVE) {
+      return null;
+    }
+
+    const recentAlert = this.findAlertBeforeBenign(
+      nearbyReports,
+      reportDate,
+      negativeBlockIfPositiveWithinMin,
+    );
+    if (!recentAlert) {
+      return null;
+    }
+    this.logger.debug(
+      {
+        participationId: createReportDto.participationId,
+        alertReportId: recentAlert.id,
+        blockWindowMin: negativeBlockIfPositiveWithinMin,
+      },
+      'Report POSITIVE ignorado por existência de NEGATIVE recente',
+    );
+    return this.mapToResponseDto(recentAlert);
+  }
+
+  /** Reports ativos POSITIVE/NEGATIVE da participação com report_date a até `windowMin` de `reportDate`. */
+  private findReportsAroundReportDate(
+    participationId: number,
+    reportDate: Date,
+    windowMin: number,
+  ) {
+    const windowMs = windowMin * 60 * 1000;
+    return this.prisma.report.findMany({
+      where: {
+        participation_id: participationId,
+        active: true,
+        report_type: {
+          in: [report_type_enum.NEGATIVE, report_type_enum.POSITIVE],
+        },
+        report_date: {
+          gte: new Date(reportDate.getTime() - windowMs),
+          lte: new Date(reportDate.getTime() + windowMs),
+        },
+      },
+      orderBy: { report_date: 'desc' },
+    });
+  }
+
+  /** Mesmo tipo a até `windowMin`, antes ou depois: o lote offline pode chegar fora de ordem. */
+  private findSameTypeWithinWindow<
+    T extends { report_type: report_type_enum; report_date: Date },
+  >(
+    reports: T[],
+    reportType: report_type_enum,
+    reportDate: Date,
+    windowMin: number,
+  ): T | undefined {
+    const windowMs = windowMin * 60 * 1000;
+    return reports.find(
+      (report) =>
+        report.report_type === reportType &&
+        Math.abs(report.report_date.getTime() - reportDate.getTime()) <=
+          windowMs,
+    );
+  }
+
+  /** Alerta (NEGATIVE) feito até `windowMin` antes do benigno: o benigno não encobre o alerta. */
+  private findAlertBeforeBenign<
+    T extends { report_type: report_type_enum; report_date: Date },
+  >(reports: T[], reportDate: Date, windowMin: number): T | undefined {
+    const windowStart = this.subtractMinutes(reportDate, windowMin).getTime();
+    const reportTime = reportDate.getTime();
+    return reports.find(
+      (report) =>
+        report.report_type === report_type_enum.NEGATIVE &&
+        report.report_date.getTime() >= windowStart &&
+        report.report_date.getTime() <= reportTime,
+    );
+  }
+
+  /**
+   * reportDate mandado pelo app (reporte offline). Sem ele, undefined: o banco aplica o
+   * default e report_date fica igual ao created_at. Relógio absurdo do aparelho (futuro
+   * além da tolerância, ou antes de a participação existir) vira o horário do servidor —
+   * rejeitar faria a fila offline do app reenviar o mesmo reporte para sempre.
+   */
+  private resolveReportDate(
+    createReportDto: CreateReportDto,
+    participation: { id: number; created_at?: Date | null },
+  ): Date | undefined {
+    if (!createReportDto.reportDate) {
+      return undefined;
+    }
+    const reportTime = new Date(createReportDto.reportDate).getTime();
+    const now = Date.now();
+    const earliest = participation.created_at
+      ? participation.created_at.getTime() - REPORT_DAY_MS
+      : Number.NEGATIVE_INFINITY;
+    if (
+      reportTime > now + REPORT_DATE_FUTURE_TOLERANCE_MS ||
+      reportTime < earliest
+    ) {
+      this.logger.warn(
+        {
+          participationId: participation.id,
+          reportDate: createReportDto.reportDate,
+        },
+        'reportDate fora do intervalo plausível; usando o horário do servidor',
+      );
+      return new Date(now);
+    }
+    return new Date(reportTime);
+  }
+
+  private buildReportCreateData(
+    createReportDto: CreateReportDto,
+    reportDate: Date | undefined,
+  ): any {
+    const data: any = {
+      participation_id: createReportDto.participationId,
+      form_version_id: createReportDto.formVersionId,
+      report_type: createReportDto.reportType,
+      form_response: createReportDto.formResponse,
+      active: createReportDto.active ?? true,
+    };
+    if (createReportDto.occurrenceLocation !== undefined) {
+      data.occurrence_location = createReportDto.occurrenceLocation;
+    }
+    if (reportDate) {
+      data.report_date = reportDate;
+    }
+    return data;
   }
 
   private formatDateOnly(value?: Date | null): string | null {
@@ -439,6 +518,16 @@ export class ReportsService {
         (normalizedDate.getTime() - lastDate.getTime()) / dayInMs,
       );
       if (diffInDays === 0) return;
+      if (diffInDays < 0) {
+        // Dia anterior ao último registrado (reporte offline): antes isso zerava a
+        // ofensiva e fazia last_reported_date voltar no tempo. Recalcula pelos dias.
+        await this.recomputeParticipationReportStreak(
+          prisma,
+          participationId,
+          existing.longest_streak,
+        );
+        return;
+      }
       if (diffInDays === 1) {
         currentStreak = existing.current_streak + 1;
         currentStreakStartDate = existing.current_streak_start_date
@@ -457,6 +546,67 @@ export class ReportsService {
         current_streak_start_date: currentStreakStartDate,
       },
     });
+  }
+
+  /**
+   * Recalcula a ofensiva a partir de participation_report_day, que tem uma linha por dia
+   * reportado. Usado quando chega um dia anterior ao último registrado (reporte offline).
+   * A maior ofensiva nunca diminui: o valor já mostrado ao participante é preservado.
+   */
+  private async recomputeParticipationReportStreak(
+    prisma: ReportMetricsClient,
+    participationId: number,
+    previousLongestStreak: number,
+  ): Promise<void> {
+    const days = await prisma.participation_report_day.findMany({
+      where: { participation_id: participationId },
+      select: { report_date: true },
+      orderBy: { report_date: 'asc' },
+    });
+    if (days.length === 0) return;
+
+    const summary = this.summarizeReportDays(
+      days.map((day) => this.normalizeDateOnly(day.report_date)),
+    );
+    await prisma.participation_report_streak.update({
+      where: { participation_id: participationId },
+      data: {
+        ...summary,
+        longest_streak: Math.max(previousLongestStreak, summary.longest_streak),
+      },
+    });
+  }
+
+  /** Ofensiva que termina no último dia, maior ofensiva e total — `days` em ordem crescente, sem repetição. */
+  private summarizeReportDays(days: Date[]): {
+    current_streak: number;
+    longest_streak: number;
+    reported_days_count: number;
+    last_reported_date: Date;
+    current_streak_start_date: Date;
+  } {
+    let current = 1;
+    let longest = 1;
+    let currentStart = days[0];
+    for (let i = 1; i < days.length; i++) {
+      const gapInDays = Math.round(
+        (days[i].getTime() - days[i - 1].getTime()) / REPORT_DAY_MS,
+      );
+      if (gapInDays === 1) {
+        current += 1;
+      } else {
+        current = 1;
+        currentStart = days[i];
+      }
+      longest = Math.max(longest, current);
+    }
+    return {
+      current_streak: current,
+      longest_streak: longest,
+      reported_days_count: days.length,
+      last_reported_date: days[days.length - 1],
+      current_streak_start_date: currentStart,
+    };
   }
 
   private async incrementParticipationReportMetrics(
@@ -548,28 +698,19 @@ export class ReportsService {
     //   bloqueia novo benigno se houver alerta (NEGATIVE) recente na janela configurada.
     // - NEGATIVE = alerta (ex.: MAL com formulário, Informar): dedup de envios repetidos;
     //   permite alerta após benigno sem bloqueio.
+    const reportDate = this.resolveReportDate(createReportDto, participation);
     const dedupReturn = await this.tryResolveCreateDedupReturn(
       createReportDto,
       participation.context_id,
+      reportDate ?? new Date(),
     );
     if (dedupReturn !== null) {
       return dedupReturn;
     }
 
-    // Preparar dados
-    const data: any = {
-      participation_id: createReportDto.participationId,
-      form_version_id: createReportDto.formVersionId,
-      report_type: createReportDto.reportType,
-      form_response: createReportDto.formResponse,
-      active: createReportDto.active ?? true,
-    };
-
-    if (createReportDto.occurrenceLocation !== undefined) {
-      data.occurrence_location = createReportDto.occurrenceLocation;
-    }
-
-    const report = await this.prisma.report.create({ data });
+    const report = await this.prisma.report.create({
+      data: this.buildReportCreateData(createReportDto, reportDate),
+    });
 
     this.invalidatePointsCacheForContext(participation.context_id);
 
@@ -584,7 +725,7 @@ export class ReportsService {
         await this.incrementParticipationReportMetrics(
           this.prisma,
           report.participation_id,
-          report.created_at,
+          report.report_date,
           createReportDto.reportType,
         );
       }
@@ -1396,6 +1537,7 @@ export class ReportsService {
       occurrenceLocation: report.occurrence_location,
       formResponse: report.form_response,
       active: report.active,
+      reportDate: report.report_date,
       createdAt: report.created_at,
       updatedAt: report.updated_at,
     };
@@ -1408,6 +1550,7 @@ export class ReportsService {
       form_version_id: number;
       report_type: report_type_enum;
       active: boolean;
+      report_date: Date;
       created_at: Date;
       updated_at: Date;
     },
@@ -1422,6 +1565,7 @@ export class ReportsService {
       occurrenceLocation: null,
       formResponse: null,
       active: report.active,
+      reportDate: report.report_date,
       createdAt: report.created_at,
       updatedAt: report.updated_at,
       previewText,

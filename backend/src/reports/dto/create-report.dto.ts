@@ -5,6 +5,8 @@ import {
   IsOptional,
   IsEnum,
   IsObject,
+  IsISO8601,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { report_type_enum } from '@prisma/client';
@@ -50,6 +52,20 @@ export class CreateReportDto {
   @IsObject()
   @IsOptional()
   occurrenceLocation?: any;
+
+  @ApiPropertyOptional({
+    description:
+      'Momento em que o participante fez o reporte no aparelho, em ISO 8601 com hora e fuso. ' +
+      'No reporte offline é anterior ao envio. Se omitido, vale o horário em que o servidor grava. ' +
+      'Datas no futuro (além de 5 min) ou anteriores à participação são trocadas pelo horário do servidor.',
+    example: '2026-10-08T14:30:00-03:00',
+  })
+  @IsISO8601({ strict: true })
+  @Matches(/T\d{2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/, {
+    message: 'reportDate deve ter hora e fuso (ex.: 2026-10-08T14:30:00-03:00)',
+  })
+  @IsOptional()
+  reportDate?: string;
 
   @ApiPropertyOptional({
     description: 'Status ativo',
