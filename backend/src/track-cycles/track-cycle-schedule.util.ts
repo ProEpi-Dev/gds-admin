@@ -21,9 +21,14 @@ function dateOnlyOrFallback(value: Date | null | undefined, fallback: Date): Dat
   return toDateOnlyUtc(value);
 }
 
-export function todayDateOnlyUtc(): Date {
-  const ymd = formatInTimeZone(new Date(), TRACK_CYCLE_SCHEDULE_TZ, 'yyyy-MM-dd');
+/** Dia civil de um instante no fuso de vigência, como yyyy-MM-dd à meia-noite UTC. */
+export function dateOnlyInScheduleTz(d: Date): Date {
+  const ymd = formatInTimeZone(d, TRACK_CYCLE_SCHEDULE_TZ, 'yyyy-MM-dd');
   return new Date(`${ymd}T00:00:00.000Z`);
+}
+
+export function todayDateOnlyUtc(): Date {
+  return dateOnlyInScheduleTz(new Date());
 }
 
 export function resolveSectionEffectiveWindow(

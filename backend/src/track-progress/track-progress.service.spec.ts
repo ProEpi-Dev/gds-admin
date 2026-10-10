@@ -685,6 +685,171 @@ describe('TrackProgressService', () => {
     );
   });
 
+  describe('crédito de quiz já aprovado (prazo vencido)', () => {
+    const passedSubmission = {
+      is_passed: true,
+      participation_id: 7,
+      completed_at: new Date('2026-04-10T15:00:00.000Z'),
+      created_at: new Date('2026-04-10T14:50:00.000Z'),
+      form_version: { form_id: 29 },
+    };
+
+    const mockQuizSequence = () => {
+      prismaMock.sequence.findUnique.mockResolvedValue({
+        id: 74,
+        form_id: 29,
+      });
+    };
+
+    const spyUpdate = () =>
+      jest.spyOn(service, 'updateSequenceProgress').mockResolvedValue({
+        id: 5,
+        status: progress_status_enum.completed,
+      } as any);
+
+    const creditedAtPassed = (spy: jest.SpyInstance) =>
+      spy.mock.calls[0][3]?.creditedAt;
+
+    it('completeQuizSequence – usa completed_at da aprovação como crédito', async () => {
+      mockQuizSequence();
+      prismaMock.quiz_submission.findUnique.mockResolvedValue(passedSubmission);
+      prismaMock.track_progress.findUnique.mockResolvedValue({
+        participation_id: 7,
+      });
+      const spy = spyUpdate();
+
+      await service.completeQuizSequence(1, 74, 99);
+
+      expect(creditedAtPassed(spy)).toEqual(passedSubmission.completed_at);
+      expect(spy.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ status: progress_status_enum.completed }),
+      );
+    });
+
+    it('completeQuizSequence – sem completed_at, usa created_at', async () => {
+      mockQuizSequence();
+      prismaMock.quiz_submission.findUnique.mockResolvedValue({
+        ...passedSubmission,
+        completed_at: null,
+      });
+      prismaMock.track_progress.findUnique.mockResolvedValue({
+        participation_id: 7,
+      });
+      const spy = spyUpdate();
+
+      await service.completeQuizSequence(1, 74, 99);
+
+      expect(creditedAtPassed(spy)).toEqual(passedSubmission.created_at);
+    });
+
+    it('completeQuizSequence – aprovação de outra participação não dá crédito', async () => {
+      mockQuizSequence();
+      prismaMock.quiz_submission.findUnique.mockResolvedValue(passedSubmission);
+      prismaMock.track_progress.findUnique.mockResolvedValue({
+        participation_id: 8,
+      });
+      const spy = spyUpdate();
+
+      await service.completeQuizSequence(1, 74, 99);
+
+      expect(creditedAtPassed(spy)).toBeUndefined();
+    });
+
+    it('completeQuizSequence – aprovação de outro formulário não dá crédito', async () => {
+      mockQuizSequence();
+      prismaMock.quiz_submission.findUnique.mockResolvedValue({
+        ...passedSubmission,
+        form_version: { form_id: 30 },
+      });
+      const spy = spyUpdate();
+
+      await service.completeQuizSequence(1, 74, 99);
+
+      expect(creditedAtPassed(spy)).toBeUndefined();
+      expect(prismaMock.track_progress.findUnique).not.toHaveBeenCalled();
+    });
+
+    describe('getOrCreateSequenceProgress com janela vencida', () => {
+      // Janela do item: 17/08 a 24/08/2026 (já passada em relação a hoje).
+      const expiredWindow = {
+        start_date: new Date('2026-08-17T00:00:00.000Z'),
+        end_date: new Date('2026-08-24T00:00:00.000Z'),
+      };
+
+      const mockGate = (window: { start_date: Date; end_date: Date }) => {
+        prismaMock.track_progress.findUnique.mockResolvedValue({
+          id: 1,
+          track_cycle_id: 1,
+        });
+        prismaMock.sequence.findUnique.mockResolvedValue({
+          id: 74,
+          section_id: 3,
+        });
+        prismaMock.track_cycle.findUnique.mockResolvedValue({
+          id: 1,
+          ...window,
+        });
+        prismaMock.sequence_progress.findUnique.mockResolvedValue(null);
+        prismaMock.sequence_progress.create.mockResolvedValue({ id: 5 });
+      };
+
+      it('aceita aprovação feita antes do início da janela', async () => {
+        mockGate(expiredWindow);
+
+        const result = await service.getOrCreateSequenceProgress(1, 74, {
+          creditedAt: new Date('2026-04-10T15:00:00.000Z'),
+        });
+
+        expect(result).toEqual({ id: 5 });
+      });
+
+      it('aceita aprovação no último dia, considerando o fuso de São Paulo', async () => {
+        mockGate(expiredWindow);
+
+        // 25/08 02:00 UTC = 24/08 23:00 em São Paulo.
+        const result = await service.getOrCreateSequenceProgress(1, 74, {
+          creditedAt: new Date('2026-08-25T02:00:00.000Z'),
+        });
+
+        expect(result).toEqual({ id: 5 });
+      });
+
+      it('recusa aprovação feita depois do prazo', async () => {
+        mockGate(expiredWindow);
+
+        await expect(
+          service.getOrCreateSequenceProgress(1, 74, {
+            creditedAt: new Date('2026-08-25T12:00:00.000Z'),
+          }),
+        ).rejects.toThrow('O prazo para este conteúdo encerrou em 2026-08-24.');
+        expect(prismaMock.sequence_progress.create).not.toHaveBeenCalled();
+      });
+
+      it('sem crédito, mantém o bloqueio por prazo', async () => {
+        mockGate(expiredWindow);
+
+        await expect(
+          service.getOrCreateSequenceProgress(1, 74),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('crédito não libera item que ainda não abriu', async () => {
+        mockGate({
+          start_date: new Date('2099-01-01T00:00:00.000Z'),
+          end_date: new Date('2099-01-31T00:00:00.000Z'),
+        });
+
+        await expect(
+          service.getOrCreateSequenceProgress(1, 74, {
+            creditedAt: new Date('2026-04-10T15:00:00.000Z'),
+          }),
+        ).rejects.toThrow(
+          'Este conteúdo ficará disponível a partir de 2099-01-01.',
+        );
+      });
+    });
+  });
+
   it('findByUserAndCycle – bloqueia sequência', async () => {
     prismaMock.track_progress.findUnique.mockResolvedValue({
       id: 1,

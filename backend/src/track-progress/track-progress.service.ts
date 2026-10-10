@@ -15,6 +15,7 @@ import { BusinessMetricsService } from '../telemetry/business-metrics.service';
 import {
   assertTodayWithinCycle,
   assertValidWindow,
+  dateOnlyInScheduleTz,
   resolveSectionEffectiveWindow,
   resolveSequenceEffectiveWindow,
   scheduleAccessForToday,
@@ -32,6 +33,13 @@ type ScheduleMaps = {
     { sequence_id: number; start_date: Date | null; end_date: Date | null }
   >;
 };
+
+/**
+ * creditedAt: momento em que o participante já cumpriu o item (ex.: aprovação no
+ * mesmo quiz em outra trilha). Se cair até o último dia da janela, o prazo vencido
+ * não bloqueia o registro da conclusão.
+ */
+export type SequenceInteractionOptions = { creditedAt?: Date };
 
 @Injectable()
 export class TrackProgressService {
@@ -110,6 +118,7 @@ export class TrackProgressService {
     trackCycleId: number,
     sectionId: number,
     sequenceId: number,
+    creditedAt?: Date,
   ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const cycle = await this.prisma.track_cycle.findUnique({
       where: { id: trackCycleId },
@@ -146,7 +155,7 @@ export class TrackProgressService {
         reason: `Este conteúdo ficará disponível a partir de ${this.formatScheduleDay(win.start)}.`,
       };
     }
-    if (access === 'expired') {
+    if (access === 'expired' && !this.isCreditedWithinWindow(creditedAt, win)) {
       return {
         ok: false,
         reason: `O prazo para este conteúdo encerrou em ${this.formatScheduleDay(win.end)}.`,
@@ -155,9 +164,19 @@ export class TrackProgressService {
     return { ok: true };
   }
 
+  private isCreditedWithinWindow(
+    creditedAt: Date | undefined,
+    win: { start: Date; end: Date },
+  ): boolean {
+    return (
+      creditedAt !== undefined && dateOnlyInScheduleTz(creditedAt) <= win.end
+    );
+  }
+
   private async assertSequenceScheduleAllowsInteraction(
     trackProgressId: number,
     sequenceId: number,
+    creditedAt?: Date,
   ): Promise<void> {
     const tp = await this.prisma.track_progress.findUnique({
       where: { id: trackProgressId },
@@ -180,6 +199,7 @@ export class TrackProgressService {
       tp.track_cycle_id,
       seq.section_id,
       sequenceId,
+      creditedAt,
     );
     if (gate.ok === false) {
       throw new BadRequestException(gate.reason);
@@ -324,10 +344,12 @@ export class TrackProgressService {
   async getOrCreateSequenceProgress(
     trackProgressId: number,
     sequenceId: number,
+    options?: SequenceInteractionOptions,
   ) {
     await this.assertSequenceScheduleAllowsInteraction(
       trackProgressId,
       sequenceId,
+      options?.creditedAt,
     );
 
     let sequenceProgress = await this.prisma.sequence_progress.findUnique({
@@ -360,6 +382,7 @@ export class TrackProgressService {
     trackProgressId: number,
     sequenceId: number,
     dto: UpdateSequenceProgressDto,
+    options?: SequenceInteractionOptions,
   ) {
     const trackProgress = await this.prisma.track_progress.findUnique({
       where: { id: trackProgressId },
@@ -410,6 +433,7 @@ export class TrackProgressService {
     let sequenceProgress = await this.getOrCreateSequenceProgress(
       trackProgressId,
       sequenceId,
+      options,
     );
 
     // Atualizar sequenceProgress com dados do dto
@@ -993,7 +1017,13 @@ export class TrackProgressService {
     // Verificar se o quiz foi aprovado
     const quizSubmission = await this.prisma.quiz_submission.findUnique({
       where: { id: quizSubmissionId },
-      select: { is_passed: true },
+      select: {
+        is_passed: true,
+        participation_id: true,
+        completed_at: true,
+        created_at: true,
+        form_version: { select: { form_id: true } },
+      },
     });
 
     if (!quizSubmission) {
@@ -1006,11 +1036,50 @@ export class TrackProgressService {
       );
     }
 
+    const creditedAt = await this.resolveQuizCreditDate(
+      trackProgressId,
+      sequence.form_id,
+      quizSubmission,
+    );
+
     // Marcar como completado (apenas se aprovado)
-    return this.updateSequenceProgress(trackProgressId, sequenceId, {
-      status: progress_status_enum.completed,
-      completed_at: new Date(),
+    return this.updateSequenceProgress(
+      trackProgressId,
+      sequenceId,
+      {
+        status: progress_status_enum.completed,
+        completed_at: new Date(),
+      },
+      { creditedAt },
+    );
+  }
+
+  /**
+   * Data em que a aprovação vale como crédito para o item, mesmo com o prazo vencido.
+   * Só vale para aprovação da mesma participação no mesmo formulário (qualquer versão),
+   * por exemplo quando o quiz também faz parte de outra trilha já cursada.
+   */
+  private async resolveQuizCreditDate(
+    trackProgressId: number,
+    formId: number,
+    submission: {
+      participation_id: number;
+      completed_at: Date | null;
+      created_at: Date;
+      form_version: { form_id: number } | null;
+    },
+  ): Promise<Date | undefined> {
+    if (submission.form_version?.form_id !== formId) {
+      return undefined;
+    }
+    const trackProgress = await this.prisma.track_progress.findUnique({
+      where: { id: trackProgressId },
+      select: { participation_id: true },
     });
+    if (trackProgress?.participation_id !== submission.participation_id) {
+      return undefined;
+    }
+    return submission.completed_at ?? submission.created_at;
   }
 
   /**
