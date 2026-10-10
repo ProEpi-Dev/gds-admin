@@ -4,20 +4,26 @@
 -- Efeito por item, igual ao complete-quiz:
 --   sequence_progress -> status 'completed', completed_at = agora (cria o registro se faltar);
 --   track_progress    -> percentual e status recalculados como em recalculateTrackProgress.
--- Antes de alterar, grava o estado anterior em manutencao.credito_quiz_20261010 (usado por reverter.sql).
+-- Antes de alterar, grava o estado anterior em manutencao.<tabela> (usado por reverter.sql).
 --
 -- Uso (a partir desta pasta):
 --   ensaio, termina em ROLLBACK:  psql -v ON_ERROR_STOP=1 -f aplicar.sql
 --   grava de verdade:             psql -v ON_ERROR_STOP=1 -v confirmar=1 -f aplicar.sql
 --   escopo maior:                 acrescente -v incluir_nao_marcados=1 (ver escopo.sql)
+--   nova rodada:                  acrescente -v tabela=<nome> (ver tabela.sql)
+--
+-- Rodadas em produção:
+--   10/10/2026 06:16 UTC  escopo padrão, 209 itens          -> credito_quiz_20261010
+--   10/10/2026 06:53 UTC  incluir_nao_marcados, 11 itens    -> credito_quiz_20261010_nao_marcados
 BEGIN;
 
+\i tabela.sql
 \i candidatos.sql
 \i escopo.sql
 
 CREATE SCHEMA IF NOT EXISTS manutencao;
 
-CREATE TABLE manutencao.credito_quiz_20261010 AS
+CREATE TABLE manutencao.:"tabela" AS
 SELECT
   c.track_progress_id,
   c.participation_id,
@@ -44,7 +50,7 @@ LEFT JOIN sequence_progress sp ON sp.id = c.sequence_progress_id;
 -- 1. Marca os itens como concluídos
 INSERT INTO sequence_progress (track_progress_id, sequence_id, status, completed_at, visits_count, created_at, updated_at)
 SELECT track_progress_id, sequence_id, 'completed', aplicado_em, 0, aplicado_em, aplicado_em
-FROM manutencao.credito_quiz_20261010
+FROM manutencao.:"tabela"
 ON CONFLICT (track_progress_id, sequence_id) DO UPDATE
   SET status       = 'completed',
       completed_at = EXCLUDED.completed_at,
@@ -57,7 +63,7 @@ WITH itens_ativos AS (
   JOIN track_cycle tc ON tc.id = tp.track_cycle_id
   JOIN section s      ON s.track_id = tc.track_id AND s.active
   JOIN sequence sq    ON sq.section_id = s.id AND sq.active
-  WHERE tp.id IN (SELECT track_progress_id FROM manutencao.credito_quiz_20261010)
+  WHERE tp.id IN (SELECT track_progress_id FROM manutencao.:"tabela")
 ),
 contagem AS (
   SELECT ia.track_progress_id,
@@ -83,14 +89,14 @@ WHERE tp.id = ct.track_progress_id
 
 \echo '== Conferência'
 SELECT
-  (SELECT count(*) FROM manutencao.credito_quiz_20261010) AS itens_creditados,
-  (SELECT count(*) FROM manutencao.credito_quiz_20261010 m
+  (SELECT count(*) FROM manutencao.:"tabela") AS itens_creditados,
+  (SELECT count(*) FROM manutencao.:"tabela" m
      JOIN sequence_progress sp ON sp.track_progress_id = m.track_progress_id AND sp.sequence_id = m.sequence_id
     WHERE sp.status = 'completed') AS itens_concluidos_agora;
 
 \echo '== Status das trilhas afetadas (antes -> depois)'
 SELECT a.tp_status_antes AS antes, tp.status AS depois, count(*) AS trilhas
-FROM (SELECT DISTINCT track_progress_id, tp_status_antes FROM manutencao.credito_quiz_20261010) a
+FROM (SELECT DISTINCT track_progress_id, tp_status_antes FROM manutencao.:"tabela") a
 JOIN track_progress tp ON tp.id = a.track_progress_id
 GROUP BY 1, 2
 ORDER BY 1, 2;
