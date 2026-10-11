@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import { TrackProgressController } from './track-progress.controller';
 import { TrackProgressService } from './track-progress.service';
+import { TrackProgressAccessService } from './track-progress-access.service';
 import { RolesGuard } from '../authz/guards/roles.guard';
 
 describe('TrackProgressController', () => {
@@ -22,8 +24,22 @@ describe('TrackProgressController', () => {
     recalculateTrackProgress: jest.fn(),
   };
 
+  const mockAccess = {
+    checkTrackProgress: jest.fn(),
+    checkParticipation: jest.fn(),
+  };
+
   /** Alinhado ao payload do JWT (JwtStrategy): apenas userId. */
   const mockUser = { userId: 1 };
+
+  const expectTrackProgressCheck = (
+    endpoint: string,
+    trackProgressId: number,
+  ) =>
+    expect(mockAccess.checkTrackProgress).toHaveBeenCalledWith(
+      { userId: 1, channel: 'app', endpoint },
+      trackProgressId,
+    );
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,6 +48,10 @@ describe('TrackProgressController', () => {
         {
           provide: TrackProgressService,
           useValue: mockService,
+        },
+        {
+          provide: TrackProgressAccessService,
+          useValue: mockAccess,
         },
       ],
     })
@@ -42,18 +62,25 @@ describe('TrackProgressController', () => {
     controller = module.get(TrackProgressController);
     service = module.get(TrackProgressService);
     jest.clearAllMocks();
+    mockAccess.checkTrackProgress.mockResolvedValue(undefined);
+    mockAccess.checkParticipation.mockResolvedValue(undefined);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
 
-  it('start', async () => {
+  it('start – checa a participação antes de iniciar', async () => {
     mockService.startTrackProgress.mockResolvedValue({ id: 1 });
-    const result = await controller.start({
-      participationId: 1,
-      trackCycleId: 1,
-    } as any);
+    const result = await controller.start(
+      { participationId: 7, trackCycleId: 1 } as any,
+      mockUser,
+      'app',
+    );
+    expect(mockAccess.checkParticipation).toHaveBeenCalledWith(
+      { userId: 1, channel: 'app', endpoint: 'start' },
+      7,
+    );
     expect(result).toEqual({ id: 1 });
   });
 
@@ -95,9 +122,13 @@ describe('TrackProgressController', () => {
     expect(result).toEqual([]);
   });
 
-  it('findByUserAndCycle', async () => {
+  it('findByUserAndCycle – checa a participação', async () => {
     mockService.findByUserAndCycle.mockResolvedValue({ id: 1 });
-    const result = await controller.findByUserAndCycle(1, 2);
+    const result = await controller.findByUserAndCycle(3, 2, mockUser, 'app');
+    expect(mockAccess.checkParticipation).toHaveBeenCalledWith(
+      { userId: 1, channel: 'app', endpoint: 'participation-cycle' },
+      3,
+    );
     expect(result).toEqual({ id: 1 });
   });
 
@@ -106,34 +137,57 @@ describe('TrackProgressController', () => {
       canAccess: false,
       reason: 'Progresso não encontrado',
     });
-    const result = await controller.canAccessSequence(1, 2);
+    const result = await controller.canAccessSequence(1, 2, mockUser, 'app');
+    expectTrackProgressCheck('can-access', 1);
     expect(service.canAccessSequenceForTrackProgress).toHaveBeenCalledWith(1, 2);
     expect(result.canAccess).toBe(false);
   });
 
   it('updateSequenceProgress', async () => {
     mockService.updateSequenceProgress.mockResolvedValue({ ok: true });
-    const result = await controller.updateSequenceProgress(1, 2, {});
+    const result = await controller.updateSequenceProgress(
+      1,
+      2,
+      {},
+      mockUser,
+      'app',
+    );
+    expectTrackProgressCheck('update-sequence', 1);
     expect(result).toEqual({ ok: true });
   });
 
   it('completeContent', async () => {
     mockService.completeContentSequence.mockResolvedValue({ ok: true });
-    const result = await controller.completeContent(1, 2);
+    const result = await controller.completeContent(1, 2, mockUser, 'app');
+    expectTrackProgressCheck('complete-content', 1);
     expect(result).toEqual({ ok: true });
   });
 
   it('completeQuiz', async () => {
     mockService.completeQuizSequence.mockResolvedValue({ ok: true });
-    const result = await controller.completeQuiz(1, 2, {
-      quizSubmissionId: 99,
-    });
+    const result = await controller.completeQuiz(
+      1,
+      2,
+      { quizSubmissionId: 99 },
+      mockUser,
+      'app',
+    );
+    expectTrackProgressCheck('complete-quiz', 1);
     expect(result).toEqual({ ok: true });
   });
 
   it('recalculate', async () => {
     mockService.recalculateTrackProgress.mockResolvedValue({ progress: 100 });
-    const result = await controller.recalculate(1);
+    const result = await controller.recalculate(1, mockUser, 'app');
+    expectTrackProgressCheck('recalculate', 1);
     expect(result).toEqual({ progress: 100 });
+  });
+
+  it('recusa da checagem (modo enforce) impede a chamada ao serviço', async () => {
+    mockAccess.checkTrackProgress.mockRejectedValue(new ForbiddenException());
+    await expect(
+      controller.completeQuiz(1, 2, { quizSubmissionId: 99 }, mockUser, 'app'),
+    ).rejects.toThrow(ForbiddenException);
+    expect(service.completeQuizSequence).not.toHaveBeenCalled();
   });
 });

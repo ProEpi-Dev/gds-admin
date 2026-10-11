@@ -49,6 +49,16 @@ describe('BusinessMetricsService', () => {
     expect(() => service.recordTrackProgressStarted()).not.toThrow();
   });
 
+  it('recordTrackProgressAccessDenied não lança', () => {
+    expect(() =>
+      service.recordTrackProgressAccessDenied({
+        endpoint: 'complete-quiz',
+        channel: 'app',
+        mode: 'observe',
+      }),
+    ).not.toThrow();
+  });
+
   it('métricas sindrômicas não lançam', () => {
     expect(() =>
       service.recordSyndromeClassification('processed'),

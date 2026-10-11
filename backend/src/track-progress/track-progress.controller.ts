@@ -28,12 +28,35 @@ import { TrackProgressQueryDto } from './dto/track-progress-query.dto';
 import { TrackExecutionsQueryDto } from './dto/track-executions-query.dto';
 import { CompleteQuizDto } from './dto/complete-quiz.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentChannel } from '../common/decorators/current-channel.decorator';
+import {
+  TrackProgressAccessService,
+  TrackProgressEndpoint,
+} from './track-progress-access.service';
+
+type AuthUser = { userId: number };
+type Channel = 'web' | 'app';
 
 @ApiTags('Track Progress')
 @Controller('track-progress')
 @ApiBearerAuth()
 export class TrackProgressController {
-  constructor(private readonly trackProgressService: TrackProgressService) {}
+  constructor(
+    private readonly trackProgressService: TrackProgressService,
+    private readonly access: TrackProgressAccessService,
+  ) {}
+
+  private checkTrackProgress(
+    endpoint: TrackProgressEndpoint,
+    user: AuthUser,
+    channel: Channel,
+    trackProgressId: number,
+  ): Promise<void> {
+    return this.access.checkTrackProgress(
+      { userId: user.userId, channel, endpoint },
+      trackProgressId,
+    );
+  }
 
   @Post('start')
   @HttpCode(HttpStatus.CREATED)
@@ -58,7 +81,15 @@ export class TrackProgressController {
     status: 409,
     description: 'Já existe progresso para este usuário neste ciclo',
   })
-  async start(@Body() dto: StartTrackProgressDto) {
+  async start(
+    @Body() dto: StartTrackProgressDto,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
+  ) {
+    await this.access.checkParticipation(
+      { userId: user.userId, channel, endpoint: 'start' },
+      dto.participationId,
+    );
     return this.trackProgressService.startTrackProgress(dto);
   }
 
@@ -187,7 +218,13 @@ export class TrackProgressController {
   async findByUserAndCycle(
     @Param('participationId', ParseIntPipe) participationId: number,
     @Param('cycleId', ParseIntPipe) cycleId: number,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
   ) {
+    await this.access.checkParticipation(
+      { userId: user.userId, channel, endpoint: 'participation-cycle' },
+      participationId,
+    );
     return this.trackProgressService.findByUserAndCycle(
       participationId,
       cycleId,
@@ -218,7 +255,10 @@ export class TrackProgressController {
   async canAccessSequence(
     @Param('id', ParseIntPipe) trackProgressId: number,
     @Param('sequenceId', ParseIntPipe) sequenceId: number,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
   ) {
+    await this.checkTrackProgress('can-access', user, channel, trackProgressId);
     return this.trackProgressService.canAccessSequenceForTrackProgress(
       trackProgressId,
       sequenceId,
@@ -254,7 +294,15 @@ export class TrackProgressController {
     @Param('id', ParseIntPipe) trackProgressId: number,
     @Param('sequenceId', ParseIntPipe) sequenceId: number,
     @Body() dto: UpdateSequenceProgressDto,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
   ) {
+    await this.checkTrackProgress(
+      'update-sequence',
+      user,
+      channel,
+      trackProgressId,
+    );
     return this.trackProgressService.updateSequenceProgress(
       trackProgressId,
       sequenceId,
@@ -290,7 +338,15 @@ export class TrackProgressController {
   async completeContent(
     @Param('id', ParseIntPipe) trackProgressId: number,
     @Param('sequenceId', ParseIntPipe) sequenceId: number,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
   ) {
+    await this.checkTrackProgress(
+      'complete-content',
+      user,
+      channel,
+      trackProgressId,
+    );
     return this.trackProgressService.completeContentSequence(
       trackProgressId,
       sequenceId,
@@ -326,7 +382,15 @@ export class TrackProgressController {
     @Param('id', ParseIntPipe) trackProgressId: number,
     @Param('sequenceId', ParseIntPipe) sequenceId: number,
     @Body() dto: CompleteQuizDto,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
   ) {
+    await this.checkTrackProgress(
+      'complete-quiz',
+      user,
+      channel,
+      trackProgressId,
+    );
     return this.trackProgressService.completeQuizSequence(
       trackProgressId,
       sequenceId,
@@ -350,7 +414,17 @@ export class TrackProgressController {
     status: 200,
     description: 'Progresso recalculado',
   })
-  async recalculate(@Param('id', ParseIntPipe) trackProgressId: number) {
+  async recalculate(
+    @Param('id', ParseIntPipe) trackProgressId: number,
+    @CurrentUser() user: AuthUser,
+    @CurrentChannel() channel: Channel,
+  ) {
+    await this.checkTrackProgress(
+      'recalculate',
+      user,
+      channel,
+      trackProgressId,
+    );
     return this.trackProgressService.recalculateTrackProgress(trackProgressId);
   }
 }
