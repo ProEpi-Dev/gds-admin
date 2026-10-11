@@ -37,6 +37,14 @@ export class BusinessMetricsService {
     { description: 'Inícios de progresso em ciclo de trilha.' },
   );
 
+  private readonly trackProgressAccessDenied = this.meter.createCounter(
+    'gds_track_progress_access_denied',
+    {
+      description:
+        'Acessos a progresso de trilha de outra pessoa (mode=observe só registra; mode=enforce recusa).',
+    },
+  );
+
   private readonly syndromeClassification = this.meter.createCounter(
     'gds_syndrome_classification',
     { description: 'Processamentos de classificação sindrômica por status.' },
@@ -97,6 +105,14 @@ export class BusinessMetricsService {
 
   recordTrackProgressStarted(): void {
     this.trackProgressStarted.add(1);
+  }
+
+  recordTrackProgressAccessDenied(attrs: {
+    endpoint: string;
+    channel: 'web' | 'app';
+    mode: 'observe' | 'enforce';
+  }): void {
+    this.trackProgressAccessDenied.add(1, attrs);
   }
 
   recordSyndromeClassification(
