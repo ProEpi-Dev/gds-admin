@@ -236,6 +236,9 @@ export class ParticipationsService {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
           { email: { contains: searchTerm, mode: 'insensitive' } },
+          {
+            external_identifier: { contains: searchTerm, mode: 'insensitive' },
+          },
         ],
       };
     }
@@ -253,7 +256,7 @@ export class ParticipationsService {
         include: includeUser
           ? {
               user: {
-                select: { name: true, email: true },
+                select: { name: true, email: true, external_identifier: true },
               },
             }
           : undefined,
@@ -297,7 +300,9 @@ export class ParticipationsService {
     const participation = await this.prisma.participation.findUnique({
       where: { id },
       include: {
-        user: { select: { name: true, email: true } },
+        user: {
+          select: { name: true, email: true, external_identifier: true },
+        },
       },
     });
 
@@ -817,6 +822,8 @@ export class ParticipationsService {
     if (includeUser && participation.user) {
       dto.userName = participation.user.name;
       dto.userEmail = participation.user.email;
+      dto.userExternalIdentifier =
+        participation.user.external_identifier ?? null;
     }
     return dto;
   }

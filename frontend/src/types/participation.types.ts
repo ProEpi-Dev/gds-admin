@@ -23,6 +23,8 @@ export interface Participation {
   userName?: string;
   /** Email do usuário (quando includeUser=true na listagem) */
   userEmail?: string;
+  /** Matrícula ou outro identificador externo do usuário (quando includeUser=true) */
+  userExternalIdentifier?: string | null;
 }
 
 export interface CreateParticipationDto {
