@@ -186,8 +186,11 @@ export class TrackProgressController {
     status: 200,
     description: 'Lista de execuções',
   })
-  async getExecutions(@Query() query: TrackExecutionsQueryDto) {
-    return this.trackProgressService.findExecutions(query);
+  async getExecutions(
+    @Query() query: TrackExecutionsQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.trackProgressService.findExecutions(query, user.userId);
   }
 
   @Get('participation/:participationId/cycle/:cycleId')
