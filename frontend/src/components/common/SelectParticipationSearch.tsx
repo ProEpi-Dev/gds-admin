@@ -23,6 +23,16 @@ export interface SelectParticipationSearchProps {
   valueId?: number | null;
 }
 
+/** "Nome (email) · mat. 251011844": a matrícula separa homônimos e contas duplicadas. */
+function participationOptionLabel(opt: Participation): string {
+  const base = opt.userName
+    ? `${opt.userName} (${opt.userEmail ?? `#${opt.id}`})`
+    : (opt.userEmail ?? `Participação #${opt.id}`);
+  return opt.userExternalIdentifier
+    ? `${base} · mat. ${opt.userExternalIdentifier}`
+    : base;
+}
+
 export default function SelectParticipationSearch({
   value,
   onChange,
@@ -65,15 +75,7 @@ export default function SelectParticipationSearch({
   return (
     <Autocomplete
         options={options}
-        getOptionLabel={(opt: Participation) =>
-          opt.userName
-            ? opt.userEmail
-              ? `${opt.userName} (${opt.userEmail})`
-              : `${opt.userName} (#${opt.id})`
-            : opt.userEmail
-              ? opt.userEmail
-              : `Participação #${opt.id}`
-        }
+        getOptionLabel={participationOptionLabel}
         value={displayValue}
         onInputChange={(_, v) => setInputValue(v)}
         onChange={(_, v) => onChange(v)}
