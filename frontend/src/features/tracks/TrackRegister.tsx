@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
+  Alert,
   Box,
   Typography,
   Button,
@@ -24,6 +25,7 @@ import SelectParticipationSearch from "../../components/common/SelectParticipati
 import { useDebounce } from "../../hooks/useDebounce";
 import { useCurrentContext } from "../../contexts/CurrentContextContext";
 import { useTrackExecutions } from "../track-progress/hooks/useTrackProgress";
+import { TrackProgressService } from "../../api/services/track-progress.service";
 import { useTrackCycles } from "../track-cycles/hooks/useTrackCycles";
 import { useParticipation } from "../participations/hooks/useParticipations";
 import type {
@@ -36,6 +38,67 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const DEFAULT_PAGE_SIZE = 20;
+/** Lote máximo aceito pelo backend em cada página. */
+const EXPORT_BATCH_SIZE = 100;
+/** Acima disso o CSV pede filtros mais específicos em vez de baixar tudo. */
+const EXPORT_MAX_ROWS = 5000;
+
+function formatCompletedAt(completedAt: string | null) {
+  return completedAt
+    ? format(new Date(completedAt), "dd/MM/yyyy HH:mm", { locale: ptBR })
+    : "-";
+}
+
+/** Busca todas as páginas do filtro atual, em lotes, para o CSV. */
+async function fetchAllExecutions(
+  params: TrackExecutionsQueryParams,
+  totalItems: number,
+): Promise<TrackExecutionRow[]> {
+  const rows: TrackExecutionRow[] = [];
+  const totalPages = Math.ceil(totalItems / EXPORT_BATCH_SIZE);
+  for (let page = 1; page <= totalPages; page++) {
+    const response = await TrackProgressService.getExecutions({
+      ...params,
+      page,
+      pageSize: EXPORT_BATCH_SIZE,
+    });
+    rows.push(...response.data.data);
+  }
+  return rows;
+}
+
+function downloadExecutionsCsv(rows: TrackExecutionRow[]) {
+  const headers = [
+    "Ciclo de Trilha",
+    "Atividade",
+    "Tipo da Sequência",
+    "Participante",
+    "Data de Conclusão",
+  ];
+  const lines = rows.map((row) => [
+    row.trackCycleName,
+    row.activityName,
+    row.sequenceType === "quiz" ? "Quiz" : "Conteúdo",
+    row.participantName,
+    formatCompletedAt(row.completedAt),
+  ]);
+  const escape = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
+  const csvContent = [
+    headers.map(escape).join(";"),
+    ...lines.map((line) => line.map(escape).join(";")),
+  ].join("\n");
+  const blob = new Blob(["﻿" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `execucoes_trilhas_${format(new Date(), "yyyy-MM-dd")}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export default function TrackExecutionRegistry() {
   const { currentContext } = useCurrentContext();
@@ -55,11 +118,14 @@ export default function TrackExecutionRegistry() {
   const [activityNameInput, setActivityNameInput] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   const activityName = useDebounce(activityNameInput, 400);
+  const contextId = currentContext?.id;
 
-  const queryParams: TrackExecutionsQueryParams = useMemo(() => {
-    const params: TrackExecutionsQueryParams = {};
+  const filterParams: TrackExecutionsQueryParams = useMemo(() => {
+    const params: TrackExecutionsQueryParams = { contextId };
     if (trackCycleId != null) params.trackCycleId = trackCycleId;
     if (participationId != null) params.participationId = participationId;
     if (sequenceType) params.sequenceType = sequenceType;
@@ -68,6 +134,7 @@ export default function TrackExecutionRegistry() {
     if (dateTo) params.dateTo = dateTo;
     return params;
   }, [
+    contextId,
     trackCycleId,
     participationId,
     sequenceType,
@@ -76,11 +143,20 @@ export default function TrackExecutionRegistry() {
     dateTo,
   ]);
 
-  const {
-    data: executions = [],
-    isLoading,
-    error,
-  } = useTrackExecutions(queryParams);
+  // Filtro novo começa da primeira página.
+  useEffect(() => {
+    setPage(1);
+    setExportMessage(null);
+  }, [filterParams]);
+
+  const queryParams = useMemo(
+    () => ({ ...filterParams, page, pageSize }),
+    [filterParams, page, pageSize],
+  );
+
+  const { data, isLoading, error } = useTrackExecutions(queryParams);
+  const executions = useMemo(() => data?.data ?? [], [data]);
+  const totalItems = data?.meta.totalItems ?? 0;
   const { data: cycles = [] } = useTrackCycles({
     contextId: currentContext?.id,
     active: true,
@@ -89,47 +165,24 @@ export default function TrackExecutionRegistry() {
     participationId ?? null,
   );
 
-  const paginatedData = useMemo(
-    () => executions.slice((page - 1) * pageSize, page * pageSize),
-    [executions, page, pageSize],
-  );
-
-  const handleExportCSV = () => {
-    const headers = [
-      "Ciclo de Trilha",
-      "Atividade",
-      "Tipo da Sequência",
-      "Participante",
-      "Data de Conclusão",
-    ];
-    const rows = executions.map((row) => [
-      row.trackCycleName,
-      row.activityName,
-      row.sequenceType === "quiz" ? "Quiz" : "Conteúdo",
-      row.participantName,
-      row.completedAt
-        ? format(new Date(row.completedAt), "dd/MM/yyyy HH:mm", {
-            locale: ptBR,
-          })
-        : "-",
-    ]);
-    const csvContent = [
-      headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(";"),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"),
-      ),
-    ].join("\n");
-    const blob = new Blob(["\ufeff" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `execucoes_trilhas_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleExportCSV = async () => {
+    if (totalItems > EXPORT_MAX_ROWS) {
+      setExportMessage(
+        `O filtro atual tem ${totalItems.toLocaleString("pt-BR")} execuções. ` +
+          `Refine os filtros (ciclo, participante ou datas) para exportar até ` +
+          `${EXPORT_MAX_ROWS.toLocaleString("pt-BR")}.`,
+      );
+      return;
+    }
+    setExportMessage(null);
+    setExporting(true);
+    try {
+      downloadExecutionsCsv(await fetchAllExecutions(filterParams, totalItems));
+    } catch {
+      setExportMessage("Não foi possível exportar as execuções. Tente novamente.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const clearFilters = () => {
@@ -240,12 +293,7 @@ export default function TrackExecutionRegistry() {
       label: "Data de Conclusão",
       minWidth: 160,
       mobileLabel: "Conclusão",
-      render: (row) =>
-        row.completedAt
-          ? format(new Date(row.completedAt), "dd/MM/yyyy HH:mm", {
-              locale: ptBR,
-            })
-          : "-",
+      render: (row) => formatCompletedAt(row.completedAt),
     },
     {
       id: "actions",
@@ -293,11 +341,21 @@ export default function TrackExecutionRegistry() {
           color="success"
           startIcon={<FileDownloadIcon />}
           onClick={handleExportCSV}
-          disabled={executions.length === 0}
+          disabled={totalItems === 0 || exporting}
         >
-          Exportar CSV
+          {exporting ? "Exportando..." : "Exportar CSV"}
         </Button>
       </Stack>
+
+      {exportMessage && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          onClose={() => setExportMessage(null)}
+        >
+          {exportMessage}
+        </Alert>
+      )}
 
       {/* Filtros */}
       <Stack
@@ -390,10 +448,10 @@ export default function TrackExecutionRegistry() {
       ) : (
         <DataTable
           columns={columns}
-          data={paginatedData}
+          data={executions}
           page={page}
           pageSize={pageSize}
-          totalItems={executions.length}
+          totalItems={totalItems}
           onPageChange={setPage}
           onPageSizeChange={(newSize) => {
             setPageSize(newSize);

@@ -10,8 +10,17 @@ import { StartTrackProgressDto } from './dto/start-track-progress.dto';
 import { UpdateSequenceProgressDto } from './dto/update-sequence-progress.dto';
 import { TrackProgressQueryDto } from './dto/track-progress-query.dto';
 import { TrackExecutionsQueryDto } from './dto/track-executions-query.dto';
-import { progress_status_enum, track_cycle_status_enum } from '@prisma/client';
+import {
+  Prisma,
+  progress_status_enum,
+  track_cycle_status_enum,
+} from '@prisma/client';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { AuthzService } from '../authz/authz.service';
+import {
+  createPaginationLinks,
+  createPaginationMeta,
+} from '../common/helpers/pagination.helper';
 import {
   assertTodayWithinCycle,
   assertValidWindow,
@@ -41,11 +50,38 @@ type ScheduleMaps = {
  */
 export type SequenceInteractionOptions = { creditedAt?: Date };
 
+/** Só os campos que o Registro de Execução exibe (a tela pode cobrir centenas de milhares de linhas). */
+const EXECUTION_ROW_SELECT = {
+  id: true,
+  completed_at: true,
+  track_progress: {
+    select: {
+      track_cycle_id: true,
+      participation_id: true,
+      track_cycle: { select: { name: true } },
+      participation: { select: { user: { select: { name: true } } } },
+    },
+  },
+  sequence: {
+    select: {
+      form_id: true,
+      content_id: true,
+      form: { select: { title: true } },
+      content: { select: { title: true } },
+    },
+  },
+} satisfies Prisma.sequence_progressSelect;
+
+type ExecutionRowRecord = Prisma.sequence_progressGetPayload<{
+  select: typeof EXECUTION_ROW_SELECT;
+}>;
+
 @Injectable()
 export class TrackProgressService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly authz: AuthzService,
   ) {}
 
   /**
@@ -1175,26 +1211,67 @@ export class TrackProgressService {
   }
 
   /**
-   * Lista execuções (conclusões de sequências) para visão geral com filtros
+   * Lista execuções (conclusões de sequências) com filtros, paginada no servidor.
+   * Restrita ao contexto resolvido para o usuário; busca só os campos exibidos.
    */
-  async findExecutions(query: TrackExecutionsQueryDto) {
-    const andConditions: any[] = [{ completed_at: { not: null } }];
+  async findExecutions(query: TrackExecutionsQueryDto, userId: number) {
+    const contextId = await this.authz.resolveListContextId(
+      userId,
+      query.contextId,
+      'GET /track-progress/executions',
+    );
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const where = this.buildExecutionsWhere(query, contextId);
 
-    const trackProgressWhere: any = {};
-    if (query.trackCycleId != null)
+    const [rows, totalItems] = await Promise.all([
+      this.prisma.sequence_progress.findMany({
+        where,
+        select: EXECUTION_ROW_SELECT,
+        orderBy: [{ completed_at: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.sequence_progress.count({ where }),
+    ]);
+
+    const paginationOptions = {
+      page,
+      pageSize,
+      totalItems,
+      baseUrl: '/v1/track-progress/executions',
+      queryParams: this.executionsQueryParams(query, contextId),
+    };
+    return {
+      data: rows.map((row) => this.mapExecutionRow(row)),
+      meta: createPaginationMeta(paginationOptions),
+      links: createPaginationLinks(paginationOptions),
+    };
+  }
+
+  private buildExecutionsWhere(
+    query: TrackExecutionsQueryDto,
+    contextId: number,
+  ): Prisma.sequence_progressWhereInput {
+    const trackProgressWhere: Prisma.track_progressWhereInput = {
+      participation: { context_id: contextId },
+    };
+    if (query.trackCycleId != null) {
       trackProgressWhere.track_cycle_id = query.trackCycleId;
-    if (query.participationId != null)
+    }
+    if (query.participationId != null) {
       trackProgressWhere.participation_id = query.participationId;
-    if (Object.keys(trackProgressWhere).length > 0) {
-      andConditions.push({ track_progress: trackProgressWhere });
     }
-    if (query.sequenceType === 'content') {
-      andConditions.push({ sequence: { form_id: null } });
-    } else if (query.sequenceType === 'quiz') {
-      andConditions.push({ sequence: { form_id: { not: null } } });
-    }
-    if (query.activityName?.trim()) {
-      const term = query.activityName.trim();
+
+    const andConditions: Prisma.sequence_progressWhereInput[] = [
+      { completed_at: { not: null } },
+      { track_progress: trackProgressWhere },
+    ];
+    const sequenceFilter = this.executionSequenceTypeFilter(query.sequenceType);
+    if (sequenceFilter) andConditions.push(sequenceFilter);
+
+    const term = query.activityName?.trim();
+    if (term) {
       andConditions.push({
         OR: [
           {
@@ -1211,54 +1288,62 @@ export class TrackProgressService {
       });
     }
     if (query.dateFrom) {
-      andConditions.push({
-        completed_at: { gte: new Date(query.dateFrom) },
-      });
+      andConditions.push({ completed_at: { gte: new Date(query.dateFrom) } });
     }
     if (query.dateTo) {
       const end = new Date(query.dateTo);
       end.setHours(23, 59, 59, 999);
       andConditions.push({ completed_at: { lte: end } });
     }
+    return { AND: andConditions };
+  }
 
-    const rows = await this.prisma.sequence_progress.findMany({
-      where: { AND: andConditions },
-      include: {
-        track_progress: {
-          include: {
-            participation: { include: { user: true } },
-            track_cycle: true,
-          },
-        },
-        sequence: {
-          include: {
-            content: true,
-            form: true,
-          },
-        },
-      },
-      orderBy: { completed_at: 'desc' },
-    });
+  private executionSequenceTypeFilter(
+    sequenceType: TrackExecutionsQueryDto['sequenceType'],
+  ): Prisma.sequence_progressWhereInput | null {
+    if (sequenceType === 'content') return { sequence: { form_id: null } };
+    if (sequenceType === 'quiz') {
+      return { sequence: { form_id: { not: null } } };
+    }
+    return null;
+  }
 
-    return rows.map((sp) => {
-      const tp = sp.track_progress;
-      const seq = sp.sequence;
-      const activityName = seq.form_id
-        ? (seq.form?.title ?? `Quiz #${seq.form_id}`)
-        : (seq.content?.title ?? `Conteúdo #${seq.content_id}`);
-      const participantName = tp.participation?.user
-        ? `${tp.participation.user.name}`
-        : `Participação #${tp.participation_id}`;
-      return {
-        id: sp.id,
-        trackCycleId: tp.track_cycle_id,
-        trackCycleName: tp.track_cycle?.name ?? '',
-        activityName,
-        sequenceType: seq.form_id ? ('quiz' as const) : ('content' as const),
-        participationId: tp.participation_id,
-        participantName,
-        completedAt: sp.completed_at,
-      };
-    });
+  private executionsQueryParams(
+    query: TrackExecutionsQueryDto,
+    contextId: number,
+  ): Record<string, string> {
+    const params: Record<string, string> = { contextId: String(contextId) };
+    const optional: Array<keyof TrackExecutionsQueryDto> = [
+      'trackCycleId',
+      'participationId',
+      'sequenceType',
+      'activityName',
+      'dateFrom',
+      'dateTo',
+    ];
+    for (const key of optional) {
+      const value = query[key];
+      if (value != null && value !== '') params[key] = String(value);
+    }
+    return params;
+  }
+
+  private mapExecutionRow(row: ExecutionRowRecord) {
+    const tp = row.track_progress;
+    const seq = row.sequence;
+    const activityName = seq.form_id
+      ? (seq.form?.title ?? `Quiz #${seq.form_id}`)
+      : (seq.content?.title ?? `Conteúdo #${seq.content_id}`);
+    return {
+      id: row.id,
+      trackCycleId: tp.track_cycle_id,
+      trackCycleName: tp.track_cycle?.name ?? '',
+      activityName,
+      sequenceType: seq.form_id ? ('quiz' as const) : ('content' as const),
+      participationId: tp.participation_id,
+      participantName:
+        tp.participation?.user?.name ?? `Participação #${tp.participation_id}`,
+      completedAt: row.completed_at,
+    };
   }
 }

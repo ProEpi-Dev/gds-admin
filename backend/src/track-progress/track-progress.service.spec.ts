@@ -8,9 +8,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { BusinessMetricsService } from '../telemetry/business-metrics.service';
+import { AuthzService } from '../authz/authz.service';
 
 describe('TrackProgressService', () => {
   let service: TrackProgressService;
+
+  const authzMock = {
+    resolveListContextId: jest.fn(),
+  };
 
   /** Janela que inclui a data atual usada nos testes (BRT → UTC date-only no serviço). */
   const openCycleDates = {
@@ -36,6 +41,7 @@ describe('TrackProgressService', () => {
       createMany: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
     },
     sequence: {
       findUnique: jest.fn(),
@@ -56,6 +62,7 @@ describe('TrackProgressService', () => {
           provide: BusinessMetricsService,
           useValue: { recordTrackProgressStarted: jest.fn() },
         },
+        { provide: AuthzService, useValue: authzMock },
       ],
     }).compile();
 
@@ -953,31 +960,155 @@ describe('TrackProgressService', () => {
     expect(result.canAccess).toBe(true);
   });
 
-  it('findExecutions – filtra e retorna', async () => {
-    prismaMock.sequence_progress.findMany.mockResolvedValue([
-      {
-        id: 1,
-        completed_at: new Date(),
-        track_progress: {
-          id: 10,
-          track_cycle_id: 20,
-          track_cycle: { name: 'Cycle 1' },
-          participation_id: 100,
-          participation: { user: { name: 'User1' } },
-        },
-        sequence: {
-          form_id: null,
-          content: { title: 'Content title' },
-          form: null,
-          content_id: 500,
-        },
+  describe('findExecutions', () => {
+    const contentRow = {
+      id: 1,
+      completed_at: new Date('2026-10-01T12:00:00.000Z'),
+      track_progress: {
+        track_cycle_id: 20,
+        track_cycle: { name: 'Cycle 1' },
+        participation_id: 100,
+        participation: { user: { name: 'User1' } },
       },
-    ]);
+      sequence: {
+        form_id: null,
+        content: { title: 'Content title' },
+        form: null,
+        content_id: 500,
+      },
+    };
 
-    const result = await service.findExecutions({});
+    beforeEach(() => {
+      authzMock.resolveListContextId.mockResolvedValue(1);
+    });
 
-    expect(result.length).toBe(1);
-    expect(result[0]).toHaveProperty('activityName', 'Content title');
+    it('pagina no servidor e restringe ao contexto resolvido', async () => {
+      prismaMock.sequence_progress.findMany.mockResolvedValue([contentRow]);
+      prismaMock.sequence_progress.count.mockResolvedValue(45);
+
+      const result = await service.findExecutions(
+        { page: 2, pageSize: 20, contextId: 1 },
+        7,
+      );
+
+      expect(authzMock.resolveListContextId).toHaveBeenCalledWith(
+        7,
+        1,
+        'GET /track-progress/executions',
+      );
+      const args = prismaMock.sequence_progress.findMany.mock.calls[0][0];
+      expect(args.skip).toBe(20);
+      expect(args.take).toBe(20);
+      expect(args.select).toBeDefined();
+      expect(args.where.AND).toContainEqual({
+        track_progress: { participation: { context_id: 1 } },
+      });
+      expect(result.meta).toEqual({
+        page: 2,
+        pageSize: 20,
+        totalPages: 3,
+        totalItems: 45,
+      });
+      expect(result.data[0]).toEqual({
+        id: 1,
+        trackCycleId: 20,
+        trackCycleName: 'Cycle 1',
+        activityName: 'Content title',
+        sequenceType: 'content',
+        participationId: 100,
+        participantName: 'User1',
+        completedAt: contentRow.completed_at,
+      });
+    });
+
+    it('aplica os filtros de ciclo, participante, tipo, nome e datas', async () => {
+      prismaMock.sequence_progress.findMany.mockResolvedValue([]);
+      prismaMock.sequence_progress.count.mockResolvedValue(0);
+
+      const result = await service.findExecutions(
+        {
+          contextId: 1,
+          trackCycleId: 20,
+          participationId: 100,
+          sequenceType: 'quiz',
+          activityName: '  Quiz 5 ',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-30',
+        },
+        7,
+      );
+
+      const { where } = prismaMock.sequence_progress.findMany.mock.calls[0][0];
+      expect(where.AND).toContainEqual({
+        track_progress: {
+          participation: { context_id: 1 },
+          track_cycle_id: 20,
+          participation_id: 100,
+        },
+      });
+      expect(where.AND).toContainEqual({
+        sequence: { form_id: { not: null } },
+      });
+      expect(JSON.stringify(where.AND)).toContain('"contains":"Quiz 5"');
+      expect(where.AND).toContainEqual({
+        completed_at: { gte: new Date('2026-09-01') },
+      });
+      expect(prismaMock.sequence_progress.count).toHaveBeenCalledWith({
+        where,
+      });
+      expect(result.links.first).toContain('trackCycleId=20');
+      expect(result.links.first).toContain('sequenceType=quiz');
+    });
+
+    it('tipo conteúdo e nomes de reserva quando falta título ou usuário', async () => {
+      prismaMock.sequence_progress.findMany.mockResolvedValue([
+        {
+          ...contentRow,
+          track_progress: {
+            ...contentRow.track_progress,
+            track_cycle: null,
+            participation: null,
+          },
+          sequence: { ...contentRow.sequence, content: null },
+        },
+        {
+          ...contentRow,
+          id: 2,
+          sequence: { form_id: 9, form: null, content: null, content_id: null },
+        },
+      ]);
+      prismaMock.sequence_progress.count.mockResolvedValue(2);
+
+      const result = await service.findExecutions(
+        { contextId: 1, sequenceType: 'content' },
+        7,
+      );
+
+      const { where } = prismaMock.sequence_progress.findMany.mock.calls[0][0];
+      expect(where.AND).toContainEqual({ sequence: { form_id: null } });
+      expect(result.data[0]).toMatchObject({
+        trackCycleName: '',
+        activityName: 'Conteúdo #500',
+        participantName: 'Participação #100',
+      });
+      expect(result.data[1]).toMatchObject({
+        activityName: 'Quiz #9',
+        sequenceType: 'quiz',
+      });
+      expect(result.meta.page).toBe(1);
+      expect(result.meta.pageSize).toBe(20);
+    });
+
+    it('sem contexto válido não consulta o banco', async () => {
+      authzMock.resolveListContextId.mockRejectedValue(
+        new BadRequestException('contextId é obrigatório'),
+      );
+
+      await expect(service.findExecutions({}, 7)).rejects.toThrow(
+        'contextId é obrigatório',
+      );
+      expect(prismaMock.sequence_progress.findMany).not.toHaveBeenCalled();
+    });
   });
 
   it('findCompletedByUser', async () => {

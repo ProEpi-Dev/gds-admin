@@ -118,7 +118,8 @@ describe('TrackProgressController', () => {
 
   it('getExecutions', async () => {
     mockService.findExecutions.mockResolvedValue([]);
-    const result = await controller.getExecutions({});
+    const result = await controller.getExecutions({ contextId: 1 }, mockUser);
+    expect(service.findExecutions).toHaveBeenCalledWith({ contextId: 1 }, 1);
     expect(result).toEqual([]);
   });
 

@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { TrackProgressService } from "../../../api/services/track-progress.service";
 import type {
   StartTrackProgressDto,
@@ -50,13 +55,16 @@ export function useTrackProgressList(params?: TrackProgressQueryParams) {
   });
 }
 
-export function useTrackExecutions(params?: TrackExecutionsQueryParams) {
+/** Página de execuções; só consulta com contexto, que o backend exige. */
+export function useTrackExecutions(params: TrackExecutionsQueryParams) {
   return useQuery({
     queryKey: ["track-progress", "executions", params],
     queryFn: async () => {
       const response = await TrackProgressService.getExecutions(params);
       return response.data;
     },
+    enabled: params.contextId != null,
+    placeholderData: keepPreviousData,
   });
 }
 

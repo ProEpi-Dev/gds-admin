@@ -7,8 +7,19 @@ import {
   IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
-export class TrackExecutionsQueryDto {
+export class TrackExecutionsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'Contexto das participações. Obrigatório para admin; manager usa os contextos que gerencia.',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  contextId?: number;
+
   @ApiPropertyOptional({
     description: 'ID do ciclo de trilha para filtrar',
     example: 1,
