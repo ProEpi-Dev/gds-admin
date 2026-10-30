@@ -236,6 +236,9 @@ export class ParticipationsService {
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
           { email: { contains: searchTerm, mode: 'insensitive' } },
+          {
+            external_identifier: { contains: searchTerm, mode: 'insensitive' },
+          },
         ],
       };
     }
@@ -253,7 +256,7 @@ export class ParticipationsService {
         include: includeUser
           ? {
               user: {
-                select: { name: true, email: true },
+                select: { name: true, email: true, external_identifier: true },
               },
             }
           : undefined,
@@ -297,7 +300,9 @@ export class ParticipationsService {
     const participation = await this.prisma.participation.findUnique({
       where: { id },
       include: {
-        user: { select: { name: true, email: true } },
+        user: {
+          select: { name: true, email: true, external_identifier: true },
+        },
       },
     });
 
@@ -592,7 +597,12 @@ export class ParticipationsService {
         targetEntityId: pid,
         actor: { userId: actorUserId },
         contextId,
-        targetUserId,
+        // Quando esta era a última participação, o usuário acabou de ser
+        // apagado ali em cima. admin_action_log.target_user_id é FK com
+        // ON DELETE SET NULL, então referenciá-lo aqui viola a constraint e
+        // derruba a transação inteira — a exclusão falhava com 500 e nada era
+        // removido. O id sobrevive no metadata, que é jsonb e não tem FK.
+        targetUserId: deletedUserId === null ? targetUserId : null,
         request: auditRequest ?? null,
         metadata: {
           previousActive: participation.active,
@@ -812,6 +822,8 @@ export class ParticipationsService {
     if (includeUser && participation.user) {
       dto.userName = participation.user.name;
       dto.userEmail = participation.user.email;
+      dto.userExternalIdentifier =
+        participation.user.external_identifier ?? null;
     }
     return dto;
   }

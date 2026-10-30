@@ -238,6 +238,8 @@ model report {
   form_response            Json
   created_at               DateTime                  @default(now()) @db.Timestamp(6)
   updated_at               DateTime                  @default(now()) @db.Timestamp(6)
+  /// Momento em que o participante fez o reporte no aparelho (pode ser offline). created_at é a gravação no backend.
+  report_date              DateTime                  @default(now()) @db.Timestamp(6)
   active                   Boolean                   @default(true)
   form_version             form_version              @relation(fields: [form_version_id], references: [id], onUpdate: NoAction)
   participation            participation             @relation(fields: [participation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -247,6 +249,7 @@ model report {
   @@index([form_version_id], map: "idx_report_form_version_id")
   @@index([participation_id], map: "idx_report_participation_id")
   @@index([participation_id, report_type, active, created_at(sort: Desc)], map: "idx_report_participation_type_active_created_desc")
+  @@index([participation_id, report_type, active, report_date(sort: Desc)], map: "idx_report_participation_type_active_report_date_desc")
   @@index([active, created_at, participation_id], map: "idx_report_active_created_at_participation")
   @@index([participation_id, active, created_at], map: "idx_report_participation_active_created_at")
 }

@@ -419,7 +419,7 @@ export default function ContentList() {
       await ContentTypeAdminService.create({
         name: newContentTypeName.trim(),
         color: newContentTypeColor || undefined,
-      });
+      }, currentContext?.id);
       setNewContentTypeName("");
       setNewContentTypeColor("");
       await refreshContentTypes();
@@ -427,7 +427,7 @@ export default function ContentList() {
       snackbar.showSuccess("Tipo de conteúdo criado com sucesso!");
     } catch (error) {
       console.error("Erro ao criar tipo de conteúdo:", error);
-      snackbar.showError("Erro ao criar tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao criar tipo de conteúdo"));
     }
   };
 
@@ -454,14 +454,14 @@ export default function ContentList() {
       await ContentTypeAdminService.update(editingContentTypeId, {
         name: editingContentTypeName.trim(),
         color: editingContentTypeColor || undefined,
-      });
+      }, currentContext?.id);
       await refreshContentTypes();
       await refreshContents();
       snackbar.showSuccess("Tipo de conteúdo atualizado com sucesso!");
       handleCancelEditContentType();
     } catch (error) {
       console.error("Erro ao atualizar tipo de conteúdo:", error);
-      snackbar.showError("Erro ao atualizar tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao atualizar tipo de conteúdo"));
     }
   };
 
@@ -472,7 +472,7 @@ export default function ContentList() {
     if (!confirmed) return;
 
     try {
-      await ContentTypeAdminService.delete(typeId);
+      await ContentTypeAdminService.delete(typeId, currentContext?.id);
       await refreshContentTypes();
       await refreshContents();
 
@@ -483,7 +483,7 @@ export default function ContentList() {
       snackbar.showSuccess("Tipo de conteúdo excluído com sucesso!");
     } catch (error) {
       console.error("Erro ao excluir tipo de conteúdo:", error);
-      snackbar.showError("Erro ao excluir tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao excluir tipo de conteúdo"));
     }
   };
 

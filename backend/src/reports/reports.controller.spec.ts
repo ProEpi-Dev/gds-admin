@@ -25,6 +25,7 @@ describe('ReportsController', () => {
     occurrenceLocation: { latitude: -23.5505, longitude: -46.6333 },
     formResponse: {},
     active: true,
+    reportDate: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
   };

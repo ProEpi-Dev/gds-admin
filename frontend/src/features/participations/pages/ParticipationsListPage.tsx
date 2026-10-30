@@ -196,6 +196,16 @@ export default function ParticipationsListPage() {
               {row.userEmail}
             </Typography>
           )}
+          {row.userExternalIdentifier && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
+              {t('participations.externalIdentifier')}:{' '}
+              {row.userExternalIdentifier}
+            </Typography>
+          )}
         </Box>
       ),
     },

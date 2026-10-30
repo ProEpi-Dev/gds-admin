@@ -10,6 +10,7 @@ import type {
   TrackExecutionsQueryParams,
   MandatoryComplianceResponse,
 } from '../../types/track-progress.types';
+import type { ListResponse } from '../../types/api.types';
 
 export const TrackProgressService = {
   /**
@@ -30,9 +31,10 @@ export const TrackProgressService = {
    * Lista execuções (conclusões de sequências) com filtros
    */
   getExecutions(params?: TrackExecutionsQueryParams) {
-    return apiClient.get<TrackExecutionRow[]>('/track-progress/executions', {
-      params,
-    });
+    return apiClient.get<ListResponse<TrackExecutionRow>>(
+      '/track-progress/executions',
+      { params },
+    );
   },
 
   /**

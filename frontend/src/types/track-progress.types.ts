@@ -120,6 +120,9 @@ export interface TrackExecutionRow {
 }
 
 export interface TrackExecutionsQueryParams {
+  page?: number;
+  pageSize?: number;
+  contextId?: number;
   trackCycleId?: number;
   participationId?: number;
   sequenceType?: "content" | "quiz";

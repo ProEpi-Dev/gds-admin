@@ -44,7 +44,8 @@ export class ParticipationQueryDto extends PaginationQueryDto {
   includeUser?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Buscar por nome ou email do usuário (busca no servidor)',
+    description:
+      'Buscar por nome, email ou identificador externo (matrícula) do usuário (busca no servidor)',
     example: 'João',
   })
   @IsOptional()

@@ -59,4 +59,12 @@ export class ParticipationResponseDto {
     example: 'joao@example.com',
   })
   userEmail?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Identificador externo do usuário, como a matrícula (quando includeUser=true na listagem)',
+    example: '251011844',
+    nullable: true,
+  })
+  userExternalIdentifier?: string | null;
 }

@@ -378,6 +378,68 @@ describe('ParticipationsService', () => {
         }),
       );
     });
+
+    it('busca também pela matrícula (external_identifier)', async () => {
+      jest
+        .spyOn(prismaService.participation, 'findMany')
+        .mockResolvedValue([] as any);
+      jest.spyOn(prismaService.participation, 'count').mockResolvedValue(0);
+
+      await service.findAll(
+        { page: 1, pageSize: 20, search: ' 251011844 ' },
+        1,
+      );
+
+      const { where } = (prismaService.participation.findMany as jest.Mock)
+        .mock.calls[0][0];
+      expect(where.user.OR).toEqual([
+        { name: { contains: '251011844', mode: 'insensitive' } },
+        { email: { contains: '251011844', mode: 'insensitive' } },
+        {
+          external_identifier: {
+            contains: '251011844',
+            mode: 'insensitive',
+          },
+        },
+      ]);
+    });
+
+    it('com includeUser devolve a matrícula do usuário', async () => {
+      jest.spyOn(prismaService.participation, 'findMany').mockResolvedValue([
+        {
+          ...mockParticipation,
+          user: {
+            name: 'Lucas',
+            email: 'lucas@example.com',
+            external_identifier: '251011844',
+          },
+        },
+        {
+          ...mockParticipation,
+          id: 2,
+          user: { name: 'Sem matrícula', email: 'sem@example.com' },
+        },
+      ] as any);
+      jest.spyOn(prismaService.participation, 'count').mockResolvedValue(2);
+
+      const result = await service.findAll(
+        { page: 1, pageSize: 20, includeUser: true },
+        1,
+      );
+
+      const { include } = (prismaService.participation.findMany as jest.Mock)
+        .mock.calls[0][0];
+      expect(include.user.select).toEqual({
+        name: true,
+        email: true,
+        external_identifier: true,
+      });
+      expect(result.data[0]).toMatchObject({
+        userName: 'Lucas',
+        userExternalIdentifier: '251011844',
+      });
+      expect(result.data[1].userExternalIdentifier).toBeNull();
+    });
   });
 
   describe('findOne', () => {
@@ -671,6 +733,10 @@ describe('ParticipationsService', () => {
         expect.objectContaining({
           action: 'PARTICIPATION_PERMANENT_DELETE',
           targetEntityId: 1,
+          // O usuario foi apagado logo acima. admin_action_log.target_user_id
+          // e FK com ON DELETE SET NULL: apontar para ele viola a constraint e
+          // derruba a transacao inteira. O id fica no metadata, que e jsonb.
+          targetUserId: null,
           metadata: expect.objectContaining({
             deletedUserIdBecauseNoParticipationsRemaining: 1,
           }),
@@ -678,6 +744,38 @@ describe('ParticipationsService', () => {
       );
       expect(deleteMock.mock.invocationCallOrder[0]).toBeLessThan(
         recordWithTxSpy.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('mantem a referencia ao usuario quando ele nao foi apagado', async () => {
+      jest.spyOn(prismaService.participation, 'findUnique').mockResolvedValue({
+        ...mockParticipation,
+        active: false,
+      } as never);
+      const recordWithTxSpy = jest
+        .spyOn(auditLogService, 'recordWithTx')
+        .mockResolvedValue(undefined);
+      (
+        prismaService as never as { $transaction: jest.Mock }
+      ).$transaction.mockImplementation(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({
+            participation: {
+              delete: jest.fn(),
+              // Sobrou outra participacao: o usuario permanece.
+              count: jest.fn().mockResolvedValue(1),
+            },
+            user: { findUnique: jest.fn(), delete: jest.fn() },
+            content: { count: jest.fn().mockResolvedValue(0) },
+            $executeRaw: jest.fn(),
+          }),
+      );
+
+      await service.permanentRemove(1, 777);
+
+      expect(recordWithTxSpy).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ targetUserId: 1 }),
       );
     });
 
