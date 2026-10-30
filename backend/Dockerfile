@@ -4,7 +4,7 @@
 # Runtime: bookworm-slim ainda inclui npm/Yarn; após install, removemos gerenciadores (só `node` no CMD).
 # Alternativa sem shell na imagem final: Dockerfile.distroless.
 
-ARG NODE_VERSION=20
+ARG NODE_VERSION=24
 
 # -------- Build --------
 FROM node:${NODE_VERSION}-bookworm AS builder

@@ -6,7 +6,7 @@
 #
 # Debug: não há sh no container; use logs, métricas ou uma imagem temporária com bookworm-slim.
 
-ARG NODE_VERSION=20
+ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-bookworm AS builder
 
@@ -64,7 +64,7 @@ COPY --from=builder /app/dist ./dist
 RUN test -f dist/src/main.js || exit 1
 
 # Usuário não-root do Distroless (65532)
-FROM gcr.io/distroless/nodejs20-debian12:nonroot AS production
+FROM gcr.io/distroless/nodejs24-debian12:nonroot AS production
 
 WORKDIR /app
 
