@@ -62,6 +62,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import { useSnackbar } from "../../hooks/useSnackbar";
+import { getErrorMessage } from "../../utils/errorHandler";
 import { useTranslation } from "react-i18next";
 import MobilePreviewDialog from "../../components/common/MobilePreviewDialog";
 import ContentQuizManager from "../content-quiz/components/ContentQuizManager";
@@ -218,7 +219,7 @@ export default function ContentForm() {
       const newType = await ContentTypeAdminService.create({
         name: newContentTypeName,
         color: newContentTypeColor || undefined,
-      });
+      }, currentContext?.id);
 
       setContentTypes([...contentTypes, newType.data]);
       setForm({ ...form, type_id: newType.data.id });
@@ -228,7 +229,7 @@ export default function ContentForm() {
       snackbar.showSuccess("Tipo de conteúdo criado com sucesso!");
     } catch (error) {
       console.error("Erro ao criar tipo de conteúdo:", error);
-      snackbar.showError("Erro ao criar tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao criar tipo de conteúdo"));
     }
   };
 
@@ -239,7 +240,7 @@ export default function ContentForm() {
     if (!confirmed) return;
 
     try {
-      await ContentTypeAdminService.delete(typeId);
+      await ContentTypeAdminService.delete(typeId, currentContext?.id);
       setContentTypes((prev) => prev.filter((type) => type.id !== typeId));
       setForm((prev) => ({
         ...prev,
@@ -248,7 +249,7 @@ export default function ContentForm() {
       snackbar.showSuccess("Tipo de conteúdo excluído com sucesso!");
     } catch (error) {
       console.error("Erro ao excluir tipo de conteúdo:", error);
-      snackbar.showError("Erro ao excluir tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao excluir tipo de conteúdo"));
     }
   };
 
@@ -278,6 +279,7 @@ export default function ContentForm() {
           name: editingContentTypeName.trim(),
           color: editingContentTypeColor || undefined,
         },
+        currentContext?.id,
       );
 
       setContentTypes((prev) =>
@@ -289,7 +291,7 @@ export default function ContentForm() {
       handleCancelEditContentType();
     } catch (error) {
       console.error("Erro ao atualizar tipo de conteúdo:", error);
-      snackbar.showError("Erro ao atualizar tipo de conteúdo");
+      snackbar.showError(getErrorMessage(error, "Erro ao atualizar tipo de conteúdo"));
     }
   };
 
