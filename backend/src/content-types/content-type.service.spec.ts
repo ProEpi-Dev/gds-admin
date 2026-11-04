@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ContentTypeService } from './content-type.service';
+import { ContentTypeService, inactiveName } from './content-type.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 describe('ContentTypeService', () => {
@@ -259,6 +259,9 @@ describe('ContentTypeService', () => {
       const updateManyResult = { count: 2 };
 
       jest
+        .spyOn(prismaService.content_type, 'findUnique')
+        .mockResolvedValue({ name: 'Artigos' } as any);
+      jest
         .spyOn(prismaService.content, 'updateMany')
         .mockResolvedValue(updateManyResult as any);
       jest
@@ -278,11 +281,41 @@ describe('ContentTypeService', () => {
       expect(prismaService.content_type.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: {
+          name: 'Artigos (inativo #1)',
           active: false,
           updated_at: expect.any(Date),
         },
       });
       expect(prismaService.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('deve lançar NotFoundException quando o tipo não existe', async () => {
+      jest
+        .spyOn(prismaService.content_type, 'findUnique')
+        .mockResolvedValue(null);
+      const transactionSpy = jest.spyOn(prismaService, '$transaction');
+
+      await expect(service.softDelete(999)).rejects.toThrow(NotFoundException);
+      expect(transactionSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('inactiveName', () => {
+    it('acrescenta o sufixo com o id', () => {
+      expect(inactiveName('Artigos', 3)).toBe('Artigos (inativo #3)');
+    });
+
+    it('não repete o sufixo ao desativar de novo', () => {
+      expect(inactiveName('Artigos (inativo #3)', 3)).toBe(
+        'Artigos (inativo #3)',
+      );
+    });
+
+    it('corta o nome para caber nos 100 caracteres da coluna', () => {
+      const result = inactiveName('a'.repeat(100), 42);
+
+      expect(result).toHaveLength(100);
+      expect(result.endsWith(' (inativo #42)')).toBe(true);
     });
   });
 });
