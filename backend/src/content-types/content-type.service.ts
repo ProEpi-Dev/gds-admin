@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateContentTypeDto, UpdateContentTypeDto } from './content-type.dto';
@@ -6,6 +10,18 @@ import {
   MemoryTtlCache,
   readPositiveIntEnv,
 } from '../common/cache/memory-ttl-cache';
+
+const NAME_MAX_LENGTH = 100;
+
+/**
+ * O nome é único no banco também entre os desativados. Ao desativar, o tipo
+ * passa a "Nome (inativo #id)" para que o nome volte a ficar disponível.
+ */
+export function inactiveName(name: string, id: number): string {
+  const suffix = ` (inativo #${id})`;
+  if (name.endsWith(suffix)) return name;
+  return name.slice(0, NAME_MAX_LENGTH - suffix.length) + suffix;
+}
 
 @Injectable()
 export class ContentTypeService {
@@ -168,6 +184,14 @@ export class ContentTypeService {
   }
 
   async softDelete(id: number) {
+    const current = await this.prisma.content_type.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    if (!current) {
+      throw new NotFoundException('Tipo de conteúdo não encontrado');
+    }
+
     const [, updatedType] = await this.prisma.$transaction([
       this.prisma.content.updateMany({
         where: { type_id: id },
@@ -176,6 +200,7 @@ export class ContentTypeService {
       this.prisma.content_type.update({
         where: { id },
         data: {
+          name: inactiveName(current.name, id),
           active: false,
           updated_at: new Date(),
         },
