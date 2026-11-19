@@ -1,4 +1,5 @@
-import { EphemClient } from './ephem.client';
+import { ConflictException } from '@nestjs/common';
+import { EphemClient, normalizeEphemMessage } from './ephem.client';
 
 describe('EphemClient', () => {
   let client: EphemClient;
@@ -107,6 +108,70 @@ describe('EphemClient', () => {
 
       await expect(client.getMessages(baseConfig, '1')).resolves.toEqual([]);
     });
+
+    it('converte o formato real do integrador: author_id.name e date (UTC) viram author e createdAt', async () => {
+      // corpo como o integrador devolve (SinalMensagem serializada pelo Spring HATEOAS)
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          _embedded: {
+            mensagens: [
+              {
+                date: '2026-11-18 10:30:00',
+                subject: '',
+                signal_id: 555,
+                message_type: 'comment',
+                id: 99,
+                body: '<p>Recebido, vamos verificar.</p>',
+                partner_ids: [3],
+                author_id: { id: 3, name: 'Equipe CIEVS' },
+              },
+            ],
+          },
+          page: { size: 99, totalElements: 1, totalPages: 1, number: 0 },
+        }),
+      });
+
+      const [msg] = await client.getMessages(baseConfig, '10');
+
+      expect(msg.id).toBe(99);
+      expect(msg.body).toBe('<p>Recebido, vamos verificar.</p>');
+      expect(msg.author).toBe('Equipe CIEVS');
+      expect(msg.createdAt).toBe('2026-11-18T10:30:00Z');
+    });
+  });
+
+  describe('normalizeEphemMessage', () => {
+    it('mantém author e createdAt quando já vêm prontos', () => {
+      const msg = normalizeEphemMessage({
+        id: '1',
+        author: 'suporte',
+        createdAt: '2024-06-01T12:00:00.000Z',
+        author_id: { id: 1, name: 'outro' },
+        date: '2020-01-01 00:00:00',
+      });
+      expect(msg.author).toBe('suporte');
+      expect(msg.createdAt).toBe('2024-06-01T12:00:00.000Z');
+    });
+
+    it('aceita author_id no formato cru do Odoo ([id, name])', () => {
+      expect(
+        normalizeEphemMessage({ id: '1', author_id: [7, 'GDS App'] }).author,
+      ).toBe('GDS App');
+    });
+
+    it('sem autor (false/null) ou data inválida: campos ficam undefined', () => {
+      const msg = normalizeEphemMessage({
+        id: '1',
+        author_id: false,
+        date: 'ontem',
+      });
+      expect(msg.author).toBeUndefined();
+      expect(msg.createdAt).toBeUndefined();
+      expect(
+        normalizeEphemMessage({ id: '2', author_id: null, date: false }).author,
+      ).toBeUndefined();
+    });
   });
 
   describe('getEvent', () => {
@@ -172,6 +237,21 @@ describe('EphemClient', () => {
       await expect(
         client.sendMessage(baseConfig, 'e1', 'x'),
       ).rejects.toThrow('Ephem sendMessage failed: HTTP 400');
+    });
+
+    it('409 (evento ainda não virou signal no ePHEM) vira ConflictException com mensagem amigável', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 409,
+        text: async () =>
+          '{"message":"o evento ainda nao foi enviado ao ePHEM"}',
+      });
+
+      const erro = client.sendMessage(baseConfig, 'e1', 'x');
+      await expect(erro).rejects.toBeInstanceOf(ConflictException);
+      await expect(client.sendMessage(baseConfig, 'e1', 'x')).rejects.toThrow(
+        'O relato ainda está sendo enviado ao ePHEM',
+      );
     });
   });
 

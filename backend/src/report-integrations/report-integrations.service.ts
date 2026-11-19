@@ -847,6 +847,7 @@ export class ReportIntegrationsService {
 
     for (const msg of remoteMessages) {
       const externalId = String(msg.id);
+      const remoteCreatedAt = msg.createdAt ? new Date(msg.createdAt) : null;
       await this.integrationMessage.upsert({
         where: {
           integration_event_id_external_message_id: {
@@ -860,13 +861,13 @@ export class ReportIntegrationsService {
           direction: 'inbound',
           body: msg.message ?? msg.body ?? '',
           author: msg.author ?? null,
-          remote_created_at: msg.createdAt
-            ? new Date(msg.createdAt)
-            : null,
+          remote_created_at: remoteCreatedAt,
         },
         update: {
           body: msg.message ?? msg.body ?? '',
           author: msg.author ?? null,
+          // corrige mensagens gravadas antes do mapeamento de `date` (ficaram com null)
+          ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
         },
       });
     }

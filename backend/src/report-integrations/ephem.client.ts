@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 
 export interface EphemEventPayload extends Record<string, any> {
   data: Record<string, any>;
@@ -14,9 +14,48 @@ export interface EphemMessage {
   id: string;
   message?: string;
   body?: string;
+  /** Nome do autor, já extraído de `author_id` do integrador. */
   author?: string;
+  /** ISO 8601 em UTC, já convertido de `date` do integrador. */
   createdAt?: string;
   [key: string]: any;
+}
+
+/**
+ * O integrador devolve as mensagens no formato do Odoo (`mail.message`):
+ * `{ id, body, author_id: { id, name }, date: "yyyy-MM-dd HH:mm:ss" }`, com a data em UTC.
+ * Converte para `author` (nome) e `createdAt` (ISO 8601), mantendo esses campos
+ * se já vierem prontos.
+ */
+export function normalizeEphemMessage(raw: Record<string, any>): EphemMessage {
+  return {
+    ...raw,
+    id: raw.id,
+    author: raw.author ?? authorName(raw.author_id),
+    createdAt: raw.createdAt ?? odooDateToIso(raw.date),
+  };
+}
+
+function authorName(authorId: unknown): string | undefined {
+  // integrador: { id, name }; XML-RPC cru do Odoo: [id, name]; sem autor: false/null
+  if (Array.isArray(authorId) && typeof authorId[1] === 'string') {
+    return authorId[1];
+  }
+  if (authorId && typeof authorId === 'object') {
+    const name = (authorId as { name?: unknown }).name;
+    if (typeof name === 'string' && name.trim().length > 0) return name;
+  }
+  return undefined;
+}
+
+function odooDateToIso(date: unknown): string | undefined {
+  if (typeof date !== 'string') return undefined;
+  const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})$/.exec(
+    date.trim(),
+  );
+  if (!match) return undefined;
+  const iso = `${match[1]}T${match[2]}Z`;
+  return Number.isNaN(Date.parse(iso)) ? undefined : iso;
 }
 
 /** Item de `GET .../signals` — `eventId` liga ao `external_event_id` gravado após o envio. */
@@ -165,7 +204,13 @@ export class EphemClient {
       const embedded = (parsed as { _embedded?: { mensagens?: unknown } })
         ._embedded;
       const list = embedded?.mensagens;
-      return Array.isArray(list) ? list : [];
+      return Array.isArray(list)
+        ? list
+            .filter(
+              (m): m is Record<string, any> => !!m && typeof m === 'object',
+            )
+            .map(normalizeEphemMessage)
+        : [];
     } finally {
       clearTimeout(timeout);
     }
@@ -191,6 +236,13 @@ export class EphemClient {
         signal: controller.signal,
       });
 
+      if (response.status === 409) {
+        // o evento foi aceito pelo integrador, mas ainda não virou signal no ePHEM
+        // (o processamento é assíncrono, a cada ~30s)
+        throw new ConflictException(
+          'O relato ainda está sendo enviado ao ePHEM. Tente novamente em instantes.',
+        );
+      }
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         throw new Error(

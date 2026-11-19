@@ -1598,6 +1598,19 @@ describe('ReportIntegrationsService', () => {
       expect(rows).toHaveLength(1);
       expect(rows[0].body).toBe('ola');
       expect(ephemClient.getMessages).toHaveBeenCalled();
+      // a data remota tambem e gravada no update, corrigindo linhas antigas que ficaram null
+      expect(prisma.report_integration_message.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            author: 'suporte',
+            remote_created_at: createdAt,
+          }),
+          update: expect.objectContaining({
+            author: 'suporte',
+            remote_created_at: createdAt,
+          }),
+        }),
+      );
     });
 
     it('usa campo body quando message não vem da Ephem', async () => {
@@ -1638,6 +1651,10 @@ describe('ReportIntegrationsService', () => {
 
       const rows = await service.syncMessages(4, 1);
       expect(rows[0].body).toBe('só body');
+      // sem data remota, o update nao apaga uma data ja gravada
+      const upsertArgs =
+        prisma.report_integration_message.upsert.mock.calls[0][0];
+      expect(upsertArgs.update).not.toHaveProperty('remote_created_at');
       expect(prisma.report_integration_message.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({ body: 'só body' }),
