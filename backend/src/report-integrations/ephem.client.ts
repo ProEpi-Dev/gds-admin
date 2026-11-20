@@ -60,35 +60,111 @@ const HTML_ENTITIES: Record<string, string> = {
  * - Entidades (`&#64;`, `&amp;`, `&nbsp;`...) são decodificadas.
  */
 export function ephemHtmlToText(html: string): string {
-  const semMencoes = html.replace(
-    /^((?:\s|<(?:p|div|span)\b[^>]*>)*)(?:<a\b[^>]*href="[^"]*res\.partner[^"]*"[^>]*>[\s\S]*?<\/a>[\s,: ]*)+/i,
-    '$1',
-  );
-  const comQuebras = semMencoes
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<li\b[^>]*>/gi, '- ')
-    .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, '\n');
-  const semTags = comQuebras.replace(/<[^>]+>/g, '');
-  const decodificado = semTags.replace(
+  return tidyLines(decodeHtmlEntities(stripHtmlTags(html)));
+}
+
+/** Tags de bloco cujo fechamento vira quebra de linha. */
+const BLOCK_TAGS = new Set([
+  'p',
+  'div',
+  'li',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
+  'tr',
+]);
+
+const MENTION_SEPARATORS = ' \t\n ,:';
+
+/** Nome da tag em `<nome ...>` ou `</nome>`, em minúsculas. */
+function tagName(tag: string): string {
+  const inner = tag.startsWith('</') ? tag.slice(2) : tag.slice(1);
+  let end = 0;
+  while (end < inner.length && /[a-z0-9]/i.test(inner[end])) end++;
+  return inner.slice(0, end).toLowerCase();
+}
+
+/** Texto que uma tag deixa no lugar: quebra de linha, marcador de lista ou nada. */
+function tagReplacement(tag: string, name: string): string {
+  const closing = tag.startsWith('</');
+  if (name === 'br') return '\n';
+  if (name === 'li' && !closing) return '- ';
+  if (closing && BLOCK_TAGS.has(name)) return '\n';
+  return '';
+}
+
+/** Posição logo depois de uma menção (`<a>...</a>` e a pontuação que a segue). */
+function skipMention(html: string, from: number): number {
+  const end = html.toLowerCase().indexOf('</a>', from);
+  let i = end === -1 ? html.length : end + '</a>'.length;
+  while (i < html.length && MENTION_SEPARATORS.includes(html[i])) i++;
+  return i;
+}
+
+/**
+ * Percorre o HTML tag a tag (indexOf, sem regex com retrocesso).
+ * Enquanto ainda não há texto visível, menções a contatos (`<a ... res.partner ...>`) são puladas.
+ */
+function stripHtmlTags(html: string): string {
+  let out = '';
+  let hasText = false;
+  let i = 0;
+  while (i < html.length) {
+    const open = html.indexOf('<', i);
+    const close = open === -1 ? -1 : html.indexOf('>', open);
+    if (close === -1) {
+      out += html.slice(i);
+      break;
+    }
+    const text = html.slice(i, open);
+    out += text;
+    hasText ||= text.trim().length > 0;
+    const tag = html.slice(open, close + 1);
+    const name = tagName(tag);
+    const isMention =
+      !hasText &&
+      name === 'a' &&
+      !tag.startsWith('</') &&
+      tag.includes('res.partner');
+    if (isMention) {
+      i = skipMention(html, close + 1);
+    } else {
+      out += tagReplacement(tag, name);
+      i = close + 1;
+    }
+  }
+  return out;
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text.replaceAll(
     /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
-    (entidade, codigo: string) => {
-      if (codigo.startsWith('#')) {
-        const ponto =
-          codigo[1].toLowerCase() === 'x'
-            ? parseInt(codigo.slice(2), 16)
-            : parseInt(codigo.slice(1), 10);
-        return Number.isFinite(ponto) && ponto > 0 && ponto <= 0x10ffff
-          ? String.fromCodePoint(ponto)
-          : entidade;
+    (entity: string, code: string) => {
+      if (!code.startsWith('#')) {
+        return HTML_ENTITIES[code.toLowerCase()] ?? entity;
       }
-      return HTML_ENTITIES[codigo.toLowerCase()] ?? entidade;
+      const isHex = code[1].toLowerCase() === 'x';
+      const point = isHex
+        ? Number.parseInt(code.slice(2), 16)
+        : Number.parseInt(code.slice(1), 10);
+      return Number.isFinite(point) && point > 0 && point <= 0x10ffff
+        ? String.fromCodePoint(point)
+        : entity;
     },
   );
-  return decodificado
+}
+
+/** Espaços repetidos viram um; no máximo uma linha em branco seguida. */
+function tidyLines(text: string): string {
+  return text
     .split('\n')
-    .map((linha) => linha.replace(/[ \t ]+/g, ' ').trim())
+    .map((line) => line.replaceAll(/[ \t ]+/g, ' ').trim())
     .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
+    .replaceAll(/\n{3,}/g, '\n\n')
     .trim();
 }
 

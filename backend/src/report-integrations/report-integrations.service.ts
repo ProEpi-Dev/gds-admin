@@ -794,6 +794,144 @@ export class ReportIntegrationsService {
 
   // ─── Sincronização de mensagens ──────────────────────────────
 
+  /**
+   * Grava as mensagens vindas do ePHEM: ignora as apagadas (corpo vazio), liga ao id remoto as que
+   * o próprio app enviou (eco) e grava as demais como recebidas.
+   */
+  private async storeRemoteMessages(
+    eventId: number,
+    remoteMessages: Array<Record<string, any>>,
+  ): Promise<void> {
+    const alreadyStored = await this.loadStoredRemoteIds(
+      eventId,
+      remoteMessages.map((m) => String(m.id)),
+    );
+    const sentWithoutRemoteId = await this.loadSentWithoutRemoteId(eventId);
+
+    for (const msg of remoteMessages) {
+      const externalId = String(msg.id);
+      const body = String(msg.message ?? msg.body ?? '');
+      const remoteCreatedAt = msg.createdAt ? new Date(msg.createdAt) : null;
+      // mensagem apagada no ePHEM (o Odoo mantém o registro com o corpo vazio)
+      if (!body.trim()) continue;
+
+      const linked =
+        !alreadyStored.has(externalId) &&
+        (await this.linkEcho(
+          sentWithoutRemoteId,
+          externalId,
+          body,
+          remoteCreatedAt,
+        ));
+      if (!linked) {
+        await this.upsertInboundMessage(
+          eventId,
+          msg,
+          externalId,
+          remoteCreatedAt,
+        );
+      }
+    }
+  }
+
+  /** Ids remotos já gravados: não podem ser reaproveitados para ligar uma mensagem enviada. */
+  private async loadStoredRemoteIds(
+    eventId: number,
+    remoteIds: string[],
+  ): Promise<Set<string>> {
+    const rows: Array<{ external_message_id: string | null }> =
+      await this.integrationMessage.findMany({
+        where: {
+          integration_event_id: eventId,
+          external_message_id: { in: remoteIds },
+        },
+        select: { external_message_id: true },
+      });
+    return new Set(
+      rows.map((m) => m.external_message_id).filter((id): id is string => !!id),
+    );
+  }
+
+  /**
+   * Mensagens que o app enviou: o integrador não devolve o id remoto no envio, então elas ficam sem
+   * external_message_id e voltam na sincronização como se fossem do ePHEM (eco).
+   */
+  private async loadSentWithoutRemoteId(
+    eventId: number,
+  ): Promise<Array<{ id: number; body: string | null }>> {
+    const rows: Array<{
+      id: number;
+      body: string | null;
+      direction?: string;
+      external_message_id?: string | null;
+    }> = await this.integrationMessage.findMany({
+      where: {
+        integration_event_id: eventId,
+        direction: 'outbound',
+        external_message_id: null,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+    return rows.filter(
+      (m) => m.direction === 'outbound' && !m.external_message_id,
+    );
+  }
+
+  /**
+   * Se a mensagem remota é a própria mensagem enviada pelo app (mesmo texto), liga a enviada ao id
+   * remoto em vez de gravar uma cópia como recebida.
+   */
+  private async linkEcho(
+    sentWithoutRemoteId: Array<{ id: number; body: string | null }>,
+    externalId: string,
+    body: string,
+    remoteCreatedAt: Date | null,
+  ): Promise<boolean> {
+    const index = sentWithoutRemoteId.findIndex(
+      (m) => (m.body ?? '').trim() === body.trim(),
+    );
+    if (index < 0) return false;
+    const [sent] = sentWithoutRemoteId.splice(index, 1);
+    await this.integrationMessage.update({
+      where: { id: sent.id },
+      data: {
+        external_message_id: externalId,
+        ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
+      },
+    });
+    return true;
+  }
+
+  private async upsertInboundMessage(
+    eventId: number,
+    msg: Record<string, any>,
+    externalId: string,
+    remoteCreatedAt: Date | null,
+  ): Promise<void> {
+    await this.integrationMessage.upsert({
+      where: {
+        integration_event_id_external_message_id: {
+          integration_event_id: eventId,
+          external_message_id: externalId,
+        },
+      },
+      create: {
+        integration_event_id: eventId,
+        external_message_id: externalId,
+        direction: 'inbound',
+        body: msg.message ?? msg.body ?? '',
+        author: msg.author ?? null,
+        remote_created_at: remoteCreatedAt,
+      },
+      update: {
+        body: msg.message ?? msg.body ?? '',
+        author: msg.author ?? null,
+        // corrige mensagens gravadas antes do mapeamento de `date` (ficaram com null)
+        ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
+      },
+    });
+  }
+
   async syncMessages(
     eventId: number,
     userId: number,
@@ -845,85 +983,7 @@ export class ReportIntegrationsService {
       event.external_event_id,
     );
 
-    // Ids remotos ja gravados: nao podem ser reaproveitados para ligar uma mensagem enviada.
-    const remoteIds = remoteMessages.map((m) => String(m.id));
-    const alreadyStored = new Set<string>(
-      (
-        await this.integrationMessage.findMany({
-          where: {
-            integration_event_id: eventId,
-            external_message_id: { in: remoteIds },
-          },
-          select: { external_message_id: true },
-        })
-      )
-        .map((m: { external_message_id: string | null }) => m.external_message_id)
-        .filter((id: string | null): id is string => !!id),
-    );
-    // Mensagens que o app enviou: o integrador nao devolve o id remoto no envio, entao elas ficam
-    // sem external_message_id e voltam na sincronizacao como se fossem do ePHEM (eco).
-    const sentWithoutRemoteId: Array<{ id: number; body: string | null }> = (
-      await this.integrationMessage.findMany({
-        where: {
-          integration_event_id: eventId,
-          direction: 'outbound',
-          external_message_id: null,
-        },
-        orderBy: { created_at: 'asc' },
-      })
-    ).filter(
-      (m: { direction?: string; external_message_id?: string | null }) =>
-        m.direction === 'outbound' && !m.external_message_id,
-    );
-
-    for (const msg of remoteMessages) {
-      const externalId = String(msg.id);
-      const remoteCreatedAt = msg.createdAt ? new Date(msg.createdAt) : null;
-      const body = String(msg.message ?? msg.body ?? '');
-      // mensagem apagada no ePHEM (o Odoo mantem o registro com o corpo vazio)
-      if (!body.trim()) continue;
-
-      if (!alreadyStored.has(externalId)) {
-        const echoIndex = sentWithoutRemoteId.findIndex(
-          (m) => (m.body ?? '').trim() === body.trim(),
-        );
-        if (echoIndex >= 0) {
-          // e a propria mensagem enviada pelo app: liga ao id remoto em vez de duplicar
-          const [sent] = sentWithoutRemoteId.splice(echoIndex, 1);
-          await this.integrationMessage.update({
-            where: { id: sent.id },
-            data: {
-              external_message_id: externalId,
-              ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
-            },
-          });
-          continue;
-        }
-      }
-
-      await this.integrationMessage.upsert({
-        where: {
-          integration_event_id_external_message_id: {
-            integration_event_id: eventId,
-            external_message_id: externalId,
-          },
-        },
-        create: {
-          integration_event_id: eventId,
-          external_message_id: externalId,
-          direction: 'inbound',
-          body: msg.message ?? msg.body ?? '',
-          author: msg.author ?? null,
-          remote_created_at: remoteCreatedAt,
-        },
-        update: {
-          body: msg.message ?? msg.body ?? '',
-          author: msg.author ?? null,
-          // corrige mensagens gravadas antes do mapeamento de `date` (ficaram com null)
-          ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
-        },
-      });
-    }
+    await this.storeRemoteMessages(eventId, remoteMessages);
 
     const allMessages =
       await this.integrationMessage.findMany({
