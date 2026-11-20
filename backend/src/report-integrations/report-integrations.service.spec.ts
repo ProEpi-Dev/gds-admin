@@ -35,6 +35,9 @@ describe('ReportIntegrationsService', () => {
       report: {
         findUnique: jest.fn(),
       },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       report_integration_event: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
@@ -1802,6 +1805,56 @@ describe('ReportIntegrationsService', () => {
       );
     });
 
+    it('eco com o cabeçalho do autor ("Nome (email) via GDS:") também é ligado à enviada', async () => {
+      prepararSync([
+        {
+          id: 601,
+          body: 'João Ramos (joao.ramos@email.com) via GDS:\nMensagem do app',
+          author: 'GDS App',
+        },
+      ]);
+      prisma.report_integration_message.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 12,
+            direction: 'outbound',
+            external_message_id: null,
+            body: 'Mensagem do app',
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      await service.syncMessages(7, 1);
+
+      expect(prisma.report_integration_message.update).toHaveBeenCalledWith({
+        where: { id: 12 },
+        data: { external_message_id: '601' },
+      });
+      expect(prisma.report_integration_message.upsert).not.toHaveBeenCalled();
+    });
+
+    it('enviada já ligada ao id remoto não tem o texto sobrescrito pelo do ePHEM', async () => {
+      prepararSync([
+        {
+          id: 602,
+          body: 'João Ramos (joao.ramos@email.com) via GDS:\nMensagem do app',
+          author: 'GDS App',
+        },
+      ]);
+      prisma.report_integration_message.findMany
+        .mockResolvedValueOnce([
+          { external_message_id: '602', direction: 'outbound' },
+        ])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.syncMessages(7, 1);
+
+      expect(prisma.report_integration_message.update).not.toHaveBeenCalled();
+      expect(prisma.report_integration_message.upsert).not.toHaveBeenCalled();
+    });
+
     it('id remoto já gravado não é religado a outra mensagem enviada', async () => {
       prepararSync([{ id: 501, body: 'Mensagem do app', author: 'GDS App' }]);
       prisma.report_integration_message.findMany
@@ -2055,9 +2108,26 @@ describe('ReportIntegrationsService', () => {
         created_at: new Date(),
       });
 
+      prisma.user.findUnique.mockResolvedValue({
+        name: 'João Ramos',
+        email: 'joao.ramos@email.com',
+      });
+
       const dto = await service.sendMessage(2, 'texto', 3);
       expect(dto.body).toBe('texto');
-      expect(ephemClient.sendMessage).toHaveBeenCalled();
+      // o autor vai junto para o integrador montar o cabeçalho da nota no ePHEM
+      expect(ephemClient.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ baseUrl: 'https://api' }),
+        'e9',
+        'texto',
+        { name: 'João Ramos', email: 'joao.ramos@email.com' },
+      );
+      expect(prisma.report_integration_message.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          external_message_id: 'out-1',
+          body: 'texto',
+        }),
+      });
     });
   });
 

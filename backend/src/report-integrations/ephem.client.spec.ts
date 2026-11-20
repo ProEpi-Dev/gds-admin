@@ -273,6 +273,29 @@ describe('EphemClient', () => {
       expect(fetchMock.mock.calls[0][1].body).toBe(JSON.stringify({ message: 'ola' }));
     });
 
+    it('envia nome e e-mail do autor quando informados', async () => {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 9 }) });
+
+      await client.sendMessage(baseConfig, 'e1', 'ola', {
+        name: 'João Ramos',
+        email: 'joao.ramos@email.com',
+      });
+      await client.sendMessage(baseConfig, 'e1', 'ola', {
+        name: 'Só nome',
+        email: null,
+      });
+
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+        message: 'ola',
+        authorName: 'João Ramos',
+        authorEmail: 'joao.ramos@email.com',
+      });
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+        message: 'ola',
+        authorName: 'Só nome',
+      });
+    });
+
     it('lança quando HTTP não OK', async () => {
       fetchMock.mockResolvedValue({
         ok: false,
