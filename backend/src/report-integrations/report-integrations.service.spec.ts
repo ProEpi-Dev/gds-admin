@@ -268,6 +268,87 @@ describe('ReportIntegrationsService', () => {
   });
 
   describe('findEventByReportId', () => {
+    const eventoEnviado = (messages: any[] = []) => ({
+      id: 1,
+      report_id: 10,
+      external_event_id: '77',
+      status: 'sent',
+      environment: 'homologation',
+      attempt_count: 0,
+      last_attempt_at: null,
+      last_error: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      messages,
+      report: {
+        participation: {
+          context_id: 1,
+          user_id: 42,
+          integration_training_mode: true,
+        },
+      },
+    });
+
+    it('evento já enviado: sincroniza e devolve as mensagens do ePHEM (o app abre a conversa por aqui)', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue(
+        eventoEnviado(),
+      );
+      const sincronizadas = [
+        {
+          id: 5,
+          externalMessageId: '9',
+          direction: 'inbound',
+          body: 'Resposta da equipe',
+          author: 'Equipe',
+          remoteCreatedAt: null,
+          createdAt: new Date(),
+        },
+      ];
+      const sync = jest
+        .spyOn(service, 'syncMessages')
+        .mockResolvedValue(sincronizadas as any);
+
+      const result = await service.findEventByReportId(10, 42);
+
+      expect(sync).toHaveBeenCalledWith(1, 42);
+      expect(result!.messages).toEqual(sincronizadas);
+    });
+
+    it('falha ao sincronizar: devolve as mensagens já gravadas', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue(
+        eventoEnviado([
+          {
+            id: 3,
+            external_message_id: '8',
+            direction: 'inbound',
+            body: 'gravada',
+            author: null,
+            remote_created_at: null,
+            created_at: new Date(),
+          },
+        ]),
+      );
+      jest
+        .spyOn(service, 'syncMessages')
+        .mockRejectedValue(new Error('integrador fora'));
+
+      const result = await service.findEventByReportId(10, 42);
+
+      expect(result!.messages!.map((m) => m.body)).toEqual(['gravada']);
+    });
+
+    it('evento ainda não enviado: não sincroniza', async () => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        ...eventoEnviado(),
+        external_event_id: null,
+      });
+      const sync = jest.spyOn(service, 'syncMessages');
+
+      await service.findEventByReportId(10, 42);
+
+      expect(sync).not.toHaveBeenCalled();
+    });
+
     it('deve retornar null se não existir', async () => {
       prisma.report_integration_event.findUnique.mockResolvedValue(null);
       expect(await service.findEventByReportId(999, 1)).toBeNull();

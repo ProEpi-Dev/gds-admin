@@ -1191,7 +1191,19 @@ export class ReportIntegrationsService {
       stage = index.get(String(event.external_event_id)) ?? null;
     }
 
-    return this.mapEventToDto(event, stage);
+    const dto = this.mapEventToDto(event, stage);
+    if (!event.external_event_id) return dto;
+
+    // O app abre a conversa por aqui (e não por GET :eventId/messages): sincroniza com o ePHEM para
+    // as respostas da equipe chegarem sem depender de alguém abrir o sinal no GDS Web.
+    try {
+      return { ...dto, messages: await this.syncMessages(event.id, userId) };
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao sincronizar mensagens do evento ${event.id}; devolvendo as já gravadas: ${errorMessageFromUnknown(error)}`,
+      );
+      return dto;
+    }
   }
 
   /**
