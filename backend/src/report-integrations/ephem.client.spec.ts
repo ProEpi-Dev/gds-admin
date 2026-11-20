@@ -1,5 +1,9 @@
 import { ConflictException } from '@nestjs/common';
-import { EphemClient, normalizeEphemMessage } from './ephem.client';
+import {
+  EphemClient,
+  ephemHtmlToText,
+  normalizeEphemMessage,
+} from './ephem.client';
 
 describe('EphemClient', () => {
   let client: EphemClient;
@@ -135,7 +139,8 @@ describe('EphemClient', () => {
       const [msg] = await client.getMessages(baseConfig, '10');
 
       expect(msg.id).toBe(99);
-      expect(msg.body).toBe('<p>Recebido, vamos verificar.</p>');
+      // o corpo HTML do Odoo chega ao app como texto
+      expect(msg.body).toBe('Recebido, vamos verificar.');
       expect(msg.author).toBe('Equipe CIEVS');
       expect(msg.createdAt).toBe('2026-11-18T10:30:00Z');
     });
@@ -171,6 +176,47 @@ describe('EphemClient', () => {
       expect(
         normalizeEphemMessage({ id: '2', author_id: null, date: false }).author,
       ).toBeUndefined();
+    });
+
+    it('converte o corpo HTML em texto (nota do ePHEM 18 com menção ao GDS App)', () => {
+      const msg = normalizeEphemMessage({
+        id: '3',
+        body: '<a href="/odoo/res.partner/2097" class="o_mail_redirect" rel="nofollow">&#64;GDS APP</a> [TESTE] Obrigado pelo relato. A equipa vai verificar &amp; responder.',
+      });
+      expect(msg.body).toBe(
+        '[TESTE] Obrigado pelo relato. A equipa vai verificar & responder.',
+      );
+    });
+  });
+
+  describe('ephemHtmlToText', () => {
+    it('parágrafos, <br> e listas viram quebras de linha', () => {
+      expect(
+        ephemHtmlToText(
+          '<p>Olá,</p><p>Linha 1<br>Linha 2</p><ul><li>um</li><li>dois</li></ul>',
+        ),
+      ).toBe('Olá,\nLinha 1\nLinha 2\n- um\n- dois');
+    });
+
+    it('remove só as menções do início; no meio do texto vira "@Nome"', () => {
+      expect(
+        ephemHtmlToText(
+          '<p><a href="/odoo/res.partner/2097">@GDS APP</a>, fale com <a href="/odoo/res.partner/12">&#64;Maria</a> amanhã.</p>',
+        ),
+      ).toBe('fale com @Maria amanhã.');
+    });
+
+    it('decodifica entidades nomeadas, decimais e hexadecimais', () => {
+      expect(
+        ephemHtmlToText('a&nbsp;b &lt;c&gt; &quot;d&quot; &#233; &#xE7;'),
+      ).toBe('a b <c> "d" é ç');
+    });
+
+    it('texto simples e mensagem apagada (span vazio)', () => {
+      expect(ephemHtmlToText('Mensagem simples')).toBe('Mensagem simples');
+      expect(
+        ephemHtmlToText('<span class="o-mail-Message-edited"></span>'),
+      ).toBe('');
     });
   });
 

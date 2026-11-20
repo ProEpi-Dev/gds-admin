@@ -845,9 +845,62 @@ export class ReportIntegrationsService {
       event.external_event_id,
     );
 
+    // Ids remotos ja gravados: nao podem ser reaproveitados para ligar uma mensagem enviada.
+    const remoteIds = remoteMessages.map((m) => String(m.id));
+    const alreadyStored = new Set<string>(
+      (
+        await this.integrationMessage.findMany({
+          where: {
+            integration_event_id: eventId,
+            external_message_id: { in: remoteIds },
+          },
+          select: { external_message_id: true },
+        })
+      )
+        .map((m: { external_message_id: string | null }) => m.external_message_id)
+        .filter((id: string | null): id is string => !!id),
+    );
+    // Mensagens que o app enviou: o integrador nao devolve o id remoto no envio, entao elas ficam
+    // sem external_message_id e voltam na sincronizacao como se fossem do ePHEM (eco).
+    const sentWithoutRemoteId: Array<{ id: number; body: string | null }> = (
+      await this.integrationMessage.findMany({
+        where: {
+          integration_event_id: eventId,
+          direction: 'outbound',
+          external_message_id: null,
+        },
+        orderBy: { created_at: 'asc' },
+      })
+    ).filter(
+      (m: { direction?: string; external_message_id?: string | null }) =>
+        m.direction === 'outbound' && !m.external_message_id,
+    );
+
     for (const msg of remoteMessages) {
       const externalId = String(msg.id);
       const remoteCreatedAt = msg.createdAt ? new Date(msg.createdAt) : null;
+      const body = String(msg.message ?? msg.body ?? '');
+      // mensagem apagada no ePHEM (o Odoo mantem o registro com o corpo vazio)
+      if (!body.trim()) continue;
+
+      if (!alreadyStored.has(externalId)) {
+        const echoIndex = sentWithoutRemoteId.findIndex(
+          (m) => (m.body ?? '').trim() === body.trim(),
+        );
+        if (echoIndex >= 0) {
+          // e a propria mensagem enviada pelo app: liga ao id remoto em vez de duplicar
+          const [sent] = sentWithoutRemoteId.splice(echoIndex, 1);
+          await this.integrationMessage.update({
+            where: { id: sent.id },
+            data: {
+              external_message_id: externalId,
+              ...(remoteCreatedAt ? { remote_created_at: remoteCreatedAt } : {}),
+            },
+          });
+          continue;
+        }
+      }
+
       await this.integrationMessage.upsert({
         where: {
           integration_event_id_external_message_id: {
@@ -878,7 +931,10 @@ export class ReportIntegrationsService {
         orderBy: { created_at: 'asc' },
       });
 
-    return allMessages.map((m) => this.mapMessageToDto(m));
+    // esconde mensagens sem texto (apagadas no ePHEM antes desta correcao)
+    return allMessages
+      .filter((m: { body?: string | null }) => !!m.body?.trim())
+      .map((m) => this.mapMessageToDto(m));
   }
 
   /**
@@ -1445,7 +1501,9 @@ export class ReportIntegrationsService {
       externalSignalStageLabel: externalSignalStage?.label ?? null,
       createdAt: event.created_at,
       updatedAt: event.updated_at,
-      messages: event.messages?.map((m: any) => this.mapMessageToDto(m)),
+      messages: event.messages
+        ?.filter((m: any) => !!m.body?.trim())
+        .map((m: any) => this.mapMessageToDto(m)),
     };
   }
 

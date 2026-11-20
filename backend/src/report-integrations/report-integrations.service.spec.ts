@@ -47,6 +47,7 @@ describe('ReportIntegrationsService', () => {
         findMany: jest.fn(),
         upsert: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
       },
       integration_config: {
         findFirst: jest.fn(),
@@ -1661,6 +1662,100 @@ describe('ReportIntegrationsService', () => {
           update: expect.objectContaining({ body: 'só body' }),
         }),
       );
+    });
+
+    const prepararSync = (remotas: any[]) => {
+      prisma.report_integration_event.findUnique.mockResolvedValue({
+        id: 7,
+        external_event_id: 'ext-7',
+        environment: 'homologation',
+        report: { participation: { context_id: 5, user_id: 1 } },
+      });
+      prisma.integration_config.findFirst.mockResolvedValue({
+        base_url_production: null,
+        base_url_homologation: 'https://homol.test',
+        auth_config: { token: 'tok' },
+        timeout_ms: 8000,
+      });
+      ephemClient.getMessages.mockResolvedValue(remotas);
+      prisma.report_integration_message.upsert.mockResolvedValue({});
+      prisma.report_integration_message.update.mockResolvedValue({});
+    };
+
+    it('mensagem enviada pelo app que volta do ePHEM é ligada à enviada, sem duplicar (eco)', async () => {
+      prepararSync([
+        { id: 501, body: 'Mensagem do app', author: 'GDS App' },
+        { id: 502, body: 'Resposta da equipe', author: 'ROSÁRIO, Isaac' },
+      ]);
+      prisma.report_integration_message.findMany
+        // ids remotos ja gravados
+        .mockResolvedValueOnce([])
+        // enviadas pelo app ainda sem id remoto
+        .mockResolvedValueOnce([
+          {
+            id: 10,
+            direction: 'outbound',
+            external_message_id: null,
+            body: 'Mensagem do app',
+          },
+        ])
+        // listagem final
+        .mockResolvedValueOnce([]);
+
+      await service.syncMessages(7, 1);
+
+      expect(prisma.report_integration_message.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { external_message_id: '501' },
+      });
+      // so a resposta da equipe vira mensagem recebida
+      expect(prisma.report_integration_message.upsert).toHaveBeenCalledTimes(1);
+      expect(
+        prisma.report_integration_message.upsert.mock.calls[0][0].create,
+      ).toEqual(
+        expect.objectContaining({
+          external_message_id: '502',
+          direction: 'inbound',
+          body: 'Resposta da equipe',
+        }),
+      );
+    });
+
+    it('id remoto já gravado não é religado a outra mensagem enviada', async () => {
+      prepararSync([{ id: 501, body: 'Mensagem do app', author: 'GDS App' }]);
+      prisma.report_integration_message.findMany
+        .mockResolvedValueOnce([{ external_message_id: '501' }])
+        .mockResolvedValueOnce([
+          {
+            id: 11,
+            direction: 'outbound',
+            external_message_id: null,
+            body: 'Mensagem do app',
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      await service.syncMessages(7, 1);
+
+      expect(prisma.report_integration_message.update).not.toHaveBeenCalled();
+      expect(prisma.report_integration_message.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('mensagem apagada no ePHEM (corpo vazio) é ignorada e as vazias já gravadas não aparecem', async () => {
+      prepararSync([{ id: 503, body: '   ', author: 'ROSÁRIO, Isaac' }]);
+      const agora = new Date();
+      prisma.report_integration_message.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: 1, direction: 'inbound', body: '', created_at: agora },
+          { id: 2, direction: 'inbound', body: 'ok', created_at: agora },
+        ]);
+
+      const rows = await service.syncMessages(7, 1);
+
+      expect(prisma.report_integration_message.upsert).not.toHaveBeenCalled();
+      expect(rows.map((r) => r.body)).toEqual(['ok']);
     });
   });
 

@@ -33,7 +33,63 @@ export function normalizeEphemMessage(raw: Record<string, any>): EphemMessage {
     id: raw.id,
     author: raw.author ?? authorName(raw.author_id),
     createdAt: raw.createdAt ?? odooDateToIso(raw.date),
+    ...(typeof raw.body === 'string'
+      ? { body: ephemHtmlToText(raw.body) }
+      : {}),
+    ...(typeof raw.message === 'string'
+      ? { message: ephemHtmlToText(raw.message) }
+      : {}),
   };
+}
+
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+/**
+ * O corpo das mensagens do ePHEM (Odoo) é HTML; o app mostra texto puro.
+ * - Menções a contatos no início (`<a href=".../res.partner/ID">@Nome</a>`) são removidas: no ePHEM 18
+ *   a equipe começa a nota com "@GDS App" só para ela chegar ao GDS, e isso não diz nada ao cidadão.
+ *   Menções no meio do texto ficam como "@Nome".
+ * - Parágrafos, `<br>` e itens de lista viram quebras de linha; demais tags são removidas.
+ * - Entidades (`&#64;`, `&amp;`, `&nbsp;`...) são decodificadas.
+ */
+export function ephemHtmlToText(html: string): string {
+  const semMencoes = html.replace(
+    /^((?:\s|<(?:p|div|span)\b[^>]*>)*)(?:<a\b[^>]*href="[^"]*res\.partner[^"]*"[^>]*>[\s\S]*?<\/a>[\s,: ]*)+/i,
+    '$1',
+  );
+  const comQuebras = semMencoes
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '- ')
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, '\n');
+  const semTags = comQuebras.replace(/<[^>]+>/g, '');
+  const decodificado = semTags.replace(
+    /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
+    (entidade, codigo: string) => {
+      if (codigo.startsWith('#')) {
+        const ponto =
+          codigo[1].toLowerCase() === 'x'
+            ? parseInt(codigo.slice(2), 16)
+            : parseInt(codigo.slice(1), 10);
+        return Number.isFinite(ponto) && ponto > 0 && ponto <= 0x10ffff
+          ? String.fromCodePoint(ponto)
+          : entidade;
+      }
+      return HTML_ENTITIES[codigo.toLowerCase()] ?? entidade;
+    },
+  );
+  return decodificado
+    .split('\n')
+    .map((linha) => linha.replace(/[ \t ]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function authorName(authorId: unknown): string | undefined {
