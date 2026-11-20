@@ -1,4 +1,9 @@
-import { EphemClient } from './ephem.client';
+import { ConflictException } from '@nestjs/common';
+import {
+  EphemClient,
+  ephemHtmlToText,
+  normalizeEphemMessage,
+} from './ephem.client';
 
 describe('EphemClient', () => {
   let client: EphemClient;
@@ -107,6 +112,112 @@ describe('EphemClient', () => {
 
       await expect(client.getMessages(baseConfig, '1')).resolves.toEqual([]);
     });
+
+    it('converte o formato real do integrador: author_id.name e date (UTC) viram author e createdAt', async () => {
+      // corpo como o integrador devolve (SinalMensagem serializada pelo Spring HATEOAS)
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          _embedded: {
+            mensagens: [
+              {
+                date: '2026-11-18 10:30:00',
+                subject: '',
+                signal_id: 555,
+                message_type: 'comment',
+                id: 99,
+                body: '<p>Recebido, vamos verificar.</p>',
+                partner_ids: [3],
+                author_id: { id: 3, name: 'Equipe CIEVS' },
+              },
+            ],
+          },
+          page: { size: 99, totalElements: 1, totalPages: 1, number: 0 },
+        }),
+      });
+
+      const [msg] = await client.getMessages(baseConfig, '10');
+
+      expect(msg.id).toBe(99);
+      // o corpo HTML do Odoo chega ao app como texto
+      expect(msg.body).toBe('Recebido, vamos verificar.');
+      expect(msg.author).toBe('Equipe CIEVS');
+      expect(msg.createdAt).toBe('2026-11-18T10:30:00Z');
+    });
+  });
+
+  describe('normalizeEphemMessage', () => {
+    it('mantém author e createdAt quando já vêm prontos', () => {
+      const msg = normalizeEphemMessage({
+        id: '1',
+        author: 'suporte',
+        createdAt: '2024-06-01T12:00:00.000Z',
+        author_id: { id: 1, name: 'outro' },
+        date: '2020-01-01 00:00:00',
+      });
+      expect(msg.author).toBe('suporte');
+      expect(msg.createdAt).toBe('2024-06-01T12:00:00.000Z');
+    });
+
+    it('aceita author_id no formato cru do Odoo ([id, name])', () => {
+      expect(
+        normalizeEphemMessage({ id: '1', author_id: [7, 'GDS App'] }).author,
+      ).toBe('GDS App');
+    });
+
+    it('sem autor (false/null) ou data inválida: campos ficam undefined', () => {
+      const msg = normalizeEphemMessage({
+        id: '1',
+        author_id: false,
+        date: 'ontem',
+      });
+      expect(msg.author).toBeUndefined();
+      expect(msg.createdAt).toBeUndefined();
+      expect(
+        normalizeEphemMessage({ id: '2', author_id: null, date: false }).author,
+      ).toBeUndefined();
+    });
+
+    it('converte o corpo HTML em texto (nota do ePHEM 18 com menção ao GDS App)', () => {
+      const msg = normalizeEphemMessage({
+        id: '3',
+        body: '<a href="/odoo/res.partner/2097" class="o_mail_redirect" rel="nofollow">&#64;GDS APP</a> [TESTE] Obrigado pelo relato. A equipa vai verificar &amp; responder.',
+      });
+      expect(msg.body).toBe(
+        '[TESTE] Obrigado pelo relato. A equipa vai verificar & responder.',
+      );
+    });
+  });
+
+  describe('ephemHtmlToText', () => {
+    it('parágrafos, <br> e listas viram quebras de linha', () => {
+      expect(
+        ephemHtmlToText(
+          '<p>Olá,</p><p>Linha 1<br>Linha 2</p><ul><li>um</li><li>dois</li></ul>',
+        ),
+      ).toBe('Olá,\nLinha 1\nLinha 2\n- um\n- dois');
+    });
+
+    it('remove só as menções do início; no meio do texto vira "@Nome"', () => {
+      expect(
+        ephemHtmlToText(
+          '<p><a href="/odoo/res.partner/2097">@GDS APP</a>, fale com <a href="/odoo/res.partner/12">&#64;Maria</a> amanhã.</p>',
+        ),
+      ).toBe('fale com @Maria amanhã.');
+    });
+
+    it('decodifica entidades nomeadas, decimais e hexadecimais', () => {
+      expect(
+        ephemHtmlToText('a&nbsp;b &lt;c&gt; &quot;d&quot; &#233; &#xE7;'),
+      ).toBe('a b <c> "d" é ç');
+    });
+
+    it('texto simples e mensagem apagada (span vazio)', () => {
+      expect(ephemHtmlToText('Mensagem simples')).toBe('Mensagem simples');
+      expect(
+        ephemHtmlToText('<span class="o-mail-Message-edited"></span>'),
+      ).toBe('');
+    });
   });
 
   describe('getEvent', () => {
@@ -172,6 +283,21 @@ describe('EphemClient', () => {
       await expect(
         client.sendMessage(baseConfig, 'e1', 'x'),
       ).rejects.toThrow('Ephem sendMessage failed: HTTP 400');
+    });
+
+    it('409 (evento ainda não virou signal no ePHEM) vira ConflictException com mensagem amigável', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 409,
+        text: async () =>
+          '{"message":"o evento ainda nao foi enviado ao ePHEM"}',
+      });
+
+      const erro = client.sendMessage(baseConfig, 'e1', 'x');
+      await expect(erro).rejects.toBeInstanceOf(ConflictException);
+      await expect(client.sendMessage(baseConfig, 'e1', 'x')).rejects.toThrow(
+        'O relato ainda está sendo enviado ao ePHEM',
+      );
     });
   });
 
