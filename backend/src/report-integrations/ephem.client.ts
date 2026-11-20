@@ -352,6 +352,7 @@ export class EphemClient {
     config: EphemConfig,
     eventId: string,
     message: string,
+    author?: { name?: string | null; email?: string | null },
   ): Promise<any> {
     const url = `${config.baseUrl}/${API_PATH}/eventos/${eventId}/mensagens`;
     const controller = new AbortController();
@@ -359,12 +360,18 @@ export class EphemClient {
       () => controller.abort(),
       config.timeoutMs,
     );
+    // integradores antigos ignoram authorName/authorEmail
+    const payload = {
+      message,
+      ...(author?.name ? { authorName: author.name } : {}),
+      ...(author?.email ? { authorEmail: author.email } : {}),
+    };
 
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: this.buildHeaders(config.authToken),
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
 

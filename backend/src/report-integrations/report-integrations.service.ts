@@ -84,6 +84,18 @@ type IntegrationEnvelopeMapping = {
   eventSourceLocationIdFieldKey: string;
 };
 
+/**
+ * Mensagens enviadas pelo GDS chegam ao ePHEM com a linha "Nome (email) via GDS:" antes do texto.
+ * Remove essa linha para comparar com o texto que o usuário escreveu.
+ */
+export function withoutGdsAuthorHeader(text: string): string {
+  const trimmed = text.trimStart();
+  const lineEnd = trimmed.indexOf('\n');
+  if (lineEnd < 0) return text;
+  const firstLine = trimmed.slice(0, lineEnd).trimEnd();
+  return firstLine.endsWith('via GDS:') ? trimmed.slice(lineEnd + 1) : text;
+}
+
 @Injectable()
 export class ReportIntegrationsService {
   private readonly logger = new Logger(ReportIntegrationsService.name);
@@ -815,6 +827,10 @@ export class ReportIntegrationsService {
       // mensagem apagada no ePHEM (o Odoo mantém o registro com o corpo vazio)
       if (!body.trim()) continue;
 
+      // enviada pelo app e já ligada ao id remoto: o texto guardado é o que o usuário escreveu; no ePHEM
+      // ela tem o cabeçalho com o autor, então não sobrescrevemos
+      if (alreadyStored.get(externalId) === 'outbound') continue;
+
       const linked =
         !alreadyStored.has(externalId) &&
         (await this.linkEcho(
@@ -834,27 +850,36 @@ export class ReportIntegrationsService {
     }
   }
 
-  /** Ids remotos já gravados: não podem ser reaproveitados para ligar uma mensagem enviada. */
+  /**
+   * Ids remotos já gravados (com a direção): não podem ser reaproveitados para ligar uma mensagem
+   * enviada.
+   */
   private async loadStoredRemoteIds(
     eventId: number,
     remoteIds: string[],
-  ): Promise<Set<string>> {
-    const rows: Array<{ external_message_id: string | null }> =
-      await this.integrationMessage.findMany({
-        where: {
-          integration_event_id: eventId,
-          external_message_id: { in: remoteIds },
-        },
-        select: { external_message_id: true },
-      });
-    return new Set(
-      rows.map((m) => m.external_message_id).filter((id): id is string => !!id),
-    );
+  ): Promise<Map<string, string | undefined>> {
+    const rows: Array<{
+      external_message_id: string | null;
+      direction?: string;
+    }> = await this.integrationMessage.findMany({
+      where: {
+        integration_event_id: eventId,
+        external_message_id: { in: remoteIds },
+      },
+      select: { external_message_id: true, direction: true },
+    });
+    const stored = new Map<string, string | undefined>();
+    for (const row of rows) {
+      if (row.external_message_id) {
+        stored.set(row.external_message_id, row.direction);
+      }
+    }
+    return stored;
   }
 
   /**
-   * Mensagens que o app enviou: o integrador não devolve o id remoto no envio, então elas ficam sem
-   * external_message_id e voltam na sincronização como se fossem do ePHEM (eco).
+   * Mensagens que o app enviou sem id remoto (integradores antigos não devolvem o id no envio): voltam
+   * na sincronização como se fossem do ePHEM (eco).
    */
   private async loadSentWithoutRemoteId(
     eventId: number,
@@ -887,8 +912,9 @@ export class ReportIntegrationsService {
     body: string,
     remoteCreatedAt: Date | null,
   ): Promise<boolean> {
+    const remoteText = withoutGdsAuthorHeader(body).trim();
     const index = sentWithoutRemoteId.findIndex(
-      (m) => (m.body ?? '').trim() === body.trim(),
+      (m) => (m.body ?? '').trim() === remoteText,
     );
     if (index < 0) return false;
     const [sent] = sentWithoutRemoteId.splice(index, 1);
@@ -1131,10 +1157,17 @@ export class ReportIntegrationsService {
 
     const authToken = authTokenFromIntegrationConfig(config.auth_config);
 
+    // quem escreveu: no ePHEM a nota sai como "GDS App", então o integrador põe nome e e-mail no cabeçalho
+    const author = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+
     const response = await this.ephemClient.sendMessage(
       { baseUrl, authToken, timeoutMs: config.timeout_ms },
       event.external_event_id,
       message,
+      author ?? undefined,
     );
 
     const saved = await this.integrationMessage.create({
